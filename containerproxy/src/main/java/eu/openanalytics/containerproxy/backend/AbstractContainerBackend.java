@@ -30,12 +30,12 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
-import eu.openanalytics.containerproxy.backend.ext.DefaultTargetMappingStrategy;
-import eu.openanalytics.containerproxy.backend.ext.DefaultTargetTestStrategy;
-import eu.openanalytics.containerproxy.backend.ext.ITargetMappingStrategy;
-import eu.openanalytics.containerproxy.backend.ext.ITargetTestStrategy;
-import eu.openanalytics.containerproxy.model.Proxy;
-import eu.openanalytics.containerproxy.model.ProxyStatus;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
+import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultTargetMappingStrategy;
+import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultProxyTestStrategy;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.PropertyResolver;
 
 public abstract class AbstractContainerBackend implements IContainerBackend {
@@ -46,9 +46,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	private boolean useInternalNetwork;
 	
-	protected ITargetMappingStrategy mappingStrategy = new DefaultTargetMappingStrategy();
+	protected IProxyTargetMappingStrategy mappingStrategy = new DefaultTargetMappingStrategy();
 
-	protected ITargetTestStrategy testStrategy = new DefaultTargetTestStrategy();
+	protected IProxyTestStrategy testStrategy = new DefaultProxyTestStrategy();
 	
 	@Inject
 	protected PropertyResolver props;
@@ -60,12 +60,12 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 	
 	@Autowired(required=false)
-	public void setMappingStrategy(ITargetMappingStrategy mappingStrategy) {
+	public void setMappingStrategy(IProxyTargetMappingStrategy mappingStrategy) {
 		this.mappingStrategy = mappingStrategy;
 	}
 	
 	@Autowired(required=false)
-	public void setTestStrategy(ITargetTestStrategy testStrategy) {
+	public void setTestStrategy(IProxyTestStrategy testStrategy) {
 		this.testStrategy = testStrategy;
 	}
 	

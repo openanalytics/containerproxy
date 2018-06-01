@@ -1,4 +1,4 @@
-package eu.openanalytics.containerproxy.model;
+package eu.openanalytics.containerproxy.model.runtime;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -6,12 +6,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+
 public class Proxy {
 
-	private String name;
 	private String id;
 	
-	private App app;
+	private ProxySpec spec;
 
 	private ProxyStatus status;
 
@@ -26,14 +27,6 @@ public class Proxy {
 		targets = new HashMap<>();
 	}
 	
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
 	public String getId() {
 		return id;
 	}
@@ -42,12 +35,12 @@ public class Proxy {
 		this.id = id;
 	}
 
-	public App getApp() {
-		return app;
+	public ProxySpec getSpec() {
+		return spec;
 	}
 
-	public void setApp(App app) {
-		this.app = app;
+	public void setSpec(ProxySpec spec) {
+		this.spec = spec;
 	}
 
 	public ProxyStatus getStatus() {

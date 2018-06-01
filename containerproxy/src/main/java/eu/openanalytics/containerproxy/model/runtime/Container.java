@@ -1,4 +1,6 @@
-package eu.openanalytics.containerproxy.model;
+package eu.openanalytics.containerproxy.model.runtime;
+
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class Container {
 

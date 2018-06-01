@@ -1,5 +1,7 @@
-package eu.openanalytics.containerproxy.model;
+package eu.openanalytics.containerproxy.model.spec;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ContainerSpec {
@@ -74,5 +76,24 @@ public class ContainerSpec {
 	}
 	public void setPrivileged(boolean privileged) {
 		this.privileged = privileged;
+	}
+	
+	public void copy(ContainerSpec target) {
+		target.setImage(image);
+		if (cmd != null) target.setCmd(Arrays.copyOf(cmd, cmd.length));
+		if (env != null) {
+			if (target.getEnv() == null) target.setEnv(new HashMap<>());
+			target.getEnv().putAll(env);
+		}
+		target.setNetwork(network);
+		if (networkConnections != null) target.setNetworkConnections(Arrays.copyOf(networkConnections, networkConnections.length));
+		if (dns != null) target.setDns(Arrays.copyOf(dns, dns.length));
+		if (volumes != null) target.setVolumes(Arrays.copyOf(volumes, volumes.length));
+		if (portMapping != null) {
+			if (target.getPortMapping() == null) target.setPortMapping(new HashMap<>());
+			target.getPortMapping().putAll(portMapping);
+		}
+		target.setMemory(memory);
+		target.setPrivileged(privileged);
 	}
 }

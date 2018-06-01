@@ -18,37 +18,14 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service;
+package eu.openanalytics.containerproxy.model.runtime;
 
-import java.util.ArrayList;
-import java.util.List;
+public enum ProxyStatus {
 
-import javax.inject.Inject;
-
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
-import eu.openanalytics.containerproxy.model.App;
-
-@ConfigurationProperties(prefix = "proxy")
-@Service
-public class AppService {
-
-	private List<App> apps = new ArrayList<>();
-	
-	@Inject
-	Environment environment;
-	
-	public App getApp(String name) {
-		for (App app: apps) {
-			if (app.getName().equals(name)) return app;
-		}
-		return null;
-	}
-
-	public List<App> getApps() {
-		return apps;
-	}
+	New,
+	Starting,
+	Up,
+	Stopping,
+	Stopped
 
 }

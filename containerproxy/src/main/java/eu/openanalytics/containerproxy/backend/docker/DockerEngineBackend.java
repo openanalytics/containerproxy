@@ -37,20 +37,19 @@ import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
 
-import eu.openanalytics.containerproxy.model.Container;
-import eu.openanalytics.containerproxy.model.ContainerSpec;
-import eu.openanalytics.containerproxy.model.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
 	@Override
 	protected void doStartProxy(Proxy proxy) throws Exception {
-		for (ContainerSpec spec: proxy.getApp().getContainerSpecs()) {
+		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			Container c = startContainer(spec, proxy);
 			proxy.getContainers().add(c);
 		}
 		proxy.setId(UUID.randomUUID().toString());
-		proxy.setName(proxy.getId());
 	}
 	
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {

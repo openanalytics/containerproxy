@@ -1,9 +1,10 @@
-package eu.openanalytics.containerproxy.backend.ext;
+package eu.openanalytics.containerproxy.backend.strategy.impl;
 
-import eu.openanalytics.containerproxy.model.Container;
-import eu.openanalytics.containerproxy.model.Proxy;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
+import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
-public class DefaultTargetMappingStrategy implements ITargetMappingStrategy {
+public class DefaultTargetMappingStrategy implements IProxyTargetMappingStrategy {
 
 	public static final String DEFAULT_MAPPING_KEY = "default";
 	

@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy;
 
-import java.util.Arrays;
-
 import javax.inject.Inject;
 
 import org.springframework.context.annotation.Bean;
@@ -34,11 +32,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.model.App;
-import eu.openanalytics.containerproxy.service.AppService;
+import eu.openanalytics.containerproxy.auth.LogoutHandler;
 import eu.openanalytics.containerproxy.service.UserService;
 
 @Configuration
@@ -46,16 +44,16 @@ import eu.openanalytics.containerproxy.service.UserService;
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Inject
-	AppService appService;
+	private LogoutHandler logoutHandler;
 
 	@Inject
-	UserService userService;
+	private UserService userService;
 	
 	@Inject
-	IAuthenticationBackend auth;
+	private IAuthenticationBackend auth;
 	
 	@Inject
-	AuthenticationEventPublisher eventPublisher;
+	private AuthenticationEventPublisher eventPublisher;
 	
 	@Override
 	public void configure(WebSecurity web) throws Exception {
@@ -75,13 +73,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		if (auth.hasAuthorization()) {
 			// Limit access to the app pages
 			http.authorizeRequests().antMatchers("/login", "/signin/**", "/signup").permitAll();
-			for (App app: appService.getApps()) {
-				if (app.getAccessControl() == null) continue;
-				String[] groups = app.getAccessControl().getGroups();
-				if (groups == null || groups.length == 0) continue;
-				String[] appGroups = Arrays.stream(groups).map(s -> s.toUpperCase()).toArray(i -> new String[i]);
-				http.authorizeRequests().antMatchers("/app/" + app.getName()).hasAnyRole(appGroups);
-			}
+			//TODO ShinyProxy specific
+//			for (ProxySpec spec: proxyService.listSpecs()) {
+//				if (spec.getAccessControl() == null) continue;
+//				String[] groups = spec.getAccessControl().getGroups();
+//				if (groups == null || groups.length == 0) continue;
+//				String[] appGroups = Arrays.stream(groups).map(s -> s.toUpperCase()).toArray(i -> new String[i]);
+//				http.authorizeRequests().antMatchers("/app/" + spec.getName()).hasAnyRole(appGroups);
+//			}
 
 			// Limit access to the admin pages
 			http.authorizeRequests().antMatchers("/admin").hasAnyRole(userService.getAdminGroups());
@@ -95,8 +94,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.and()
 				.logout()
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-//					.logoutSuccessHandler(logoutHandler)
+					.logoutSuccessHandler(logoutHandler)
 					.logoutSuccessUrl("/login");
+			
+			// Enable basic auth for RESTful calls
+			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
 		}
 		
 		auth.configureHttpSecurity(http);

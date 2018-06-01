@@ -42,8 +42,8 @@ import com.spotify.docker.client.exceptions.DockerException;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
-import eu.openanalytics.containerproxy.model.Container;
-import eu.openanalytics.containerproxy.model.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.util.PortAllocator;
 
 

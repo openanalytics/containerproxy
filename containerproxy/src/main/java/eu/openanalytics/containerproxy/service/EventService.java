@@ -71,7 +71,7 @@ public class EventService {
 	public enum EventType {
 		Login,
 		Logout,
-		AppStart,
-		AppStop
+		ProxyStart,
+		ProxyStop
 	}
 }

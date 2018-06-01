@@ -1,4 +1,4 @@
-package eu.openanalytics.containerproxy.backend.ext;
+package eu.openanalytics.containerproxy.backend.strategy.impl;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -7,10 +7,11 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import eu.openanalytics.containerproxy.model.Proxy;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.util.Retrying;
 
-public class DefaultTargetTestStrategy implements ITargetTestStrategy {
+public class DefaultProxyTestStrategy implements IProxyTestStrategy {
 
 	protected static final String PROPERTY_CONTAINER_WAIT_TIME = "container-wait-time";
 	protected static final String PROPERTY_CONTAINER_WAIT_TIMEOUT = "container-wait-timeout";

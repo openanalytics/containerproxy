@@ -24,8 +24,8 @@ import java.io.File;
 import java.util.function.BiConsumer;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
-import eu.openanalytics.containerproxy.model.Proxy;
-import eu.openanalytics.containerproxy.model.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 
 public interface IContainerBackend {
 

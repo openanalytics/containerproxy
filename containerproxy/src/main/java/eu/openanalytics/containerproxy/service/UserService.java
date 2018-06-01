@@ -38,7 +38,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.model.App;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
 
 
@@ -51,16 +52,14 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	Environment environment;
 
 	@Inject
-	ProxyService proxyService;
-
-	@Inject
 	EventService eventService;
-	
-	@Inject
-	AppService appService;
 	
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
+	}
+	
+	public String getCurrentUserId() {
+		return getUserId(getCurrentAuth());
 	}
 	
 	public String[] getAdminGroups() {
@@ -72,19 +71,15 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		return adminGroups;
 	}
 	
-	public List<App> getAccessibleApps(Authentication principalAuth) {
-		List<App> accessibleApps = new ArrayList<>();
-		for (App app: appService.getApps()) {
-			if (canAccess(principalAuth, app.getName())) accessibleApps.add(app);
-		}
-		return accessibleApps;
+	public String[] getGroups() {
+		return getGroups(getCurrentAuth());
 	}
 	
-	public String[] getGroups(Authentication principalAuth) {
+	public String[] getGroups(Authentication auth) {
 		List<String> groups = new ArrayList<>();
-		if (principalAuth != null) {
-			for (GrantedAuthority auth: principalAuth.getAuthorities()) {
-				String authName = auth.getAuthority().toUpperCase();
+		if (auth != null) {
+			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {
+				String authName = grantedAuth.getAuthority().toUpperCase();
 				if (authName.startsWith("ROLE_")) authName = authName.substring(5);
 				groups.add(authName);
 			}
@@ -92,33 +87,58 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		return groups.toArray(new String[groups.size()]);
 	}
 	
-	public boolean isAdmin(Authentication principalAuth) {
+	public boolean isAdmin() {
+		return isAdmin(getCurrentAuth());
+	}
+	
+	public boolean isAdmin(Authentication auth) {
 		for (String adminGroups: getAdminGroups()) {
-			if (isMember(principalAuth, adminGroups)) return true;
+			if (isMember(auth, adminGroups)) return true;
 		}
 		return false;
 	}
 	
-	private boolean isMember(Authentication principalAuth, String groupName) {
-		if (principalAuth == null || groupName == null) return false;
-		for (String group: getGroups(principalAuth)) {
+	public boolean canAccess(ProxySpec spec) {
+		return canAccess(getCurrentAuth(), spec);
+	}
+	
+	public boolean canAccess(Authentication auth, ProxySpec spec) {
+		if (auth == null || spec == null) return false;
+		if (auth instanceof AnonymousAuthenticationToken) return false;
+
+		if (spec.getAccessControl() == null) return true;
+		
+		String[] groups = spec.getAccessControl().getGroups();
+		if (groups == null || groups.length == 0) return true;
+		for (String group: groups) {
+			if (isMember(auth, group)) return true;
+		}
+		return false;
+	}
+	
+	public boolean isOwner(Proxy proxy) {
+		return isOwner(getCurrentAuth(), proxy);
+	}
+
+	public boolean isOwner(Authentication auth, Proxy proxy) {
+		if (auth == null || auth instanceof AnonymousAuthenticationToken) return false;
+		if (proxy == null) return false;
+		return proxy.getUserId().equals(getUserId(auth));
+	}
+	
+	private boolean isMember(Authentication auth, String groupName) {
+		if (auth == null || auth instanceof AnonymousAuthenticationToken || groupName == null) return false;
+		for (String group: getGroups(auth)) {
 			if (group.equalsIgnoreCase(groupName)) return true;
 		}
 		return false;
 	}
-	
-	private boolean canAccess(Authentication principalAuth, String appName) {
-		App app = appService.getApp(appName);
-		if (app == null) return false;
-		String[] groups = app.getAccessControl().getGroups();
-		if (groups == null || groups.length == 0) return true;
-		if (principalAuth == null || principalAuth instanceof AnonymousAuthenticationToken) return true;
-		for (String group: groups) {
-			if (isMember(principalAuth, group)) return true;
-		}
-		return false;
-	}
 
+	private String getUserId(Authentication auth) {
+		if (auth == null) return null;
+		return auth.getName();
+	}
+	
 	@Override
 	public void onApplicationEvent(AbstractAuthenticationEvent event) {
 		Authentication source = event.getAuthentication();
@@ -132,10 +152,16 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		}
 	}
 
-	public void logout(String userName) {
-		log.info(String.format("User logged out [user: %s]", userName));
-		eventService.post(EventType.Logout.toString(), userName, null);
-		proxyService.releaseProxies(userName);
+	public void logout(Authentication auth) {
+		String userId = getUserId(auth);
+		if (userId == null) return;
+//		if (authentication.getPrincipal() instanceof UserDetails) {
+//			userName = ((UserDetails) authentication.getPrincipal()).getUsername();
+//		}
+		log.info(String.format("User logged out [user: %s]", userId));
+		eventService.post(EventType.Logout.toString(), userId, null);
+		//TODO
+//		proxyService.stopAllProxies(userName);
 	}
 
 }

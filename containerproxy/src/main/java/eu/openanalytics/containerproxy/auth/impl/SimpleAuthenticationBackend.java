@@ -40,7 +40,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 	public static final String NAME = "simple";
 	
 	@Inject
-	Environment environment;
+	private Environment environment;
 	
 	@Override
 	public String getName() {

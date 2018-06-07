@@ -72,7 +72,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		if (auth.hasAuthorization()) {
 			// Limit access to the app pages
-			http.authorizeRequests().antMatchers("/login", "/signin/**", "/signup").permitAll();
+			http.authorizeRequests().antMatchers("/login").permitAll();
+			
+//			http.authorizeRequests().antMatchers("/login", "/signin/**", "/signup").permitAll();
 			//TODO ShinyProxy specific
 //			for (ProxySpec spec: proxyService.listSpecs()) {
 //				if (spec.getAccessControl() == null) continue;

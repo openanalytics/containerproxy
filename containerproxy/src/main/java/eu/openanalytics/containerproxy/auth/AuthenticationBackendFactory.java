@@ -28,6 +28,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import eu.openanalytics.containerproxy.auth.impl.KeycloakAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
 
@@ -43,6 +45,10 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 	
 	@Inject
 	private ApplicationContext applicationContext;
+	
+	// Special case for keycloak: this component registers some beans of its own.
+	@Inject
+	private KeycloakAuthenticationBackend keycloakBackend;
 	
 	@Override
 	public Class<?> getObjectType() {
@@ -61,6 +67,11 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 		case SimpleAuthenticationBackend.NAME:
 			backend = new SimpleAuthenticationBackend();
 			break;
+		case LDAPAuthenticationBackend.NAME:
+			backend = new LDAPAuthenticationBackend();
+			break;
+		case KeycloakAuthenticationBackend.NAME:
+			return keycloakBackend;
 		}
 		if (backend == null) throw new RuntimeException("Unknown authentication type:" + type);
 		

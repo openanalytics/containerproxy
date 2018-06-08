@@ -37,12 +37,12 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication.MappingManager;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 @Service
 public class ProxyService {
@@ -55,7 +55,7 @@ public class ProxyService {
 	private IContainerBackend backend;
 
 	@Inject
-	private MappingManager mappingManager;
+	private ProxyMappingManager mappingManager;
 	
 	@Inject
 	private UserService userService;

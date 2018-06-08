@@ -1,6 +1,7 @@
 package eu.openanalytics.containerproxy;
 
-import java.net.URI;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -14,11 +15,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 
 import eu.openanalytics.containerproxy.util.PropertyResolver;
-import io.undertow.Handlers;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;
-import io.undertow.server.handlers.ResponseCodeHandler;
-import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 import io.undertow.server.handlers.proxy.ProxyHandler;
+import io.undertow.util.PathMatcher;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
@@ -28,9 +30,10 @@ public class ContainerProxyApplication {
 	private static final String CONFIG_DEMO_PROFILE = "demo";
 	
 	@Inject
-	PropertyResolver props;
-	
-	private PathHandler pathHandler;
+	private PropertyResolver props;
+
+	@Inject
+	private ProxyMappingManager mappingManager;
 	
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -50,38 +53,36 @@ public class ContainerProxyApplication {
 	
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
-		//TODO Secure the proxy path (it bypasses spring security filters)
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> info.addInitialHandlerChainWrapper(defaultHandler -> {
-				pathHandler = Handlers.path(defaultHandler);
+				PathHandler pathHandler = new ProtectedPathHandler(defaultHandler);
+				mappingManager.setPathHandler(pathHandler);
 				return pathHandler;
 		}));
 		factory.setPort(props.getInt("port", 8080));
 		return factory;	
 	}
+	
+	private class ProtectedPathHandler extends PathHandler {
+		
+		public ProtectedPathHandler(HttpHandler defaultHandler) {
+			super(defaultHandler);
+		}
 
-	@Bean
-	public MappingManager mappingManager() {
-		return new MappingManager() {
-			@SuppressWarnings("deprecation")
-			@Override
-			public synchronized void addMapping(String path, URI target) {
-				if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-				LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient();
-				proxyClient.addHost(target);
-				pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
+		@SuppressWarnings("unchecked")
+		@Override
+		public void handleRequest(HttpServerExchange exchange) throws Exception {
+			Field field = PathHandler.class.getDeclaredField("pathMatcher");
+			field.setAccessible(true);
+			PathMatcher<HttpHandler> pathMatcher = (PathMatcher<HttpHandler>) field.get(this);
+			PathMatcher.PathMatch<HttpHandler> match = pathMatcher.match(exchange.getRelativePath());
+
+			if (match.getValue() instanceof ProxyHandler && !mappingManager.requestHasAccess(exchange)) {
+				exchange.setStatusCode(403);
+				exchange.getResponseChannel().write(ByteBuffer.wrap("Not authorized to access this proxy".getBytes()));
+			} else {
+				super.handleRequest(exchange);
 			}
-			@Override
-			public synchronized void removeMapping(String path) {
-				if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-				pathHandler.removePrefixPath(path);
-			}
-		};
+		}
 	}
-	
-	public static interface MappingManager {
-		public void addMapping(String path, URI target);
-		public void removeMapping(String path);
-	}
-	
 }

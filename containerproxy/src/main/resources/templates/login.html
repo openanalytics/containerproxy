@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+
+<head lang="en">
+	<title th:text="${title}"></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<link rel="stylesheet" media="screen" th:href="@{/webjars/bootstrap/4.0.0/css/bootstrap.min.css}"/>
+	<link rel="stylesheet" media="screen" th:href="@{/css/default.css}"/>
+	<script th:src="@{/webjars/jquery/3.3.1/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/4.0.0/js/bootstrap.min.js}"></script>
+</head>
+
+<body>
+	<div class="container">
+		<div>
+			<form class="form-signin" action="login" method="POST">
+				<h2 class="form-signin-heading">Please sign in:</h2>
+				<div class="alert alert-danger" th:if="${error}">
+	  				<strong>Could not sign in!</strong><br/><span th:text="${error}"></span>.
+				</div>
+				<label for="username" class="sr-only">Email address</label> 
+				<input name="username" id="username" class="form-control" placeholder="User name" required="required" autofocus="autofocus"></input> 
+				<label for="password" class="sr-only">Password</label>
+				<input name="password" type="password" id="password" class="form-control" placeholder="Password" required="required"></input>
+				<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+			</form>
+		</div>
+	</div>
+</body>
+
+</html>

@@ -1,0 +1,4 @@
+curl --dump-header - --cookie "JSESSIONID=yaS4pbsbfv-nQaJpIk5yEgpfQQ5Jt0sVxCGMJTt_" --data "[]" -H "Content-Type: application/json" -X POST http://localhost:8080/api/proxy/01_hello
+
+
+curl -v -u demo:demo --data "[]" -H "Content-Type: application/json" -X POST http://localhost:8080/api/proxy/01_hello

@@ -20,37 +20,25 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import java.io.IOException;
-
 import javax.inject.Inject;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.util.PropertyResolver;
 
 @Component
-public class LogoutHandler implements LogoutSuccessHandler {
+public class UserLogoutHandler implements LogoutHandler {
 
 	@Inject
 	private UserService userService;
 	
-	@Inject
-	private PropertyResolver props;
-	
-	@Inject
-	Environment environment;
-	
 	@Override
-	public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 		userService.logout(authentication);
-		response.sendRedirect(props.get("server.contextPath", "") + "/");
 	}
 	
 }

@@ -50,6 +50,7 @@ public class ContainerProxyApplication {
 	
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
+		//TODO Secure the proxy path (it bypasses spring security filters)
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> info.addInitialHandlerChainWrapper(defaultHandler -> {
 				pathHandler = Handlers.path(defaultHandler);

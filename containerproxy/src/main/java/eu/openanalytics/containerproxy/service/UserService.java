@@ -38,6 +38,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
@@ -49,10 +50,13 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	private Logger log = LogManager.getLogger(UserService.class);
 
 	@Inject
-	Environment environment;
+	private Environment environment;
 
 	@Inject
-	EventService eventService;
+	private EventService eventService;
+	
+	@Inject
+	private IProxyLogoutStrategy logoutStrategy;
 	
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
@@ -155,13 +159,14 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	public void logout(Authentication auth) {
 		String userId = getUserId(auth);
 		if (userId == null) return;
+		
 //		if (authentication.getPrincipal() instanceof UserDetails) {
 //			userName = ((UserDetails) authentication.getPrincipal()).getUsername();
 //		}
-		log.info(String.format("User logged out [user: %s]", userId));
+		
 		eventService.post(EventType.Logout.toString(), userId, null);
-		//TODO
-//		proxyService.stopAllProxies(userName);
+		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+		log.info(String.format("User logged out [user: %s]", userId));
 	}
 
 }

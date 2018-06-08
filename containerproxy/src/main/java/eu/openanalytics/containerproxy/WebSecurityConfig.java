@@ -36,7 +36,7 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.auth.LogoutHandler;
+import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.service.UserService;
 
 @Configuration
@@ -44,7 +44,7 @@ import eu.openanalytics.containerproxy.service.UserService;
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Inject
-	private LogoutHandler logoutHandler;
+	private UserLogoutHandler logoutHandler;
 
 	@Inject
 	private UserService userService;
@@ -96,10 +96,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.and()
 				.logout()
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-					.logoutSuccessHandler(logoutHandler)
+					.addLogoutHandler(logoutHandler)
 					.logoutSuccessUrl("/login");
 			
 			// Enable basic auth for RESTful calls
+			//TODO Restful calls with basic auth will generate a new "login" every time
 			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
 		}
 		

@@ -31,7 +31,3 @@ proxy:
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         default: 3838
-
-logging:
-  level:
-    org.keycloak: info

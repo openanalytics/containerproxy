@@ -73,6 +73,11 @@ public class ProxyService {
 		return getProxies(proxy -> proxy.getId().equals(id)).stream().findAny().orElse(null);
 	}
 	
+	public List<Proxy> getProxies(String userId) {
+		if (userId == null) return Collections.emptyList();
+		return getProxies(proxy -> userId.equals(proxy.getUserId()));
+	}
+	
 	public List<Proxy> listActiveProxies() {
 		return getProxies(p -> true);
 	}

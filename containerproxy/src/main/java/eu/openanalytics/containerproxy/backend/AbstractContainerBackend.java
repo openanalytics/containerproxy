@@ -32,8 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
-import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultTargetMappingStrategy;
-import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.PropertyResolver;
@@ -46,9 +44,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	private boolean useInternalNetwork;
 	
-	protected IProxyTargetMappingStrategy mappingStrategy = new DefaultTargetMappingStrategy();
+	@Inject
+	protected IProxyTargetMappingStrategy mappingStrategy;
 
-	protected IProxyTestStrategy testStrategy = new DefaultProxyTestStrategy();
+	@Inject
+	protected IProxyTestStrategy testStrategy;
 	
 	@Inject
 	protected PropertyResolver props;

@@ -45,11 +45,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 	@Override
 	protected void doStartProxy(Proxy proxy) throws Exception {
+		proxy.setId(UUID.randomUUID().toString());
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			Container c = startContainer(spec, proxy);
 			proxy.getContainers().add(c);
 		}
-		proxy.setId(UUID.randomUUID().toString());
 	}
 	
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {

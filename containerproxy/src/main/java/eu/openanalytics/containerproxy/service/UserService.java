@@ -67,7 +67,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	}
 	
 	public String[] getAdminGroups() {
-		String[] adminGroups = environment.getProperty("shiny.proxy.admin-groups", String[].class);
+		String[] adminGroups = environment.getProperty("proxy.admin-groups", String[].class);
 		if (adminGroups == null) adminGroups = new String[0];
 		for (int i = 0; i < adminGroups.length; i++) {
 			adminGroups[i] = adminGroups[i].toUpperCase();

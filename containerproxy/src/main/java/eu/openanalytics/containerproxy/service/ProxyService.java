@@ -24,11 +24,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -39,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
@@ -79,42 +81,49 @@ public class ProxyService {
 	@PreDestroy
 	public void shutdown() {
 		containerKiller.shutdown();
-		for (Proxy proxy: getProxies(p -> true)) backend.stopProxy(proxy);
-	}
-	
-	public Set<ProxySpec> getProxySpecs() {
-		return baseSpecProvider.getSpecs();
+		for (Proxy proxy: getProxies(null, true)) backend.stopProxy(proxy);
 	}
 	
 	public ProxySpec getProxySpec(String id) {
-		return baseSpecProvider.getSpec(id);
+		return findProxySpec(spec -> spec.getId().equals(id), true);
 	}
 	
-	public ProxySpec resolveProxySpec(String baseSpecId, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
-		ProxySpec baseSpec = baseSpecProvider.getSpec(baseSpecId);
-		ProxySpec finalSpec = specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
-		return finalSpec;
+	public ProxySpec resolveProxySpec(ProxySpec baseSpec, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
+		return specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
 	}
 	
 	public Proxy getProxy(String id) {
-		return getProxies(proxy -> proxy.getId().equals(id)).stream().findAny().orElse(null);
+		return findProxy(proxy -> proxy.getId().equals(id), true);
 	}
 	
-	public List<Proxy> getProxies(String userId) {
-		if (userId == null) return Collections.emptyList();
-		return getProxies(proxy -> userId.equals(proxy.getUserId()));
+	public Proxy findProxy(Predicate<Proxy> filter, boolean ignoreAccessControl) {
+		return getProxies(filter, ignoreAccessControl).stream().findAny().orElse(null);
 	}
 	
-	public List<Proxy> listActiveProxies() {
-		return listActiveProxies(false);
+	public List<Proxy> getProxies(Predicate<Proxy> filter, boolean ignoreAccessControl) {
+		boolean isAdmin = userService.isAdmin();
+		List<Proxy> matches = new ArrayList<>();
+		synchronized (activeProxies) {
+			for (Proxy proxy: activeProxies) {
+				boolean hasAccess = ignoreAccessControl || isAdmin || userService.isOwner(proxy);
+				if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
+			}
+		}
+		return matches;
 	}
 	
-	public List<Proxy> listActiveProxies(boolean allUsers) {
-		if (allUsers) return new ArrayList<>(activeProxies);
-		else return getProxies(p -> true);
+	public ProxySpec findProxySpec(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
+		return getProxySpecs(filter, ignoreAccessControl).stream().findAny().orElse(null);
 	}
 	
-	public Proxy startProxy(ProxySpec spec) {
+	public List<ProxySpec> getProxySpecs(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
+		return baseSpecProvider.getSpecs().stream()
+				.filter(spec -> ignoreAccessControl || userService.canAccess(spec))
+				.filter(spec -> filter == null || filter.test(spec))
+				.collect(Collectors.toList());
+	}
+	
+	public Proxy startProxy(ProxySpec spec) throws ContainerProxyException {
 		if (!userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
@@ -140,13 +149,12 @@ public class ProxyService {
 		
 		return proxy;
 	}
-	
-	public void stopProxy(String proxyId) {
-		Proxy proxy = getProxy(proxyId);
-		if (proxy != null) stopProxy(proxy, true);
-	}
 
 	public void stopProxy(Proxy proxy, boolean async) {
+		if (!userService.isAdmin() && !userService.isOwner(proxy)) {
+			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
+		}
+		
 		activeProxies.remove(proxy);
 		
 		Runnable releaser = () -> {
@@ -164,18 +172,6 @@ public class ProxyService {
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
-	}
-	
-	private List<Proxy> getProxies(Predicate<Proxy> filter) {
-		boolean isAdmin = userService.isAdmin();
-		List<Proxy> matches = new ArrayList<>();
-		synchronized (activeProxies) {
-			for (Proxy proxy: activeProxies) {
-				boolean isOwner = userService.isOwner(proxy);
-				if (filter.test(proxy) && (isOwner || isAdmin)) matches.add(proxy);
-			}
-		}
-		return matches;
 	}
 
 }

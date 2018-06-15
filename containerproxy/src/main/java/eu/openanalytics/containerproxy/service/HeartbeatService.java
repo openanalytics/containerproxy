@@ -88,7 +88,7 @@ public class HeartbeatService {
 			while (true) {
 				try {
 					long currentTimestamp = System.currentTimeMillis();
-					for (Proxy proxy: proxyService.listActiveProxies(true)) {
+					for (Proxy proxy: proxyService.getProxies(null, true)) {
 						Long lastHeartbeat = proxyHeartbeats.get(proxy.getId());
 						if (lastHeartbeat == null) lastHeartbeat = proxy.getStartupTimestamp();
 						long proxySilence = currentTimestamp - lastHeartbeat;

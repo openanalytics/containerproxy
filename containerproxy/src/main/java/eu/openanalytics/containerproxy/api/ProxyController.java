@@ -25,42 +25,52 @@ public class ProxyController extends BaseController {
 	private ProxyService proxyService;
 	
 	@RequestMapping(value="/api/proxyspec", method=RequestMethod.GET)
-	public Set<ProxySpec> listProxySpecs() {
-		return proxyService.getProxySpecs();
+	public List<ProxySpec> listProxySpecs() {
+		return proxyService.getProxySpecs(null, false);
 	}
 	
 	@RequestMapping(value="/api/proxyspec/{id}", method=RequestMethod.GET)
-	public ProxySpec getProxySpec(@PathVariable String id) {
-		ProxySpec spec = proxyService.getProxySpec(id);
-		if (spec == null) throw new NotFoundException("No spec found with id " + id);
-		return spec;
+	public ResponseEntity<ProxySpec> getProxySpec(@PathVariable String id) {
+		ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(id), false);
+		if (spec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		return new ResponseEntity<>(spec, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="/api/proxy", method=RequestMethod.GET)
 	public List<Proxy> listProxies() {
-		return proxyService.listActiveProxies();
+		return proxyService.getProxies(null, false);
 	}
 	
 	@RequestMapping(value="/api/proxy/{id}", method=RequestMethod.GET)
-	public Proxy getProxy(@PathVariable String id) {
-		return proxyService.getProxy(id);
+	public ResponseEntity<Proxy> getProxy(@PathVariable String id) {
+		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(id), false);
+		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		return new ResponseEntity<>(proxy, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="/api/proxy/{baseSpecId}", method=RequestMethod.POST)
-	public Proxy startProxy(@PathVariable String baseSpecId, @RequestBody Set<RuntimeSetting> runtimeSettings) {
-		ProxySpec spec = proxyService.resolveProxySpec(baseSpecId, null, runtimeSettings);
-		return proxyService.startProxy(spec);
+	public ResponseEntity<Proxy> startProxy(@PathVariable String baseSpecId, @RequestBody Set<RuntimeSetting> runtimeSettings) {
+		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(baseSpecId), false);
+		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		
+		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, runtimeSettings);
+		Proxy proxy = proxyService.startProxy(spec);
+		return new ResponseEntity<>(proxy, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="/api/proxy", method=RequestMethod.POST)
-	public Proxy startProxy(@RequestBody ProxySpec runtimeSpec) {
+	public ResponseEntity<Proxy> startProxy(@RequestBody ProxySpec runtimeSpec) {
 		ProxySpec spec = proxyService.resolveProxySpec(null, runtimeSpec, null);
-		return proxyService.startProxy(spec);
+		Proxy proxy = proxyService.startProxy(spec);
+		return new ResponseEntity<>(proxy, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="/api/proxy/{id}", method=RequestMethod.DELETE)
 	public ResponseEntity<String> stopProxy(@PathVariable String id) {
-		proxyService.stopProxy(id);
+		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(id), false);
+		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		
+		proxyService.stopProxy(proxy, true);
 		return new ResponseEntity<>("Proxy stopped", HttpStatus.OK);
 	}
 }

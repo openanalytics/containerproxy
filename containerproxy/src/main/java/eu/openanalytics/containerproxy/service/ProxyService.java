@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,14 +35,20 @@ import javax.inject.Inject;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
+import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.ProxySpecException;
+import eu.openanalytics.containerproxy.spec.impl.DefaultSpecMergeStrategy;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 @Service
@@ -50,6 +57,12 @@ public class ProxyService {
 	private Logger log = LogManager.getLogger(ProxyService.class);
 	private List<Proxy> activeProxies = Collections.synchronizedList(new ArrayList<>());
 	private ExecutorService containerKiller = Executors.newSingleThreadExecutor();
+	
+	@Inject
+	private IProxySpecProvider baseSpecProvider;
+	
+	@Autowired(required=false)
+	private IProxySpecMergeStrategy specMergeStrategy = new DefaultSpecMergeStrategy();
 	
 	@Inject
 	private IContainerBackend backend;
@@ -67,6 +80,20 @@ public class ProxyService {
 	public void shutdown() {
 		containerKiller.shutdown();
 		for (Proxy proxy: getProxies(p -> true)) backend.stopProxy(proxy);
+	}
+	
+	public Set<ProxySpec> getProxySpecs() {
+		return baseSpecProvider.getSpecs();
+	}
+	
+	public ProxySpec getProxySpec(String id) {
+		return baseSpecProvider.getSpec(id);
+	}
+	
+	public ProxySpec resolveProxySpec(String baseSpecId, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
+		ProxySpec baseSpec = baseSpecProvider.getSpec(baseSpecId);
+		ProxySpec finalSpec = specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
+		return finalSpec;
 	}
 	
 	public Proxy getProxy(String id) {

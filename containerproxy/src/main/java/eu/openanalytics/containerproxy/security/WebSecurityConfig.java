@@ -18,10 +18,13 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy;
+package eu.openanalytics.containerproxy.security;
+
+import java.util.List;
 
 import javax.inject.Inject;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
@@ -37,7 +40,6 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
-import eu.openanalytics.containerproxy.service.UserService;
 
 @Configuration
 @EnableWebSecurity
@@ -47,19 +49,26 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	private UserLogoutHandler logoutHandler;
 
 	@Inject
-	private UserService userService;
-	
-	@Inject
 	private IAuthenticationBackend auth;
 	
 	@Inject
 	private AuthenticationEventPublisher eventPublisher;
 	
+	@Autowired(required=false)
+	private List<ICustomSecurityConfig> customConfigs;
+	
 	@Override
 	public void configure(WebSecurity web) throws Exception {
 		web
 			.ignoring().antMatchers("/css/**").and()
+			.ignoring().antMatchers("/img/**").and()
+			.ignoring().antMatchers("/js/**").and()
+			.ignoring().antMatchers("/assets/**").and()
 			.ignoring().antMatchers("/webjars/**");
+		
+		if (customConfigs != null) {
+			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(web);
+		}
 	}
 
 	@Override
@@ -70,24 +79,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			// disable X-Frame-Options
 			.headers().frameOptions().disable();
 
-		if (auth.hasAuthorization()) {
-			// Limit access to the app pages
-			http.authorizeRequests().antMatchers("/login").permitAll();
-			
-//			http.authorizeRequests().antMatchers("/login", "/signin/**", "/signup").permitAll();
-			//TODO ShinyProxy specific
-//			for (ProxySpec spec: proxyService.listSpecs()) {
-//				if (spec.getAccessControl() == null) continue;
-//				String[] groups = spec.getAccessControl().getGroups();
-//				if (groups == null || groups.length == 0) continue;
-//				String[] appGroups = Arrays.stream(groups).map(s -> s.toUpperCase()).toArray(i -> new String[i]);
-//				http.authorizeRequests().antMatchers("/app/" + spec.getName()).hasAnyRole(appGroups);
-//			}
+		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
+		if (customConfigs != null) {
+			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);
+		}
 
-			// Limit access to the admin pages
-			http.authorizeRequests().antMatchers("/admin").hasAnyRole(userService.getAdminGroups());
-			
-			// All other pages are available to authenticated users
+		if (auth.hasAuthorization()) {
+			http.authorizeRequests().antMatchers("/login").permitAll();
 			http.authorizeRequests().anyRequest().fullyAuthenticated();
 
 			http

@@ -27,6 +27,8 @@ public class ErrorController extends BaseController implements org.springframewo
 		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
 		String[] msg = createMsgStack(exception);
 		
+		if (exception == null) msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
+
 		map.put("message", msg[0]);
 		map.put("stackTrace", msg[1]);
 		map.put("status", response.getStatus());
@@ -70,6 +72,7 @@ public class ErrorController extends BaseController implements org.springframewo
 		}
 		
 		if (message == null || message.isEmpty()) message = "An unexpected server error occurred";
+		if (stackTrace == null || stackTrace.isEmpty()) stackTrace = "n/a";
 		
 		return new String[] { message, stackTrace };
 	}

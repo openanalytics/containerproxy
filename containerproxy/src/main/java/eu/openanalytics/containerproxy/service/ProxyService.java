@@ -53,6 +53,18 @@ import eu.openanalytics.containerproxy.spec.ProxySpecException;
 import eu.openanalytics.containerproxy.spec.impl.DefaultSpecMergeStrategy;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
+/**
+ * <p>
+ * This service is the entry point for working with proxies.
+ * It offers methods to list, start and stop proxies, as well
+ * as methods for managing proxy specs.
+ * </p><p>
+ * A note about security: these methods are considered internal API,
+ * and are therefore allowed to bypass security checks.<br/>
+ * The caller is always responsible for performing security
+ * checks before manipulating proxies.
+ * </p>
+ */
 @Service
 public class ProxyService {
 		
@@ -84,22 +96,85 @@ public class ProxyService {
 		for (Proxy proxy: getProxies(null, true)) backend.stopProxy(proxy);
 	}
 	
+	/**
+	 * Find the ProxySpec that matches the given ID.
+	 * 
+	 * @param id The ID to look for.
+	 * @return A matching ProxySpec, or null if no match was found.
+	 */
 	public ProxySpec getProxySpec(String id) {
+		if (id == null || id.isEmpty()) return null;
 		return findProxySpec(spec -> spec.getId().equals(id), true);
 	}
 	
+	/**
+	 * Find the first ProxySpec that matches the given filter.
+	 * 
+	 * @param filter The filter to match, may be null.
+	 * @param ignoreAccessControl True to search in all ProxySpecs, regardless of the current security context.
+	 * @return The first ProxySpec found that matches the filter, or null if no match was found.
+	 */
+	public ProxySpec findProxySpec(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
+		return getProxySpecs(filter, ignoreAccessControl).stream().findAny().orElse(null);
+	}
+	
+	/**
+	 * Find all ProxySpecs that match the given filter.
+	 * 
+	 * @param filter The filter to match, or null.
+	 * @param ignoreAccessControl True to search in all ProxySpecs, regardless of the current security context.
+	 * @return A List of matching ProxySpecs, may be empty.
+	 */
+	public List<ProxySpec> getProxySpecs(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
+		return baseSpecProvider.getSpecs().stream()
+				.filter(spec -> ignoreAccessControl || userService.canAccess(spec))
+				.filter(spec -> filter == null || filter.test(spec))
+				.collect(Collectors.toList());
+	}
+	
+	/**
+	 * Resolve a ProxySpec. A base spec will be merged with a runtime spec (one of them is optional),
+	 * and an optional set of runtime settings will be applied to the resulting spec.
+	 * 
+	 * @param baseSpec The base spec, provided by the configured {@link IProxySpecProvider}.
+	 * @param runtimeSpec The runtime spec, may be null if <b>baseSpec</b> is not null.
+	 * @param runtimeSettings Optional runtime settings.
+	 * @return A merged ProxySpec that can be used to launch new proxies.
+	 * @throws ProxySpecException If the merge fails for any reason.
+	 * @see IProxySpecMergeStrategy
+	 */
 	public ProxySpec resolveProxySpec(ProxySpec baseSpec, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
 		return specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
 	}
 	
+	/**
+	 * Find a proxy using its ID.
+	 * 
+	 * @param id The ID of the proxy to find.
+	 * @return The matching proxy, or null if no match was found.
+	 */
 	public Proxy getProxy(String id) {
 		return findProxy(proxy -> proxy.getId().equals(id), true);
 	}
 	
+	/**
+	 * Find The first proxy that matches the given filter.
+	 * 
+	 * @param filter The filter to apply while searching, or null.
+	 * @param ignoreAccessControl True to search in all proxies, regardless of the current security context.
+	 * @return The first proxy found that matches the filter, or null if no match was found.
+	 */
 	public Proxy findProxy(Predicate<Proxy> filter, boolean ignoreAccessControl) {
 		return getProxies(filter, ignoreAccessControl).stream().findAny().orElse(null);
 	}
 	
+	/**
+	 * Find all proxies that match an optional filter.
+	 * 
+	 * @param filter The filter to match, or null.
+	 * @param ignoreAccessControl True to search in all proxies, regardless of the current security context.
+	 * @return A List of matching proxies, may be empty.
+	 */
 	public List<Proxy> getProxies(Predicate<Proxy> filter, boolean ignoreAccessControl) {
 		boolean isAdmin = userService.isAdmin();
 		List<Proxy> matches = new ArrayList<>();
@@ -112,19 +187,16 @@ public class ProxyService {
 		return matches;
 	}
 	
-	public ProxySpec findProxySpec(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
-		return getProxySpecs(filter, ignoreAccessControl).stream().findAny().orElse(null);
-	}
-	
-	public List<ProxySpec> getProxySpecs(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
-		return baseSpecProvider.getSpecs().stream()
-				.filter(spec -> ignoreAccessControl || userService.canAccess(spec))
-				.filter(spec -> filter == null || filter.test(spec))
-				.collect(Collectors.toList());
-	}
-	
-	public Proxy startProxy(ProxySpec spec) throws ContainerProxyException {
-		if (!userService.canAccess(spec)) {
+	/**
+	 * Launch a new proxy using the given ProxySpec.
+	 * 
+	 * @param spec The ProxySpec to base the new proxy on.
+	 * @param ignoreAccessControl True to allow access to the given ProxySpec, regardless of the current security context.
+	 * @return The newly launched proxy.
+	 * @throws ContainerProxyException If the proxy fails to start for any reason.
+	 */
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException {
+		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
 		
@@ -150,8 +222,15 @@ public class ProxyService {
 		return proxy;
 	}
 
-	public void stopProxy(Proxy proxy, boolean async) {
-		if (!userService.isAdmin() && !userService.isOwner(proxy)) {
+	/**
+	 * Stop a running proxy.
+	 * 
+	 * @param proxy The proxy to stop.
+	 * @param async True to return immediately and stop the proxy in an asynchronous manner.
+	 * @param ignoreAccessControl True to allow access to any proxy, regardless of the current security context.
+	 */
+	public void stopProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
+		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
 		

@@ -54,14 +54,14 @@ public class ProxyController extends BaseController {
 		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		
 		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, runtimeSettings);
-		Proxy proxy = proxyService.startProxy(spec);
+		Proxy proxy = proxyService.startProxy(spec, false);
 		return new ResponseEntity<>(proxy, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="/api/proxy", method=RequestMethod.POST)
 	public ResponseEntity<Proxy> startProxy(@RequestBody ProxySpec runtimeSpec) {
 		ProxySpec spec = proxyService.resolveProxySpec(null, runtimeSpec, null);
-		Proxy proxy = proxyService.startProxy(spec);
+		Proxy proxy = proxyService.startProxy(spec, false);
 		return new ResponseEntity<>(proxy, HttpStatus.OK);
 	}
 	
@@ -70,7 +70,7 @@ public class ProxyController extends BaseController {
 		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(id), false);
 		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		
-		proxyService.stopProxy(proxy, true);
+		proxyService.stopProxy(proxy, true, false);
 		return new ResponseEntity<>("Proxy stopped", HttpStatus.OK);
 	}
 }

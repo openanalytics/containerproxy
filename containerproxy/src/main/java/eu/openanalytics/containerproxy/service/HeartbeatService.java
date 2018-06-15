@@ -95,7 +95,7 @@ public class HeartbeatService {
 						if (proxySilence > heartbeatTimeout) {
 							log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), proxySilence));
 							proxyHeartbeats.remove(proxy.getId());
-							proxyService.stopProxy(proxy, true);
+							proxyService.stopProxy(proxy, true, true);
 						}
 					}
 				} catch (Throwable t) {

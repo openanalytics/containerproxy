@@ -79,7 +79,12 @@ public class ProxyService {
 	}
 	
 	public List<Proxy> listActiveProxies() {
-		return getProxies(p -> true);
+		return listActiveProxies(false);
+	}
+	
+	public List<Proxy> listActiveProxies(boolean allUsers) {
+		if (allUsers) return new ArrayList<>(activeProxies);
+		else return getProxies(p -> true);
 	}
 	
 	public Proxy startProxy(ProxySpec spec) {
@@ -103,7 +108,7 @@ public class ProxyService {
 			mappingManager.addMapping(target.getKey(), target.getValue());
 		}
 
-		log.info(String.format("Proxy activated [user: %s] [proxy: %s]", proxy.getUserId(), spec.getId()));
+		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
 		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), spec.getId());
 		
 		return proxy;
@@ -120,7 +125,7 @@ public class ProxyService {
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
-				log.info(String.format("Proxy released [user: %s] [proxy: %s]", proxy.getUserId(), proxy.getSpec().getId()));
+				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
 				eventService.post(EventType.ProxyStop.toString(), proxy.getUserId(), proxy.getSpec().getId());
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);

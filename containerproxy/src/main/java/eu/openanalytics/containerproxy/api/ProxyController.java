@@ -35,7 +35,7 @@ public class ProxyController extends BaseController {
 	
 	@RequestMapping(value="/api/proxyspec/{id}", method=RequestMethod.GET)
 	public ProxySpec getProxySpec(@PathVariable String id) {
-		ProxySpec spec =proxySpecService.getSpec(id);
+		ProxySpec spec = proxySpecService.getSpec(id);
 		if (spec == null) throw new NotFoundException("No spec found with id " + id);
 		return spec;
 	}

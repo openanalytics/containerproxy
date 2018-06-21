@@ -118,4 +118,72 @@
 		</dependency>
 		
 	</dependencies>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.mycila.maven-license-plugin</groupId>
+				<artifactId>maven-license-plugin</artifactId>
+				<version>1.9.0</version>
+				
+				<executions>
+					<!--
+					<execution>
+						<id>generate-copyright-headers</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>format</goal>
+						</goals>
+					</execution>
+					-->
+					<execution>
+						<id>check-copyright-headers</id>
+						<phase>package</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				
+				<configuration>
+					<header>LICENSE_HEADER</header>
+					<aggregate>true</aggregate>
+					<strictCheck>true</strictCheck>
+					<excludes>
+						<exclude>**/*.properties</exclude>
+						<exclude>**/*.yml</exclude>
+						<exclude>**/*.json</exclude>
+						<exclude>LICENSE</exclude>
+						<exclude>LICENSE_HEADER</exclude>
+						<exclude>README.md</exclude>
+						<exclude>.gitignore</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<groupId>net.nicoulaj.maven.plugins</groupId>
+				<artifactId>checksum-maven-plugin</artifactId>
+				<version>1.5</version>
+				
+				<executions>
+					<execution>
+						<id>attach-artifact-checksums</id>
+						<goals>
+							<goal>artifacts</goal>
+						</goals>
+					</execution>
+				</executions>
+				
+				<configuration>
+                   <attachChecksums>true</attachChecksums>
+          		   <algorithms>
+            	       <algorithm>SHA-256</algorithm>	   
+                       <algorithm>MD5</algorithm>
+                   </algorithms>
+        		</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

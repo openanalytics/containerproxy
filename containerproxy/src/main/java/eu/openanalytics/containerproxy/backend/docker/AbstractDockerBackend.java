@@ -1,5 +1,5 @@
 /**
- * ShinyProxy
+ * ContainerProxy
  *
  * Copyright (C) 2016-2018 Open Analytics
  *

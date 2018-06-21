@@ -30,6 +30,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
+import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 
 @Service
 public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBackend> implements ApplicationContextAware {
@@ -38,7 +39,8 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
 	
 	private enum ContainerBackend {
 		
-		DockerEngine("docker", DockerEngineBackend.class);
+		DockerEngine("docker", DockerEngineBackend.class),
+		Kubernetes("kubernetes", KubernetesBackend.class);
 		
 		private String name;
 		private Class<? extends IContainerBackend> type;

@@ -33,6 +33,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 
 @Service
 public class HeartbeatService {
@@ -89,6 +90,8 @@ public class HeartbeatService {
 				try {
 					long currentTimestamp = System.currentTimeMillis();
 					for (Proxy proxy: proxyService.getProxies(null, true)) {
+						if (proxy.getStatus() != ProxyStatus.Up) continue;
+						
 						Long lastHeartbeat = proxyHeartbeats.get(proxy.getId());
 						if (lastHeartbeat == null) lastHeartbeat = proxy.getStartupTimestamp();
 						long proxySilence = currentTimestamp - lastHeartbeat;

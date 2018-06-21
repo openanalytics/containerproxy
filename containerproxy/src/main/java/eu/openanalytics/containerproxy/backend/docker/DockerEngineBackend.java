@@ -81,11 +81,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		
 		dockerClient.startContainer(containerCreation.id());
-		ContainerInfo info = dockerClient.inspectContainer(containerCreation.id());
 		
 		Container container = new Container();
 		container.setSpec(spec);
-		container.setName(info.name().substring(1));
 		container.setId(containerCreation.id());
 		
 		// Calculate proxy routes for all configured ports.

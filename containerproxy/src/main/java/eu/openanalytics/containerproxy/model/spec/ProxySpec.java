@@ -14,11 +14,14 @@ public class ProxySpec {
 	
 	private ProxyAccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
-	
 	private List<RuntimeSettingSpec> runtimeSettingSpecs;
 
-	private Map<String, String> settings;
+	private Map<String, String> settings = new HashMap<>();
 
+	public ProxySpec() {
+		settings = new HashMap<>();
+	}
+	
 	public String getId() {
 		return id;
 	}

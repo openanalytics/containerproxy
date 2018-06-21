@@ -17,7 +17,7 @@ public class ContainerSpec {
 	private Map<String, Integer> portMapping;
 	private String memory;
 	private boolean privileged;
-	private Map<String, String> settings;
+	private Map<String, String> settings = new HashMap<>();
 	
 	public String getImage() {
 		return image;

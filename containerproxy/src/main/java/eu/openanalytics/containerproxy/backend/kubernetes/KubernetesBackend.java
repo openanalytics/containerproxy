@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -106,6 +107,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+		Container container = new Container();
+		container.setSpec(spec);
+		container.setId(UUID.randomUUID().toString());
+		
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
 		
@@ -145,7 +150,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		ContainerBuilder containerBuilder = new ContainerBuilder()
 				.withImage(spec.getImage())
 				.withCommand(spec.getCmd())
-//				.withName("shiny-container")
+				.withName("sp-container-" + container.getId())
 				.withPorts(containerPorts)
 				.withVolumeMounts(volumeMounts)
 				.withSecurityContext(security)
@@ -167,8 +172,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withApiVersion(apiVersion)
 				.withKind("Pod")
 				.withNewMetadata()
-					.withName(proxy.getId()) // Note: pod name is used by log watcher
-					.addToLabels("app", proxy.getId())
+					.withName("sp-pod-" + container.getId())
+					.addToLabels("app", container.getId())
 					.endMetadata()
 				.withNewSpec()
 					.withContainers(Collections.singletonList(containerBuilder.build()))
@@ -191,9 +196,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withApiVersion(apiVersion)
 					.withKind("Service")
 					.withNewMetadata()
+						.withName("sp-service-" + container.getId())
 						.endMetadata()
 					.withNewSpec()
-						.addToSelector("app", proxy.getId())
+						.addToSelector("app", container.getId())
 						.withType("NodePort")
 						.withPorts(servicePorts)
 						.endSpec()
@@ -212,39 +218,40 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			service = kubeClient.resource(service).waitUntilReady(600, TimeUnit.SECONDS);
 		}
 		
-		Container container = new Container();
-		container.setSpec(spec);
-		container.setName(pod.getMetadata().getName());
-		container.setId(pod.getMetadata().getUid());
-		
 		container.getParameters().put(PARAM_POD, pod);
 		container.getParameters().put(PARAM_SERVICE, service);
 		
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {
 			int containerPort = spec.getPortMapping().get(mappingKey);
+			
+			int servicePort = -1;
+			if (service != null) servicePort = service.getSpec().getPorts().stream()
+					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
+					.findAny().orElse(-1);
+			
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, proxy, containerPort);
+			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 		
+		Thread.sleep(15000);
 		return container;
 	}
 
-	protected URI calculateTarget(Container container, Proxy proxy, int containerPort) throws Exception {
+	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
 		
 		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-		Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
 		
 		if (isUseInternalNetwork()) {
 			targetHostName = pod.getStatus().getPodIP();
 			targetPort = containerPort;
 		} else {
 			targetHostName = pod.getStatus().getHostIP();
-			targetPort = service.getSpec().getPorts().get(0).getNodePort();
+			targetPort = servicePort;
 		}
 		
 		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
@@ -262,10 +269,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	@Override
 	public BiConsumer<File, File> getOutputAttacher(Proxy proxy) {
+		if (proxy.getContainers().isEmpty()) return null;
 		return (stdOut, stdErr) -> {
 			try {
+				Container container = proxy.getContainers().get(0);
 				String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
-				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName(proxy.getId()).watchLog();
+				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName("sp-pod-" + container.getId()).watchLog();
 				IOUtils.copy(watcher.getOutput(), new FileOutputStream(stdOut));
 			} catch (IOException e) {
 				log.error("Error while attaching to container output", e);

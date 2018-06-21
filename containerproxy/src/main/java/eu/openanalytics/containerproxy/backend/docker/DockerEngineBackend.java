@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
 import com.spotify.docker.client.messages.ContainerConfig;
@@ -44,18 +43,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 public class DockerEngineBackend extends AbstractDockerBackend {
 
 	@Override
-	protected void doStartProxy(Proxy proxy) throws Exception {
-		proxy.setId(UUID.randomUUID().toString());
-		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
-			Container c = startContainer(spec, proxy);
-			proxy.getContainers().add(c);
-		}
-	}
-	
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
-		Container container = new Container();
-		container.setSpec(spec);
-
 		Builder hostConfigBuilder = HostConfig.builder();
 		
 		Map<String, List<PortBinding>> portBindings = new HashMap<>();
@@ -64,7 +52,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		} else {
 			// Allocate ports on the docker host to proxy to.
 			for (Integer containerPort: spec.getPortMapping().values()) {
-				int hostPort = portAllocator.allocate();
+				int hostPort = portAllocator.allocate(proxy.getId());
 				portBindings.put(String.valueOf(containerPort), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
 			}
 		}
@@ -82,7 +70,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .image(spec.getImage())
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
-			    .env(buildEnv(proxy))
+			    .env(buildEnv(spec, proxy))
 			    .build();
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		
@@ -93,8 +81,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		
 		dockerClient.startContainer(containerCreation.id());
-		
 		ContainerInfo info = dockerClient.inspectContainer(containerCreation.id());
+		
+		Container container = new Container();
+		container.setSpec(spec);
 		container.setName(info.name().substring(1));
 		container.setId(containerCreation.id());
 		
@@ -149,7 +139,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			}
 			dockerClient.removeContainer(container.getId(), RemoveContainerParam.forceKill());
 		}
-		//TODO release ports
+		portAllocator.release(proxy.getId());
 	}
 	
 }

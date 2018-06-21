@@ -9,6 +9,7 @@ public class ContainerSpec {
 	private String image;
 	private String[] cmd;
 	private Map<String, String> env;
+	private String envFile;
 	private String network;
 	private String[] networkConnections;
 	private String[] dns;
@@ -16,6 +17,7 @@ public class ContainerSpec {
 	private Map<String, Integer> portMapping;
 	private String memory;
 	private boolean privileged;
+	private Map<String, String> settings;
 	
 	public String getImage() {
 		return image;
@@ -34,6 +36,12 @@ public class ContainerSpec {
 	}
 	public void setEnv(Map<String, String> env) {
 		this.env = env;
+	}
+	public String getEnvFile() {
+		return envFile;
+	}
+	public void setEnvFile(String envFile) {
+		this.envFile = envFile;
 	}
 	public String getNetwork() {
 		return network;
@@ -77,6 +85,12 @@ public class ContainerSpec {
 	public void setPrivileged(boolean privileged) {
 		this.privileged = privileged;
 	}
+	public Map<String, String> getSettings() {
+		return settings;
+	}
+	public void setSettings(Map<String, String> settings) {
+		this.settings = settings;
+	}
 	
 	public void copy(ContainerSpec target) {
 		target.setImage(image);
@@ -95,5 +109,9 @@ public class ContainerSpec {
 		}
 		target.setMemory(memory);
 		target.setPrivileged(privileged);
+		if (settings != null) {
+			if (target.getSettings() == null) target.setSettings(new HashMap<>());
+			target.getSettings().putAll(settings);
+		}
 	}
 }

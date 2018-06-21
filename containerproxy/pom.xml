@@ -98,6 +98,13 @@
 			<version>2.26-b03</version>
 		</dependency>
 		
+		<!-- Kubernetes -->
+		<dependency>
+			<groupId>io.fabric8</groupId>
+			<artifactId>kubernetes-client</artifactId>
+			<version>3.1.8</version>
+		</dependency>
+		
 		<!-- UI frameworks -->
 		<dependency>
 			<groupId>org.webjars</groupId>

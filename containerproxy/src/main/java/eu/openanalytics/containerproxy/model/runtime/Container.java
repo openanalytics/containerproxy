@@ -1,5 +1,7 @@
 package eu.openanalytics.containerproxy.model.runtime;
 
+import java.util.Map;
+
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class Container {
@@ -8,6 +10,8 @@ public class Container {
 	private String name;
 	private ContainerSpec spec;
 
+	private Map<String, Object> parameters;
+	
 	public String getId() {
 		return id;
 	}
@@ -26,5 +30,11 @@ public class Container {
 	public void setSpec(ContainerSpec spec) {
 		this.spec = spec;
 	}
-	
+	public Map<String, Object> getParameters() {
+		return parameters;
+	}
+	public void setParameters(Map<String, Object> parameters) {
+		this.parameters = parameters;
+	}
+
 }

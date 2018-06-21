@@ -33,8 +33,8 @@ import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFa
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.env.Environment;
 
-import eu.openanalytics.containerproxy.util.PropertyResolver;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -50,7 +50,7 @@ public class ContainerProxyApplication {
 	private static final String CONFIG_DEMO_PROFILE = "demo";
 	
 	@Inject
-	private PropertyResolver props;
+	private Environment environment;
 
 	@Inject
 	private ProxyMappingManager mappingManager;
@@ -79,7 +79,7 @@ public class ContainerProxyApplication {
 				mappingManager.setPathHandler(pathHandler);
 				return pathHandler;
 		}));
-		factory.setPort(props.getInt("port", 8080));
+		factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
 		return factory;	
 	}
 	

@@ -40,6 +40,7 @@ import javax.inject.Inject;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.core.env.Environment;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
@@ -49,7 +50,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.util.PropertyResolver;
 
 public abstract class AbstractContainerBackend implements IContainerBackend {
 
@@ -75,10 +75,10 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected IProxyTestStrategy testStrategy;
 	
 	@Inject
-	protected PropertyResolver props;
+	protected UserService userService;
 	
 	@Inject
-	protected UserService userService;
+	protected Environment environment;
 	
 	@Override
 	public void initialize() throws ContainerProxyException {
@@ -140,7 +140,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 	
 	protected String getProperty(String key, String defaultValue) {
-		return props.get(getPropertyPrefix() + key, defaultValue);
+		return environment.getProperty(key, defaultValue);
 	}
 	
 	protected abstract String getPropertyPrefix();

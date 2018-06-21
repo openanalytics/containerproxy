@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.api;
 import javax.inject.Inject;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,16 +31,30 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import eu.openanalytics.containerproxy.service.HeartbeatService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @RestController
+@Api(tags = "Heartbeat", description="API for sending proxy heartbeats")
 public class HeartbeatController extends BaseController {
 
 	@Inject
 	private HeartbeatService heartbeatService;
 	
-	@RequestMapping(value="/api/heartbeat/{proxyId}", method=RequestMethod.POST)
-	public ResponseEntity<String> heartbeat(@PathVariable String proxyId) {
+	@RequestMapping(value="/api/heartbeat/{proxyId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
+	@ApiOperation("Send a heartbeat to keep the specified proxy alive")
+	@ApiResponses({
+		@ApiResponse(code=200, message="Heartbeat registered"),
+		@ApiResponse(code=404, message="Proxy not found")
+	})
+	public ResponseEntity<String> heartbeat(
+			@ApiParam("The ID of the active proxy to send a heartbeat for")
+			@PathVariable String proxyId) {
+		
 		heartbeatService.heartbeatReceived(proxyId);
-		return new ResponseEntity<>("Heartbeat registered", HttpStatus.OK);
+		return new ResponseEntity<>("", HttpStatus.OK);
 	}
 }

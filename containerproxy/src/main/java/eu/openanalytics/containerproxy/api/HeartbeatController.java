@@ -55,6 +55,6 @@ public class HeartbeatController extends BaseController {
 			@PathVariable String proxyId) {
 		
 		heartbeatService.heartbeatReceived(proxyId);
-		return new ResponseEntity<>("", HttpStatus.OK);
+		return new ResponseEntity<>("{}", HttpStatus.OK);
 	}
 }

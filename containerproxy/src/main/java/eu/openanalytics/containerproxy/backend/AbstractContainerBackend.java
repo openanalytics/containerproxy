@@ -140,7 +140,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 	
 	protected String getProperty(String key, String defaultValue) {
-		return environment.getProperty(key, defaultValue);
+		return environment.getProperty(getPropertyPrefix() + key, defaultValue);
 	}
 	
 	protected abstract String getPropertyPrefix();

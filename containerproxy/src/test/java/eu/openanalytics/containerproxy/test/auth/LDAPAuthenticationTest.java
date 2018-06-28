@@ -39,8 +39,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @RunWith(SpringRunner.class)
 @AutoConfigureMockMvc
-@ActiveProfiles("test-simple-auth")
-public class SimpleAuthenticationTest {
+@ActiveProfiles("test-ldap-auth")
+public class LDAPAuthenticationTest {
 
 	@Inject
 	private MockMvc mvc;
@@ -50,8 +50,8 @@ public class SimpleAuthenticationTest {
 	
 	@Test
 	public void authenticateUser() throws Exception {
-		String userName = environment.getProperty("proxy.users[0].name");
-		String password = environment.getProperty("proxy.users[0].password");
+		String userName = environment.getProperty("proxy.test-username");
+		String password = environment.getProperty("proxy.test-password");
 		mvc
 			.perform(get("/api/proxy").with(httpBasic(userName, password)).accept(MediaType.APPLICATION_JSON_VALUE))
 			.andExpect(status().isOk());

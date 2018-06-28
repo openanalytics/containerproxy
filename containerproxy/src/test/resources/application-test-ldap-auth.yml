@@ -1,0 +1,10 @@
+proxy:
+  authentication: ldap
+  ldap:
+    url: ldap://ldap.forumsys.com:389/dc=example,dc=com
+    user-dn-pattern: uid={0}
+    group-search-filter: (uniqueMember={0})
+    manager-dn: cn=read-only-admin,dc=example,dc=com
+    manager-password: password
+  test-username: tesla
+  test-password: password

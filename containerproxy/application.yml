@@ -19,7 +19,7 @@ proxy:
   docker:
     url: http://localhost:2375
 
-  usage-stats-url: http://localhost:8086/write?db=shinyproxy_usagestats
+  #usage-stats-url: http://localhost:8086/write?db=shinyproxy_usagestats
 
   specs:
   - id: r-3.4.4

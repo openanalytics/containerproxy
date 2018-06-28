@@ -1,0 +1,5 @@
+proxy:
+  authentication: simple
+  users:
+  - name: demo
+    password: demo

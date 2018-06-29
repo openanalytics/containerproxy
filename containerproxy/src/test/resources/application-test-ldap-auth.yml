@@ -8,3 +8,8 @@ proxy:
     manager-password: password
   test-username: tesla
   test-password: password
+
+logging:
+  level:
+    org.springframework.ldap: debug
+    org.springframework.security: debug

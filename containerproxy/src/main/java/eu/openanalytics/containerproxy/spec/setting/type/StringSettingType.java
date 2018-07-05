@@ -18,34 +18,19 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec;
+package eu.openanalytics.containerproxy.spec.setting.type;
 
-import java.util.Map;
+import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
+import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
 
-public interface IRuntimeSettingType {
+@Component("setting.type.string")
+public class StringSettingType extends AbstractSettingType {
 
-	public Object resolveValue(RuntimeSetting setting, Map<String, Object> config) throws ProxySpecException;
+	@Override
+	protected Object getValue(RuntimeSetting setting, RuntimeSettingSpec settingSpec) {
+		return String.valueOf(setting.getValue());
+	}
 
 }
-
-/*
-
-Limited merging: define a ProxySpec, plus a set of RuntimeSettings in the yml:
-
-runtimeSettings:
-- name: cpuCount
-  type: IntRange
-  config:
-	min: 1
-	max: 5
-
-  Supported types: String, StringPattern, StringEnum, Int, IntRange, IntEnum, Float, FloatRange, FloatEnum
-  
-  Then, in ProxySpec/ContainerSpec/cpu : ${cpuCount}
-  This is resolved:
-  1. against Spring properties
-  2. against RuntimeSettings
-
- */

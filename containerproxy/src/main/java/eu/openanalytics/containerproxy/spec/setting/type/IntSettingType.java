@@ -18,25 +18,22 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.impl.type;
-
-import java.util.Map;
+package eu.openanalytics.containerproxy.spec.setting.type;
 
 import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
-import eu.openanalytics.containerproxy.spec.IRuntimeSettingType;
+import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
 import eu.openanalytics.containerproxy.spec.ProxySpecException;
 
-@Component("Int")
-public class IntSettingType implements IRuntimeSettingType {
+@Component("setting.type.int")
+public class IntSettingType extends AbstractSettingType {
 
 	@Override
-	public Object resolveValue(RuntimeSetting setting, Map<String, Object> config) throws ProxySpecException {
-		Object value = setting.getValue();
-		if (value == null) return null;
-		else if (value instanceof Number) return ((Number) setting.getValue()).intValue();
-		else throw new ProxySpecException("Value type is not a Number: " + value);
-	}
+	protected Object getValue(RuntimeSetting setting, RuntimeSettingSpec settingSpec) {
+		if (setting.getValue() == null) return null;
+		else if (setting.getValue() instanceof Number) return ((Number) setting.getValue()).intValue();
+		else throw new ProxySpecException("Setting value is not an integer: " + setting.getName() + ": " + setting.getValue());
+	}	
 
 }

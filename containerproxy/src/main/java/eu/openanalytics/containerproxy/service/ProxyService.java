@@ -36,7 +36,6 @@ import javax.inject.Inject;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -50,7 +49,6 @@ import eu.openanalytics.containerproxy.service.EventService.EventType;
 import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.ProxySpecException;
-import eu.openanalytics.containerproxy.spec.impl.DefaultSpecMergeStrategy;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 /**
@@ -75,8 +73,8 @@ public class ProxyService {
 	@Inject
 	private IProxySpecProvider baseSpecProvider;
 	
-	@Autowired(required=false)
-	private IProxySpecMergeStrategy specMergeStrategy = new DefaultSpecMergeStrategy();
+	@Inject
+	private IProxySpecMergeStrategy specMergeStrategy;
 	
 	@Inject
 	private IContainerBackend backend;

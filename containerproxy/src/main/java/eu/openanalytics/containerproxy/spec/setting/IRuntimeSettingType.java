@@ -18,22 +18,15 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.impl.type;
-
-import java.util.Map;
-
-import org.springframework.stereotype.Component;
+package eu.openanalytics.containerproxy.spec.setting;
 
 import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
-import eu.openanalytics.containerproxy.spec.IRuntimeSettingType;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
 import eu.openanalytics.containerproxy.spec.ProxySpecException;
 
-@Component("String")
-public class StringSettingType implements IRuntimeSettingType {
+public interface IRuntimeSettingType {
 
-	@Override
-	public Object resolveValue(RuntimeSetting setting, Map<String, Object> config) throws ProxySpecException {
-		return String.valueOf(setting.getValue());
-	}
+	public void apply(RuntimeSetting setting, RuntimeSettingSpec settingSpec, ProxySpec targetSpec) throws ProxySpecException;
 
 }

@@ -68,7 +68,7 @@ public class ProxyMappingManager {
 			@Override
 			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
 				super.getConnection(target, exchange, callback, timeout, timeUnit);
-				exchange.addResponseCommitListener(ex -> HeartbeatConnector.attach(ex, proxyId, heartbeatService));
+				exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxyId));
 			}
 		};
 		proxyClient.addHost(target);

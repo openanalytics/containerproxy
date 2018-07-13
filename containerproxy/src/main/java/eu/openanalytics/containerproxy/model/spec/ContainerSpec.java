@@ -34,7 +34,7 @@ public class ContainerSpec {
 	private String[] networkConnections;
 	private String[] dns;
 	private String[] volumes;
-	private Map<String, Integer> portMapping;
+	private Map<String, Integer> portMapping = new HashMap<>();
 	private String memory;
 	private boolean privileged;
 	private Map<String, String> settings = new HashMap<>();

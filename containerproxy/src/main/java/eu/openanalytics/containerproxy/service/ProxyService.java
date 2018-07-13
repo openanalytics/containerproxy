@@ -211,7 +211,7 @@ public class ProxyService {
 		}
 		
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
-			mappingManager.addMapping(target.getKey(), target.getValue());
+			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));

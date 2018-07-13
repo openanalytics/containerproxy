@@ -74,7 +74,7 @@ public class TestProxyService {
 	
 	public static class NoopMappingManager extends ProxyMappingManager {
 		@Override
-		public synchronized void addMapping(String path, URI target) {
+		public synchronized void addMapping(String proxyId, String path, URI target) {
 			// No-op
 		}
 		

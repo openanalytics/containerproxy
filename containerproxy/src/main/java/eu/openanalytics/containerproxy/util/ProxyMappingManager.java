@@ -24,14 +24,20 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import javax.inject.Inject;
 
 import org.springframework.stereotype.Component;
 
+import eu.openanalytics.containerproxy.service.HeartbeatService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.Cookie;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.server.handlers.ResponseCodeHandler;
 import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
+import io.undertow.server.handlers.proxy.ProxyCallback;
+import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.HeaderValues;
@@ -51,11 +57,20 @@ public class ProxyMappingManager {
 	
 	private Map<String, MappingOwnerInfo> mappingOwnerInfo = Collections.synchronizedMap(new HashMap<>());
 	
+	@Inject
+	private HeartbeatService heartbeatService;
+	
 	@SuppressWarnings("deprecation")
-	public synchronized void addMapping(String path, URI target) {
+	public synchronized void addMapping(String proxyId, String path, URI target) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
 		
-		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient();
+		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
+			@Override
+			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
+				super.getConnection(target, exchange, callback, timeout, timeUnit);
+				exchange.addResponseCommitListener(ex -> HeartbeatConnector.attach(ex, proxyId, heartbeatService));
+			}
+		};
 		proxyClient.addHost(target);
 		pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
 		

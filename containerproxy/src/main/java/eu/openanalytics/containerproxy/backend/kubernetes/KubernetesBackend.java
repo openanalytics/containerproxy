@@ -20,9 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -268,14 +267,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 	
 	@Override
-	public BiConsumer<File, File> getOutputAttacher(Proxy proxy) {
+	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		if (proxy.getContainers().isEmpty()) return null;
 		return (stdOut, stdErr) -> {
 			try {
 				Container container = proxy.getContainers().get(0);
 				String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName("sp-pod-" + container.getId()).watchLog();
-				IOUtils.copy(watcher.getOutput(), new FileOutputStream(stdOut));
+				IOUtils.copy(watcher.getOutput(), stdOut);
 			} catch (IOException e) {
 				log.error("Error while attaching to container output", e);
 			}

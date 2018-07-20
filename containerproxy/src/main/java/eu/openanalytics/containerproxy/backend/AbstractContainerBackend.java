@@ -20,9 +20,9 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -130,7 +130,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected abstract void doStopProxy(Proxy proxy) throws Exception;
 	
 	@Override
-	public BiConsumer<File, File> getOutputAttacher(Proxy proxy) {
+	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		// Default: do not support output attaching.
 		return null;
 	}

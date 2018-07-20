@@ -20,9 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Paths;
 import java.util.function.BiConsumer;
 
@@ -85,14 +84,14 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 	}
 	
 	@Override
-	public BiConsumer<File, File> getOutputAttacher(Proxy proxy) {
+	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		Container c = getPrimaryContainer(proxy);
 		if (c == null) return null;
 		
 		return (stdOut, stdErr) -> {
 			try {
 				LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
-				logStream.attach(new FileOutputStream(stdOut), new FileOutputStream(stdErr));
+				logStream.attach(stdOut, stdErr);
 			} catch (IOException | InterruptedException | DockerException e) {
 				log.error("Error while attaching to container output", e);
 			}

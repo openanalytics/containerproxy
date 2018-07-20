@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
-import java.io.File;
+import java.io.OutputStream;
 import java.util.function.BiConsumer;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
@@ -56,16 +56,15 @@ public interface IContainerBackend {
 	public void stopProxy(Proxy proxy) throws ContainerProxyException;
 	
 	/**
-	 * Get a function that will attach the standard output and standard error of
-	 * the given proxy's container to two files.
-	 * Any stdout/stderr from the container should be written into the files.
+	 * Get a function that will forward the standard output and standard error of
+	 * the given proxy's containers to two output streams.
 	 * 
 	 * The function will be executed in a separate thread, and is assumed to block
 	 * until the container stops.
 	 * 
-	 * @param proxy The proxy whose container output should be attached to the files.
+	 * @param proxy The proxy whose container output should be attached to the output streams.
 	 * @return A function that will attach the output, or null if this backend does
 	 * not support output attaching.
 	 */
-	public BiConsumer<File, File> getOutputAttacher(Proxy proxy);
+	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy);
 }

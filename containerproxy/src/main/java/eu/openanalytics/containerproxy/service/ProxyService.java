@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -87,6 +89,9 @@ public class ProxyService {
 	
 	@Inject
 	private EventService eventService;
+	
+	@Inject
+	private LogService logService;
 	
 	@PreDestroy
 	public void shutdown() {
@@ -214,6 +219,15 @@ public class ProxyService {
 			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}
 
+		if (logService.isLoggingEnabled()) {
+			BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
+			if (outputAttacher == null) {
+				log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
+			} else {
+				logService.attachToOutput(proxy, outputAttacher);
+			}
+		}
+		
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
 		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), spec.getId());
 		

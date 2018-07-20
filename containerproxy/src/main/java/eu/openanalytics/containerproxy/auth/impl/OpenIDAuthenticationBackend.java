@@ -23,19 +23,6 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 
-/**
- * See https://docs.spring.io/spring-security/site/docs/current/reference/html/oauth2login-advanced.html
- * 
- * Notes on Auth0 tests:
- * - Callback URL: http://localhost:8080/login/oauth2/code/shinyproxy
- * - Added app_metadata to user: "shinyproxy_roles": [ "scientists", "mathematicians" ]
- * - Added rule to attach "shinyproxy_roles" to the ID token during authentication:
- * function (user, context, callback) {
- *   context.idToken['https://shinyproxy.io/shinyproxy_roles'] = user.app_metadata.shinyproxy_roles;
- *   callback(null, user, context);
- * }
- * 
- */
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "openid";

@@ -30,6 +30,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
+import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 
 @Service
@@ -40,6 +41,7 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
 	private enum ContainerBackend {
 		
 		DockerEngine("docker", DockerEngineBackend.class),
+		DockerSwarm("docker-swarm", DockerSwarmBackend.class),
 		Kubernetes("kubernetes", KubernetesBackend.class);
 		
 		private String name;

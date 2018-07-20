@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import eu.openanalytics.containerproxy.auth.impl.KeycloakAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
 
 /**
@@ -69,6 +70,9 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 			break;
 		case LDAPAuthenticationBackend.NAME:
 			backend = new LDAPAuthenticationBackend();
+			break;
+		case OpenIDAuthenticationBackend.NAME:
+			backend = new OpenIDAuthenticationBackend();
 			break;
 		case KeycloakAuthenticationBackend.NAME:
 			return keycloakBackend;

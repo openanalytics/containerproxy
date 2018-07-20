@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.ui;
 
 import java.util.Optional;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.stereotype.Controller;
@@ -29,16 +30,27 @@ import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.view.RedirectView;
 
 import eu.openanalytics.containerproxy.api.BaseController;
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 
 @Controller
 public class LoginController extends BaseController {
 
+	@Inject
+	private IAuthenticationBackend auth;
+	
 	@RequestMapping(value = "/login", method = RequestMethod.GET)
-    public String getLoginPage(@RequestParam Optional<String> error, ModelMap map, HttpServletRequest request) {
+    public Object getLoginPage(@RequestParam Optional<String> error, ModelMap map, HttpServletRequest request) {
 		if (error.isPresent()) map.put("error", "Invalid user name or password");
-        return "login";
+
+		if (auth instanceof OpenIDAuthenticationBackend) {
+			return new RedirectView(((OpenIDAuthenticationBackend) auth).getLoginRedirectURI());
+		} else {
+			return "login";
+		}
     }
 
 }

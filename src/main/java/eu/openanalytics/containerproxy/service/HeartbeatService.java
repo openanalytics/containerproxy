@@ -63,6 +63,8 @@ public class HeartbeatService {
 		
 	private ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(3);
 	
+	private volatile boolean enabled;
+	
 	@Inject
 	private ProxyService proxyService;
 	
@@ -71,17 +73,19 @@ public class HeartbeatService {
 	
 	@PostConstruct
 	public void init() {
-		boolean enabled = Boolean.valueOf(environment.getProperty(PROP_ENABLED, "false"));
+		enabled = Boolean.valueOf(environment.getProperty(PROP_ENABLED, "false"));
 		
 		if (environment.getProperty(PROP_ENABLED) == null) {
 			enabled = environment.getProperty(PROP_RATE) != null || environment.getProperty(PROP_TIMEOUT) != null;
 		}
 		
-		if (enabled) {
-			Thread cleanupThread = new Thread(new InactiveProxyKiller(), InactiveProxyKiller.class.getSimpleName());
-			cleanupThread.setDaemon(true);
-			cleanupThread.start();
-		}
+		Thread cleanupThread = new Thread(new InactiveProxyKiller(), InactiveProxyKiller.class.getSimpleName());
+		cleanupThread.setDaemon(true);
+		cleanupThread.start();
+	}
+	
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
 	}
 	
 	public void attachHeartbeatChecker(HttpServerExchange exchange, String proxyId) {
@@ -160,22 +164,24 @@ public class HeartbeatService {
 			long heartbeatTimeout = getHeartbeatTimeout();
 
 			while (true) {
-				try {
-					long currentTimestamp = System.currentTimeMillis();
-					for (Proxy proxy: proxyService.getProxies(null, true)) {
-						if (proxy.getStatus() != ProxyStatus.Up) continue;
-						
-						Long lastHeartbeat = proxyHeartbeats.get(proxy.getId());
-						if (lastHeartbeat == null) lastHeartbeat = proxy.getStartupTimestamp();
-						long proxySilence = currentTimestamp - lastHeartbeat;
-						if (proxySilence > heartbeatTimeout) {
-							log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), proxySilence));
-							proxyHeartbeats.remove(proxy.getId());
-							proxyService.stopProxy(proxy, true, true);
+				if (enabled) {
+					try {
+						long currentTimestamp = System.currentTimeMillis();
+						for (Proxy proxy: proxyService.getProxies(null, true)) {
+							if (proxy.getStatus() != ProxyStatus.Up) continue;
+							
+							Long lastHeartbeat = proxyHeartbeats.get(proxy.getId());
+							if (lastHeartbeat == null) lastHeartbeat = proxy.getStartupTimestamp();
+							long proxySilence = currentTimestamp - lastHeartbeat;
+							if (proxySilence > heartbeatTimeout) {
+								log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), proxySilence));
+								proxyHeartbeats.remove(proxy.getId());
+								proxyService.stopProxy(proxy, true, true);
+							}
 						}
+					} catch (Throwable t) {
+						log.error("Error in " + this.getClass().getSimpleName(), t);
 					}
-				} catch (Throwable t) {
-					log.error("Error in " + this.getClass().getSimpleName(), t);
 				}
 				try {
 					Thread.sleep(cleanupInterval);

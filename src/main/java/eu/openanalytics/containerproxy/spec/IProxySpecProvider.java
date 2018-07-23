@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec;
 
-import java.util.Set;
+import java.util.List;
 
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 
@@ -29,7 +29,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
  */
 public interface IProxySpecProvider {
 
-	public Set<ProxySpec> getSpecs();
+	public List<ProxySpec> getSpecs();
 	
 	public ProxySpec getSpec(String id);
 

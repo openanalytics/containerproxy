@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -95,6 +96,21 @@ public class LogService {
 				log.error("Failed to attach logging of proxy " + proxy.getId(), e);
 			}
 		});
+	}
+	
+	public Path[] getLogFiles(Proxy proxy) {
+		if (!isLoggingEnabled()) return new Path[0];
+		
+		Pattern pattern = Pattern.compile(".*_" + proxy.getId() + "_.*\\.log");
+		try {
+			return Files.find(Paths.get(containerLogPath), 1, 
+					(p, a) -> pattern.matcher(p.getFileName().toString()).matches())
+					.toArray(i -> new Path[i]);
+		} catch (IOException e) {
+			log.error("Failed to locate log files for proxy " + proxy.getId(), e);
+		}
+		
+		return new Path[0];
 	}
 	
 	private Path[] getLogFilePaths(Proxy proxy) {

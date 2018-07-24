@@ -21,9 +21,7 @@
 package eu.openanalytics.containerproxy.spec.impl;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -37,8 +35,8 @@ public class DefaultSpecProvider implements IProxySpecProvider {
 	
 	private List<ProxySpec> specs = new ArrayList<>();
 	
-	public Set<ProxySpec> getSpecs() {
-		return new HashSet<>(specs);
+	public List<ProxySpec> getSpecs() {
+		return new ArrayList<>(specs);
 	}
 	
 	public ProxySpec getSpec(String id) {

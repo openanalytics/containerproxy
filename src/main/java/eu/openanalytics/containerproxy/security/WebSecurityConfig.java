@@ -90,7 +90,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 
 		if (auth.hasAuthorization()) {
-			http.authorizeRequests().antMatchers("/login").permitAll();
+			http.authorizeRequests().antMatchers("/login", "/signin/**").permitAll();
 			http.authorizeRequests().anyRequest().fullyAuthenticated();
 
 			http

@@ -30,13 +30,16 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<link rel="stylesheet" media="screen" th:href="@{/webjars/bootstrap/3.3.7/css/bootstrap.min.css}"/>
 	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
+	<link rel="stylesheet" media="screen" type="text/css" href="https://cdn.jsdelivr.net/bootstrap-social/5.1.1/bootstrap-social.css"/>
+	<link rel="stylesheet" media="screen" type="text/css" href="https://cdn.jsdelivr.net/fontawesome/4.7.0/css/font-awesome.min.css"/>
 	<script th:src="@{/webjars/jquery/3.3.1/jquery.min.js}"></script>
 	<script th:src="@{/webjars/bootstrap/3.3.7/js/bootstrap.min.js}"></script>
 </head>
 
 <body>
 	<div class="container">
-		<div>
+		
+		<div th:if="${@authenticationBackend.name != 'social'}">
 			<form class="form-signin" action="login" method="POST">
 				<h2 class="form-signin-heading">Please sign in:</h2>
 				<div class="alert alert-danger" th:if="${error}">
@@ -49,6 +52,17 @@
 				<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
 			</form>
 		</div>
+		
+		<div th:if="${@authenticationBackend.name == 'social'}">
+			<br/>
+			<h2 class="form-signin form-signin-heading">Please sign in:</h2>
+			<form th:each="provider : ${@socialProviders}" class="form-signin" method="POST" th:action="@{/signin/__${provider}__}">
+				<button th:class="@{btn btn-block btn-social btn-__${provider}__}" type="submit">
+					<span th:class="@{fa fa-__${provider}__}"></span> Sign in with <span th:text="${provider.label()}"></span>
+				</button>
+			</form>
+		</div>
+		
 	</div>
 </body>
 

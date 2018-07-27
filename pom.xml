@@ -191,6 +191,21 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+						<configuration>
+							<mainClass>eu.openanalytics.containerproxy.ContainerProxyApplication</mainClass>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			
+			<plugin>
 				<groupId>com.mycila.maven-license-plugin</groupId>
 				<artifactId>maven-license-plugin</artifactId>
 				<version>1.9.0</version>

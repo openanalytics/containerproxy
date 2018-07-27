@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.sql.DataSource;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -65,6 +66,7 @@ import org.springframework.web.context.request.NativeWebRequest;
 
 @Configuration
 @EnableSocial
+@ConditionalOnProperty(name="proxy.authentication", havingValue="social")
 public class SocialSecurityConfig implements SocialConfigurer {
 
 	@Bean

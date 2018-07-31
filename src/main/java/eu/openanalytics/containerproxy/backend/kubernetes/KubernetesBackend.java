@@ -155,13 +155,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withSecurityContext(security)
 				.withEnv(envVars);
 
-		String imagePullPolicy = spec.getSettings().get(PROPERTY_IMG_PULL_POLICY);
+		String imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
 		if (imagePullPolicy != null) containerBuilder.withImagePullPolicy(imagePullPolicy);
 
 		String[] imagePullSecrets = {};
-		String imagePullSecret = spec.getSettings().get(PROPERTY_IMG_PULL_SECRET);
+		String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
 		if (imagePullSecret == null) {
-			String imagePullSecretArray = spec.getSettings().get(PROPERTY_IMG_PULL_SECRETS);
+			String imagePullSecretArray = getProperty(PROPERTY_IMG_PULL_SECRETS);
 			if (imagePullSecretArray != null) imagePullSecrets = imagePullSecretArray.split(",");
 		} else {
 			imagePullSecrets = new String[] { imagePullSecret };

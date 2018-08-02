@@ -127,18 +127,6 @@
 			<version>1.0.0.RELEASE</version>
 		</dependency>
 		
-		<!-- Swagger -->
-		<dependency>
-			<groupId>io.springfox</groupId>
-			<artifactId>springfox-swagger2</artifactId>
-			<version>2.8.0</version>
-		</dependency>
-		<dependency>
-			<groupId>io.springfox</groupId>
-			<artifactId>springfox-swagger-ui</artifactId>
-			<version>2.8.0</version>
-		</dependency>
-
 		<!-- Keycloak -->
 		<dependency>
 			<groupId>org.keycloak</groupId>
@@ -238,6 +226,7 @@
 						<exclude>**/*.properties</exclude>
 						<exclude>**/*.yml</exclude>
 						<exclude>**/*.json</exclude>
+						<exclude>**/*.raml</exclude>
 						<exclude>LICENSE</exclude>
 						<exclude>LICENSE_HEADER</exclude>
 						<exclude>README.md</exclude>

@@ -64,12 +64,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			.ignoring().antMatchers("/img/**").and()
 			.ignoring().antMatchers("/js/**").and()
 			.ignoring().antMatchers("/assets/**").and()
-			.ignoring().antMatchers("/webjars/**").and()
-			
-			.ignoring().antMatchers("/api/doc").and()
-			.ignoring().antMatchers("/v2/api-docs/**").and()
-			.ignoring().antMatchers("/swagger-resources/**").and()
-			.ignoring().antMatchers("/swagger-ui.html");
+			.ignoring().antMatchers("/webjars/**").and();
 		
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(web);

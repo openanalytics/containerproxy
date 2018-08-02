@@ -28,6 +28,7 @@ import javax.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationListener;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
@@ -38,6 +39,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -54,6 +56,11 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 
 	@Inject
 	private EventService eventService;
+	
+	@Inject
+	@Lazy
+	// Note: lazy needed to work around early initialization conflict 
+	private IAuthenticationBackend authBackend;
 	
 	@Inject
 	private IProxyLogoutStrategy logoutStrategy;
@@ -108,7 +115,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	
 	public boolean canAccess(Authentication auth, ProxySpec spec) {
 		if (auth == null || spec == null) return false;
-		if (auth instanceof AnonymousAuthenticationToken) return false;
+		if (auth instanceof AnonymousAuthenticationToken && authBackend.hasAuthorization()) return false;
 
 		if (spec.getAccessControl() == null) return true;
 		

@@ -1,0 +1,9 @@
+proxy:
+  authentication: none
+  specs:
+  - id: 01_hello
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838

@@ -149,6 +149,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		cfg.setRealm(environment.getProperty("proxy.keycloak.realm"));
 		cfg.setAuthServerUrl(environment.getProperty("proxy.keycloak.auth-server-url"));
 		cfg.setResource(environment.getProperty("proxy.keycloak.resource"));
+		cfg.setSslRequired(environment.getProperty("proxy.keycloak.ssl-required", "external"));
 		Map<String,Object> credentials = new HashMap<>();
 		credentials.put("secret", environment.getProperty("proxy.keycloak.credentials-secret"));
 		cfg.setCredentials(credentials);

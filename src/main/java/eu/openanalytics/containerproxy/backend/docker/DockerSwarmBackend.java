@@ -62,7 +62,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		Container container = new Container();
 		container.setSpec(spec);
 		
-		Mount[] mounts = Arrays.stream(spec.getVolumes())
+		Mount[] mounts = null;
+		if (spec.getVolumes() != null) mounts = Arrays.stream(spec.getVolumes())
 				.map(b -> b.split(":"))
 				.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
 				.toArray(i -> new Mount[i]);
@@ -115,7 +116,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				throw new RuntimeException("Failed to inspect swarm service tasks", e);
 			}
 			return (container.getId() != null);
-		}, 10, 2000, true);
+		}, 30, 2000, true);
 		
 		if (!containerFound) {
 			dockerClient.removeService(serviceId);

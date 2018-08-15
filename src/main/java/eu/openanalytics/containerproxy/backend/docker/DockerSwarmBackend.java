@@ -164,6 +164,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			String serviceId = (String) container.getParameters().get(PARAM_SERVICE_ID);
 			if (serviceId != null) dockerClient.removeService(serviceId);
 		}
+		portAllocator.release(proxy.getId());
 	}
 
 }

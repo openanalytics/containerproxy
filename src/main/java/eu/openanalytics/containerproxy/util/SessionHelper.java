@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.util;
 
 import javax.servlet.http.HttpSession;
 
+import io.undertow.server.handlers.Cookie;
 import io.undertow.servlet.handlers.ServletRequestContext;
 
 public class SessionHelper {
@@ -35,10 +36,13 @@ public class SessionHelper {
 	public static String getCurrentSessionId(boolean createIfMissing) {
 		ServletRequestContext context = ServletRequestContext.current();
 		HttpSession session = context.getSession();
-		if (session == null) {
-			if (createIfMissing) session = context.getCurrentServletContext().getSession(context.getExchange(), true);
-			else return null;
-		}
-		return session.getId();
+		
+		if (session != null) return session.getId();
+		
+		Cookie jSessionIdCookie = context.getExchange().getRequestCookies().get("JSESSIONID");
+		if (jSessionIdCookie != null) return jSessionIdCookie.getValue();
+		
+		if (createIfMissing) return context.getCurrentServletContext().getSession(context.getExchange(), true).getId();
+		else return null;
 	}
 }

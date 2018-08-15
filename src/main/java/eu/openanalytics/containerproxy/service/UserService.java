@@ -44,6 +44,7 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
+import eu.openanalytics.containerproxy.util.SessionHelper;
 
 
 @Service
@@ -132,8 +133,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	}
 
 	public boolean isOwner(Authentication auth, Proxy proxy) {
-		if (auth == null || auth instanceof AnonymousAuthenticationToken) return false;
-		if (proxy == null) return false;
+		if (auth == null || proxy == null) return false;
 		return proxy.getUserId().equals(getUserId(auth));
 	}
 	
@@ -147,6 +147,10 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 
 	private String getUserId(Authentication auth) {
 		if (auth == null) return null;
+		if (auth instanceof AnonymousAuthenticationToken) {
+			// Anonymous authentication: use the session id instead of the user name.
+			return SessionHelper.getCurrentSessionId(true);
+		}
 		return auth.getName();
 	}
 	

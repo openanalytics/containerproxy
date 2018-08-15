@@ -112,16 +112,23 @@ public class ProxyMappingManager {
 		public static MappingOwnerInfo create(HttpServerExchange exchange) {
 			MappingOwnerInfo info = new MappingOwnerInfo();
 			
+			HeaderValues authHeader = exchange.getRequestHeaders().get("Authorization");
+			if (authHeader != null) info.authHeader = authHeader.getFirst();
+
 			Cookie jSessionIdCookie = exchange.getRequestCookies().get("JSESSIONID");
 			if (jSessionIdCookie != null) info.jSessionId = jSessionIdCookie.getValue();
 			
-			HeaderValues authHeader = exchange.getRequestHeaders().get("Authorization");
-			if (authHeader != null) info.authHeader = authHeader.getFirst();
+			if (jSessionIdCookie == null && authHeader == null) {
+				// Support anonymous requests: this can happen when authentication is set to 'none'.
+				// Create a new session immediately, so that the mapping can be associated with a session id.
+				info.jSessionId = SessionHelper.getCurrentSessionId(true);
+			}
 			
 			return info;
 		}
 
 		public boolean isSame(MappingOwnerInfo other) {
+			if (jSessionId == null && authHeader == null) return false;
 			if (jSessionId == null) return authHeader.equals(other.authHeader);
 			else return jSessionId.equals(other.jSessionId);
 		}

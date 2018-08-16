@@ -21,6 +21,8 @@
 package eu.openanalytics.containerproxy;
 
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -79,6 +81,11 @@ public class ContainerProxyApplication {
 				mappingManager.setPathHandler(pathHandler);
 				return pathHandler;
 		}));
+		try {
+			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
+		} catch (UnknownHostException e) {
+			throw new IllegalArgumentException("Invalid bind address specified", e);
+		}
 		factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
 		return factory;	
 	}

@@ -145,8 +145,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		int targetPort;
 		
 		if (isUseInternalNetwork()) {
-			// Access on containerHostName:containerPort
-			targetHostName = dockerClient.inspectContainer(container.getId()).config().hostname();
+			// Access on containerId:containerPort
+			targetHostName = container.getId();
 			targetPort = containerPort;
 		} else {
 			// Access on dockerHostName:servicePort

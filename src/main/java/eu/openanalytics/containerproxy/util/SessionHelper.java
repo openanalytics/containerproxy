@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.util;
 
 import javax.servlet.http.HttpSession;
 
+import org.springframework.core.env.Environment;
+
 import io.undertow.server.handlers.Cookie;
 import io.undertow.servlet.handlers.ServletRequestContext;
 
@@ -44,5 +46,15 @@ public class SessionHelper {
 		
 		if (createIfMissing) return context.getCurrentServletContext().getSession(context.getExchange(), true).getId();
 		else return null;
+	}
+	
+	public static String getContextPath(Environment environment, boolean endWithSlash) {
+		String contextPath = environment.getProperty("server.servlet.context-path");
+		if (contextPath == null || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
+		
+		if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
+		if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
+		
+		return contextPath;
 	}
 }

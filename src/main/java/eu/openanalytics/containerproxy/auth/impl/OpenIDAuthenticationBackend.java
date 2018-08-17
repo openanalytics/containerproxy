@@ -42,6 +42,7 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.util.SessionHelper;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
@@ -79,7 +80,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	public String getLoginRedirectURI() {
-		return OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + REG_ID;
+		return SessionHelper.getContextPath(environment, false) 
+				+ OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI 
+				+ "/" + REG_ID;
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {

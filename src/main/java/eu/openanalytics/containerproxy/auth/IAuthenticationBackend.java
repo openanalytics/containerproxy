@@ -50,4 +50,7 @@ public interface IAuthenticationBackend {
 	 */
 	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception;
 
+	public default String getLogoutSuccessURL() {
+		return "/login";
+	}
 }

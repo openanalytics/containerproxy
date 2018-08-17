@@ -95,7 +95,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				.logout()
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
 					.addLogoutHandler(logoutHandler)
-					.logoutSuccessUrl("/login");
+					.logoutSuccessUrl(auth.getLogoutSuccessURL());
 			
 			// Enable basic auth for RESTful calls
 			//TODO Restful calls with basic auth will generate a new "login" every time

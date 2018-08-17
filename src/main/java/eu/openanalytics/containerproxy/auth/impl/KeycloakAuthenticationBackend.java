@@ -109,6 +109,11 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		 auth.authenticationProvider(keycloakAuthenticationProvider());
 	}
 
+	@Override
+	public String getLogoutSuccessURL() {
+		return "/";
+	}
+	
 	@Bean
 	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
 	protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() throws Exception {

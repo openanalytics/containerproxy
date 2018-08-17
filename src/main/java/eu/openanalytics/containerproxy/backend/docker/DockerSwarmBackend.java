@@ -82,6 +82,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				.map(n -> NetworkAttachmentConfig.builder().target(n).build())
 				.toArray(i -> new NetworkAttachmentConfig[i]);
 
+		if (spec.getNetwork() != null) {
+			networks = Arrays.copyOf(networks, networks.length + 1);
+			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork()).build();
+		}
+		
 		String serviceName = "sp-service-" + UUID.randomUUID().toString();
 		ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
 				.networks(networks)

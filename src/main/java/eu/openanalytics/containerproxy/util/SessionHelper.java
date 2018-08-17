@@ -50,7 +50,7 @@ public class SessionHelper {
 	
 	public static String getContextPath(Environment environment, boolean endWithSlash) {
 		String contextPath = environment.getProperty("server.servlet.context-path");
-		if (contextPath == null || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
+		if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
 		
 		if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
 		if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";

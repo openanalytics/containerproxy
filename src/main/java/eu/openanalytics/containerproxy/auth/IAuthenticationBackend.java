@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
+import java.util.List;
+
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -52,5 +54,9 @@ public interface IAuthenticationBackend {
 
 	public default String getLogoutSuccessURL() {
 		return "/login";
+	}
+	
+	public default void customizeContainerEnv(List<String> env) {
+		// Default: do nothing.
 	}
 }

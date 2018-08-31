@@ -30,15 +30,21 @@ import javax.inject.Inject;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
@@ -49,9 +55,12 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	public static final String NAME = "openid";
 
 	private static final String REG_ID = "shinyproxy";
+	private static final String ENV_TOKEN_NAME = "SHINYPROXY_OIDC_ACCESS_TOKEN";
+	
+	private OAuth2AuthorizedClientService authorizedClientService;
 	
 	@Inject
-	Environment environment;
+	private Environment environment;
 	
 	@Override
 	public String getName() {
@@ -65,12 +74,16 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
+		authorizedClientService = new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepo);
+		
 		http
 			.authorizeRequests().anyRequest().authenticated()
 			.and()
 			.oauth2Login()
 				.loginPage("/login")
-				.clientRegistrationRepository(createClientRepo())
+				.clientRegistrationRepository(clientRegistrationRepo)
+				.authorizedClientService(authorizedClientService)
 				.userInfoEndpoint().userAuthoritiesMapper(createAuthoritiesMapper());
 	}
 
@@ -83,6 +96,18 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		return SessionHelper.getContextPath(environment, false) 
 				+ OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI 
 				+ "/" + REG_ID;
+	}
+	
+	@Override
+	public void customizeContainerEnv(List<String> env) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth == null) return;
+
+		OidcUser user = (OidcUser) auth.getPrincipal();
+		OAuth2AuthorizedClient client = authorizedClientService.loadAuthorizedClient(REG_ID, user.getName());
+		if (client == null || client.getAccessToken() == null) return;
+		
+		env.add(ENV_TOKEN_NAME + "=" + client.getAccessToken().getTokenValue());
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {

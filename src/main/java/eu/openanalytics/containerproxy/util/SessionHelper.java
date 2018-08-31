@@ -92,7 +92,7 @@ public class SessionHelper {
 			.map(ctx -> ctx.getSession())
 			.map(session -> (SecurityContext) session.getAttribute("SPRING_SECURITY_CONTEXT"))
 			.map(ctx -> ctx.getAuthentication())
-			.filter(auth -> !auth.getClass().isInstance(AnonymousAuthenticationToken.class))
+			.filter(auth -> !AnonymousAuthenticationToken.class.isInstance(auth))
 			.map(auth -> auth.getPrincipal())
 			.orElse(null);
 		

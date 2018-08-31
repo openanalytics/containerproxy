@@ -40,9 +40,11 @@ import javax.inject.Inject;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -79,6 +81,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	@Inject
 	protected Environment environment;
+	
+	@Inject
+	@Lazy
+	// Note: lazy needed to work around early initialization conflict 
+	protected IAuthenticationBackend authBackend;
 	
 	@Override
 	public void initialize() throws ContainerProxyException {
@@ -187,6 +194,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 				env.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
 			}
 		}
+		
+		// Allow the authentication backend to add values to the environment, if needed.
+		if (authBackend != null) authBackend.customizeContainerEnv(env);
 		
 		return env;
 	}

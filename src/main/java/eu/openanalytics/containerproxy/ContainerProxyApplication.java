@@ -76,7 +76,7 @@ public class ContainerProxyApplication {
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-		factory.addDeploymentInfoCustomizers(info -> info.addInitialHandlerChainWrapper(defaultHandler -> {
+		factory.addDeploymentInfoCustomizers(info -> info.addInnerHandlerChainWrapper(defaultHandler -> {
 				PathHandler pathHandler = new ProtectedPathHandler(defaultHandler);
 				mappingManager.setPathHandler(pathHandler);
 				return pathHandler;

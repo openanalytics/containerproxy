@@ -31,8 +31,8 @@ import javax.inject.Inject;
 import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.service.HeartbeatService;
+import eu.openanalytics.containerproxy.util.SessionHelper.SessionOwnerInfo;
 import io.undertow.server.HttpServerExchange;
-import io.undertow.server.handlers.Cookie;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.server.handlers.ResponseCodeHandler;
 import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
@@ -40,7 +40,6 @@ import io.undertow.server.handlers.proxy.ProxyCallback;
 import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
-import io.undertow.util.HeaderValues;
 
 /**
  * This component keeps track of which proxy mappings (i.e. URL endpoints) are currently registered,
@@ -55,7 +54,7 @@ public class ProxyMappingManager {
 
 	private PathHandler pathHandler;
 	
-	private Map<String, MappingOwnerInfo> mappingOwnerInfo = Collections.synchronizedMap(new HashMap<>());
+	private Map<String, SessionOwnerInfo> ownerInfo = Collections.synchronizedMap(new HashMap<>());
 	
 	@Inject
 	private HeartbeatService heartbeatService;
@@ -75,23 +74,23 @@ public class ProxyMappingManager {
 		pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
 		
 		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
-		mappingOwnerInfo.put(path, MappingOwnerInfo.create(exchange));
+		ownerInfo.put(path, SessionHelper.createOwnerInfo(exchange));
 	}
 
 	public synchronized void removeMapping(String path) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
 		pathHandler.removePrefixPath(path);
-		mappingOwnerInfo.remove(path);
+		ownerInfo.remove(path);
 	}
 
 	public boolean requestHasAccess(HttpServerExchange exchange) {
-		MappingOwnerInfo exchangeOwner = MappingOwnerInfo.create(exchange);
+		SessionOwnerInfo exchangeOwner = SessionHelper.createOwnerInfo(exchange);
 		String exchangeMapping = exchange.getRelativePath();
 
-		synchronized (mappingOwnerInfo) {
-			for (String mapping: mappingOwnerInfo.keySet()) {
+		synchronized (ownerInfo) {
+			for (String mapping: ownerInfo.keySet()) {
 				if (exchangeMapping.startsWith("/" + mapping)) {
-					return mappingOwnerInfo.get(mapping).isSame(exchangeOwner);
+					return ownerInfo.get(mapping).isSame(exchangeOwner);
 				}
 			}
 		}
@@ -102,35 +101,5 @@ public class ProxyMappingManager {
 	
 	public void setPathHandler(PathHandler pathHandler) {
 		this.pathHandler = pathHandler;
-	}
-	
-	private static class MappingOwnerInfo {
-		
-		public String jSessionId;
-		public String authHeader;
-		
-		public static MappingOwnerInfo create(HttpServerExchange exchange) {
-			MappingOwnerInfo info = new MappingOwnerInfo();
-			
-			HeaderValues authHeader = exchange.getRequestHeaders().get("Authorization");
-			if (authHeader != null) info.authHeader = authHeader.getFirst();
-
-			Cookie jSessionIdCookie = exchange.getRequestCookies().get("JSESSIONID");
-			if (jSessionIdCookie != null) info.jSessionId = jSessionIdCookie.getValue();
-			
-			if (jSessionIdCookie == null && authHeader == null) {
-				// Support anonymous requests: this can happen when authentication is set to 'none'.
-				// Create a new session immediately, so that the mapping can be associated with a session id.
-				info.jSessionId = SessionHelper.getCurrentSessionId(true);
-			}
-			
-			return info;
-		}
-
-		public boolean isSame(MappingOwnerInfo other) {
-			if (jSessionId == null && authHeader == null) return false;
-			if (jSessionId == null) return authHeader.equals(other.authHeader);
-			else return jSessionId.equals(other.jSessionId);
-		}
 	}
 }

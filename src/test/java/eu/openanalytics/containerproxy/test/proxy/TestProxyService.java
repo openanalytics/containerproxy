@@ -28,7 +28,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
@@ -63,7 +62,6 @@ public class TestProxyService {
 		proxyService.stopProxy(proxy, false, true);
 	}
 	
-	@Configuration
 	public static class TestConfiguration {
 		@Bean
 		@Primary
@@ -76,6 +74,7 @@ public class TestProxyService {
 		@Override
 		public synchronized void addMapping(String proxyId, String path, URI target) {
 			// No-op
+			System.out.println("NOOP");
 		}
 		
 		@Override

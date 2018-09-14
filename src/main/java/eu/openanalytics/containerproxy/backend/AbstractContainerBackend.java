@@ -52,6 +52,8 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 
 public abstract class AbstractContainerBackend implements IContainerBackend {
 
@@ -81,6 +83,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	@Inject
 	protected Environment environment;
+	
+	@Inject
+	protected SpecExpressionResolver expressionResolver;
 	
 	@Inject
 	@Lazy
@@ -116,7 +121,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
-			Container c = startContainer(spec, proxy);
+			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
+			Container c = startContainer(eSpec, proxy);
+			c.setSpec(spec);
 			proxy.getContainers().add(c);
 		}
 	}

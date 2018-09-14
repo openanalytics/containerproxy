@@ -26,6 +26,7 @@ import javax.servlet.http.HttpSession;
 
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.context.SecurityContext;
 
 import io.undertow.server.HttpServerExchange;
@@ -120,7 +121,13 @@ public class SessionHelper {
 		public String jSessionId;
 		
 		public boolean isSame(SessionOwnerInfo other) {
-			if (principal != null && other.principal != null) return principal.equals(other.principal);
+			if (principal != null && other.principal != null) {
+				//TODO Probably, this check will have to be made dependent on the type of principal (LDAP vs OIDC etc)
+				if (principal instanceof AuthenticatedPrincipal && other.principal instanceof AuthenticatedPrincipal) {
+					return ((AuthenticatedPrincipal) principal).getName().equals(((AuthenticatedPrincipal) other.principal).getName());
+				}
+				return principal.equals(other.principal);
+			}
 			if (authHeader != null && other.authHeader != null) return authHeader.equals(other.authHeader);
 			if (jSessionId != null && other.jSessionId != null) return jSessionId.equals(other.jSessionId);
 			return false;

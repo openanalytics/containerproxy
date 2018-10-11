@@ -116,7 +116,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	
 	public boolean canAccess(Authentication auth, ProxySpec spec) {
 		if (auth == null || spec == null) return false;
-		if (auth instanceof AnonymousAuthenticationToken && authBackend.hasAuthorization()) return false;
+		if (auth instanceof AnonymousAuthenticationToken) return !authBackend.hasAuthorization();
 
 		if (spec.getAccessControl() == null) return true;
 		

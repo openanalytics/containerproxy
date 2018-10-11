@@ -133,7 +133,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.clientName(REG_ID)
 				.redirectUriTemplate("{baseUrl}/login/oauth2/code/{registrationId}")
 				.scope(scopes.toArray(new String[scopes.size()]))
-				.userNameAttributeName(environment.getProperty("username-attribute", "email"))
+				.userNameAttributeName(environment.getProperty("proxy.openid.username-attribute", "email"))
 				.authorizationUri(environment.getProperty("proxy.openid.auth-url"))
 				.tokenUri(environment.getProperty("proxy.openid.token-url"))
 				.jwkSetUri(environment.getProperty("proxy.openid.jwks-url"))

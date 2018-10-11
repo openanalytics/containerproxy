@@ -45,6 +45,7 @@ import org.keycloak.adapters.springsecurity.filter.KeycloakAuthenticationProcess
 import org.keycloak.adapters.springsecurity.filter.KeycloakPreAuthActionsFilter;
 import org.keycloak.adapters.springsecurity.management.HttpSessionManager;
 import org.keycloak.adapters.springsecurity.token.KeycloakAuthenticationToken;
+import org.keycloak.representations.IDToken;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
@@ -183,7 +184,8 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 						.map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
 						.map(a -> new KeycloakRole(a))
 						.collect(Collectors.toList());
-				return new KeycloakAuthenticationToken2(token.getAccount(), auth);
+				String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
+				return new KeycloakAuthenticationToken2(token.getAccount(), nameAttribute, auth);
 			}
 		};
 	}
@@ -196,13 +198,22 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		
 		private static final long serialVersionUID = -521347733024996150L;
 
-		public KeycloakAuthenticationToken2(KeycloakAccount account, Collection<? extends GrantedAuthority> authorities) {
+		private String nameAttribute;
+		
+		public KeycloakAuthenticationToken2(KeycloakAccount account, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
 			super(account, authorities);
+			this.nameAttribute = nameAttribute;
 		}
 		
 		@Override
 		public String getName() {
-			return getAccount().getKeycloakSecurityContext().getIdToken().getName();
+			IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
+			switch (nameAttribute) {
+			case IDToken.PREFERRED_USERNAME: return token.getPreferredUsername();
+			case IDToken.NICKNAME: return token.getNickName();
+			case IDToken.EMAIL: return token.getEmail();
+			default: return token.getName();
+			}
 		}
 	}
 }

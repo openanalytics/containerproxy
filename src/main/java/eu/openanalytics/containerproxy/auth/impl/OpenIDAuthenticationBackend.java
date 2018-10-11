@@ -99,6 +99,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
+	public String getLogoutSuccessURL() {
+		String logoutURL = environment.getProperty("proxy.openid.logout-url");
+		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = IAuthenticationBackend.super.getLogoutSuccessURL();
+		return logoutURL;
+	}
+	
+	@Override
 	public void customizeContainerEnv(List<String> env) {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth == null) return;

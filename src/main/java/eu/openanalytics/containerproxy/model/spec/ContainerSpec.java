@@ -119,6 +119,7 @@ public class ContainerSpec {
 			if (target.getEnv() == null) target.setEnv(new HashMap<>());
 			target.getEnv().putAll(env);
 		}
+		target.setEnvFile(envFile);
 		target.setNetwork(network);
 		if (networkConnections != null) target.setNetworkConnections(Arrays.copyOf(networkConnections, networkConnections.length));
 		if (dns != null) target.setDns(Arrays.copyOf(dns, dns.length));

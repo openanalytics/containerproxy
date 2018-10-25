@@ -20,11 +20,16 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.util.Collections;
+
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.kerberos.authentication.KerberosAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 
@@ -53,9 +58,15 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		SunJaasKerberosClient client = new SunJaasKerberosClient();
 		client.setDebug(true);
 		provider.setKerberosClient(client);
-		provider.setUserDetailsService(new InMemoryUserDetailsManager());
-		
+		provider.setUserDetailsService(new DummyUserDetailsService());
 		auth.authenticationProvider(provider);
 	}
 
+	private static class DummyUserDetailsService implements UserDetailsService {
+		@Override
+		public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+			return new User(username, "", Collections.emptyList());
+		}
+	}
+	
 }

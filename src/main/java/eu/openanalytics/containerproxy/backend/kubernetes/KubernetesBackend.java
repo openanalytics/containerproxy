@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Splitter;
 import org.apache.commons.io.IOUtils;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
@@ -47,9 +48,11 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -73,6 +76,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
 	private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
 	private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
+	private static final String PROPERTY_NODE_SELECTOR = "node-selector";
 	
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
@@ -114,17 +118,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
 		
 		String[] volumeStrings = Optional.ofNullable(spec.getVolumes()).orElse(new String[] {});
-		Volume[] volumes = new Volume[volumeStrings.length];
+		List<Volume> volumes = new ArrayList<>();
 		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.length];
 		for (int i = 0; i < volumeStrings.length; i++) {
 			String[] volume = volumeStrings[i].split(":");
 			String hostSource = volume[0];
 			String containerDest = volume[1];
 			String name = "shinyproxy-volume-" + i;
-			volumes[i] = new VolumeBuilder()
+			volumes.add(new VolumeBuilder()
 					.withNewHostPath(hostSource)
 					.withName(name)
-					.build();
+					.build());
 			volumeMounts[i] = new VolumeMountBuilder()
 					.withMountPath(containerDest)
 					.withName(name)
@@ -167,20 +171,27 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
 		
-		Pod pod = kubeClient.pods().inNamespace(kubeNamespace).createNew()
+		DoneablePod doneablePod = kubeClient.pods().inNamespace(kubeNamespace).createNew()
 				.withApiVersion(apiVersion)
 				.withKind("Pod")
 				.withNewMetadata()
 					.withName("sp-pod-" + container.getId())
 					.addToLabels("app", container.getId())
-					.endMetadata()
-				.withNewSpec()
-					.withContainers(Collections.singletonList(containerBuilder.build()))
-					.withVolumes(volumes)
-					.withImagePullSecrets(Arrays.asList(imagePullSecrets).stream()
-						.map(LocalObjectReference::new).collect(Collectors.toList()))
-					.endSpec()
-				.done();
+					.endMetadata();
+		
+		PodSpec podSpec = new PodSpec();
+		podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
+		podSpec.setVolumes(volumes);
+		podSpec.setImagePullSecrets(Arrays.stream(imagePullSecrets)
+				.map(LocalObjectReference::new).collect(Collectors.toList()));
+		
+		String nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
+		if (nodeSelectorString != null) {
+			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
+		}
+		
+		Pod pod = doneablePod.withSpec(podSpec).done();
+		
 		pod = kubeClient.resource(pod).waitUntilReady(600, TimeUnit.SECONDS);
 
 		Service service = null;

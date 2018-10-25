@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.inject.Inject;
@@ -71,35 +72,49 @@ public class TestConcurrentUsers {
 	
 	@Test
 	public void test1User2Sessions1Spec() throws Exception {
-		loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
+        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
 	}
 	
 	@Test
 	public void test1User2Sessions2Specs() throws Exception {
-		loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		loginAndLaunchProxy(user1[0], user1[1], specIds[1]);
+		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user1[0], user1[1], specIds[1]);
+        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
+        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
 	}
 	
 	@Test
 	public void test2Users2Sessions1Spec() throws Exception {
-		loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		loginAndLaunchProxy(user2[0], user2[1], specIds[0]);
+		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user2[0], user2[1], specIds[0]);
+        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
+        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
 	}
 	
 	@Test
 	public void test2Users2Sessions2Specs() throws Exception {
-		loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		loginAndLaunchProxy(user2[0], user2[1], specIds[1]);
+		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user2[0], user2[1], specIds[1]);
+        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
+        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
 	}
 	
-	private void loginAndLaunchProxy(String username, String password, String specId) throws Exception {
+	private Map<String,String> loginAndLaunchProxy(String username, String password, String specId) throws Exception {
 		String jSessionId = doFormLogin(username, password);
 		Map<?,?> proxyInfo = doLaunchProxy(specId, jSessionId);
 		Thread.sleep(1000);
 		Map<?,?> targets = (Map<?,?>) proxyInfo.get("targets");
 		String endpoint = targets.keySet().iterator().next().toString() + "/";
 		doGetEndpoint(endpoint, jSessionId);
+		return new HashMap<String, String>() {
+			{
+				put("proxyId", (String)proxyInfo.get("id"));
+				put("jSessionId", jSessionId);
+			}
+		};
 	}
 	
 	private String doFormLogin(String username, String password) {
@@ -124,6 +139,15 @@ public class TestConcurrentUsers {
 				.exchange()
 				.expectStatus().isEqualTo(201)
 				.returnResult(Map.class).getResponseBody().blockFirst();
+	}
+	
+	private void doDeleteProxy(String proxyId, String jSessionId) {
+		webClient.delete()
+				.uri("/api/proxy/" + proxyId)
+				.cookie("JSESSIONID", jSessionId)
+				.exchange()
+				.expectStatus().isEqualTo(200)
+				.returnResult(String.class).getResponseBodyContent();
 	}
 	
 	private byte[] doGetEndpoint(String endpoint, String jSessionId) {

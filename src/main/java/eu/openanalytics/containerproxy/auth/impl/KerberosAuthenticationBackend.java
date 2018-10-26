@@ -22,6 +22,11 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import java.util.Collections;
 
+import javax.inject.Inject;
+
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -29,13 +34,24 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.kerberos.authentication.KerberosAuthenticationProvider;
+import org.springframework.security.kerberos.authentication.KerberosServiceAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
+import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
+import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
+import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "kerberos";
+
+	@Inject
+	Environment environment;
+	
+	@Inject
+	AuthenticationManager authenticationManager;
 
 	@Override
 	public String getName() {
@@ -49,17 +65,35 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public void configureHttpSecurity(HttpSecurity http) throws Exception {
-		// Nothing to do.
+
+		SpnegoAuthenticationProcessingFilter filter = new SpnegoAuthenticationProcessingFilter();
+		filter.setAuthenticationManager(authenticationManager);
+
+		http
+			.exceptionHandling().authenticationEntryPoint(new SpnegoEntryPoint("/login")).and()
+			.addFilterBefore(filter, BasicAuthenticationFilter.class);
 	}
 
 	@Override
 	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+		UserDetailsService uds = new DummyUserDetailsService();
+
 		KerberosAuthenticationProvider provider = new KerberosAuthenticationProvider();
 		SunJaasKerberosClient client = new SunJaasKerberosClient();
 		client.setDebug(true);
 		provider.setKerberosClient(client);
-		provider.setUserDetailsService(new DummyUserDetailsService());
+		provider.setUserDetailsService(uds);
 		auth.authenticationProvider(provider);
+
+		KerberosServiceAuthenticationProvider spnegoProvider = new KerberosServiceAuthenticationProvider();
+		SunJaasKerberosTicketValidator ticketValidator = new SunJaasKerberosTicketValidator();
+		ticketValidator.setServicePrincipal(environment.getProperty("proxy.kerberos.service-principal"));
+		ticketValidator.setKeyTabLocation(new FileSystemResource(environment.getProperty("proxy.kerberos.service-keytab")));
+		ticketValidator.setDebug(true);
+
+		spnegoProvider.setTicketValidator(ticketValidator);
+		spnegoProvider.setUserDetailsService(uds);
+		auth.authenticationProvider(spnegoProvider);
 	}
 
 	private static class DummyUserDetailsService implements UserDetailsService {
@@ -68,5 +102,5 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 			return new User(username, "", Collections.emptyList());
 		}
 	}
-	
+
 }

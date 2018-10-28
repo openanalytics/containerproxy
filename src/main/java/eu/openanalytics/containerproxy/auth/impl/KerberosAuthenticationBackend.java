@@ -24,17 +24,23 @@ import java.util.Collections;
 
 import javax.inject.Inject;
 
+import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSCredential;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.kerberos.authentication.KerberosAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.KerberosServiceAuthenticationProvider;
+import org.springframework.security.kerberos.authentication.KerberosServiceRequestToken;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
@@ -85,11 +91,30 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		provider.setUserDetailsService(uds);
 		auth.authenticationProvider(provider);
 
-		KerberosServiceAuthenticationProvider spnegoProvider = new KerberosServiceAuthenticationProvider();
+		KerberosServiceAuthenticationProvider spnegoProvider = new KerberosServiceAuthenticationProvider() {
+			@Override
+			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+				KerberosServiceRequestToken auth = (KerberosServiceRequestToken) super.authenticate(authentication);
+				try {
+					GSSContext context = auth.getTicketValidation().getGssContext();
+					if (context.getCredDelegState()) {
+						GSSCredential cred = context.getDelegCred();
+						System.out.println("Delegated credentials found:");
+						System.out.println(String.valueOf(cred));
+					} else {
+						System.out.println("No delegated credentials available!");
+					}
+				} catch (Exception e) {
+					throw new BadCredentialsException("Failed to obtain delegated credentials", e);
+				}
+				return auth;
+			}
+		};
 		SunJaasKerberosTicketValidator ticketValidator = new SunJaasKerberosTicketValidator();
 		ticketValidator.setServicePrincipal(environment.getProperty("proxy.kerberos.service-principal"));
 		ticketValidator.setKeyTabLocation(new FileSystemResource(environment.getProperty("proxy.kerberos.service-keytab")));
 		ticketValidator.setDebug(true);
+		ticketValidator.setHoldOnToGSSContext(true);
 		ticketValidator.afterPropertiesSet();
 		
 		spnegoProvider.setTicketValidator(ticketValidator);

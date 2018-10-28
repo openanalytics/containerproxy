@@ -90,7 +90,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		ticketValidator.setServicePrincipal(environment.getProperty("proxy.kerberos.service-principal"));
 		ticketValidator.setKeyTabLocation(new FileSystemResource(environment.getProperty("proxy.kerberos.service-keytab")));
 		ticketValidator.setDebug(true);
-
+		ticketValidator.afterPropertiesSet();
+		
 		spnegoProvider.setTicketValidator(ticketValidator);
 		spnegoProvider.setUserDetailsService(uds);
 		auth.authenticationProvider(spnegoProvider);

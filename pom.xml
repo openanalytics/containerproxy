@@ -156,6 +156,18 @@
 			<version>3.0.0.Final</version>
 		</dependency>
         
+        <!-- Kereberos -->
+		<dependency>
+			<groupId>org.apache.kerby</groupId>
+			<artifactId>kerb-client</artifactId>
+			<version>1.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kerby</groupId>
+			<artifactId>kerb-gssapi</artifactId>
+			<version>1.1.1</version>
+		</dependency>
+		
 		<!-- Docker -->
 		<dependency>
 			<groupId>com.spotify</groupId>

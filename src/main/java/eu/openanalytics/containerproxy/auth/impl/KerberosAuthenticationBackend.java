@@ -20,10 +20,12 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 
 import javax.inject.Inject;
 
+import org.apache.kerby.kerberos.kerb.type.ap.ApReq;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.springframework.core.env.Environment;
@@ -95,6 +97,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 			@Override
 			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 				KerberosServiceRequestToken auth = (KerberosServiceRequestToken) super.authenticate(authentication);
+				
+				// Test: check for delegated credentials
 				try {
 					GSSContext context = auth.getTicketValidation().getGssContext();
 					if (context.getCredDelegState()) {
@@ -107,6 +111,20 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 				} catch (Exception e) {
 					throw new BadCredentialsException("Failed to obtain delegated credentials", e);
 				}
+				
+				// Test: parse token ticket
+				try {
+					byte[] spnegoToken = auth.getToken();
+					ByteArrayOutputStream tokenMinusHeader = new ByteArrayOutputStream();
+					tokenMinusHeader.write(spnegoToken, 2, spnegoToken.length - 2);
+					ApReq apReq = new ApReq();
+					apReq.decode(tokenMinusHeader.toByteArray());
+					System.out.println("Parsed ticket " + apReq.getTicket().getSname());
+					System.out.println("Ticket class: " + apReq.getTicket().getClass().getName());
+				} catch (Exception e) {
+					throw new BadCredentialsException("Failed to parse AP_REQ ticket", e);
+				}
+			
 				return auth;
 			}
 		};

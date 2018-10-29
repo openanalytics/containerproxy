@@ -115,8 +115,19 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 				// Test: parse token ticket
 				try {
 					byte[] spnegoToken = auth.getToken();
+					byte[] apReqHeader = {(byte) 0x1, (byte) 0};
+					
+					int offset = 0;
+					while (offset < spnegoToken.length - 1) {
+						if (spnegoToken[offset] == apReqHeader[0] && spnegoToken[offset + 1] == apReqHeader[1]) {
+							offset += 2;
+							break;
+						}
+					}
 					ByteArrayOutputStream tokenMinusHeader = new ByteArrayOutputStream();
-					tokenMinusHeader.write(spnegoToken, 2, spnegoToken.length - 2);
+					tokenMinusHeader.write(spnegoToken, offset, spnegoToken.length - offset);
+					System.out.println("Stripped " + offset + " header bytes from token.");
+					
 					ApReq apReq = new ApReq();
 					apReq.decode(tokenMinusHeader.toByteArray());
 					System.out.println("Parsed ticket " + apReq.getTicket().getSname());

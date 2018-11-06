@@ -50,6 +50,8 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.QuantityBuilder;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -145,12 +147,19 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		List<ContainerPort> containerPorts = spec.getPortMapping().values().stream()
 				.map(p -> new ContainerPortBuilder().withContainerPort(p).build())
 				.collect(Collectors.toList());
+
+		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
+		resourceRequirementsBuilder.addToRequests("memory", new QuantityBuilder().withAmount("1500Mi").build());
+		resourceRequirementsBuilder.addToRequests("cpu", new QuantityBuilder().withAmount("1").build());
+		resourceRequirementsBuilder.addToLimits("memory", new QuantityBuilder().withAmount("4Gi").build());
+		resourceRequirementsBuilder.addToLimits("cpu", new QuantityBuilder().withAmount("2").build());
 		
 		ContainerBuilder containerBuilder = new ContainerBuilder()
 				.withImage(spec.getImage())
 				.withCommand(spec.getCmd())
 				.withName("sp-container-" + container.getId())
 				.withPorts(containerPorts)
+				.withResources(resourceRequirementsBuilder.build())
 				.withVolumeMounts(volumeMounts)
 				.withSecurityContext(security)
 				.withEnv(envVars);

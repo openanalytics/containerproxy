@@ -21,7 +21,9 @@
 package eu.openanalytics.containerproxy.service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.inject.Inject;
 
@@ -75,12 +77,19 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	}
 	
 	public String[] getAdminGroups() {
-		String[] adminGroups = environment.getProperty("proxy.admin-groups", String[].class);
-		if (adminGroups == null) adminGroups = new String[0];
-		for (int i = 0; i < adminGroups.length; i++) {
-			adminGroups[i] = adminGroups[i].toUpperCase();
+		Set<String> adminGroups = new HashSet<>();
+		
+		// Support for old, non-array notation
+		String singleGroup = environment.getProperty("proxy.admin-groups");
+		if (singleGroup != null && !singleGroup.isEmpty()) adminGroups.add(singleGroup.toUpperCase());
+		
+		for (int i=0 ;; i++) {
+			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
+			if (groupName == null || groupName.isEmpty()) break;
+			adminGroups.add(groupName.toUpperCase());
 		}
-		return adminGroups;
+
+		return adminGroups.toArray(new String[adminGroups.size()]);
 	}
 	
 	public String[] getGroups() {
@@ -104,8 +113,8 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	}
 	
 	public boolean isAdmin(Authentication auth) {
-		for (String adminGroups: getAdminGroups()) {
-			if (isMember(auth, adminGroups)) return true;
+		for (String adminGroup: getAdminGroups()) {
+			if (isMember(auth, adminGroup)) return true;
 		}
 		return false;
 	}

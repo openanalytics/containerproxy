@@ -37,13 +37,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.kerberos.authentication.KerberosAuthenticationProvider;
+import org.springframework.security.kerberos.authentication.KerberosServiceRequestToken;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBAuthenticationToken;
+import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBServiceAuthProvider;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketValidator;
 
@@ -51,6 +52,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "kerberos";
 
+	private KRBClientCacheRegistry ccacheReg;
+	
 	@Inject
 	Environment environment;
 	
@@ -80,6 +83,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+		ccacheReg = new KRBClientCacheRegistry(environment.getProperty("proxy.kerberos.client-ccache-path"));
+		
 		UserDetailsService uds = new SimpleUserDetailsService();
 
 		KerberosAuthenticationProvider formAuthProvider = new KerberosAuthenticationProvider();
@@ -91,7 +96,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 		KRBServiceAuthProvider spnegoAuthProvider = new KRBServiceAuthProvider(
 				environment.getProperty("proxy.kerberos.backend-principal"),
-				environment.getProperty("proxy.kerberos.client-ccache-path"));
+				ccacheReg);
 		KRBTicketValidator ticketValidator = new KRBTicketValidator(
 				environment.getProperty("proxy.kerberos.service-principal"),
 				new FileSystemResource(environment.getProperty("proxy.kerberos.service-keytab")));
@@ -104,10 +109,12 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	@Override
 	public void customizeContainerEnv(List<String> env) {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		if (auth instanceof KRBAuthenticationToken) {
-			KRBAuthenticationToken token = (KRBAuthenticationToken) auth;
-			env.add("KRB5CCNAME=" + token.getClientCCPath());
-			env.add("REMOTE_USER=" + token.getClientName());
+		if (auth instanceof KerberosServiceRequestToken) {
+			KerberosServiceRequestToken token = (KerberosServiceRequestToken) auth;
+			String principal = String.valueOf(token.getPrincipal());
+			String ccache = ccacheReg.get(principal);
+			env.add("KRB5CCNAME=" + ccache);
+			env.add("REMOTE_USER=" + principal);
 		}
 	}
 	

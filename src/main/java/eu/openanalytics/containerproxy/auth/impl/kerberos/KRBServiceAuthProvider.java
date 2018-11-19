@@ -24,8 +24,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.HashSet;
@@ -57,17 +55,16 @@ import org.springframework.security.kerberos.authentication.KerberosServiceReque
 public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvider {
 	
 	private String backendPrincipal;
-	private String ccachePath;
+	private KRBClientCacheRegistry ccacheReg;
 	
-	public KRBServiceAuthProvider(String backendPrincipal, String ccachePath) {
+	public KRBServiceAuthProvider(String backendPrincipal, KRBClientCacheRegistry ccacheReg) {
 		this.backendPrincipal = backendPrincipal;
-		this.ccachePath = ccachePath;
+		this.ccacheReg = ccacheReg;
 	}
 	
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 		KerberosServiceRequestToken auth = (KerberosServiceRequestToken) super.authenticate(authentication);
-		KRBAuthenticationToken response = new KRBAuthenticationToken(auth);
 		
 		try {
 			ApReq apReq = parseApReq(auth.getToken());
@@ -77,11 +74,9 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 			SgtTicket backendTicket = obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), subject);
 			
 			String clientName = apReq.getTicket().getEncPart().getCname().getName();
-			response.setClientName(clientName);
-			Path ccacheClientPath = Paths.get(ccachePath, clientName);
-			response.setClientCCPath(ccacheClientPath.toString());
+			String ccachePath = ccacheReg.create(clientName);
 			
-			File ccache = ccacheClientPath.toFile();
+			File ccache = new File(ccachePath);
 			KrbClient krbClient = new KrbClient((KrbConfig) null);
 			krbClient.storeTicket(proxyTicket, ccache);
 			krbClient.storeTicket(backendTicket, ccache);
@@ -89,7 +84,7 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 			throw new BadCredentialsException("Failed to create client ccache", e);
 		}
 	
-		return response;
+		return auth;
 	}
 	
 	/**

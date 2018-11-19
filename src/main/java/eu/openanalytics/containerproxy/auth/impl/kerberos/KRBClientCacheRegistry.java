@@ -43,8 +43,9 @@ public class KRBClientCacheRegistry {
 	}
 	
 	public synchronized String create(String principal) throws IOException {
-		Files.createDirectories(Paths.get(baseClientCachePath, principal));
-		String path = Paths.get(baseClientCachePath, principal, "ccache").toString();
+		String escapedPName = principal.replace('@', '.');
+		Files.createDirectories(Paths.get(baseClientCachePath, escapedPName));
+		String path = Paths.get(baseClientCachePath, escapedPName, "ccache").toString();
 		registry.put(principal, path);
 		return path;
 	}

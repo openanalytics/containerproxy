@@ -50,6 +50,7 @@ public class KRBClientCacheRegistry {
 	}
 	
 	public synchronized  String get(String principal) {
+		System.out.println("Searing " + principal + " in " + registry.keySet());
 		return registry.get(principal);
 	}
 }

@@ -73,9 +73,7 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 			SgtTicket proxyTicket = obtainProxyServiceTicket(apReq, subject);
 			SgtTicket backendTicket = obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), subject);
 			
-			String clientName = apReq.getTicket().getEncPart().getCname().getName();
-			String ccachePath = ccacheReg.create(clientName);
-			
+			String ccachePath = ccacheReg.create(auth.getName());
 			File ccache = new File(ccachePath);
 			KrbClient krbClient = new KrbClient((KrbConfig) null);
 			krbClient.storeTicket(proxyTicket, ccache);

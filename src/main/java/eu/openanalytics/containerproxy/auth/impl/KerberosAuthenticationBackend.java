@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -112,13 +113,17 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	public void customizeContainer(ContainerSpec spec) {
 		String principal = getCurrentPrincipal();
 		String ccache = ccacheReg.get(principal);
+		
 		List<String> volumes = new ArrayList<>();
 		if (spec.getVolumes() != null) {
 			for (int i = 0; i < spec.getVolumes().length; i++) {
 				volumes.add(spec.getVolumes()[i]);
 			}
 		}
-		volumes.add(ccache + ":/tmp/client-ccache");
+		
+		String ccachePath = Paths.get(ccache).getParent().toString();
+		volumes.add(ccachePath + ":/tmp/ccache");
+		
 		spec.setVolumes(volumes.toArray(new String[volumes.size()]));
 	}
 	
@@ -126,7 +131,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	public void customizeContainerEnv(List<String> env) {
 		String principal = getCurrentPrincipal();
 		env.add("REMOTE_USER=" + principal);
-		env.add("KRB5CCNAME=/tmp/client-ccache");
+		env.add("KRB5CCNAME=/tmp/ccache");
 	}
 	
 	private String getCurrentPrincipal() {

@@ -33,18 +33,18 @@ public class KRBClientCacheRegistry {
 	
 	private String baseClientCachePath;
 	
-	public KRBClientCacheRegistry(String baseClientCachePath) throws IOException {
+	public KRBClientCacheRegistry(String baseClientCachePath) {
 		this.baseClientCachePath = baseClientCachePath;
 		this.registry = new HashMap<>();
-		Files.createDirectories(Paths.get(baseClientCachePath));
 	}
 	
 	public String getBaseClientCachePath() {
 		return baseClientCachePath;
 	}
 	
-	public synchronized String create(String principal) {
-		String path = Paths.get(baseClientCachePath, principal).toString();
+	public synchronized String create(String principal) throws IOException {
+		Files.createDirectories(Paths.get(baseClientCachePath, principal));
+		String path = Paths.get(baseClientCachePath, principal, "ccache").toString();
 		registry.put(principal, path);
 		return path;
 	}

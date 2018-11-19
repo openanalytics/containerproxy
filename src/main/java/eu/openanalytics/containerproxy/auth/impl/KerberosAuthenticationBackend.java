@@ -51,6 +51,7 @@ import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBServiceAuthProvider
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketValidator;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
+//TODO When user logs out: KRBClientCacheRegistry.remove(String principal)
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "kerberos";

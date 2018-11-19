@@ -22,9 +22,12 @@ package eu.openanalytics.containerproxy.auth.impl.kerberos;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 
 public class KRBClientCacheRegistry {
@@ -50,8 +53,23 @@ public class KRBClientCacheRegistry {
 		return path;
 	}
 	
-	public synchronized  String get(String principal) {
-		System.out.println("Searing " + principal + " in " + registry.keySet());
+	public synchronized String get(String principal) {
 		return registry.get(principal);
+	}
+	
+	public Set<String> getAllPrincipals() {
+		return new HashSet<>(registry.keySet());
+	}
+	
+	public synchronized void remove(String principal) throws IOException {
+		if (!registry.containsKey(principal)) return;
+		
+		String path = registry.remove(principal);
+		if (path == null || path.isEmpty()) return;
+		
+		// Delete both the ccache file and its user-principal parent folder
+		Path p = Paths.get(path);
+		Files.deleteIfExists(p);
+		Files.deleteIfExists(p.getParent());
 	}
 }

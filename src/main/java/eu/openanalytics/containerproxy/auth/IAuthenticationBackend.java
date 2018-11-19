@@ -25,6 +25,8 @@ import java.util.List;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+
 public interface IAuthenticationBackend {
 
 	/**
@@ -56,7 +58,12 @@ public interface IAuthenticationBackend {
 		return "/login";
 	}
 	
+	public default void customizeContainer(ContainerSpec spec) {
+		// Default: do nothing.
+	}
+
 	public default void customizeContainerEnv(List<String> env) {
 		// Default: do nothing.
 	}
+	
 }

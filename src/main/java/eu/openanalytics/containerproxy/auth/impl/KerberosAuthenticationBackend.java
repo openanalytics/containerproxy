@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -47,6 +48,7 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBServiceAuthProvider;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketValidator;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
@@ -107,15 +109,34 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
+	public void customizeContainer(ContainerSpec spec) {
+		String principal = getCurrentPrincipal();
+		String ccache = ccacheReg.get(principal);
+		List<String> volumes = new ArrayList<>();
+		if (spec.getVolumes() != null) {
+			for (int i = 0; i < spec.getVolumes().length; i++) {
+				volumes.add(spec.getVolumes()[i]);
+			}
+		}
+		volumes.add(ccache + ":/tmp/client-ccache");
+		spec.setVolumes(volumes.toArray(new String[volumes.size()]));
+	}
+	
+	@Override
 	public void customizeContainerEnv(List<String> env) {
+		String principal = getCurrentPrincipal();
+		env.add("REMOTE_USER=" + principal);
+		env.add("KRB5CCNAME=/tmp/client-ccache");
+	}
+	
+	private String getCurrentPrincipal() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth instanceof KerberosServiceRequestToken) {
 			KerberosServiceRequestToken token = (KerberosServiceRequestToken) auth;
 			String principal = String.valueOf(token.getPrincipal());
-			String ccache = ccacheReg.get(principal);
-			env.add("KRB5CCNAME=" + ccache);
-			env.add("REMOTE_USER=" + principal);
+			return principal;
 		}
+		return null;
 	}
 	
 	private static class SimpleUserDetailsService implements UserDetailsService {

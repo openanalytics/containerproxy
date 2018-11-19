@@ -121,6 +121,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
+			if (authBackend != null) authBackend.customizeContainer(spec);
 			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);

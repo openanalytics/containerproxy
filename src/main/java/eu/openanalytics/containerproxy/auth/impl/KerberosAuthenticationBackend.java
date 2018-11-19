@@ -137,9 +137,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	private String getCurrentPrincipal() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth instanceof KerberosServiceRequestToken) {
-			KerberosServiceRequestToken token = (KerberosServiceRequestToken) auth;
-			String principal = String.valueOf(token.getPrincipal());
-			return principal;
+			return auth.getName();
 		}
 		return null;
 	}

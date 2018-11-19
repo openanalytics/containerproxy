@@ -234,7 +234,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			proxy.getTargets().put(mapping, target);
 		}
 		
-		Thread.sleep(15000);
 		return container;
 	}
 

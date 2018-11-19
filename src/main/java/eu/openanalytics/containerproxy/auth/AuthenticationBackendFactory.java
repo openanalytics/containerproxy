@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SocialAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
 
 /**
  * Instantiates an appropriate authentication backend depending on the application configuration.
@@ -79,11 +80,14 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 		case SocialAuthenticationBackend.NAME:
 			backend = new SocialAuthenticationBackend();
 			break;
+		case KeycloakAuthenticationBackend.NAME:
+			return keycloakBackend;			
 		case KerberosAuthenticationBackend.NAME:
 			backend = new KerberosAuthenticationBackend();
 			break;
-		case KeycloakAuthenticationBackend.NAME:
-			return keycloakBackend;
+		case WebServiceAuthenticationBackend.NAME:			
+			backend = new WebServiceAuthenticationBackend();
+			break;
 		}
 		if (backend == null) throw new RuntimeException("Unknown authentication type:" + type);
 		

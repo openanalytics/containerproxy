@@ -47,12 +47,17 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 		
 		try {
 			Subject subject = getCurrentSubject();
-
-			SgtTicket proxyTicket = KRBUtils.obtainProxyServiceTicket(auth.getToken(), subject);
-			SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), subject);
-			
 			String ccachePath = ccacheReg.create(auth.getName());
+
+			// Test: use s4u2self instead of spnego ticket
+			
+//			SgtTicket proxyTicket = KRBUtils.obtainProxyServiceTicket(auth.getToken(), subject);
+//			KRBUtils.persistTicket(proxyTicket, ccachePath);
+
+			SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(auth.getName(), subject);
 			KRBUtils.persistTicket(proxyTicket, ccachePath);
+			
+			SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), subject);
 			KRBUtils.persistTicket(backendTicket, ccachePath);
 		} catch (Exception e) {
 			throw new BadCredentialsException("Failed to create client ccache", e);

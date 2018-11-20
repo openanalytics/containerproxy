@@ -128,15 +128,12 @@ public class KRBUtils {
 		sun.security.krb5.Credentials serviceTGTCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(serviceTGT);
 		
 		// Make a S4U2Self request
-		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
-				serviceTGTCreds,
-				new sun.security.krb5.PrincipalName(clientPrincipal),
-				new sun.security.krb5.internal.PAData(0, null));
-		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
+		sun.security.krb5.PrincipalName clientPName = new sun.security.krb5.PrincipalName(clientPrincipal);
+		sun.security.krb5.Credentials creds = sun.security.krb5.Credentials.acquireS4U2selfCreds(clientPName, serviceTGTCreds);
 		
 		SgtTicket sgtTicket = convertToTicket(creds,
-				serviceTGT.getClient().getName(),
-				serviceTGT.getClient().getRealm());
+				serviceTGTCreds.getServer().getName(),
+				serviceTGTCreds.getServer().getRealmAsString());
 		return sgtTicket;
 	}
 	

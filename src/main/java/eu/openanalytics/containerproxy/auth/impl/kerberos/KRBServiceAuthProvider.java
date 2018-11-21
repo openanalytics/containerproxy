@@ -49,11 +49,6 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 			Subject subject = getCurrentSubject();
 			String ccachePath = ccacheReg.create(auth.getName());
 
-			// Test: use s4u2self instead of spnego ticket
-			
-//			SgtTicket proxyTicket = KRBUtils.obtainProxyServiceTicket(auth.getToken(), subject);
-//			KRBUtils.persistTicket(proxyTicket, ccachePath);
-
 			SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(auth.getName(), subject);
 			KRBUtils.persistTicket(proxyTicket, ccachePath);
 			

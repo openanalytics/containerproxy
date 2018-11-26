@@ -33,11 +33,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.kerberos.authentication.KerberosServiceAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.KerberosServiceRequestToken;
 import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
@@ -46,8 +48,10 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
-import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBServiceAuthProvider;
+import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketRenewalManager;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.service.EventService;
+import eu.openanalytics.containerproxy.service.EventService.EventType;
 
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
@@ -61,6 +65,9 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	AuthenticationManager authenticationManager;
 
+	@Inject
+	EventService eventService;
+	
 	@Override
 	public String getName() {
 		return NAME;
@@ -86,17 +93,18 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
 		ccacheReg = new KRBClientCacheRegistry(environment.getProperty("proxy.kerberos.client-ccache-path"));
 		
-		String authSvcPrinc = environment.getProperty("proxy.kerberos.auth-service-principal");
-		String authSvcKeytab = environment.getProperty("proxy.kerberos.auth-service-keytab");
+		String authSvcPrinc = environment.getProperty("proxy.kerberos.auth-service-principal", environment.getProperty("proxy.kerberos.service-principal"));
+		String authSvcKeytab = environment.getProperty("proxy.kerberos.auth-service-keytab", environment.getProperty("proxy.kerberos.service-keytab"));
 		String delegSvcPrinc = environment.getProperty("proxy.kerberos.deleg-service-principal", authSvcPrinc);
 		String delegSvcKeytab = environment.getProperty("proxy.kerberos.deleg-service-keytab", authSvcKeytab);
 		
-		List<String> backendPrincipals = new ArrayList<>();
+		List<String> backendPrincipalList = new ArrayList<>();
 		String backendPrincipal = environment.getProperty("proxy.kerberos.backend-principal", (String) null);
-		if (backendPrincipal != null) backendPrincipals.add(backendPrincipal);
+		if (backendPrincipal != null) backendPrincipalList.add(backendPrincipal);
 		String[] moreBackendPrincipals = environment.getProperty("proxy.kerberos.backend-principals", String[].class, new String[0]);
-		for (String p: moreBackendPrincipals) backendPrincipals.add(p);
-
+		for (String p: moreBackendPrincipals) backendPrincipalList.add(p);
+		String[] backendPrincipals = backendPrincipalList.stream().toArray(i -> new String[i]);
+		
 		long ticketRenewInterval = environment.getProperty("proxy.kerberos.ticket-renew-interval", Long.class, new Long(8 * 3600 * 1000));
 		
 		SunJaasKerberosTicketValidator ticketValidator = new SunJaasKerberosTicketValidator();
@@ -105,18 +113,26 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		ticketValidator.setDebug(true);
 		ticketValidator.afterPropertiesSet();
 		
-		KRBServiceAuthProvider spnegoAuthProvider = new KRBServiceAuthProvider(
-				delegSvcPrinc,
-				delegSvcKeytab,
-				backendPrincipals.toArray(new String[ backendPrincipals.size() ]),
-				ccacheReg,
-				ticketRenewInterval);
+		KRBTicketRenewalManager renewalManager = new KRBTicketRenewalManager(
+				delegSvcPrinc, delegSvcKeytab, backendPrincipals, ccacheReg, ticketRenewInterval);
 		
-		spnegoAuthProvider.setTicketValidator(ticketValidator);
-		spnegoAuthProvider.setUserDetailsService(new SimpleUserDetailsService());
-		spnegoAuthProvider.afterPropertiesSet();
+		eventService.addListener(e -> {
+			if (EventType.Logout.toString().equals(e.type)) renewalManager.stop(e.user);
+		});
 		
-		auth.authenticationProvider(spnegoAuthProvider);
+		KerberosServiceAuthenticationProvider authProvider = new KerberosServiceAuthenticationProvider() {
+			@Override
+			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+				KerberosServiceRequestToken auth = (KerberosServiceRequestToken) super.authenticate(authentication);
+				renewalManager.start(auth.getName());
+				return auth;
+			}
+		};
+		authProvider.setTicketValidator(ticketValidator);
+		authProvider.setUserDetailsService(new SimpleUserDetailsService());
+		authProvider.afterPropertiesSet();
+		
+		auth.authenticationProvider(authProvider);
 	}
 
 	@Override

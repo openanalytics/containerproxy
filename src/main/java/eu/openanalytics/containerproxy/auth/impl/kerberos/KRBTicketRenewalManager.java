@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.kerberos;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -37,7 +38,10 @@ public class KRBTicketRenewalManager {
 
 	private Logger log = LogManager.getLogger(KRBTicketRenewalManager.class);
 	
-	private Subject serviceSubject;
+	private String servicePrincipal;
+	private String serviceKeytab;
+	private Subject currentServiceSubject;
+	
 	private String[] backendPrincipals;
 	private KRBClientCacheRegistry ccacheReg;
 	
@@ -45,18 +49,23 @@ public class KRBTicketRenewalManager {
 	private long renewInterval;
 	private Map<String, ScheduledFuture<?>> renewalJobs;
 	
-	public KRBTicketRenewalManager(Subject serviceSubject, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg, long renewInterval) {
-		this.serviceSubject = serviceSubject;
+	public KRBTicketRenewalManager(String servicePrincipal, String serviceKeytab, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg, long renewInterval) {
+		this.servicePrincipal = serviceKeytab;
+		this.serviceKeytab = serviceKeytab;
 		this.backendPrincipals = backendPrincipals;
+		
 		this.ccacheReg = ccacheReg;
+		
 		this.executor = Executors.newSingleThreadScheduledExecutor();
 		this.renewInterval = renewInterval;
 		this.renewalJobs = new ConcurrentHashMap<>();
+		
+		executor.scheduleAtFixedRate(new ProxyRenewalJob(), 0, renewInterval, TimeUnit.MILLISECONDS);
 	}
 	
 	public synchronized void start(String principal) {
 		if (renewalJobs.containsKey(principal)) return;
-		ScheduledFuture<?> f = executor.scheduleAtFixedRate(new RenewalJob(principal), renewInterval, renewInterval, TimeUnit.MILLISECONDS);
+		ScheduledFuture<?> f = executor.scheduleAtFixedRate(new RenewalJob(principal), 0, renewInterval, TimeUnit.MILLISECONDS);
 		renewalJobs.put(principal, f);
 	}
 	
@@ -65,6 +74,11 @@ public class KRBTicketRenewalManager {
 		if (f != null) {
 			f.cancel(true);
 			renewalJobs.remove(principal);
+		}
+		try {
+			ccacheReg.remove(principal);
+		} catch (IOException e) {
+			log.error("Error while removing ccache for " + principal, e);
 		}
 	}
 	
@@ -82,18 +96,30 @@ public class KRBTicketRenewalManager {
 			
 			try {
 				String ccachePath = ccacheReg.get(principal);
-					
-				SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(principal, serviceSubject);
+				if (ccachePath == null) ccachePath = ccacheReg.create(principal);
+				
+				SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(principal, currentServiceSubject);
 				KRBUtils.persistTicket(proxyTicket, ccachePath);
 					
 				for (String backendPrincipal: backendPrincipals) {
-					SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), serviceSubject);
+					SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), currentServiceSubject);
 					KRBUtils.persistTicket(backendTicket, ccachePath);
 				}
 					
 				log.info("Renewed " + backendPrincipals.length + " service tickets for user " + principal);
 			} catch (Exception e) {
-				log.error("Error while renewing KRB tickets for " + principal, e);
+				log.error("Error while renewing service tickets for " + principal, e);
+			}
+		}
+	}
+	
+	private class ProxyRenewalJob implements Runnable {
+		@Override
+		public void run() {
+			try {
+				currentServiceSubject = KRBUtils.createGSSContext(servicePrincipal, serviceKeytab);
+			} catch (Exception e) {
+				log.error("Error while renewing TGT for " + servicePrincipal, e);
 			}
 		}
 	}

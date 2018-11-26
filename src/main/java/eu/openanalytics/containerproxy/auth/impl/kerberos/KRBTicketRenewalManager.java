@@ -20,47 +20,81 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.kerberos;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import javax.security.auth.Subject;
 
 import org.apache.kerby.kerberos.kerb.type.ticket.SgtTicket;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class KRBTicketRefreshJob implements Runnable {
+public class KRBTicketRenewalManager {
 
-	private Logger log = LogManager.getLogger(KRBTicketRefreshJob.class);
+	private Logger log = LogManager.getLogger(KRBTicketRenewalManager.class);
 	
 	private Subject serviceSubject;
 	private String[] backendPrincipals;
 	private KRBClientCacheRegistry ccacheReg;
-
-	public KRBTicketRefreshJob(Subject serviceSubject, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg) {
+	
+	private ScheduledExecutorService executor;
+	private long renewInterval;
+	private Map<String, ScheduledFuture<?>> renewalJobs;
+	
+	public KRBTicketRenewalManager(Subject serviceSubject, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg, long renewInterval) {
 		this.serviceSubject = serviceSubject;
 		this.backendPrincipals = backendPrincipals;
 		this.ccacheReg = ccacheReg;
+		this.executor = Executors.newSingleThreadScheduledExecutor();
+		this.renewInterval = renewInterval;
+		this.renewalJobs = new ConcurrentHashMap<>();
 	}
 	
-	@Override
-	public void run() {
-		if (backendPrincipals == null || backendPrincipals.length == 0) return;
+	public synchronized void start(String principal) {
+		if (renewalJobs.containsKey(principal)) return;
+		ScheduledFuture<?> f = executor.scheduleAtFixedRate(new RenewalJob(principal), renewInterval, renewInterval, TimeUnit.MILLISECONDS);
+		renewalJobs.put(principal, f);
+	}
+	
+	public synchronized void stop(String principal) {
+		ScheduledFuture<?> f = renewalJobs.get(principal);
+		if (f != null) {
+			f.cancel(true);
+			renewalJobs.remove(principal);
+		}
+	}
+	
+	private class RenewalJob implements Runnable {
+
+		private String principal;
 		
-		try {
-			for (String principal: ccacheReg.getAllPrincipals()) {
+		public RenewalJob(String principal) {
+			this.principal = principal;
+		}
+		
+		@Override
+		public void run() {
+			if (backendPrincipals == null || backendPrincipals.length == 0) return;
+			
+			try {
 				String ccachePath = ccacheReg.get(principal);
-				
+					
 				SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(principal, serviceSubject);
 				KRBUtils.persistTicket(proxyTicket, ccachePath);
-				
+					
 				for (String backendPrincipal: backendPrincipals) {
 					SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), serviceSubject);
 					KRBUtils.persistTicket(backendTicket, ccachePath);
 				}
-				
+					
 				log.info("Renewed " + backendPrincipals.length + " service tickets for user " + principal);
+			} catch (Exception e) {
+				log.error("Error while renewing KRB tickets for " + principal, e);
 			}
-		} catch (Exception e) {
-			log.error("Error in " + this.getClass().getSimpleName(), e);
 		}
 	}
-
 }

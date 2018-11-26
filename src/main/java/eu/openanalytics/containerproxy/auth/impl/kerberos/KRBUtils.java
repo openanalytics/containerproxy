@@ -23,15 +23,21 @@ package eu.openanalytics.containerproxy.auth.impl.kerberos;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.security.Principal;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosKey;
+import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.KerberosTicket;
 import javax.security.auth.kerberos.KeyTab;
+import javax.security.auth.login.AppConfigurationEntry;
+import javax.security.auth.login.Configuration;
+import javax.security.auth.login.LoginContext;
 
 import org.apache.kerby.kerberos.kerb.client.KrbClient;
 import org.apache.kerby.kerberos.kerb.client.KrbConfig;
@@ -51,8 +57,43 @@ public class KRBUtils {
 	private static KrbClient krbClient = new KrbClient((KrbConfig) null);
 	
 	/**
+	 * Perform a KRB5 login via GSS-API in order to obtain a TGT for the given principal.
+	 * 
+	 * @return A newly acquired TGT for the principal.
+	 * @throws Exception If the login fails.
+	 */
+	public static Subject createGSSContext(String principal, String keytabPath) throws Exception {
+		Configuration cfg = new Configuration() {
+			@Override
+			public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
+				HashMap<String, String> options = new HashMap<String, String>();
+				options.put("useKeyTab", "true");
+				options.put("keyTab", keytabPath);
+				options.put("principal", principal);
+				options.put("storeKey", "true");
+				options.put("doNotPrompt", "true");
+				options.put("debug", "true");
+				options.put("isInitiator", "true");
+				return new AppConfigurationEntry[] {
+					new AppConfigurationEntry("com.sun.security.auth.module.Krb5LoginModule", AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, options)
+				};
+			}
+
+		};
+		Set<Principal> princ = new HashSet<Principal>(1);
+		princ.add(new KerberosPrincipal(principal));
+		
+		Subject proxySubject = new Subject(false, princ, new HashSet<Object>(), new HashSet<Object>());
+		LoginContext lc = new LoginContext("", proxySubject, null, cfg);
+		lc.login();
+		
+		return proxySubject;
+	}
+	
+	/**
 	 * Obtain the Service Ticket (SGT) that was included in an AP_REQ structure in a SPNEGO authentication.
 	 * 
+	 * @deprecated
 	 * @param spNegoToken The raw SPNEGO token used for authentication 
 	 * @param subject The Subject representing the proxy service (must include credentials)
 	 * @return A Service Ticket from the client for the proxy service
@@ -87,6 +128,7 @@ public class KRBUtils {
 	/**
 	 * Parse the AP_REQ structure from a SPNEGO token
 	 * 
+	 * @deprecated
 	 * @param spnegoToken A raw SPNEGO header to parse
 	 * @return The parsed ApReq structure
 	 * @throws IOException If the ApReq structure cannot be decoded

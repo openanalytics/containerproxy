@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.kerberos;
 
-import java.lang.reflect.Field;
-
 import javax.security.auth.Subject;
 
 import org.apache.kerby.kerberos.kerb.type.ticket.SgtTicket;
@@ -31,14 +29,32 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.kerberos.authentication.KerberosServiceAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.KerberosServiceRequestToken;
 
+//TODO When user logs out: KRBClientCacheRegistry.remove(String principal)
+//TODO Also renew the proxySubject
 public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvider {
+
+	private String[] backendPrincipals;
+	private long ticketRenewInterval;
 	
-	private String backendPrincipal;
+	private KRBTicketRenewalManager renewalManager;
 	private KRBClientCacheRegistry ccacheReg;
 	
-	public KRBServiceAuthProvider(String backendPrincipal, KRBClientCacheRegistry ccacheReg) {
-		this.backendPrincipal = backendPrincipal;
+	private String proxySvcPrincipal;
+	private String proxySvcKeytab;
+	private Subject proxySubject;
+	
+	public KRBServiceAuthProvider(String svcPrincipal, String svcKeytab, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg, long ticketRenewInterval) {
+		this.proxySvcPrincipal = svcPrincipal;
+		this.proxySvcKeytab = svcKeytab;
+		this.backendPrincipals = backendPrincipals;
 		this.ccacheReg = ccacheReg;
+		this.ticketRenewInterval = ticketRenewInterval;
+	}
+	
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		proxySubject = KRBUtils.createGSSContext(proxySvcPrincipal, proxySvcKeytab);
+		renewalManager = new KRBTicketRenewalManager(proxySubject, backendPrincipals, ccacheReg, ticketRenewInterval);
 	}
 	
 	@Override
@@ -46,35 +62,25 @@ public class KRBServiceAuthProvider extends KerberosServiceAuthenticationProvide
 		KerberosServiceRequestToken auth = (KerberosServiceRequestToken) super.authenticate(authentication);
 		
 		try {
-			Subject subject = getCurrentSubject();
-			String ccachePath = ccacheReg.create(auth.getName());
-
-			SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(auth.getName(), subject);
-			KRBUtils.persistTicket(proxyTicket, ccachePath);
-			
-			SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), subject);
-			KRBUtils.persistTicket(backendTicket, ccachePath);
+			prepareUserCCache(auth.getName());
 		} catch (Exception e) {
 			throw new BadCredentialsException("Failed to create client ccache", e);
 		}
 	
 		return auth;
 	}
-		
-	/**
-	 * Obtain the current subject (containing credential information) that was
-	 * generated during the initialization of the KerberosTicketValidator.
-	 */
-	private Subject getCurrentSubject() throws Exception {
-		Field ticketValidatorField = KerberosServiceAuthenticationProvider.class.getDeclaredField("ticketValidator");
-		ticketValidatorField.setAccessible(true);
-		Object ticketValidator = ticketValidatorField.get(this);
-		
-		Field subjectField = ticketValidator.getClass().getDeclaredField("serviceSubject");
-		subjectField.setAccessible(true);
-		Subject subject = (Subject) subjectField.get(ticketValidator);
-		
-		return subject;
-	}
 	
+	private void prepareUserCCache(String userPrincipal) throws Exception {
+		String ccachePath = ccacheReg.create(userPrincipal);
+
+		SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(userPrincipal, proxySubject);
+		KRBUtils.persistTicket(proxyTicket, ccachePath);
+		
+		for (String backendPrincipal: backendPrincipals) {
+			SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), proxySubject);
+			KRBUtils.persistTicket(backendTicket, ccachePath);
+		}
+		
+		renewalManager.start(userPrincipal);
+	}
 }

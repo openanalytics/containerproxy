@@ -38,9 +38,8 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.kerberos.authentication.KerberosAuthenticationProvider;
 import org.springframework.security.kerberos.authentication.KerberosServiceRequestToken;
-import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosClient;
+import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosTicketValidator;
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -48,12 +47,8 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBServiceAuthProvider;
-import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketValidator;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
-//TODO When user logs out: KRBClientCacheRegistry.remove(String principal)
-//TODO On startup: destroy existing ccaches
-//TODO Launch ticket renewal job
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "kerberos";
@@ -91,24 +86,36 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
 		ccacheReg = new KRBClientCacheRegistry(environment.getProperty("proxy.kerberos.client-ccache-path"));
 		
-		UserDetailsService uds = new SimpleUserDetailsService();
+		String authSvcPrinc = environment.getProperty("proxy.kerberos.auth-service-principal");
+		String authSvcKeytab = environment.getProperty("proxy.kerberos.auth-service-keytab");
+		String delegSvcPrinc = environment.getProperty("proxy.kerberos.deleg-service-principal", authSvcPrinc);
+		String delegSvcKeytab = environment.getProperty("proxy.kerberos.deleg-service-keytab", authSvcKeytab);
+		
+		List<String> backendPrincipals = new ArrayList<>();
+		String backendPrincipal = environment.getProperty("proxy.kerberos.backend-principal", (String) null);
+		if (backendPrincipal != null) backendPrincipals.add(backendPrincipal);
+		String[] moreBackendPrincipals = environment.getProperty("proxy.kerberos.backend-principals", String[].class, new String[0]);
+		for (String p: moreBackendPrincipals) backendPrincipals.add(p);
 
-		KerberosAuthenticationProvider formAuthProvider = new KerberosAuthenticationProvider();
-		SunJaasKerberosClient client = new SunJaasKerberosClient();
-		client.setDebug(true);
-		formAuthProvider.setKerberosClient(client);
-		formAuthProvider.setUserDetailsService(uds);
-		auth.authenticationProvider(formAuthProvider);
-
+		long ticketRenewInterval = environment.getProperty("proxy.kerberos.ticket-renew-interval", Long.class, new Long(8 * 3600 * 1000));
+		
+		SunJaasKerberosTicketValidator ticketValidator = new SunJaasKerberosTicketValidator();
+		ticketValidator.setServicePrincipal(authSvcPrinc);
+		ticketValidator.setKeyTabLocation(new FileSystemResource(authSvcKeytab));
+		ticketValidator.setDebug(true);
+		ticketValidator.afterPropertiesSet();
+		
 		KRBServiceAuthProvider spnegoAuthProvider = new KRBServiceAuthProvider(
-				environment.getProperty("proxy.kerberos.backend-principal"),
-				ccacheReg);
-		KRBTicketValidator ticketValidator = new KRBTicketValidator(
-				environment.getProperty("proxy.kerberos.service-principal"),
-				new FileSystemResource(environment.getProperty("proxy.kerberos.service-keytab")));
-		ticketValidator.init();
+				delegSvcPrinc,
+				delegSvcKeytab,
+				backendPrincipals.toArray(new String[ backendPrincipals.size() ]),
+				ccacheReg,
+				ticketRenewInterval);
+		
 		spnegoAuthProvider.setTicketValidator(ticketValidator);
-		spnegoAuthProvider.setUserDetailsService(uds);
+		spnegoAuthProvider.setUserDetailsService(new SimpleUserDetailsService());
+		spnegoAuthProvider.afterPropertiesSet();
+		
 		auth.authenticationProvider(spnegoAuthProvider);
 	}
 

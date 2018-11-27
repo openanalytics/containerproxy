@@ -50,7 +50,7 @@ public class KRBTicketRenewalManager {
 	private Map<String, ScheduledFuture<?>> renewalJobs;
 	
 	public KRBTicketRenewalManager(String servicePrincipal, String serviceKeytab, String[] backendPrincipals, KRBClientCacheRegistry ccacheReg, long renewInterval) {
-		this.servicePrincipal = serviceKeytab;
+		this.servicePrincipal = servicePrincipal;
 		this.serviceKeytab = serviceKeytab;
 		this.backendPrincipals = backendPrincipals;
 		

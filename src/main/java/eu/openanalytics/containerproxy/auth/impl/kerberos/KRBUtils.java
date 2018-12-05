@@ -62,6 +62,7 @@ public class KRBUtils {
 	 * @return A newly acquired TGT for the principal.
 	 * @throws Exception If the login fails.
 	 */
+	@SuppressWarnings("restriction")
 	public static Subject createGSSContext(String principal, String keytabPath) throws Exception {
 		Configuration cfg = new Configuration() {
 			@Override
@@ -83,9 +84,27 @@ public class KRBUtils {
 		Set<Principal> princ = new HashSet<Principal>(1);
 		princ.add(new KerberosPrincipal(principal));
 		
+		boolean debug = sun.security.krb5.internal.Krb5.DEBUG;
+		
+		if (debug) {
+			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
+			boolean isForwardable = config.getBooleanValue("libdefaults", "forwardable");
+			System.out.println("DEBUG: Config isForwardable = " + isForwardable);
+			sun.security.krb5.internal.KDCOptions opts = new sun.security.krb5.internal.KDCOptions();
+			isForwardable = opts.get(sun.security.krb5.internal.Krb5.TKT_OPTS_FORWARDABLE);
+			System.out.println("DEBUG: KDCOptions isForwardable = " + isForwardable);
+		}
+		
 		Subject proxySubject = new Subject(false, princ, new HashSet<Object>(), new HashSet<Object>());
 		LoginContext lc = new LoginContext("", proxySubject, null, cfg);
 		lc.login();
+		
+		if (debug) {
+			KerberosTicket tgt = findServiceTGT(proxySubject);
+			System.out.println("DEBUG: KerberosTicket TGT isForwardable = " + tgt.isForwardable());
+			sun.security.krb5.Credentials tgtCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(tgt);
+			System.out.println("DEBUG: Credentials TGT isForwardable = " + tgtCreds.isForwardable());
+		}
 		
 		return proxySubject;
 	}

@@ -45,6 +45,8 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
+import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
@@ -122,13 +124,28 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.length];
 		for (int i = 0; i < volumeStrings.length; i++) {
 			String[] volume = volumeStrings[i].split(":");
-			String hostSource = volume[0];
+			String volumeName = volume[0];
 			String containerDest = volume[1];
 			String name = "shinyproxy-volume-" + i;
-			volumes.add(new VolumeBuilder()
-					.withNewHostPath(hostSource)
+			if (volumeName.startsWith("configmap_")) {
+				ConfigMapVolumeSource configMapVolumeSource = new ConfigMapVolumeSourceBuilder()
+					.withName(volumeName.replace("configmap_",""))
+					.build();
+				volumes.add(new VolumeBuilder()
+					.withConfigMap(configMapVolumeSource)
 					.withName(name)
 					.build());
+			} else if (volumeName.startsWith("claim_")) {
+				volumes.add(new VolumeBuilder()
+					.withNewPersistentVolumeClaim(volumeName.replace("claim_",""),true)
+					.withName(name)
+					.build());
+			} else {
+				volumes.add(new VolumeBuilder()
+					.withNewHostPath(volumeName)
+					.withName(name)
+					.build());
+			}
 			volumeMounts[i] = new VolumeMountBuilder()
 					.withMountPath(containerDest)
 					.withName(name)

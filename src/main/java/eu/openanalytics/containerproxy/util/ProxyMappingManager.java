@@ -66,8 +66,8 @@ public class ProxyMappingManager {
 		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
 			@Override
 			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
-				super.getConnection(target, exchange, callback, timeout, timeUnit);
 				exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxyId));
+				super.getConnection(target, exchange, callback, timeout, timeUnit);
 			}
 		};
 		proxyClient.addHost(target);

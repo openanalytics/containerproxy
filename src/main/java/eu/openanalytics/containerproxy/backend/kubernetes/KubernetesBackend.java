@@ -53,6 +53,8 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.QuantityBuilder;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -77,6 +79,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
 	private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
 	private static final String PROPERTY_NODE_SELECTOR = "node-selector";
+ 	private static final String PROPERTY_CONTAINER_REQUEST_CPU = "cpu-request";
+ 	private static final String PROPERTY_CONTAINER_LIMIT_CPU = "cpu-limit";
+ 	private static final String PROPERTY_CONTAINER_REQUEST_MEMORY = "memory-request";
+ 	private static final String PROPERTY_CONTAINER_LIMIT_MEMORY = "memory-limit";
 	
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
@@ -135,6 +141,24 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.build();
 		}
 
+ 		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
+ 		String request_cpu = getProperty(PROPERTY_CONTAINER_REQUEST_CPU);
+ 		if (request_cpu != null) {
+ 			resourceRequirementsBuilder.addToRequests("cpu", new QuantityBuilder().withAmount(request_cpu).build());
+ 		}
+ 		String limit_cpu = getProperty(PROPERTY_CONTAINER_LIMIT_CPU);
+ 		if (limit_cpu != null) {
+ 			resourceRequirementsBuilder.addToLimits("cpu", new QuantityBuilder().withAmount(limit_cpu).build());
+ 		}
+ 		String request_memory = getProperty(PROPERTY_CONTAINER_REQUEST_MEMORY);
+ 		if (request_memory != null) {
+ 			resourceRequirementsBuilder.addToRequests("memory", new QuantityBuilder().withAmount(request_memory).build());
+ 		}
+ 		String limit_memory = getProperty(PROPERTY_CONTAINER_LIMIT_MEMORY);
+ 		if (limit_memory != null) {
+ 			resourceRequirementsBuilder.addToLimits("memory", new QuantityBuilder().withAmount(limit_memory).build());
+ 		}
+
 		List<EnvVar> envVars = new ArrayList<>();
 		for (String envString : buildEnv(spec, proxy)) {
 			int idx = envString.indexOf('=');
@@ -156,6 +180,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withName("sp-container-" + container.getId())
 				.withPorts(containerPorts)
 				.withVolumeMounts(volumeMounts)
+				.withResources(resourceRequirementsBuilder.build())
 				.withSecurityContext(security)
 				.withEnv(envVars);
 

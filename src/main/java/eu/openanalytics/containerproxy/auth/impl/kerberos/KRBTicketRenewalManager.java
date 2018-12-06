@@ -28,7 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosTicket;
 
 import org.apache.kerby.kerberos.kerb.type.ticket.SgtTicket;
 import org.apache.logging.log4j.LogManager;
@@ -40,7 +40,8 @@ public class KRBTicketRenewalManager {
 	
 	private String servicePrincipal;
 	private String serviceKeytab;
-	private Subject currentServiceSubject;
+	
+	private volatile KerberosTicket serviceTGT;
 	
 	private String[] backendPrincipals;
 	private KRBClientCacheRegistry ccacheReg;
@@ -98,11 +99,11 @@ public class KRBTicketRenewalManager {
 				String ccachePath = ccacheReg.get(principal);
 				if (ccachePath == null) ccachePath = ccacheReg.create(principal);
 				
-				SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(principal, currentServiceSubject);
+				SgtTicket proxyTicket = KRBUtils.obtainImpersonationTicket(principal, serviceTGT);
 				KRBUtils.persistTicket(proxyTicket, ccachePath);
 					
 				for (String backendPrincipal: backendPrincipals) {
-					SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), currentServiceSubject);
+					SgtTicket backendTicket = KRBUtils.obtainBackendServiceTicket(backendPrincipal, proxyTicket.getTicket(), serviceTGT);
 					KRBUtils.persistTicket(backendTicket, ccachePath);
 				}
 					
@@ -117,7 +118,7 @@ public class KRBTicketRenewalManager {
 		@Override
 		public void run() {
 			try {
-				currentServiceSubject = KRBUtils.createGSSContext(servicePrincipal, serviceKeytab);
+				serviceTGT = KRBUtils.createGSSContext(servicePrincipal, serviceKeytab);
 			} catch (Exception e) {
 				log.error("Error while renewing TGT for " + servicePrincipal, e);
 			}

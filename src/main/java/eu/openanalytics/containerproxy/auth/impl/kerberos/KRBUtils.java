@@ -20,9 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.kerberos;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.security.Principal;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -31,20 +29,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.security.auth.Subject;
-import javax.security.auth.kerberos.KerberosKey;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.KerberosTicket;
-import javax.security.auth.kerberos.KeyTab;
 import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 
 import org.apache.kerby.kerberos.kerb.client.KrbClient;
 import org.apache.kerby.kerberos.kerb.client.KrbConfig;
-import org.apache.kerby.kerberos.kerb.gss.impl.GssUtil;
-import org.apache.kerby.kerberos.kerb.request.ApRequest;
 import org.apache.kerby.kerberos.kerb.type.KerberosTime;
-import org.apache.kerby.kerberos.kerb.type.ap.ApReq;
 import org.apache.kerby.kerberos.kerb.type.base.EncryptionKey;
 import org.apache.kerby.kerberos.kerb.type.base.PrincipalName;
 import org.apache.kerby.kerberos.kerb.type.kdc.EncTgsRepPart;
@@ -62,8 +55,7 @@ public class KRBUtils {
 	 * @return A newly acquired TGT for the principal.
 	 * @throws Exception If the login fails.
 	 */
-	@SuppressWarnings("restriction")
-	public static Subject createGSSContext(String principal, String keytabPath) throws Exception {
+	public static KerberosTicket createGSSContext(String principal, String keytabPath) throws Exception {
 		Configuration cfg = new Configuration() {
 			@Override
 			public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
@@ -84,110 +76,23 @@ public class KRBUtils {
 		Set<Principal> princ = new HashSet<Principal>(1);
 		princ.add(new KerberosPrincipal(principal));
 		
-		boolean debug = sun.security.krb5.internal.Krb5.DEBUG;
-		
-		if (debug) {
-			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
-			boolean isForwardable = config.getBooleanValue("libdefaults", "forwardable");
-			System.out.println("DEBUG: Config isForwardable = " + isForwardable);
-			sun.security.krb5.internal.KDCOptions opts = new sun.security.krb5.internal.KDCOptions();
-			isForwardable = opts.get(sun.security.krb5.internal.Krb5.TKT_OPTS_FORWARDABLE);
-			System.out.println("DEBUG: KDCOptions isForwardable = " + isForwardable);
-		}
-		
 		Subject proxySubject = new Subject(false, princ, new HashSet<Object>(), new HashSet<Object>());
 		LoginContext lc = new LoginContext("", proxySubject, null, cfg);
 		lc.login();
 		
-		if (debug) {
-			KerberosTicket tgt = findServiceTGT(proxySubject);
-			System.out.println("DEBUG: KerberosTicket TGT isForwardable = " + tgt.isForwardable());
-			sun.security.krb5.Credentials tgtCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(tgt);
-			System.out.println("DEBUG: Credentials TGT isForwardable = " + tgtCreds.isForwardable());
-		}
-		
-		return proxySubject;
+		return findServiceTGT(proxySubject);
 	}
-	
-	/**
-	 * Obtain the Service Ticket (SGT) that was included in an AP_REQ structure in a SPNEGO authentication.
-	 * 
-	 * @deprecated
-	 * @param spNegoToken The raw SPNEGO token used for authentication 
-	 * @param subject The Subject representing the proxy service (must include credentials)
-	 * @return A Service Ticket from the client for the proxy service
-	 * @throws Exception If the SPNEGO token cannot be parsed or validated
-	 */
-	public static SgtTicket obtainProxyServiceTicket(byte[] spNegoToken, Subject subject) throws Exception {
-		ApReq req = parseApReq(spNegoToken);
-		Ticket ticket = req.getTicket();
-		int encryptType = ticket.getEncryptedEncPart().getEType().getValue();
 
-		EncryptionKey sessionKey = findEncryptionKey(subject, encryptType);
-		ApRequest.validate(sessionKey, req, null, 5 * 60 * 1000);
-		
-		EncTgsRepPart repPart = new EncTgsRepPart();
-		repPart.setSname(ticket.getSname());
-		repPart.setSrealm(ticket.getRealm());
-		repPart.setAuthTime(ticket.getEncPart().getAuthTime());
-		repPart.setStartTime(ticket.getEncPart().getStartTime());
-		repPart.setEndTime(ticket.getEncPart().getEndTime());
-		repPart.setRenewTill(ticket.getEncPart().getRenewtill());
-		repPart.setFlags(ticket.getEncPart().getFlags());
-		repPart.setKey(sessionKey);
-		
-		PrincipalName clientPrincipal = new PrincipalName(ticket.getEncPart().getCname().getName());
-		clientPrincipal.setRealm(ticket.getEncPart().getCrealm());
-		
-		SgtTicket sgtTicket = new SgtTicket(ticket, repPart);
-		sgtTicket.setClientPrincipal(clientPrincipal);
-		return sgtTicket;
-	}
-	
-	/**
-	 * Parse the AP_REQ structure from a SPNEGO token
-	 * 
-	 * @deprecated
-	 * @param spnegoToken A raw SPNEGO header to parse
-	 * @return The parsed ApReq structure
-	 * @throws IOException If the ApReq structure cannot be decoded
-	 */
-	private static ApReq parseApReq(byte[] spnegoToken) throws IOException {
-		byte[] apReqHeader = {(byte) 0x1, (byte) 0};
-		
-		int offset = 0;
-		while (offset < spnegoToken.length - 1) {
-			if (spnegoToken[offset] == apReqHeader[0] && spnegoToken[offset + 1] == apReqHeader[1]) {
-				offset += 2;
-				break;
-			}
-			offset++;
-		}
-		
-		ByteArrayOutputStream tokenMinusHeader = new ByteArrayOutputStream();
-		tokenMinusHeader.write(spnegoToken, offset, spnegoToken.length - offset);
-		
-		ApReq apReq = new ApReq();
-		apReq.decode(tokenMinusHeader.toByteArray());
-		return apReq;
-	}
-	
-	private static EncryptionKey findEncryptionKey(Subject subject, int encryptType) throws PrivilegedActionException {
-		return Subject.doAs(subject, new PrivilegedExceptionAction<EncryptionKey>() {
+	private static KerberosTicket findServiceTGT(Subject subject) throws PrivilegedActionException {
+		return Subject.doAs(subject, new PrivilegedExceptionAction<KerberosTicket>() {
 			@Override
-			public EncryptionKey run() throws Exception {
-				Set<KerberosKey> keySet = new HashSet<>();
+			public KerberosTicket run() throws Exception {
 				for (Object cred: subject.getPrivateCredentials()) {
-					if (cred instanceof KerberosKey) {
-						keySet.add((KerberosKey) cred);
-					} else if (cred instanceof KeyTab) {
-						KeyTab kt = (KeyTab) cred;
-						KerberosKey[] k = kt.getKeys(kt.getPrincipal());
-						for (int i = 0; i < k.length; i++) keySet.add(k[i]);
+					if (cred instanceof KerberosTicket) {
+						return (KerberosTicket) cred;
 					}
 				}
-				KerberosKey[] keys = keySet.toArray(new KerberosKey[0]);
-				return GssUtil.getEncryptionKey(keys, encryptType);    		
+				return null;
 			}
 		});
 	}
@@ -198,15 +103,19 @@ public class KRBUtils {
 	 * on behalf of the client principal.
 	 * 
 	 * @param clientPrincipal The client principal on whose behalf to request a ticket.
-	 * @param subject The proxy subject, containing the proxy's own credentials
+	 * @param serviceTGT The proxy TGT.
 	 * @return A SGT from the proxy service, for the proxy service.
 	 * @throws Exception 
 	 */
 	@SuppressWarnings("restriction")
-	public static SgtTicket obtainImpersonationTicket(String clientPrincipal, Subject subject) throws Exception {
+	public static SgtTicket obtainImpersonationTicket(String clientPrincipal, KerberosTicket serviceTGT) throws Exception {
 		// Get our own TGT that will be used to make the S4U2Proxy request
-		KerberosTicket serviceTGT = findServiceTGT(subject);
 		sun.security.krb5.Credentials serviceTGTCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(serviceTGT);
+		
+		if (sun.security.krb5.internal.Krb5.DEBUG) {
+			System.out.println("DEBUG: TGT (KerberosTicket) isForwardable = " + serviceTGT.isForwardable());
+			System.out.println("DEBUG: TGT (Credentials) isForwardable = " + serviceTGTCreds.isForwardable());
+		}
 		
 		// Make a S4U2Self request
 		sun.security.krb5.PrincipalName clientPName = new sun.security.krb5.PrincipalName(clientPrincipal);
@@ -225,17 +134,16 @@ public class KRBUtils {
 	 * 
 	 * @param backendServiceName The principal name of the backend service to request an SGT for
 	 * @param proxyServiceTicket The ticket from the client for the proxy service
-	 * @param subject The proxy subject, containing the proxy's own credentials
+	 * @param serviceTGT The proxy TGT
 	 * @return A SGT for the specified backend service
 	 * @throws Exception If the ticket cannot be obtained for any reason
 	 */
 	@SuppressWarnings("restriction")
-	public static SgtTicket obtainBackendServiceTicket(String backendServiceName, Ticket proxyServiceTicket, Subject subject) throws Exception {
+	public static SgtTicket obtainBackendServiceTicket(String backendServiceName, Ticket proxyServiceTicket, KerberosTicket serviceTGT) throws Exception {
 		// Get client's ST that was submitted inside the SPNEGO token
 		sun.security.krb5.internal.Ticket sunTicket = new sun.security.krb5.internal.Ticket(proxyServiceTicket.encode());
 
 		// Get our own TGT that will be used to make the S4U2Proxy request
-		KerberosTicket serviceTGT = findServiceTGT(subject);
 		sun.security.krb5.Credentials serviceTGTCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(serviceTGT);
 
 		// Make a S4U2Proxy request to get a backend ST
@@ -247,20 +155,6 @@ public class KRBUtils {
 
 		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
 		return sgtTicket;
-	}
-	
-	private static KerberosTicket findServiceTGT(Subject subject) throws PrivilegedActionException {
-		return Subject.doAs(subject, new PrivilegedExceptionAction<KerberosTicket>() {
-			@Override
-			public KerberosTicket run() throws Exception {
-				for (Object cred: subject.getPrivateCredentials()) {
-					if (cred instanceof KerberosTicket) {
-						return (KerberosTicket) cred;
-					}
-				}
-				return null;
-			}
-		});
 	}
 	
 	@SuppressWarnings("restriction")

@@ -157,7 +157,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	public void customizeContainerEnv(List<String> env) {
 		String principal = getCurrentPrincipal();
 		env.add("REMOTE_USER=" + principal);
-		env.add("KRB5CCNAME=/tmp/kerberos/ccache");
+		env.add("KRB5CCNAME=FILE:/tmp/kerberos/ccache");
 	}
 	
 	private String getCurrentPrincipal() {

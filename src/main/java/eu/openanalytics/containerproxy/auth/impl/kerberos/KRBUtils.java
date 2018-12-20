@@ -35,6 +35,8 @@ import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 
+import org.apache.kerby.kerberos.kerb.ccache.Credential;
+import org.apache.kerby.kerberos.kerb.ccache.CredentialCache;
 import org.apache.kerby.kerberos.kerb.client.KrbClient;
 import org.apache.kerby.kerberos.kerb.client.KrbConfig;
 import org.apache.kerby.kerberos.kerb.type.KerberosTime;
@@ -216,7 +218,22 @@ public class KRBUtils {
 	}
 	
 	public static void persistTicket(SgtTicket ticket, String destinationCCache) throws Exception {
-		File ccache = new File(destinationCCache);
-		krbClient.storeTicket(ticket, ccache);
+		File cCacheFile = new File(destinationCCache);
+		if (cCacheFile.exists()) {
+			CredentialCache cCache = new CredentialCache();
+			cCache.load(cCacheFile);
+			
+			// Fix: kerby refuses to overwrite tickets in ccache, so if an older one exists, force removal now
+			Credential newCred = new Credential(ticket, ticket.getClientPrincipal());
+			Credential existingCred = cCache.getCredentials().stream()
+					.filter(c -> c.getServerName().getName().equals(newCred.getServerName().getName()))
+					.findAny().orElse(null);
+
+			cCache.removeCredential(existingCred);
+			cCache.addCredential(newCred);
+			cCache.store(cCacheFile);
+		} else {
+			krbClient.storeTicket(ticket, cCacheFile);
+		}
 	}
 }

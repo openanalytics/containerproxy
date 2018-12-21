@@ -32,11 +32,14 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.LogManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
@@ -52,39 +55,50 @@ public class FaviconConfig {
 	@Bean
 	@ConditionalOnProperty(name="proxy.favicon-path")
 	public SimpleUrlHandlerMapping customFaviconHandlerMapping() {
-		byte[] cachedIco = null;
-		 
-		Path icoPath = Paths.get(environment.getProperty("proxy.favicon-path"));
-		if (Files.isDirectory(icoPath)) icoPath = Paths.get(icoPath.toString(), "favicon.ico");
-		if (Files.isRegularFile(icoPath)) {
-			try (InputStream input = Files.newInputStream(icoPath)) {
-				cachedIco = FileCopyUtils.copyToByteArray(input);
+		byte[] cachedIcon = null;
+		
+		Path iconPath = Paths.get(environment.getProperty("proxy.favicon-path"));
+		if (Files.isRegularFile(iconPath)) {
+			try (InputStream input = Files.newInputStream(iconPath)) {
+				cachedIcon = FileCopyUtils.copyToByteArray(input);
 			} catch (IOException e) {
-				throw new IllegalArgumentException("Cannot read favicon: " + icoPath, e);
+				throw new IllegalArgumentException("Cannot read favicon: " + iconPath, e);
 			} 
+		} else {
+			LogManager.getLogger(FaviconConfig.class).error("Invalid favicon path: " + iconPath);
 		}
 		
 		SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
 		mapping.setOrder(Ordered.HIGHEST_PRECEDENCE);
-		mapping.setUrlMap(Collections.singletonMap("**/favicon.ico", new CachedFaviconHttpRequestHandler(cachedIco)));
+		mapping.setUrlMap(Collections.singletonMap("**/favicon.???", new CachedFaviconHttpRequestHandler(cachedIcon, iconPath)));
 		return mapping;
 	}
 
 	private static class CachedFaviconHttpRequestHandler implements HttpRequestHandler {
 		
-		private byte[] cachedIco;
+		private byte[] cachedIcon;
+		private Path iconPath;
 		
-		public CachedFaviconHttpRequestHandler(byte[] cachedIco) {
-			this.cachedIco = cachedIco;
+		public CachedFaviconHttpRequestHandler(byte[] cachedIcon, Path iconPath) {
+			this.cachedIcon = cachedIcon;
+			this.iconPath = iconPath;
 		}
 		
 		@Override
 		public void handleRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-			response.setHeader("Content-Type", CONTENT_TYPE_ICO);
-			response.setHeader("Content-Length", String.valueOf(cachedIco.length));
-			response.getOutputStream().write(cachedIco);
+			response.setHeader("Content-Type", getContentType());
+			response.setHeader("Content-Length", String.valueOf(cachedIcon.length));
+			response.getOutputStream().write(cachedIcon);
 			response.getOutputStream().flush();
 			response.setStatus(200);
+		}
+		
+		private String getContentType() {
+			String fileName = iconPath.getFileName().toString().toLowerCase();
+			if (fileName.endsWith(".ico")) return CONTENT_TYPE_ICO;
+			
+			MediaType mediaType = MediaTypeFactory.getMediaType(fileName).orElse(MediaType.APPLICATION_OCTET_STREAM);
+			return mediaType.toString();
 		}
 	}
 

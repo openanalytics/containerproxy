@@ -36,6 +36,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
 import org.springframework.security.authentication.event.AbstractAuthenticationFailureEvent;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
+import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -169,7 +170,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		if (event instanceof AbstractAuthenticationFailureEvent) {
 			Exception e = ((AbstractAuthenticationFailureEvent) event).getException();
 			log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
-		} else if (event instanceof AuthenticationSuccessEvent) {
+		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
 			String userName = source.getName();
 			log.info(String.format("User logged in [user: %s]", userName));
 			eventService.post(EventType.Login.toString(), userName, null);

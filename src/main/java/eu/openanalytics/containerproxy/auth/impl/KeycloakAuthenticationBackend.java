@@ -186,7 +186,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 						.map(a -> new KeycloakRole(a))
 						.collect(Collectors.toList());
 				String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
-				return new KeycloakAuthenticationToken2(token.getAccount(), nameAttribute, auth);
+				return new KeycloakAuthenticationToken2(token.getAccount(), token.isInteractive(), nameAttribute, auth);
 			}
 		};
 	}
@@ -201,8 +201,8 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 
 		private String nameAttribute;
 		
-		public KeycloakAuthenticationToken2(KeycloakAccount account, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
-			super(account, authorities);
+		public KeycloakAuthenticationToken2(KeycloakAccount account, boolean interactive, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
+			super(account, interactive, authorities);
 			this.nameAttribute = nameAttribute;
 		}
 		

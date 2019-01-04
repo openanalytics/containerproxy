@@ -38,6 +38,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import io.undertow.Handlers;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;
@@ -76,11 +77,16 @@ public class ContainerProxyApplication {
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-		factory.addDeploymentInfoCustomizers(info -> info.addInnerHandlerChainWrapper(defaultHandler -> {
+		factory.addDeploymentInfoCustomizers(info -> {
+			if (Boolean.valueOf(environment.getProperty("logging.requestdump", "false"))) {
+				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
+			}
+			info.addInnerHandlerChainWrapper(defaultHandler -> {
 				PathHandler pathHandler = new ProtectedPathHandler(defaultHandler);
 				mappingManager.setPathHandler(pathHandler);
 				return pathHandler;
-		}));
+			});
+		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
 		} catch (UnknownHostException e) {

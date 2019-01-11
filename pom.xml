@@ -215,6 +215,12 @@
 			<artifactId>jquery</artifactId>
 			<version>3.3.1</version>
 		</dependency>
+		
+		<!-- JsonPath for WebserviceAuthentication parsing -->
+		<dependency>
+		   <groupId>com.jayway.jsonpath</groupId>
+		   <artifactId>json-path</artifactId>		   
+		</dependency>
 	</dependencies>
 	
 	<build>

@@ -20,18 +20,21 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import java.lang.reflect.Field;
 import java.net.URI;
-import java.util.Collections;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import org.springframework.stereotype.Component;
 
+import eu.openanalytics.containerproxy.api.ProxyRouteController;
 import eu.openanalytics.containerproxy.service.HeartbeatService;
-import eu.openanalytics.containerproxy.util.SessionHelper.SessionOwnerInfo;
+import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.server.handlers.ResponseCodeHandler;
@@ -39,67 +42,96 @@ import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 import io.undertow.server.handlers.proxy.ProxyCallback;
 import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
-import io.undertow.servlet.handlers.ServletRequestContext;
+import io.undertow.util.AttachmentKey;
+import io.undertow.util.PathMatcher;
 
 /**
  * This component keeps track of which proxy mappings (i.e. URL endpoints) are currently registered,
  * and tells Undertow where they should proxy to.
- * 
- * It can also perform a check to ensure that a request for a proxy URL is authorized.
- * Since the (Undertow) proxy handler does not invoke any Spring security filters, we must
- * perform this check ourselves.
  */
 @Component
 public class ProxyMappingManager {
 
+	public static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
+	
+	private static final AttachmentKey<ProxyRouteController> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyRouteController.class);
+	
 	private PathHandler pathHandler;
 	
-	private Map<String, SessionOwnerInfo> ownerInfo = Collections.synchronizedMap(new HashMap<>());
+	private Map<String, String> mappings = new HashMap<>();
 	
 	@Inject
 	private HeartbeatService heartbeatService;
 	
+	public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {
+		if (pathHandler == null) {
+			pathHandler = new ProxyPathHandler(defaultHandler);
+		}
+		return pathHandler;
+	}
+	
 	@SuppressWarnings("deprecation")
-	public synchronized void addMapping(String proxyId, String path, URI target) {
+	public synchronized void addMapping(String proxyId, String mapping, URI target) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
 		
 		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
 			@Override
 			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
-				exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxyId));
+				try {
+					exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxyId));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				super.getConnection(target, exchange, callback, timeout, timeUnit);
 			}
 		};
 		proxyClient.addHost(target);
-		pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
+
+		mappings.put(mapping, proxyId);
 		
-		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
-		ownerInfo.put(path, SessionHelper.createOwnerInfo(exchange));
+		String path = PROXY_INTERNAL_ENDPOINT + "/" + mapping;
+		pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
 	}
 
-	public synchronized void removeMapping(String path) {
+	public synchronized void removeMapping(String mapping) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-		pathHandler.removePrefixPath(path);
-		ownerInfo.remove(path);
+		mappings.remove(mapping);
+		pathHandler.removePrefixPath(mapping);
 	}
 
-	public boolean requestHasAccess(HttpServerExchange exchange) {
-		SessionOwnerInfo exchangeOwner = SessionHelper.createOwnerInfo(exchange);
-		String exchangeMapping = exchange.getRelativePath();
-
-		synchronized (ownerInfo) {
-			for (String mapping: ownerInfo.keySet()) {
-				if (exchangeMapping.startsWith("/" + mapping)) {
-					return ownerInfo.get(mapping).isSame(exchangeOwner);
-				}
-			}
+	public String getProxyId(String mapping) {
+		for (Entry<String,String> e: mappings.entrySet()) {
+			if (mapping.toLowerCase().startsWith(e.getKey().toLowerCase())) return e.getValue();
 		}
+		return null;
+	}
 
-		// This request doesn't go to any known proxy mapping.
-		return true;
+	public void associateWithExchange(ProxyRouteController dispatcher, HttpServerExchange exchange) {
+		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, dispatcher);
 	}
 	
-	public void setPathHandler(PathHandler pathHandler) {
-		this.pathHandler = pathHandler;
+	private static class ProxyPathHandler extends PathHandler {
+		
+		public ProxyPathHandler(HttpHandler defaultHandler) {
+			super(defaultHandler);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void handleRequest(HttpServerExchange exchange) throws Exception {
+			Field field = PathHandler.class.getDeclaredField("pathMatcher");
+			field.setAccessible(true);
+			PathMatcher<HttpHandler> pathMatcher = (PathMatcher<HttpHandler>) field.get(this);
+			PathMatcher.PathMatch<HttpHandler> match = pathMatcher.match(exchange.getRelativePath());
+
+			// Note: this handler may never be accessed directly (because it bypasses Spring security).
+			// Only allowed if dispatched via ProxyRouteController.
+			if (match.getValue() instanceof ProxyHandler && exchange.getAttachment(ATTACHMENT_KEY_DISPATCHER) == null) {
+				exchange.setStatusCode(403);
+				exchange.getResponseChannel().write(ByteBuffer.wrap("Not authorized to access this proxy".getBytes()));
+			} else {
+				super.handleRequest(exchange);
+			}
+		}
 	}
 }

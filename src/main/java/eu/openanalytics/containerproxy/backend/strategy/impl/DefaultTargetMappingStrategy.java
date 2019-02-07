@@ -32,7 +32,7 @@ public class DefaultTargetMappingStrategy implements IProxyTargetMappingStrategy
 	public static final String DEFAULT_MAPPING_KEY = "default";
 	
 	public String createMapping(String mappingKey, Container container, Proxy proxy) {
-		String mapping = "endpoint/" + proxy.getId();
+		String mapping = proxy.getId();
 		if (!mappingKey.equalsIgnoreCase(DEFAULT_MAPPING_KEY)) {
 			// For non-default mappings, also append the mapping key
 			mapping += "/" + mappingKey;

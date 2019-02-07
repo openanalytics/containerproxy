@@ -1,0 +1,88 @@
+/**
+ * ContainerProxy
+ *
+ * Copyright (C) 2016-2018 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
+package eu.openanalytics.containerproxy.api;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import eu.openanalytics.containerproxy.util.SessionHelper;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.handlers.ServletRequestContext;
+
+@RestController
+public class ProxyRouteController extends BaseController {
+
+	@Inject
+	private UserService userService;
+	
+	@Inject
+	private ProxyService proxyService;
+	
+	@Inject
+	private ProxyMappingManager mappingManager;
+	
+	@Inject
+	private Environment environment;
+	
+	@RequestMapping(value="/api/route/**", method=RequestMethod.GET)
+	public void route(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			// Ensure that the caller is the owner of the target proxy.
+			boolean hasAccess = false;
+			String baseURL = SessionHelper.getContextPath(environment, true) + "api/route/";
+			String mapping = request.getRequestURI().substring(baseURL.length());
+			String proxyId = mappingManager.getProxyId(mapping);
+			if (proxyId != null) {
+				Proxy proxy = proxyService.findProxy(p -> proxyId.equals(p.getId()), false);
+				hasAccess = userService.isOwner(proxy);
+			}
+			
+			if (hasAccess) {
+				// Tag this exchange as a proxy route request.
+				// These are the only requests that are allowed to dispatch to the internal proxying endpoint.
+				HttpServerExchange exchange = ServletRequestContext.current().getExchange();
+				mappingManager.associateWithExchange(this, exchange);
+				
+				String queryString = request.getQueryString();
+				queryString = (queryString == null) ? "" : "?" + queryString;
+				String targetPath = ProxyMappingManager.PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
+				
+				request.startAsync();
+				request.getRequestDispatcher(targetPath).forward(request, response);
+			} else {
+				response.setStatus(403);
+				response.getWriter().write("Not authorized to access this proxy");
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Error routing proxy request", e);
+		}
+	}
+}

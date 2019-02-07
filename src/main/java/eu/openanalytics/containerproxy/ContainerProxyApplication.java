@@ -20,10 +20,8 @@
  */
 package eu.openanalytics.containerproxy;
 
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -39,11 +37,6 @@ import org.springframework.core.env.Environment;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
-import io.undertow.server.HttpHandler;
-import io.undertow.server.HttpServerExchange;
-import io.undertow.server.handlers.PathHandler;
-import io.undertow.server.handlers.proxy.ProxyHandler;
-import io.undertow.util.PathMatcher;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
@@ -82,9 +75,7 @@ public class ContainerProxyApplication {
 				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
 			}
 			info.addInnerHandlerChainWrapper(defaultHandler -> {
-				PathHandler pathHandler = new ProtectedPathHandler(defaultHandler);
-				mappingManager.setPathHandler(pathHandler);
-				return pathHandler;
+				return mappingManager.createHttpHandler(defaultHandler);
 			});
 		});
 		try {
@@ -94,28 +85,5 @@ public class ContainerProxyApplication {
 		}
 		factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
 		return factory;	
-	}
-	
-	private class ProtectedPathHandler extends PathHandler {
-		
-		public ProtectedPathHandler(HttpHandler defaultHandler) {
-			super(defaultHandler);
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void handleRequest(HttpServerExchange exchange) throws Exception {
-			Field field = PathHandler.class.getDeclaredField("pathMatcher");
-			field.setAccessible(true);
-			PathMatcher<HttpHandler> pathMatcher = (PathMatcher<HttpHandler>) field.get(this);
-			PathMatcher.PathMatch<HttpHandler> match = pathMatcher.match(exchange.getRelativePath());
-
-			if (match.getValue() instanceof ProxyHandler && !mappingManager.requestHasAccess(exchange)) {
-				exchange.setStatusCode(403);
-				exchange.getResponseChannel().write(ByteBuffer.wrap("Not authorized to access this proxy".getBytes()));
-			} else {
-				super.handleRequest(exchange);
-			}
-		}
 	}
 }

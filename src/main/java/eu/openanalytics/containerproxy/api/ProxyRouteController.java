@@ -34,8 +34,6 @@ import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import eu.openanalytics.containerproxy.util.SessionHelper;
-import io.undertow.server.HttpServerExchange;
-import io.undertow.servlet.handlers.ServletRequestContext;
 
 @RestController
 public class ProxyRouteController extends BaseController {
@@ -66,17 +64,7 @@ public class ProxyRouteController extends BaseController {
 			}
 			
 			if (hasAccess) {
-				// Tag this exchange as a proxy route request.
-				// These are the only requests that are allowed to dispatch to the internal proxying endpoint.
-				HttpServerExchange exchange = ServletRequestContext.current().getExchange();
-				mappingManager.associateWithExchange(this, exchange);
-				
-				String queryString = request.getQueryString();
-				queryString = (queryString == null) ? "" : "?" + queryString;
-				String targetPath = ProxyMappingManager.PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
-				
-				request.startAsync();
-				request.getRequestDispatcher(targetPath).forward(request, response);
+				mappingManager.dispatchAsync(mapping, request, response);
 			} else {
 				response.setStatus(403);
 				response.getWriter().write("Not authorized to access this proxy");

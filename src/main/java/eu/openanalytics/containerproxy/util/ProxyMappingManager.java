@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -29,10 +30,12 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.api.ProxyRouteController;
 import eu.openanalytics.containerproxy.service.HeartbeatService;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -42,6 +45,7 @@ import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 import io.undertow.server.handlers.proxy.ProxyCallback;
 import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
+import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.PathMatcher;
 
@@ -52,9 +56,8 @@ import io.undertow.util.PathMatcher;
 @Component
 public class ProxyMappingManager {
 
-	public static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
-	
-	private static final AttachmentKey<ProxyRouteController> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyRouteController.class);
+	private static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
+	private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
 	
 	private PathHandler pathHandler;
 	
@@ -106,8 +109,31 @@ public class ProxyMappingManager {
 		return null;
 	}
 
-	public void associateWithExchange(ProxyRouteController dispatcher, HttpServerExchange exchange) {
-		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, dispatcher);
+	/**
+	 * Dispatch a request to a target proxy mapping.
+	 * 
+	 * This approach should be used to dispatch requests from a Spring-secured servlet context
+	 * to an unsecured Undertow handler.
+	 * 
+	 * Note that clients can never access a proxy handler directly (for security reasons).
+	 * Dispatching is the only allowed method to access proxy handlers.
+	 * 
+	 * @param mapping The target mapping to dispatch to.
+	 * @param request The request to dispatch.
+	 * @param response The response corresponding to the request.
+	 * @throws IOException If the dispatch fails for an I/O reason.
+	 * @throws ServletException If the dispatch fails for any other reason.
+	 */
+	public void dispatchAsync(String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
+		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, this);
+		
+		String queryString = request.getQueryString();
+		queryString = (queryString == null) ? "" : "?" + queryString;
+		String targetPath = PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
+		
+		request.startAsync();
+		request.getRequestDispatcher(targetPath).forward(request, response);
 	}
 	
 	private static class ProxyPathHandler extends PathHandler {
@@ -125,7 +151,7 @@ public class ProxyMappingManager {
 			PathMatcher.PathMatch<HttpHandler> match = pathMatcher.match(exchange.getRelativePath());
 
 			// Note: this handler may never be accessed directly (because it bypasses Spring security).
-			// Only allowed if dispatched via ProxyRouteController.
+			// Only allowed if the request was dispatched via this class.
 			if (match.getValue() instanceof ProxyHandler && exchange.getAttachment(ATTACHMENT_KEY_DISPATCHER) == null) {
 				exchange.setStatusCode(403);
 				exchange.getResponseChannel().write(ByteBuffer.wrap("Not authorized to access this proxy".getBytes()));

@@ -71,7 +71,7 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId, @RequestBody Set<RuntimeSetting> runtimeSettings) {
+	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId, @RequestBody(required=false) Set<RuntimeSetting> runtimeSettings) {
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
 		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		

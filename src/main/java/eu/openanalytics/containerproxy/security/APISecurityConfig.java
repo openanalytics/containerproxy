@@ -88,7 +88,7 @@ public class APISecurityConfig extends ResourceServerConfigurerAdapter {
 		@Override
 		protected String extractToken(HttpServletRequest request) {
 			String token = super.extractToken(request);
-			if (token == null) {
+			if (token == null && request.getCookies() != null) {
 				token = Arrays.stream(request.getCookies())
 						.filter(c -> c.getName().equals("access_token")).findAny()
 						.map(c -> c.getValue()).orElse(null);

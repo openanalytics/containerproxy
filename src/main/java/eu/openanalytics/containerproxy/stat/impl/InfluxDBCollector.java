@@ -53,7 +53,7 @@ public class InfluxDBCollector implements IStatCollector {
 		conn.setRequestMethod("POST");
 		conn.setDoOutput(true);
 		try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
-			dos.writeBytes(body);
+			dos.write(body.getBytes("UTF-8"));
 			dos.flush();
 		}
 		int responseCode = conn.getResponseCode();

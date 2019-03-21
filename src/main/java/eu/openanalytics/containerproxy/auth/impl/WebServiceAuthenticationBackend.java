@@ -56,6 +56,8 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
 	
 	public static final String NAME = "webservice";
 
+	private static final String PROPERTY_PREFIX = "proxy.webservice.";
+	
 	@Inject
 	private Environment environment;
 
@@ -89,8 +91,8 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
 				headers.setContentType(MediaType.APPLICATION_JSON);
 
 				try {
-					String body = String.format(environment.getProperty("proxy.authentication-request-body", ""), username, password);
-					String loginUrl = environment.getProperty("proxy.authentication-url");
+					String body = String.format(environment.getProperty(PROPERTY_PREFIX + "authentication-request-body", ""), username, password);
+					String loginUrl = environment.getProperty(PROPERTY_PREFIX + "authentication-url");
 					ResponseEntity<String> result = restTemplate.exchange(loginUrl, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
 					if (result.getStatusCode() == HttpStatus.OK) {
 						return Lists.<GrantedAuthority>newArrayList();

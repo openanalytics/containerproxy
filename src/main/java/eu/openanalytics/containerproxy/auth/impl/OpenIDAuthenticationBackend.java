@@ -155,6 +155,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 					if (auth instanceof OidcUserAuthority) {
 						OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
 						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
+						if (roles == null) continue;
 						for (String role: roles) {
 							String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
 							mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));

@@ -31,9 +31,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
+import org.springframework.web.filter.HiddenHttpMethodFilter;
+import org.springframework.web.filter.HttpPutFormContentFilter;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
@@ -85,5 +88,21 @@ public class ContainerProxyApplication {
 		}
 		factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
 		return factory;	
+	}
+	
+	// Disable specific Spring filters that parse the request body, preventing it from being proxied.
+	
+	@Bean
+	public FilterRegistrationBean<HiddenHttpMethodFilter> registration1(HiddenHttpMethodFilter filter) {
+		FilterRegistrationBean<HiddenHttpMethodFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false);
+		return registration;
+	}
+	
+	@Bean
+	public FilterRegistrationBean<HttpPutFormContentFilter> registration2(HttpPutFormContentFilter filter) {
+		FilterRegistrationBean<HttpPutFormContentFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false);
+		return registration;
 	}
 }

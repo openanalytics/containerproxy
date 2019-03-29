@@ -26,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -50,7 +49,7 @@ public class ProxyRouteController extends BaseController {
 	@Inject
 	private Environment environment;
 	
-	@RequestMapping(value="/api/route/**", method=RequestMethod.GET)
+	@RequestMapping(value="/api/route/**")
 	public void route(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			// Ensure that the caller is the owner of the target proxy.

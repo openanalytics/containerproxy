@@ -72,6 +72,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .cmd(spec.getCmd())
 			    .env(buildEnv(spec, proxy))
 			    .build();
+		dockerClient.pull(spec.getImage());
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		
 		if (spec.getNetworkConnections() != null) {

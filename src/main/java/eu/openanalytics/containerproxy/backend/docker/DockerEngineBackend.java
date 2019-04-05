@@ -50,6 +50,12 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				if (tag.equals(imageName)) {
 					return true;
 				}
+				// It is allowed to just use the image name without a tag
+				// In this case docker choose the image with the tag "latest"
+				// So we also need to check if we find the image when we append the latest tag
+				if (tag.equals(imageName + ":latest")) {
+					return true;
+				}
 			}
 		}
 		return false;

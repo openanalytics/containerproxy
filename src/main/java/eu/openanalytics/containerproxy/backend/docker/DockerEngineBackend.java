@@ -94,7 +94,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 		// pull image, if it is not present locally
 		if (!isImagePresent(spec.getImage())) {
-			dockerClient.pull(spec.getImage());
+			// It is allowed to just use the image name without a tag
+			// In this case we need to pull the image with the tag "latest"
+			// This can be removed when issue #873 in spotify/docker-client is fixed
+			if (spec.getImage().lastIndexOf(":") <= spec.getImage().lastIndexOf("/")) {
+				dockerClient.pull(spec.getImage() + ":latest");
+			} else {
+				dockerClient.pull(spec.getImage());
+			}
 		}
 
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);

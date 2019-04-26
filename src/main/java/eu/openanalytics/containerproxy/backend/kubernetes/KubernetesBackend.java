@@ -133,7 +133,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			String containerDest = volume[1];
 			String name = "shinyproxy-volume-" + i;
 			volumes.add(new VolumeBuilder()
-					.withNewHostPath(hostSource)
+					.withNewHostPath(hostSource, "")
 					.withName(name)
 					.build());
 			volumeMounts[i] = new VolumeMountBuilder()

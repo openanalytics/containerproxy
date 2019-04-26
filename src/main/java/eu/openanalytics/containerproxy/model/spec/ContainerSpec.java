@@ -35,8 +35,11 @@ public class ContainerSpec {
 	private String[] dns;
 	private String[] volumes;
 	private Map<String, Integer> portMapping = new HashMap<>();
-	private String memory;
 	private boolean privileged;
+	private String memoryRequest;
+	private String memoryLimit;
+	private String cpuRequest;
+	private String cpuLimit;
 	private Map<String, String> settings = new HashMap<>();
 	
 	public String getImage() {
@@ -93,17 +96,35 @@ public class ContainerSpec {
 	public void setPortMapping(Map<String, Integer> portMapping) {
 		this.portMapping = portMapping;
 	}
-	public String getMemory() {
-		return memory;
-	}
-	public void setMemory(String memory) {
-		this.memory = memory;
-	}
 	public boolean isPrivileged() {
 		return privileged;
 	}
 	public void setPrivileged(boolean privileged) {
 		this.privileged = privileged;
+	}
+	public String getMemoryRequest() {
+		return memoryRequest;
+	}
+	public void setMemoryRequest(String memoryRequest) {
+		this.memoryRequest = memoryRequest;
+	}
+	public String getMemoryLimit() {
+		return memoryLimit;
+	}
+	public void setMemoryLimit(String memoryLimit) {
+		this.memoryLimit = memoryLimit;
+	}
+	public String getCpuRequest() {
+		return cpuRequest;
+	}
+	public void setCpuRequest(String cpuRequest) {
+		this.cpuRequest = cpuRequest;
+	}
+	public String getCpuLimit() {
+		return cpuLimit;
+	}
+	public void setCpuLimit(String cpuLimit) {
+		this.cpuLimit = cpuLimit;
 	}
 	public Map<String, String> getSettings() {
 		return settings;
@@ -128,7 +149,10 @@ public class ContainerSpec {
 			if (target.getPortMapping() == null) target.setPortMapping(new HashMap<>());
 			target.getPortMapping().putAll(portMapping);
 		}
-		target.setMemory(memory);
+		target.setMemoryRequest(memoryRequest);
+		target.setMemoryLimit(memoryLimit);
+		target.setCpuRequest(cpuRequest);
+		target.setCpuLimit(cpuLimit);
 		target.setPrivileged(privileged);
 		if (settings != null) {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());

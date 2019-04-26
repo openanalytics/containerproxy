@@ -58,9 +58,17 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		hostConfigBuilder.portBindings(portBindings);
 		
-		Optional.ofNullable(memoryToBytes(spec.getMemory())).ifPresent(l -> hostConfigBuilder.memory(l));
-		Optional.ofNullable(spec.getNetwork()).ifPresent(n -> hostConfigBuilder.networkMode(spec.getNetwork()));
+		hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest()));
+		hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit()));
+		if (spec.getCpuLimit() != null) {
+			// Workaround, see https://github.com/spotify/docker-client/issues/959
+			long period = 100000;
+			long quota = (long) (period * Float.parseFloat(spec.getCpuLimit()));
+			hostConfigBuilder.cpuPeriod(period);
+			hostConfigBuilder.cpuQuota(quota);
+		}
 		
+		Optional.ofNullable(spec.getNetwork()).ifPresent(n -> hostConfigBuilder.networkMode(spec.getNetwork()));
 		Optional.ofNullable(spec.getDns()).ifPresent(dns -> hostConfigBuilder.dns(dns));
 		Optional.ofNullable(spec.getVolumes()).ifPresent(v -> hostConfigBuilder.binds(v));
 		hostConfigBuilder.privileged(spec.isPrivileged());

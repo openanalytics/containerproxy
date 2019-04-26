@@ -36,8 +36,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Splitter;
 import org.apache.commons.io.IOUtils;
+
+import com.google.common.base.Splitter;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
@@ -54,6 +55,8 @@ import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
@@ -165,6 +168,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withPrivileged(spec.isPrivileged())
 				.build();
 		
+		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
+		resourceRequirementsBuilder.addToRequests("cpu", Optional.ofNullable(spec.getCpuRequest()).map(s -> new Quantity(s)).orElse(null));
+		resourceRequirementsBuilder.addToLimits("cpu", Optional.ofNullable(spec.getCpuLimit()).map(s -> new Quantity(s)).orElse(null));
+		resourceRequirementsBuilder.addToRequests("memory", Optional.ofNullable(spec.getMemoryRequest()).map(s -> new Quantity(s)).orElse(null));
+		resourceRequirementsBuilder.addToLimits("memory", Optional.ofNullable(spec.getMemoryLimit()).map(s -> new Quantity(s)).orElse(null));
+		
 		List<ContainerPort> containerPorts = spec.getPortMapping().values().stream()
 				.map(p -> new ContainerPortBuilder().withContainerPort(p).build())
 				.collect(Collectors.toList());
@@ -176,6 +185,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withPorts(containerPorts)
 				.withVolumeMounts(volumeMounts)
 				.withSecurityContext(security)
+				.withResources(resourceRequirementsBuilder.build())
 				.withEnv(envVars);
 
 		String imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);

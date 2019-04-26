@@ -77,8 +77,17 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	public Map<String, Integer> getPortMapping() {
 		return source.getPortMapping();
 	}
-	public String getMemory() {
-		return resolve(source.getMemory());
+	public String getMemoryRequest() {
+		return resolve(source.getMemoryRequest());
+	}
+	public String getMemoryLimit() {
+		return resolve(source.getMemoryLimit());
+	}
+	public String getCpuRequest() {
+		return resolve(source.getCpuRequest());
+	}
+	public String getCpuLimit() {
+		return resolve(source.getCpuLimit());
 	}
 	public boolean isPrivileged() {
 		return source.isPrivileged();

@@ -50,9 +50,11 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -83,6 +85,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	private static final String PARAM_POD = "pod";
 	private static final String PARAM_SERVICE = "service";
+	
+	private static final String SECRET_KEY_REF = "secretKeyRef";
 	
 	private KubernetesClient kubeClient;
 	
@@ -137,9 +141,24 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		List<EnvVar> envVars = new ArrayList<>();
 		for (String envString : buildEnv(spec, proxy)) {
-			int idx = envString.indexOf('=');
-			if (idx == -1) log.warn("Invalid environment variable: " + envString);
-			envVars.add(new EnvVar(envString.substring(0, idx), envString.substring(idx + 1), null));
+			String[] e = envString.split("=");
+			if (e.length > 2) e[1] = envString.substring(envString.indexOf('=') + 1);
+			
+			if (e[1].toLowerCase().startsWith(SECRET_KEY_REF.toLowerCase())) {
+				String[] ref = e[1].split(":");
+				if (ref.length != 3) {
+					log.warn(String.format("Invalid secret key reference: %s. Expected format: '%s:<name>:<key>'", envString, SECRET_KEY_REF));
+					continue;
+				}
+				envVars.add(new EnvVar(e[0], null, new EnvVarSourceBuilder()
+						.withSecretKeyRef(new SecretKeySelectorBuilder()
+								.withName(ref[1])
+								.withKey(ref[2])
+								.build())
+						.build()));
+			} else {
+				envVars.add(new EnvVar(e[0], e[1], null));
+			}
 		}
 		
 		SecurityContext security = new SecurityContextBuilder()

@@ -152,7 +152,7 @@ public class TestConcurrentUsers {
 	
 	private byte[] doGetEndpoint(String endpoint, String jSessionId) {
 		return webClient.get()
-				.uri(endpoint)
+				.uri("/api/route/" + endpoint)
 				.cookie("JSESSIONID", jSessionId)
 				.exchange()
 				.expectStatus().isEqualTo(200)

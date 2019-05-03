@@ -61,6 +61,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_URL = "url";
 	protected static final String PROPERTY_CERT_PATH = "cert-path";
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
+	protected static final String PROPERTY_PRIVILEGED = "privileged";
 	
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
 	
@@ -71,6 +72,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected final Logger log = LogManager.getLogger(getClass());
 	
 	private boolean useInternalNetwork;
+	private boolean privileged;
 	
 	@Inject
 	protected IProxyTargetMappingStrategy mappingStrategy;
@@ -96,6 +98,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	public void initialize() throws ContainerProxyException {
 		// If this application runs as a container itself, things like port publishing can be omitted.
 		useInternalNetwork = Boolean.valueOf(getProperty(PROPERTY_INTERNAL_NETWORKING, "false"));
+		privileged = Boolean.valueOf(getProperty(PROPERTY_PRIVILEGED, "false"));
 	}
 	
 	@Override
@@ -211,5 +214,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	protected boolean isUseInternalNetwork() {
 		return useInternalNetwork;
+	}
+	
+	protected boolean isPrivileged() {
+		return privileged;
 	}
 }

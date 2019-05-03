@@ -71,7 +71,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		Optional.ofNullable(spec.getNetwork()).ifPresent(n -> hostConfigBuilder.networkMode(spec.getNetwork()));
 		Optional.ofNullable(spec.getDns()).ifPresent(dns -> hostConfigBuilder.dns(dns));
 		Optional.ofNullable(spec.getVolumes()).ifPresent(v -> hostConfigBuilder.binds(v));
-		hostConfigBuilder.privileged(spec.isPrivileged());
+		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 		
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())

@@ -165,7 +165,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		SecurityContext security = new SecurityContextBuilder()
-				.withPrivileged(spec.isPrivileged())
+				.withPrivileged(isPrivileged() || spec.isPrivileged())
 				.build();
 		
 		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();

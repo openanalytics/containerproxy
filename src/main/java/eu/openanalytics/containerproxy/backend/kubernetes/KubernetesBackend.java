@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -71,6 +70,7 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -220,10 +220,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 		
-		// Workaround: waitUntilReady is attempted multiple times with smaller timeouts because it appears to be buggy.
 		Pod startupPod = doneablePod.withSpec(podSpec).done();
-		Retrying.retry(i -> { kubeClient.resource(startupPod).waitUntilReady(5, TimeUnit.SECONDS); }, 10, 100);
-		Pod pod = kubeClient.resource(startupPod).waitUntilReady(5, TimeUnit.SECONDS);
+		
+		// Workaround: waitUntilReady appears to be buggy.
+		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupPod).fromServer().get()), 60, 1000);
+		Pod pod = kubeClient.resource(startupPod).fromServer().get();
 		
 		Service service = null;
 		if (isUseInternalNetwork()) {
@@ -246,8 +247,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.endSpec()
 					.done();
 			
-			Retrying.retry(i -> { kubeClient.resource(startupService).waitUntilReady(5, TimeUnit.SECONDS); }, 10, 100);
-			service = kubeClient.resource(startupService).waitUntilReady(5, TimeUnit.SECONDS);
+			// Workaround: waitUntilReady appears to be buggy.
+			Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			service = kubeClient.resource(startupService).fromServer().get();
 		}
 		
 		container.getParameters().put(PARAM_POD, pod);

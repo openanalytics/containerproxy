@@ -220,10 +220,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 		
-		Pod pod = doneablePod.withSpec(podSpec).done();
+		// Workaround: waitUntilReady is attempted multiple times with smaller timeouts because it appears to be buggy.
+		Pod startupPod = doneablePod.withSpec(podSpec).done();
+		Retrying.retry(i -> { kubeClient.resource(startupPod).waitUntilReady(5, TimeUnit.SECONDS); }, 10, 100);
+		Pod pod = kubeClient.resource(startupPod).waitUntilReady(5, TimeUnit.SECONDS);
 		
-		pod = kubeClient.resource(pod).waitUntilReady(600, TimeUnit.SECONDS);
-
 		Service service = null;
 		if (isUseInternalNetwork()) {
 			// If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.
@@ -232,7 +233,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.map(p -> new ServicePortBuilder().withPort(p).build())
 					.collect(Collectors.toList());
 			
-			service = kubeClient.services().inNamespace(kubeNamespace).createNew()
+			Service startupService = kubeClient.services().inNamespace(kubeNamespace).createNew()
 					.withApiVersion(apiVersion)
 					.withKind("Service")
 					.withNewMetadata()
@@ -245,17 +246,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.endSpec()
 					.done();
 			
-			// Retry, because if this is done too fast, an 'endpoint not found' exception will be thrown.
-			final Service s = service;
-			Retrying.retry(i -> {
-				try {
-					kubeClient.resource(s).waitUntilReady(600, TimeUnit.SECONDS);
-					return true;
-				} catch (Exception e) {
-					return false;
-				}
-			}, 5, 1000);
-			service = kubeClient.resource(service).waitUntilReady(600, TimeUnit.SECONDS);
+			Retrying.retry(i -> { kubeClient.resource(startupService).waitUntilReady(5, TimeUnit.SECONDS); }, 10, 100);
+			service = kubeClient.resource(startupService).waitUntilReady(5, TimeUnit.SECONDS);
 		}
 		
 		container.getParameters().put(PARAM_POD, pod);

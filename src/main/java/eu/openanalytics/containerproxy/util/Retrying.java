@@ -28,6 +28,17 @@ public class Retrying {
 		return retry(job, tries, waitTime, false);
 	}
 	
+	public static boolean retry(Retryable job, int tries, int waitTime) {
+		return retry(i -> {
+			try {
+				job.test(i);
+				return true;
+			} catch (Exception e) {
+				return false;
+			}
+		}, tries, waitTime, false);
+	}
+	
 	public static boolean retry(IntPredicate job, int tries, int waitTime, boolean retryOnException) {
 		boolean retVal = false;
 		RuntimeException exception = null;
@@ -49,4 +60,7 @@ public class Retrying {
 		
 	}
 
+	public static interface Retryable {
+		public void test(int tryNr) throws Exception;
+	}
 }

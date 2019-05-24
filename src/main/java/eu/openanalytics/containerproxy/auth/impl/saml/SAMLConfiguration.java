@@ -1,8 +1,8 @@
 package eu.openanalytics.containerproxy.auth.impl.saml;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
 
@@ -23,6 +23,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
@@ -63,6 +65,8 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @ConditionalOnProperty(name="proxy.authentication", havingValue="saml")
 public class SAMLConfiguration {
 
+	private static final String DEFAULT_NAME_ATTRIBUTE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+	
 	@Inject
 	private Environment environment;
 	
@@ -254,10 +258,22 @@ public class SAMLConfiguration {
 	    samlAuthenticationProvider.setUserDetails(new SAMLUserDetailsService() {
 	    	@Override
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
-	    		//TODO The claim to use as username should be configurable
-	    		String claimName = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
-	    		String claimValue = credential.getAttributeAsString(claimName);
-	    		return new User(claimValue, "", Collections.emptyList());
+	    		String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
+	    		String nameValue = credential.getAttributeAsString(nameAttribute);
+	    		if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
+	    		
+	    		List<GrantedAuthority> auth = new ArrayList<>();
+	    		String rolesAttribute = environment.getProperty("proxy.saml.roles-attribute");
+	    		if (rolesAttribute != null  && !rolesAttribute.trim().isEmpty()) {
+	    			String[] roles = credential.getAttributeAsStringArray(rolesAttribute);
+	    			if (roles != null && roles.length > 0) {
+	    				Arrays.stream(roles)
+	    					.map(r -> "ROLE_" + r.toUpperCase())
+	    					.forEach(a -> auth.add(new SimpleGrantedAuthority(a)));
+	    			}
+	    		}
+	    		
+	    		return new User(nameValue, "", auth);
 	    	}
 	    });
 	    samlAuthenticationProvider.setForcePrincipalAsString(false);

@@ -3,7 +3,9 @@ package eu.openanalytics.containerproxy.auth.impl.saml;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 
 import javax.inject.Inject;
@@ -22,6 +24,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -34,6 +38,7 @@ import org.springframework.security.saml.SAMLEntryPoint;
 import org.springframework.security.saml.SAMLProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.EmptyKeyManager;
+import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
 import org.springframework.security.saml.log.SAMLDefaultLogger;
 import org.springframework.security.saml.metadata.CachingMetadataManager;
@@ -100,13 +105,19 @@ public class SAMLConfiguration {
 
 	@Bean
 	public KeyManager keyManager() {
-		return new EmptyKeyManager();
-		//TODO A keystore can optionally be used to (1) verify IDP response and (2) sign auth requests
-//		ClassPathResource storeFile = new ClassPathResource("/saml-keystore.jks");
-//		String storePass = "samlstorepass";
-//		Map<String, String> passwords = new HashMap<>();
-//		passwords.put("mykeyalias", "mykeypass");
-//		return new JKSKeyManager(storeFile, storePass, passwords, "mykeyalias");
+		String keystore = environment.getProperty("proxy.saml.keystore");
+		if (keystore == null || keystore.isEmpty()) {
+			return new EmptyKeyManager();
+		} else {
+			String certName = environment.getProperty("proxy.saml.encryption-cert-name");
+			String certPW = environment.getProperty("proxy.saml.encryption-cert-password");
+			String keystorePW = environment.getProperty("proxy.saml.keystore-password", certPW);
+			
+			Resource keystoreFile = new FileSystemResource(keystore);
+			Map<String, String> passwords = new HashMap<>();
+			passwords.put(certName, certPW);
+			return new JKSKeyManager(keystoreFile, keystorePW, passwords, certName);
+		}
 	}
 
 	@Bean
@@ -243,12 +254,7 @@ public class SAMLConfiguration {
 	public SAMLFilterSet samlFilter() throws Exception {
 		List<SecurityFilterChain> chains = new ArrayList<SecurityFilterChain>();
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/login/**"), samlEntryPoint()));
-//		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/logout/**"), samlLogoutFilter()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), samlWebSSOProcessingFilter()));
-//		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/metadata/**"), metadataDisplayFilter()));
-//		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSOHoK/**"), samlWebSSOHoKProcessingFilter()));
-//		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SingleLogout/**"), samlLogoutProcessingFilter()));
-//		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/discovery/**"), samlIDPDiscovery()));
 		return new SAMLFilterSet(chains);
 	}
 

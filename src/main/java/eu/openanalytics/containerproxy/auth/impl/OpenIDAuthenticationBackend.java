@@ -24,9 +24,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -56,6 +59,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
 	private static final String REG_ID = "shinyproxy";
 	private static final String ENV_TOKEN_NAME = "SHINYPROXY_OIDC_ACCESS_TOKEN";
+	
+	private Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
 	
 	private OAuth2AuthorizedClientService authorizedClientService;
 	
@@ -154,6 +159,17 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				for (GrantedAuthority auth: authorities) {
 					if (auth instanceof OidcUserAuthority) {
 						OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
+						
+						if (log.isDebugEnabled()) {
+							String lineSep = System.getProperty("line.separator");
+							String claims = idToken.getClaims().entrySet().stream()
+								.map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
+								.collect(Collectors.joining(lineSep));
+							log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token:%s%s",
+									rolesClaimName, lineSep, claims));
+							
+						}
+						
 						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
 						if (roles == null) continue;
 						for (String role: roles) {

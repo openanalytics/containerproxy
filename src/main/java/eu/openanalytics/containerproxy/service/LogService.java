@@ -20,18 +20,11 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
-import java.util.regex.Pattern;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -42,34 +35,35 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import eu.openanalytics.containerproxy.log.ILogStorage;
+import eu.openanalytics.containerproxy.log.NoopLogStorage;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
 @Service
 public class LogService {
 
-	private String containerLogPath;
 	private ExecutorService executor;
-	
+	private boolean loggingEnabled;
 	private Logger log = LogManager.getLogger(LogService.class);
-	
-	@Inject
-	ProxyService proxyService;
 	
 	@Inject
 	Environment environment;
 	
+	@Inject
+	ILogStorage logStorage;
+	
 	@PostConstruct
 	public void init() {
-		containerLogPath = environment.getProperty("proxy.container-log-path");
-		if (containerLogPath != null && !containerLogPath.isEmpty()) {
-			try {
-				Files.createDirectories(Paths.get(containerLogPath));
-				executor = Executors.newCachedThreadPool();
-				log.info("Container logging enabled. Log files will be saved to " + containerLogPath);
-			} catch (IOException e) {
-				log.error("Failed to initialize container logging directory at " + containerLogPath, e);
-				containerLogPath = null;
-			}
+		try {
+			logStorage.initialize();
+			loggingEnabled = !(logStorage instanceof NoopLogStorage);
+		} catch (IOException e) {
+			log.error("Failed to initialize container log storage", e);
+		}
+		
+		if (isLoggingEnabled()) {
+			executor = Executors.newCachedThreadPool();
+			log.info("Container logging enabled. Log files will be saved to " + logStorage.getStorageLocation());
 		}
 	}
 	
@@ -79,7 +73,7 @@ public class LogService {
 	}
 
 	public boolean isLoggingEnabled() {
-		return containerLogPath != null && executor != null;
+		return loggingEnabled;
 	}
 	
 	public void attachToOutput(Proxy proxy, BiConsumer<OutputStream, OutputStream> outputAttacher) {
@@ -87,37 +81,29 @@ public class LogService {
 		
 		executor.submit(() -> {
 			try {
-				Path[] paths = getLogFilePaths(proxy);
-				OutputStream stdOut = new FileOutputStream(paths[0].toFile());
-				OutputStream stdErr = new FileOutputStream(paths[1].toFile());
-				// Note that this call will block until the container is stopped.
-				outputAttacher.accept(stdOut, stdErr);
+				OutputStream[] streams = logStorage.createOutputStreams(proxy);
+				if (streams == null || streams.length < 2) {
+					log.error("Failed to attach logging of proxy " + proxy.getId() + ": no output streams defined");
+				} else {
+					// Note that this call will block until the container is stopped.
+					outputAttacher.accept(streams[0], streams[1]);
+				}
 			} catch (Exception e) {
 				log.error("Failed to attach logging of proxy " + proxy.getId(), e);
 			}
 		});
 	}
 	
-	public Path[] getLogFiles(Proxy proxy) {
-		if (!isLoggingEnabled()) return new Path[0];
+	public String[] getLogs(Proxy proxy) {
+		if (!isLoggingEnabled()) return null;
 		
-		Pattern pattern = Pattern.compile(".*_" + proxy.getId() + "_.*\\.log");
 		try {
-			return Files.find(Paths.get(containerLogPath), 1, 
-					(p, a) -> pattern.matcher(p.getFileName().toString()).matches())
-					.toArray(i -> new Path[i]);
+			return logStorage.getLogs(proxy);
 		} catch (IOException e) {
-			log.error("Failed to locate log files for proxy " + proxy.getId(), e);
+			log.error("Failed to locate logs for proxy " + proxy.getId(), e);
 		}
 		
-		return new Path[0];
+		return null;
 	}
 	
-	private Path[] getLogFilePaths(Proxy proxy) {
-		String timestamp = new SimpleDateFormat("yyyyMMdd").format(new Date());
-		return new Path[] {
-			Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpec().getId(), proxy.getId(), timestamp)),
-			Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpec().getId(), proxy.getId(), timestamp))
-		};
-	}
 }

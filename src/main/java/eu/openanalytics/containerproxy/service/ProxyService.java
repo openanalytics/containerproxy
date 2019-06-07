@@ -251,6 +251,7 @@ public class ProxyService {
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
+				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
 				eventService.post(EventType.ProxyStop.toString(), proxy.getUserId(), proxy.getSpec().getId());
 			} catch (Exception e){

@@ -66,10 +66,17 @@ public class S3LogStorage extends AbstractLogStorage {
 		String endpoint = environment.getProperty("proxy.container-log-s3-endpoint", "https://s3-eu-west-1.amazonaws.com");
 		enableSSE = Boolean.valueOf(environment.getProperty("proxy.container-log-s3-sse", "false"));
 		
-		String subPath = containerLogPath.substring("s3://".length());
+		String subPath = containerLogPath.substring("s3://".length()).trim();
+		if (subPath.endsWith("/")) subPath = subPath.substring(0, subPath.length() - 1);
+		
 		int bucketPathIndex = subPath.indexOf("/");
-		bucketName = subPath.substring(0, bucketPathIndex);
-		bucketPath = subPath.substring(bucketPathIndex + 1);
+		if (bucketPathIndex == -1) {
+			bucketName = subPath;
+			bucketPath = "";
+		} else {
+			bucketName = subPath.substring(0, bucketPathIndex);
+			bucketPath = subPath.substring(bucketPathIndex + 1) + "/";
+		}
 		
 		s3 = AmazonS3ClientBuilder.standard()
 				.withEndpointConfiguration(new EndpointConfiguration(endpoint, null))
@@ -87,7 +94,8 @@ public class S3LogStorage extends AbstractLogStorage {
 		OutputStream[] streams = new OutputStream[2];
 		for (int i = 0; i < streams.length; i++) {
 			String fileName = paths[i].substring(paths[i].lastIndexOf("/") + 1);
-			streams[i] = new BufferedOutputStream(new S3OutputStream(bucketPath + "/" + fileName), 1024*1024);
+			// TODO kubernetes never flushes. So perform timed flushes, and also flush upon container shutdown
+			streams[i] = new BufferedOutputStream(new S3OutputStream(bucketPath + fileName), 1024*1024);
 		}
 		return streams;
 	}

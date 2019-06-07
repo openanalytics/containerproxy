@@ -46,6 +46,8 @@ public class LogService {
 	private boolean loggingEnabled;
 	private Logger log = LogManager.getLogger(LogService.class);
 	
+	private static final String PARAM_STREAMS = "streams";
+	
 	@Inject
 	Environment environment;
 	
@@ -85,13 +87,34 @@ public class LogService {
 				if (streams == null || streams.length < 2) {
 					log.error("Failed to attach logging of proxy " + proxy.getId() + ": no output streams defined");
 				} else {
+					proxy.getContainers().get(0).getParameters().put(PARAM_STREAMS, streams);
+					if (log.isDebugEnabled()) log.debug("Container logging started for proxy " + proxy.getId());
 					// Note that this call will block until the container is stopped.
 					outputAttacher.accept(streams[0], streams[1]);
 				}
 			} catch (Exception e) {
 				log.error("Failed to attach logging of proxy " + proxy.getId(), e);
 			}
+			if (log.isDebugEnabled()) log.debug("Container logging ended for proxy " + proxy.getId());
 		});
+	}
+	
+	public void detach(Proxy proxy) {
+		if (!isLoggingEnabled()) return;
+		
+		OutputStream[] streams = (OutputStream[]) proxy.getContainers().get(0).getParameters().get(PARAM_STREAMS);
+		if (streams == null || streams.length < 2) {
+			log.warn("Cannot detach container logging: streams not found");
+			return;
+		}
+		for (int i = 0; i < streams.length; i++) {
+			try {
+				streams[i].flush();
+				streams[i].close();
+			} catch (IOException e) {
+				log.error("Failed to close container logging streams", e);
+			}
+		}
 	}
 	
 	public String[] getLogs(Proxy proxy) {

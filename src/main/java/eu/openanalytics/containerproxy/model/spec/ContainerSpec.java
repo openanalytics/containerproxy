@@ -34,6 +34,7 @@ public class ContainerSpec {
 	private String[] networkConnections;
 	private String[] dns;
 	private String[] volumes;
+	private String user;
 	private Map<String, Integer> portMapping = new HashMap<>();
 	private boolean privileged;
 	private String memoryRequest;
@@ -90,6 +91,12 @@ public class ContainerSpec {
 	public void setVolumes(String[] volumes) {
 		this.volumes = volumes;
 	}
+	public String getUser() {
+		return user;
+	}
+	public void setUser(String user) {
+		this.user = user;
+	}
 	public Map<String, Integer> getPortMapping() {
 		return portMapping;
 	}
@@ -145,6 +152,7 @@ public class ContainerSpec {
 		if (networkConnections != null) target.setNetworkConnections(Arrays.copyOf(networkConnections, networkConnections.length));
 		if (dns != null) target.setDns(Arrays.copyOf(dns, dns.length));
 		if (volumes != null) target.setVolumes(Arrays.copyOf(volumes, volumes.length));
+		target.setUser(user);
 		if (portMapping != null) {
 			if (target.getPortMapping() == null) target.setPortMapping(new HashMap<>());
 			target.getPortMapping().putAll(portMapping);

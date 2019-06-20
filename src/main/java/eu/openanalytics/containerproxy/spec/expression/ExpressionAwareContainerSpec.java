@@ -74,6 +74,9 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	public String[] getVolumes() {
 		return resolve(source.getVolumes());
 	}
+	public String getUser() {
+		return resolve(source.getUser());
+	}
 	public Map<String, Integer> getPortMapping() {
 		return source.getPortMapping();
 	}

@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -246,10 +247,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.withPorts(servicePorts)
 						.endSpec()
 					.done();
-			
-			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
-			service = kubeClient.resource(startupService).fromServer().get();
+
+			service = kubeClient.resource(startupService).waitUntilReady(30, TimeUnit.SECONDS);
 		}
 		
 		container.getParameters().put(PARAM_POD, pod);

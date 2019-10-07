@@ -64,13 +64,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Override
 	public void configure(WebSecurity web) throws Exception {
-		web
-			.ignoring().antMatchers("/css/**").and()
-			.ignoring().antMatchers("/img/**").and()
-			.ignoring().antMatchers("/js/**").and()
-			.ignoring().antMatchers("/assets/**").and()
-			.ignoring().antMatchers("/webjars/**").and();
-		
+//		web
+//			.ignoring().antMatchers("/css/**").and()
+//			.ignoring().antMatchers("/img/**").and()
+//			.ignoring().antMatchers("/js/**").and()
+//			.ignoring().antMatchers("/assets/**").and()
+//			.ignoring().antMatchers("/webjars/**").and();
+//		
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(web);
 		}
@@ -78,8 +78,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		// must disable or handle in proxy
-		http.csrf().disable();
+		// Perform CSRF check on the login form
+		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
+		
+		// Always set header: X-Content-Type-Options=nosniff
+		http.headers().contentTypeOptions();
 
 		String frameOptions = environment.getProperty("server.frameOptions", "disable");
 		switch (frameOptions.toUpperCase()) {
@@ -106,7 +109,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 
 		if (auth.hasAuthorization()) {
-			http.authorizeRequests().antMatchers("/login", "/signin/**").permitAll();
+			http.authorizeRequests().antMatchers(
+						"/login", "/signin/**",
+						"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
 			http.authorizeRequests().anyRequest().fullyAuthenticated();
 
 			http

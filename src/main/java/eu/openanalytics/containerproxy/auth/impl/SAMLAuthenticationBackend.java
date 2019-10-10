@@ -53,8 +53,8 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	@Autowired(required = false)
 	private SAMLAuthenticationProvider samlAuthenticationProvider;
 
-        @Inject
-        private Environment environment;
+	@Inject
+	private Environment environment;
 	
 	@Override
 	public String getName() {

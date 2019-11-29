@@ -131,15 +131,28 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			String[] volume = volumeStrings[i].split(":");
 			String hostSource = volume[0];
 			String containerDest = volume[1];
-			String name = "shinyproxy-volume-" + i;
-			volumes.add(new VolumeBuilder()
-					.withNewHostPath(hostSource, "")
-					.withName(name)
-					.build());
-			volumeMounts[i] = new VolumeMountBuilder()
-					.withMountPath(containerDest)
-					.withName(name)
-					.build();
+			String name = "shinyproxy-volume-" + i;			
+			if (hostSource.contains("/")) {
+				volumes.add(new VolumeBuilder()
+						.withNewHostPath(hostSource, "")
+						.withName(name)
+						.build());
+				volumeMounts[i] = new VolumeMountBuilder()
+						.withMountPath(containerDest)
+						.withName(name)
+						.build();
+			} else { // PersistentVolume
+				volumes.add(new VolumeBuilder()
+						.withNewPersistentVolumeClaim(hostSource, false) // readonly - false
+						.withName(name)
+						.build());
+
+				volumeMounts[i] = new VolumeMountBuilder()
+						.withMountPath(containerDest)
+						.withName(name)
+						.withReadOnly(false)
+						.build();
+			}
 		}
 
 		List<EnvVar> envVars = new ArrayList<>();

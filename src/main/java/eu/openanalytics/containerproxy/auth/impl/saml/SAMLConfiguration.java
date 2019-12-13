@@ -110,6 +110,7 @@ public class SAMLConfiguration {
 	public WebSSOProfileOptions defaultWebSSOProfileOptions() {
 		WebSSOProfileOptions webSSOProfileOptions = new WebSSOProfileOptions();
 		webSSOProfileOptions.setIncludeScoping(false);
+		webSSOProfileOptions.setForceAuthN(true);
 		return webSSOProfileOptions;
 	}
 

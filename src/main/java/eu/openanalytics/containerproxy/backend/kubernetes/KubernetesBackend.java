@@ -292,11 +292,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
+		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		for (Container container: proxy.getContainers()) {
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-			if (pod != null) kubeClient.pods().delete(pod);
+			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
-			if (service != null) kubeClient.services().delete(service);
+			if (service != null) kubeClient.services().inNamespace(kubeNamespace).delete(service);
 		}
 	}
 	

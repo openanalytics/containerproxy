@@ -30,6 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,10 +46,15 @@ public class ErrorController extends BaseController implements org.springframewo
 	@RequestMapping(produces = "text/html")
 	public String handleError(ModelMap map, HttpServletRequest request, HttpServletResponse response) {
 		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
+		if (exception == null) exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+
 		String[] msg = createMsgStack(exception);
-		
 		if (exception == null) msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
 
+		if (response.getStatus() == 200 && exception instanceof AccountStatusException) {
+			return "/";
+		}
+		
 		map.put("message", msg[0]);
 		map.put("stackTrace", msg[1]);
 		map.put("status", response.getStatus());

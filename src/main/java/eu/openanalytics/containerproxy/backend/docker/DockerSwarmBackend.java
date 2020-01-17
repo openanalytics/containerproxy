@@ -71,6 +71,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = 
 				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
 				.image(spec.getImage())
+				.labels(spec.getLabels())
 				.command(spec.getCmd())
 				.env(buildEnv(spec, proxy))
 				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns()).build())

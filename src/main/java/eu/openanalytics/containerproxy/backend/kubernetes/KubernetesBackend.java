@@ -206,6 +206,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withKind("Pod")
 				.withNewMetadata()
 					.withName("sp-pod-" + container.getId())
+					.addToLabels(spec.getLabels())
 					.addToLabels("app", container.getId())
 					.endMetadata();
 		

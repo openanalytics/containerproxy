@@ -92,6 +92,13 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	public boolean isPrivileged() {
 		return source.isPrivileged();
 	}
+	@Override
+	public Map<String, String> getLabels() {
+		if (source.getLabels() == null) return null;
+		Map<String, String> settings = new HashMap<>();
+		source.getLabels().entrySet().stream().forEach(e -> settings.put(e.getKey(), resolve(e.getValue())));
+		return settings;
+	}
 	public Map<String, String> getSettings() {
 		if (source.getSettings() == null) return null;
 		Map<String, String> settings = new HashMap<>();

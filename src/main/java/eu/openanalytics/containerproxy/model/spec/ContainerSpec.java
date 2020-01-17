@@ -40,6 +40,7 @@ public class ContainerSpec {
 	private String memoryLimit;
 	private String cpuRequest;
 	private String cpuLimit;
+	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
 	
 	public String getImage() {
@@ -126,6 +127,12 @@ public class ContainerSpec {
 	public void setCpuLimit(String cpuLimit) {
 		this.cpuLimit = cpuLimit;
 	}
+	public Map<String, String> getLabels() {
+		return labels;
+	}
+	public void setLabels(Map<String, String> labels) {
+		this.labels = labels;
+	}
 	public Map<String, String> getSettings() {
 		return settings;
 	}
@@ -154,6 +161,10 @@ public class ContainerSpec {
 		target.setCpuRequest(cpuRequest);
 		target.setCpuLimit(cpuLimit);
 		target.setPrivileged(privileged);
+		if (labels != null) {
+			if (target.getLabels() == null) target.setLabels(new HashMap<>());
+			target.getLabels().putAll(labels);
+		}
 		if (settings != null) {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());
 			target.getSettings().putAll(settings);

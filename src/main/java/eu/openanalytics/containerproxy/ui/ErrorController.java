@@ -51,7 +51,7 @@ public class ErrorController extends BaseController implements org.springframewo
 		String[] msg = createMsgStack(exception);
 		if (exception == null) msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
 
-		if (response.getStatus() == 200 && exception instanceof AccountStatusException) {
+		if (response.getStatus() == 200 && isAccountStatusException(exception)) {
 			return "/";
 		}
 		
@@ -101,5 +101,11 @@ public class ErrorController extends BaseController implements org.springframewo
 		if (stackTrace == null || stackTrace.isEmpty()) stackTrace = "n/a";
 		
 		return new String[] { message, stackTrace };
+	}
+	
+	private boolean isAccountStatusException(Throwable exception) {
+		if (exception instanceof AccountStatusException) return true;
+		if (exception.getCause() != null) return isAccountStatusException(exception.getCause());
+		return false;
 	}
 }

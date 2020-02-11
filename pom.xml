@@ -25,19 +25,19 @@
 		<snapshotRepository>
 			<id>oa-nexus-snapshots</id>
 			<name>OpenAnalytics Snapshots Repository</name>
-			<url>http://nexus.openanalytics.eu/nexus/content/repositories/snapshots</url>
+			<url>https://nexus.openanalytics.eu/nexus/content/repositories/snapshots</url>
 		</snapshotRepository>
 		<repository>
 			<id>oa-nexus-releases</id>
 			<name>OpenAnalytics Release Repository</name>
-			<url>http://nexus.openanalytics.eu/nexus/content/repositories/releases</url>
+			<url>https://nexus.openanalytics.eu/nexus/content/repositories/releases</url>
 		</repository>
 	</distributionManagement>
 
 	<repositories>
 		<repository>
 			<id>clojars</id>
-			<url>http://clojars.org/repo/</url>
+			<url>https://clojars.org/repo/</url>
 		</repository>
 		<repository>
 			<!-- Currently used only for the opensaml 2.6.6 dependency -->

@@ -284,7 +284,10 @@ public class SAMLConfiguration {
 
 	@Bean
 	public WebSSOProfileConsumer webSSOprofileConsumer() {
-		return new WebSSOProfileConsumerImpl();
+		WebSSOProfileConsumerImpl webSSOProfileConsumerImpl = new WebSSOProfileConsumerImpl();
+		String maxAuthAge = environment.getProperty("proxy.saml.max-auth-age");
+		if (maxAuthAge != null) webSSOProfileConsumerImpl.setMaxAuthenticationAge(Long.valueOf(maxAuthAge));
+		return webSSOProfileConsumerImpl;
 	}
 
 	@Bean

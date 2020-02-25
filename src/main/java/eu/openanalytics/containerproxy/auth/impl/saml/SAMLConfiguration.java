@@ -57,6 +57,7 @@ import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.SAMLEntryPoint;
 import org.springframework.security.saml.SAMLProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
+import org.springframework.security.saml.context.SAMLContextProviderLB;
 import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
@@ -233,7 +234,28 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SAMLContextProviderImpl contextProvider() {
-		return new SAMLContextProviderImpl();
+		SAMLContextProviderImpl provider;
+		String serverName = environment.getProperty("proxy.saml.lb-server-name");
+		if (serverName != null && !serverName.isEmpty()) {
+			SAMLContextProviderLB lbProvider = new SAMLContextProviderLB();
+			lbProvider.setServerName(serverName);
+			String contextPath = environment.getProperty("proxy.saml.lb-context-path");
+			if (contextPath == null) contextPath = "/";
+			lbProvider.setContextPath(contextPath);
+			String portInUrl = environment.getProperty("proxy.saml.lb-port-in-url");
+			if (portInUrl == null) portInUrl = "false";
+			lbProvider.setIncludeServerPortInRequestURL(Boolean.valueOf(portInUrl));
+			String scheme = environment.getProperty("proxy.saml.lb-scheme");
+			if (scheme == null) scheme = "https";
+			lbProvider.setScheme(scheme);
+			String serverPort = environment.getProperty("proxy.saml.lb-server-port");
+			if (serverPort == null) serverPort = "443";
+			lbProvider.setServerPort(Integer.valueOf(serverPort));
+			provider = lbProvider;
+		} else {
+			provider = new SAMLContextProviderImpl();
+		}
+		return provider;
 	}
 
 	@Bean

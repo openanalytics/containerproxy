@@ -41,17 +41,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.util.SessionHelper;
+import net.minidev.json.JSONArray;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
@@ -89,7 +95,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.loginPage("/login")
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(authorizedClientService)
-				.userInfoEndpoint().userAuthoritiesMapper(createAuthoritiesMapper());
+				.userInfoEndpoint()
+					.userAuthoritiesMapper(createAuthoritiesMapper())
+					.oidcUserService(createOidcUserService());
 	}
 
 	@Override
@@ -180,6 +188,42 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				}
 				return mappedAuthorities;
 			};
+		}
+	}
+	
+	protected OidcUserService createOidcUserService() {
+		// Use a custom UserService that supports the 'emails' array attribute.
+		return new OidcUserService() {
+			@Override
+			public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
+				OidcUser user = super.loadUser(userRequest);
+				String nameAttributeKey = environment.getProperty("proxy.openid.username-attribute", "email");
+				return new CustomNameOidcUser(new HashSet<>(user.getAuthorities()), user.getIdToken(), user.getUserInfo(), nameAttributeKey);
+			}
+		};
+	}
+	
+	private static class CustomNameOidcUser extends DefaultOidcUser {
+
+		private static final long serialVersionUID = 7563253562760236634L;
+		private static final String ID_ATTR_EMAILS = "emails";
+		
+		private boolean isEmailsAttribute;
+		
+		public CustomNameOidcUser(Set<GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey) {
+			super(authorities, idToken, userInfo, nameAttributeKey);
+			this.isEmailsAttribute = nameAttributeKey.equals(ID_ATTR_EMAILS);
+		}
+
+		@Override
+		public String getName() {
+			if (isEmailsAttribute) {
+				Object emails = getAttributes().get(ID_ATTR_EMAILS);
+				if (emails instanceof String[]) return ((String[]) emails)[0];
+				else if (emails instanceof JSONArray) return ((JSONArray) emails).get(0).toString();
+				else return emails.toString();
+			}
+			else return super.getName();
 		}
 	}
 }

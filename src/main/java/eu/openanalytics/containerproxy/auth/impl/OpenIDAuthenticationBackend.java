@@ -173,17 +173,28 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 							String claims = idToken.getClaims().entrySet().stream()
 								.map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
 								.collect(Collectors.joining(lineSep));
-							log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token:%s%s",
-									rolesClaimName, lineSep, claims));
+							log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token (%d):%s%s",
+									rolesClaimName, idToken.getClaims().size(), lineSep, claims));
 							
+							Object claimValue = idToken.getClaims().get(rolesClaimName);
+							if (claimValue != null) {
+								log.debug(String.format("Matching claim found: %s -> %s", rolesClaimName, claimValue));
+							} else {
+								log.debug("No matching claim found.");
+							}
+						}
+
+						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
+						if (roles == null) {
+							if (log.isDebugEnabled()) log.debug("Failed to parse claim value as an array: " + idToken.getClaims().get(rolesClaimName));
+							continue;
 						}
 						
-						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
-						if (roles == null) continue;
 						for (String role: roles) {
 							String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
 							mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
 						}
+						if (log.isDebugEnabled()) log.debug("The following roles were successfully parsed: " + roles);
 					}
 				}
 				return mappedAuthorities;

@@ -178,7 +178,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 							
 							Object claimValue = idToken.getClaims().get(rolesClaimName);
 							if (claimValue != null) {
-								log.debug(String.format("Matching claim found: %s -> %s", rolesClaimName, claimValue));
+								log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
 							} else {
 								log.debug("No matching claim found.");
 							}

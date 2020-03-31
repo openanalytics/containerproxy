@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +59,8 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import net.minidev.json.JSONArray;
+import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
@@ -175,18 +178,32 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 								.collect(Collectors.joining(lineSep));
 							log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token (%d):%s%s",
 									rolesClaimName, idToken.getClaims().size(), lineSep, claims));
-							
-							Object claimValue = idToken.getClaims().get(rolesClaimName);
-							if (claimValue != null) {
-								log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
-							} else {
-								log.debug("No matching claim found.");
-							}
+						}
+						
+						Object claimValue = idToken.getClaims().get(rolesClaimName);
+						if (claimValue == null) {
+							log.debug("No matching claim found.");
+						} else {
+							log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
 						}
 
+						// Workaround: in some cases, getClaimAsStringList fails to parse??
 						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
+						if (roles == null && claimValue instanceof String) {
+							List<String> parsedRoles = new ArrayList<>();
+							try {
+								Object value = new JSONParser(JSONParser.MODE_PERMISSIVE).parse((String) claimValue);
+								if (value instanceof List) {
+									List<?> valueList = (List<?>) value;
+									valueList.forEach(o -> parsedRoles.add(o.toString()));
+								}
+							} catch (ParseException e) {
+								// Unable to parse JSON
+							}
+							roles = parsedRoles;
+						}
 						if (roles == null) {
-							if (log.isDebugEnabled()) log.debug("Failed to parse claim value as an array: " + idToken.getClaims().get(rolesClaimName));
+							if (log.isDebugEnabled()) log.debug("Failed to parse claim value as an array: " + claimValue);
 							continue;
 						}
 						

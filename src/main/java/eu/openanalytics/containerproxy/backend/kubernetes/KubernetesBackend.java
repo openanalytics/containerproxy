@@ -207,6 +207,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withNewMetadata()
 					.withName("sp-pod-" + container.getId())
 					.addToLabels("app", container.getId())
+					.addToLabels("sp-spec-id", proxy.getSpec().getId())
 					.endMetadata();
 		
 		PodSpec podSpec = new PodSpec();

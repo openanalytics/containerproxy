@@ -35,12 +35,12 @@ public class EventService {
 	private List<Consumer<Event>> listeners = new CopyOnWriteArrayList<>();
 	
 	public void post(String type, String user, String data) {
-		logger.debug("Post event [type: %s] [user: %s] [data: %s]", type, user, data);
+		logger.debug("Post event [type: " + type + "] [user: " + user + "] [data: " + data + "]");
 		post(new Event(type, user, System.currentTimeMillis(), data));
 	}
 	
 	public void post(Event event) {
-		logger.debug("Post event [type: %s] [user: %s] [data: %s]", event.type, event.user, event.data);		
+		logger.debug("Post event [type: " + event.type + "] [user: " + event.user + "] [data: " + event.data + "]");		
 		for (Consumer<Event> listener: listeners) {
 			listener.accept(event);
 		}

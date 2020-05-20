@@ -126,7 +126,8 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() throws Exception {
 		// Possible solution for issue #21037, create a custom RequestMatcher that doesn't include a QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) request matcher.
 		// The QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) caused the HTTP requests to be changed before they where processed.
-		// Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException 
+		// Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
+		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself  
 		RequestMatcher requestMatcher =
 				new OrRequestMatcher(
 	                    new AntPathRequestMatcher(KeycloakAuthenticationProcessingFilter.DEFAULT_LOGIN_URL),

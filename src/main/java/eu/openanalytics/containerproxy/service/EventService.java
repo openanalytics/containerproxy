@@ -24,18 +24,23 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EventService {
-
+	private Logger logger = LogManager.getLogger(EventService.class);
+	
 	private List<Consumer<Event>> listeners = new CopyOnWriteArrayList<>();
 	
 	public void post(String type, String user, String data) {
+		logger.debug("Post event [type: " + type + "] [user: " + user + "] [data: " + data + "]");
 		post(new Event(type, user, System.currentTimeMillis(), data));
 	}
 	
 	public void post(Event event) {
+		logger.debug("Post event [type: " + event.type + "] [user: " + event.user + "] [data: " + event.data + "]");		
 		for (Consumer<Event> listener: listeners) {
 			listener.accept(event);
 		}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: containerproxy-build
+spec:
+  containers:
+   - name: maven
+     image: maven:3-openjdk-8
+     command:
+     - cat
+     tty: true	

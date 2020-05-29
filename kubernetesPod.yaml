@@ -5,8 +5,8 @@ metadata:
     some-label: containerproxy-build
 spec:
   containers:
-   - name: maven
-     image: maven:3-openjdk-8
+   - name: containerproxy-build
+     image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/openanalytics/containerproxy-build 
      command:
      - cat
      tty: true	

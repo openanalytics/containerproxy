@@ -16,7 +16,7 @@ pipeline {
         
             steps {
             
-                container('maven') {
+                container('containerproxy-build') {
                      
                      configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
                          

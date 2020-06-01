@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    some-label: containerproxy-build
+    ci: containerproxy-build
 spec:
   containers:
    - name: containerproxy-build

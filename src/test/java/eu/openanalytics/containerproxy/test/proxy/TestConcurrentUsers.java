@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import java.util.HashMap;
-import java.util.Map;
+import static org.junit.Assert.assertEquals;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.inject.Inject;
 
@@ -30,132 +32,121 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.reactive.function.BodyInserters;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 
-@SpringBootTest(classes= {ContainerProxyApplication.class}, webEnvironment=WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = { ContainerProxyApplication.class }, webEnvironment = WebEnvironment.RANDOM_PORT)
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
 public class TestConcurrentUsers {
 
 	@Inject
-	private WebTestClient webClient;
-	
+	private TestRestTemplate restTemplate;
+
 	@Inject
 	private Environment environment;
-	
+
+	@LocalServerPort
+	private int port;
+
 	private String[] user1;
 	private String[] user2;
 	private String[] specIds;
-	
+
 	@Before
 	public void init() {
-		user1 = new String[] { 
-				environment.getProperty("proxy.users[0].name"),
-				environment.getProperty("proxy.users[0].password")
-		};
-		user2 = new String[] { 
-				environment.getProperty("proxy.users[1].name"),
-				environment.getProperty("proxy.users[1].password")
-		};
-		specIds = new String[] {
-				environment.getProperty("proxy.specs[0].id"),
-				environment.getProperty("proxy.specs[1].id")
-		};
+		user1 = new String[] { environment.getProperty("proxy.users[0].name"),
+				environment.getProperty("proxy.users[0].password") };
+		user2 = new String[] { environment.getProperty("proxy.users[1].name"),
+				environment.getProperty("proxy.users[1].password") };
+		specIds = new String[] { environment.getProperty("proxy.specs[0].id"),
+				environment.getProperty("proxy.specs[1].id") };
 	}
-	
+
 	@Test
 	public void test1User2Sessions1Spec() throws Exception {
-		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
-        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
+		String proxyId1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		String proxyId2 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		doDeleteProxy(proxyId1, user1[0], user1[1]);
+		doDeleteProxy(proxyId2, user1[0], user1[1]);
 	}
-	
+
 	@Test
 	public void test1User2Sessions2Specs() throws Exception {
-		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user1[0], user1[1], specIds[1]);
-        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
-        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
+		String proxyId1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		String proxyId2 = loginAndLaunchProxy(user1[0], user1[1], specIds[1]);
+		doDeleteProxy(proxyId1, user1[0], user1[1]);
+		doDeleteProxy(proxyId2, user1[0], user1[1]);
 	}
-	
+
 	@Test
 	public void test2Users2Sessions1Spec() throws Exception {
-		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user2[0], user2[1], specIds[0]);
-        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
-        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
+		String proxyId1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		String proxyId2 = loginAndLaunchProxy(user2[0], user2[1], specIds[0]);
+		doDeleteProxy(proxyId1, user1[0], user1[1]);
+		doDeleteProxy(proxyId2, user2[0], user2[1]);
 	}
-	
+
 	@Test
 	public void test2Users2Sessions2Specs() throws Exception {
-		Map<String,String> proxyInfo1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
-		Map<String,String> proxyInfo2 = loginAndLaunchProxy(user2[0], user2[1], specIds[1]);
-        doDeleteProxy(proxyInfo1.get("proxyId"), proxyInfo1.get("jSessionId"));
-        doDeleteProxy(proxyInfo2.get("proxyId"), proxyInfo2.get("jSessionId"));
+		String proxyId1 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
+		String proxyId2 = loginAndLaunchProxy(user2[0], user2[1], specIds[1]);
+		doDeleteProxy(proxyId1, user1[0], user1[1]);
+		doDeleteProxy(proxyId2, user2[0], user2[1]);
 	}
-	
-	private Map<String,String> loginAndLaunchProxy(String username, String password, String specId) throws Exception {
-		String jSessionId = doFormLogin(username, password);
-		Map<?,?> proxyInfo = doLaunchProxy(specId, jSessionId);
-		Thread.sleep(1000);
-		Map<?,?> targets = (Map<?,?>) proxyInfo.get("targets");
-		String endpoint = targets.keySet().iterator().next().toString() + "/";
-		doGetEndpoint(endpoint, jSessionId);
-		return new HashMap<String, String>() {
-			{
-				put("proxyId", (String)proxyInfo.get("id"));
-				put("jSessionId", jSessionId);
-			}
-		};
-	}
-	
-	private String doFormLogin(String username, String password) {
-		String setCookie = webClient.post()
-				.uri("/login")
-				.body(BodyInserters.fromFormData("username", username).with("password", password))
-				.exchange()
-				.expectStatus().isEqualTo(302)
-				.expectHeader().exists("Set-Cookie")
-				.returnResult(String.class).getResponseHeaders().getFirst("Set-Cookie");
 
-		String jSessionId = setCookie.split("=")[1];
-		return jSessionId.substring(0, jSessionId.indexOf(';'));
+	private String loginAndLaunchProxy(String username, String password, String specId) throws Exception {
+		Set<RuntimeSetting> createProxyBody = new HashSet<RuntimeSetting>();
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+
+		HttpEntity<Set<RuntimeSetting>> createProxyRequest = new HttpEntity<Set<RuntimeSetting>>(createProxyBody,
+				headers);
+
+		ResponseEntity<Proxy> createProxyResponse = this.restTemplate.withBasicAuth(username, password).postForEntity(
+				"http://localhost:" + port + "/api/proxy/{proxySpecId}", createProxyRequest, Proxy.class, specId);
+		assertEquals(201, createProxyResponse.getStatusCodeValue());
+
+		Proxy createdProxy = createProxyResponse.getBody();
+		Thread.sleep(1000);
+		String endpoint = createdProxy.getTargets().keySet().iterator().next().toString() + "/";
+		doGetEndpoint(endpoint, username, password);
+		
+		return createdProxy.getId();
 	}
-	
-	private Map<?,?> doLaunchProxy(String specId, String jSessionId) {
-		return webClient.post()
-				.uri("/api/proxy/" + specId)
-				.cookie("JSESSIONID", jSessionId)
-				.header("Content-Type", MediaType.APPLICATION_JSON.toString())
-				.body(BodyInserters.fromObject("[]"))
-				.exchange()
-				.expectStatus().isEqualTo(201)
-				.returnResult(Map.class).getResponseBody().blockFirst();
+
+	private void doDeleteProxy(String proxyId, String username, String password) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+
+		ResponseEntity<String> deleteProxyResponse = this.restTemplate
+				.withBasicAuth(username, password)
+				.exchange("http://localhost:" + port + "/api/proxy/{proxyId}", HttpMethod.DELETE, null, String.class, proxyId);
+		
+		assertEquals(200, deleteProxyResponse.getStatusCodeValue());
 	}
-	
-	private void doDeleteProxy(String proxyId, String jSessionId) {
-		webClient.delete()
-				.uri("/api/proxy/" + proxyId)
-				.cookie("JSESSIONID", jSessionId)
-				.exchange()
-				.expectStatus().isEqualTo(200)
-				.returnResult(String.class).getResponseBodyContent();
-	}
-	
-	private byte[] doGetEndpoint(String endpoint, String jSessionId) {
-		return webClient.get()
-				.uri("/api/route/" + endpoint)
-				.cookie("JSESSIONID", jSessionId)
-				.exchange()
-				.expectStatus().isEqualTo(200)
-				.returnResult(String.class).getResponseBodyContent();
+
+	private byte[] doGetEndpoint(String endpoint, String username, String password) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+
+		ResponseEntity<String> getEndpointResponse = this.restTemplate.withBasicAuth(username, password)
+				.getForEntity("http://localhost:" + port + "/api/route/" + endpoint, String.class);
+		assertEquals(200, getEndpointResponse.getStatusCodeValue());
+
+		return getEndpointResponse.getBody().getBytes();
 	}
 }

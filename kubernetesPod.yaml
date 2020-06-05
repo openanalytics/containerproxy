@@ -4,9 +4,16 @@ metadata:
   labels:
     ci: containerproxy-build
 spec:
+  volumes:
+    - name: dockersock  
+      hostPath:
+        path: /var/run/docker.sock        
   containers:
    - name: containerproxy-build
      image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/openanalytics/containerproxy-build 
      command:
      - cat
-     tty: true	
+     tty: true
+     volumeMounts:
+      - mountPath: /var/run/docker.sock
+        name: dockersock

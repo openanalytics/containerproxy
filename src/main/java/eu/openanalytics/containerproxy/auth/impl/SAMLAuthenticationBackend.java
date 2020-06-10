@@ -74,6 +74,9 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 		.and()
 			.addFilterBefore(metadataGeneratorFilter, ChannelProcessingFilter.class)
 			.addFilterAfter(samlFilter, BasicAuthenticationFilter.class);
+		http
+				.logout()
+				.disable();
 	}
 
 	@Override

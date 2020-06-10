@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.saml;
 
+import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,6 +56,7 @@ import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLBootstrap;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.SAMLEntryPoint;
+import org.springframework.security.saml.SAMLLogoutFilter;
 import org.springframework.security.saml.SAMLProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.EmptyKeyManager;
@@ -73,6 +75,8 @@ import org.springframework.security.saml.processor.SAMLBinding;
 import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.userdetails.SAMLUserDetailsService;
 import org.springframework.security.saml.util.VelocityFactory;
+import org.springframework.security.saml.websso.SingleLogoutProfile;
+import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
 import org.springframework.security.saml.websso.WebSSOProfile;
 import org.springframework.security.saml.websso.WebSSOProfileConsumer;
 import org.springframework.security.saml.websso.WebSSOProfileConsumerHoKImpl;
@@ -84,6 +88,9 @@ import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -98,12 +105,42 @@ public class SAMLConfiguration {
 	@Inject
 	@Lazy
 	private AuthenticationManager authenticationManager;
+
+	@Inject
+	private UserLogoutHandler userLogoutHandler;
 	
 	@Bean
 	public SAMLEntryPoint samlEntryPoint() {
 		SAMLEntryPoint samlEntryPoint = new SAMLEntryPoint();
 		samlEntryPoint.setDefaultProfileOptions(defaultWebSSOProfileOptions());
 		return samlEntryPoint;
+	}
+
+	@Bean
+	public SingleLogoutProfile logoutProfile() {
+		return new SingleLogoutProfileImpl();
+	}
+
+	@Bean
+	public SAMLLogoutFilter samlLogoutFilter() {
+		return new SAMLLogoutFilter(successLogoutHandler(),
+				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()},
+				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()});
+	}
+
+	@Bean
+	public SecurityContextLogoutHandler securityContextLogoutHandler() {
+		SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
+		logoutHandler.setInvalidateHttpSession(true);
+		logoutHandler.setClearAuthentication(true);
+		return logoutHandler;
+	}
+
+	@Bean
+	public SimpleUrlLogoutSuccessHandler successLogoutHandler() {
+		SimpleUrlLogoutSuccessHandler successLogoutHandler = new SimpleUrlLogoutSuccessHandler();
+		successLogoutHandler.setDefaultTargetUrl("/");
+		return successLogoutHandler;
 	}
 	
 	@Bean
@@ -275,6 +312,7 @@ public class SAMLConfiguration {
 	public SAMLFilterSet samlFilter() throws Exception {
 		List<SecurityFilterChain> chains = new ArrayList<SecurityFilterChain>();
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/login/**"), samlEntryPoint()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/logout/**"), samlLogoutFilter()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), samlWebSSOProcessingFilter()));
 		return new SAMLFilterSet(chains);
 	}

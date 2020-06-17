@@ -5,7 +5,7 @@
 
 	<groupId>eu.openanalytics</groupId>
 	<artifactId>containerproxy</artifactId>
-	<version>0.8.4-SNAPSHOT</version>
+	<version>0.8.4</version>
 	<name>ContainerProxy</name>
 	<packaging>jar</packaging>
 	
@@ -293,6 +293,7 @@
 						<exclude>**/*.yml</exclude>
 						<exclude>**/*.json</exclude>
 						<exclude>**/*.raml</exclude>
+						<exclude>**/*.sh</exclude>
 						<exclude>LICENSE</exclude>
 						<exclude>LICENSE_HEADER</exclude>
 						<exclude>README.md</exclude>

@@ -20,7 +20,7 @@ pipeline {
                      
                      configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
                          
-                         sh 'mvn -s $MAVEN_SETTINGS_RSB -U clean install deploy -DskipTests'
+                         sh 'mvn -s $MAVEN_SETTINGS_RSB -U clean install deploy -DskipTests=true'
                          
                      }
                 }

@@ -40,7 +40,7 @@
 	<div class="container">
 		
 		<div th:if="${@authenticationBackend.name != 'social'}">
-			<form class="form-signin" action="login" method="POST">
+			<form class="form-signin" th:action="@{/login}" method="POST">
 				<h2 class="form-signin-heading">Please sign in:</h2>
 				<div class="alert alert-danger" th:if="${error}">
 	  				<strong>Could not sign in!</strong><br/><span th:text="${error}"></span>.

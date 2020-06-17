@@ -40,6 +40,7 @@ import org.springframework.web.filter.HttpPutFormContentFilter;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
+import io.undertow.servlet.api.ServletSessionConfig;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
@@ -80,6 +81,10 @@ public class ContainerProxyApplication {
 			info.addInnerHandlerChainWrapper(defaultHandler -> {
 				return mappingManager.createHttpHandler(defaultHandler);
 			});
+			ServletSessionConfig sessionConfig = new ServletSessionConfig();
+			sessionConfig.setHttpOnly(true);
+			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
+			info.setServletSessionConfig(sessionConfig);
 		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));

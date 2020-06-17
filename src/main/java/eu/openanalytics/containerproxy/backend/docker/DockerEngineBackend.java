@@ -76,6 +76,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
 			    .image(spec.getImage())
+			    .labels(spec.getLabels())
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
 			    .env(buildEnv(spec, proxy))

@@ -5,7 +5,7 @@
 
 	<groupId>eu.openanalytics</groupId>
 	<artifactId>containerproxy</artifactId>
-	<version>0.8.3</version>
+	<version>0.8.4</version>
 	<name>ContainerProxy</name>
 	<packaging>jar</packaging>
 	
@@ -25,12 +25,12 @@
 		<snapshotRepository>
 			<id>oa-nexus-snapshots</id>
 			<name>OpenAnalytics Snapshots Repository</name>
-			<url>http://nexus.openanalytics.eu/nexus/content/repositories/snapshots</url>
+			<url>https://nexus.openanalytics.eu/nexus/content/repositories/snapshots</url>
 		</snapshotRepository>
 		<repository>
 			<id>oa-nexus-releases</id>
 			<name>OpenAnalytics Release Repository</name>
-			<url>http://nexus.openanalytics.eu/nexus/content/repositories/releases</url>
+			<url>https://nexus.openanalytics.eu/nexus/content/repositories/releases</url>
 		</repository>
 	</distributionManagement>
 
@@ -293,6 +293,7 @@
 						<exclude>**/*.yml</exclude>
 						<exclude>**/*.json</exclude>
 						<exclude>**/*.raml</exclude>
+						<exclude>**/*.sh</exclude>
 						<exclude>LICENSE</exclude>
 						<exclude>LICENSE_HEADER</exclude>
 						<exclude>README.md</exclude>

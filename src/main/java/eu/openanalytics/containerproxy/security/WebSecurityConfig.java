@@ -27,6 +27,7 @@ import javax.inject.Inject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -36,6 +37,7 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
@@ -54,18 +56,21 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Inject
 	private AuthenticationEventPublisher eventPublisher;
 	
+	@Inject
+	private Environment environment;
+	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
 	
 	@Override
 	public void configure(WebSecurity web) throws Exception {
-		web
-			.ignoring().antMatchers("/css/**").and()
-			.ignoring().antMatchers("/img/**").and()
-			.ignoring().antMatchers("/js/**").and()
-			.ignoring().antMatchers("/assets/**").and()
-			.ignoring().antMatchers("/webjars/**").and();
-		
+//		web
+//			.ignoring().antMatchers("/css/**").and()
+//			.ignoring().antMatchers("/img/**").and()
+//			.ignoring().antMatchers("/js/**").and()
+//			.ignoring().antMatchers("/assets/**").and()
+//			.ignoring().antMatchers("/webjars/**").and();
+//		
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(web);
 		}
@@ -73,19 +78,40 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		http
-			// must disable or handle in proxy
-			.csrf().disable()
-			// disable X-Frame-Options
-			.headers().frameOptions().disable();
+		// Perform CSRF check on the login form
+		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
+		
+		// Always set header: X-Content-Type-Options=nosniff
+		http.headers().contentTypeOptions();
 
+		String frameOptions = environment.getProperty("server.frameOptions", "disable");
+		switch (frameOptions.toUpperCase()) {
+			case "DISABLE":
+				http.headers().frameOptions().disable();
+				break;
+			case "DENY":
+				http.headers().frameOptions().deny();
+				break;
+			case "SAMEORIGIN":
+				http.headers().frameOptions().sameOrigin();
+				break;
+			default:
+				if (frameOptions.toUpperCase().startsWith("ALLOW-FROM")) {
+					http.headers()
+						.frameOptions().disable()
+						.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
+				}
+		}
+		
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);
 		}
 
 		if (auth.hasAuthorization()) {
-			http.authorizeRequests().antMatchers("/login", "/signin/**").permitAll();
+			http.authorizeRequests().antMatchers(
+						"/login", "/signin/**",
+						"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
 			http.authorizeRequests().anyRequest().fullyAuthenticated();
 
 			http

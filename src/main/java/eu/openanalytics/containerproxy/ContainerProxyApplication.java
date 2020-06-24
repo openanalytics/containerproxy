@@ -25,10 +25,14 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -45,6 +49,7 @@ import io.undertow.servlet.api.ServletSessionConfig;
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ContainerProxyApplication.class);
 
 	private static final String CONFIG_FILENAME = "application.yml";
 	private static final String CONFIG_DEMO_PROFILE = "demo";
@@ -54,6 +59,9 @@ public class ContainerProxyApplication {
 
 	@Inject
 	private ProxyMappingManager mappingManager;
+
+	@Inject
+	private BuildProperties buildProperties;
 	
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -69,6 +77,13 @@ public class ContainerProxyApplication {
 			// Undertow's (non-daemon) XNIO worker threads will then prevent the JVM from exiting.
 			if (e instanceof PortInUseException) System.exit(-1);
 		}
+	}
+
+	@PostConstruct
+	private void logVersion() {
+		LOGGER.info(buildProperties.getName());
+		LOGGER.info(buildProperties.getVersion());
+		LOGGER.info(buildProperties.getGroup());
 	}
 	
 	@Bean

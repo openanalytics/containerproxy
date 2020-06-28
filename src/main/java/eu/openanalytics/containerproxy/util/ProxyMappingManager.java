@@ -88,6 +88,7 @@ public class ProxyMappingManager {
 				super.getConnection(target, exchange, callback, timeout, timeUnit);
 			}
 		};
+		proxyClient.setMaxQueueSize(100);
 		proxyClient.addHost(target);
 
 		mappings.put(mapping, proxyId);

@@ -105,7 +105,7 @@ public class ErrorController extends BaseController implements org.springframewo
 	
 	private boolean isAccountStatusException(Throwable exception) {
 		if (exception instanceof AccountStatusException) return true;
-		if (exception.getCause() != null) return isAccountStatusException(exception.getCause());
+		if (exception != null && exception.getCause() != null) return isAccountStatusException(exception.getCause());
 		return false;
 	}
 }

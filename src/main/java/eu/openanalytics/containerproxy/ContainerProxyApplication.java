@@ -20,13 +20,9 @@
  */
 package eu.openanalytics.containerproxy;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import io.undertow.Handlers;
+import io.undertow.servlet.api.ServletSessionConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
@@ -38,14 +34,15 @@ import org.springframework.core.env.Environment;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
 import org.springframework.web.filter.HttpPutFormContentFilter;
 
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import io.undertow.Handlers;
-import io.undertow.servlet.api.ServletSessionConfig;
+import javax.inject.Inject;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
-
 	private static final String CONFIG_FILENAME = "application.yml";
 	private static final String CONFIG_DEMO_PROFILE = "demo";
 	
@@ -54,7 +51,7 @@ public class ContainerProxyApplication {
 
 	@Inject
 	private ProxyMappingManager mappingManager;
-	
+
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
@@ -62,6 +59,7 @@ public class ContainerProxyApplication {
 		if (!hasExternalConfig) app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
 
 		try {
+			app.setLogStartupInfo(false);
 			app.run(args);
 		} catch (Exception e) {
 			// Workaround for bug in UndertowEmbeddedServletContainer.start():
@@ -70,7 +68,7 @@ public class ContainerProxyApplication {
 			if (e instanceof PortInUseException) System.exit(-1);
 		}
 	}
-	
+
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();

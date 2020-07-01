@@ -257,6 +257,12 @@
 							<classifier>exec</classifier>
 						</configuration>
 					</execution>
+					<execution>
+						<id>build-info</id>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -294,6 +300,7 @@
 						<exclude>**/*.json</exclude>
 						<exclude>**/*.raml</exclude>
 						<exclude>**/*.sh</exclude>
+						<exclude>**/*.xml</exclude>
 						<exclude>LICENSE</exclude>
 						<exclude>LICENSE_HEADER</exclude>
 						<exclude>README.md</exclude>

@@ -129,18 +129,36 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.length];
 		for (int i = 0; i < volumeStrings.length; i++) {
 			String[] volume = volumeStrings[i].split(":");
-			String hostSource = volume[0];
-			String containerDest = volume[1];
+			String mountType = volume[0];
 			String name = "shinyproxy-volume-" + i;
-			volumes.add(new VolumeBuilder()
-					.withNewHostPath(hostSource, "")
-					.withName(name)
-					.build());
-			volumeMounts[i] = new VolumeMountBuilder()
-					.withMountPath(containerDest)
-					.withName(name)
-					.build();
-		}
+			if("nfs".equals(mountType)) {
+				//pattern: type:serverip:servermountpoint:containermountpoint:[ro|rw]
+				//example mount: nfs:10.39.89.108:/storage:/nfs
+				String serverip = volume[1];
+				String servermountpoint = volume[2];
+				String containermountpoint = volume[3];
+				boolean ro = volume.length == 5  && "ro".equals(volume[4]);
+				volumes[i] = new VolumeBuilder()
+						.withNewNfs(servermountpoint, ro, serverip)
+						.withName(name)
+						.build();
+				volumeMounts[i] = new VolumeMountBuilder()
+						.withMountPath(containermountpoint)
+						.withName(name)
+						.build();
+			} else {
+				// servermountpoint:containermountpoint
+				String hostSource = volume[0];
+				String containerDest = volume[1];
+				volumes[i] = new VolumeBuilder()
+						.withNewHostPath(hostSource)
+						.withName(name)
+						.build();
+				volumeMounts[i] = new VolumeMountBuilder()
+						.withMountPath(containerDest)
+						.withName(name)
+						.build();
+			}
 
 		List<EnvVar> envVars = new ArrayList<>();
 		for (String envString : buildEnv(spec, proxy)) {

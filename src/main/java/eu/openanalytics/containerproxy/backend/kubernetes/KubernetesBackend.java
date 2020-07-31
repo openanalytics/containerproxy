@@ -138,10 +138,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				String servermountpoint = volume[2];
 				String containermountpoint = volume[3];
 				boolean ro = volume.length == 5  && "ro".equals(volume[4]);
-				volumes[i] = new VolumeBuilder()
+				volumes.add(new VolumeBuilder()
 						.withNewNfs(servermountpoint, ro, serverip)
 						.withName(name)
-						.build();
+						.build());
 				volumeMounts[i] = new VolumeMountBuilder()
 						.withMountPath(containermountpoint)
 						.withName(name)
@@ -150,15 +150,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				// servermountpoint:containermountpoint
 				String hostSource = volume[0];
 				String containerDest = volume[1];
-				volumes[i] = new VolumeBuilder()
-						.withNewHostPath(hostSource)
+				volumes.add(new VolumeBuilder()
+						.withNewHostPath(hostSource, "")
 						.withName(name)
-						.build();
+						.build());
 				volumeMounts[i] = new VolumeMountBuilder()
 						.withMountPath(containerDest)
 						.withName(name)
 						.build();
 			}
+		}
 
 		List<EnvVar> envVars = new ArrayList<>();
 		for (String envString : buildEnv(spec, proxy)) {

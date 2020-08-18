@@ -76,4 +76,6 @@ public interface IContainerBackend {
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy);
 	
 	public List<ExistingContaienrInfo> scanExistingContainers() throws Exception;
+	
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception;
 }

@@ -330,8 +330,10 @@ public class ProxyService {
 	}
 
 	public void addExistingProxy(Proxy proxy) {
-		activeProxies.add(proxy);
-		// TODO mappingmanager
+		activeProxies.add(proxy);			
+		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
+			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
+		}
 		// TODO eventService ?
 		// TODO logService
 	}

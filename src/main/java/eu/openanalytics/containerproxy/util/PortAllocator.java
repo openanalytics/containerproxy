@@ -55,6 +55,11 @@ public class PortAllocator {
 		return nextPort;
 	}
 	
+	public void addExistingPort(String ownerId, int port) {
+		occupiedPorts.add(port);
+		occupiedPortOwners.put(port, ownerId);
+	}
+	
 	public void release(int port) {
 		occupiedPorts.remove(port);
 		occupiedPortOwners.remove(port);

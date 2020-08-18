@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -36,6 +37,7 @@ import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
 import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerInfo;
@@ -171,6 +173,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
+			// TODO only running containers
 			ImmutableMap<String, String> labels = container.labels();
 			String proxyId = labels.get("openanalytics.eu/containerproxy-proxy-id");
 			
@@ -191,10 +194,36 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				continue;
 			}
 			
-			containers.add(new ExistingContaienrInfo(container.id(), proxyId, specId, container.image(), userId));
+			String startupTimestmap = labels.get("openanalytics.eu/containerproxy-proxy-startup-timestamp");
+			if (startupTimestmap == null) {
+				// this isn't a container created by us
+				continue;
+			}
+			
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			for (PortMapping portMapping: container.ports()) {
+				int hostPort = portMapping.publicPort();
+				int containerPort = portMapping.privatePort();
+				portBindings.put(Integer.valueOf(containerPort), Integer.valueOf(hostPort));
+			}	
+			
+			containers.add(new ExistingContaienrInfo(container.id(), proxyId, specId, container.image(), userId, portBindings, Long.valueOf(startupTimestmap).longValue()));
 		}
 		
 		return containers;
+	}
+	
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception {
+		// Calculate proxy routes for specified ports
+		Optional<Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(containerPort)).findFirst();
+		if (specifiedMapping.isEmpty()) {
+			// TODO
+		} else {
+			portAllocator.addExistingPort(proxy.getUserId(), specifiedMapping.get().getValue());
+			String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
+			URI target = calculateTarget(container, containerPort, hostPort);
+			proxy.getTargets().put(mapping, target);
+		}
 	}
 	
 }

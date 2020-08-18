@@ -187,4 +187,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		return null;
 	}
 
+	@Override
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort)
+			throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

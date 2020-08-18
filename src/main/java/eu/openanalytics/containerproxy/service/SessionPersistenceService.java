@@ -86,7 +86,6 @@ public class SessionPersistenceService {
 					proxy.setStatus(ProxyStatus.Up);
 				}
 				
-				log.info("Found container with container id: " + containerInfo.getContainerId() + ", proxyId: " + containerInfo.getProxyId() + ", specId: " + containerInfo.getProxySpecId());
 			}
 			
 			for (Proxy proxy: proxies.values()) {

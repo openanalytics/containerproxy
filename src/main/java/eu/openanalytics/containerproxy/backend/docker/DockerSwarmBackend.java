@@ -24,6 +24,8 @@ import java.net.URI;
 import java.net.URL;
 import java.util.*;
 
+import org.apache.commons.lang3.tuple.Triple;
+
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
@@ -38,6 +40,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
@@ -176,6 +179,12 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			if (serviceId != null) dockerClient.removeService(serviceId);
 		}
 		portAllocator.release(proxy.getId());
+	}
+
+	@Override
+	public List<ExistingContaienrInfo> scanExistingContainers() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

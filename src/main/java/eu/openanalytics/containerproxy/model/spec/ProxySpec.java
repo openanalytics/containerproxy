@@ -92,6 +92,11 @@ public class ProxySpec {
 		return containerSpecs;
 	}
 	
+	public ContainerSpec getContainerSpec(String image) {
+		if (image == null || image.isEmpty()) return null;
+		return containerSpecs.stream().filter(s -> image.equals(s.getImage())).findAny().orElse(null);	
+	}
+	
 	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
 		this.containerSpecs = containerSpecs;
 	}

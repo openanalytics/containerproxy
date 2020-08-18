@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -481,5 +482,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 	
 
+
+	@Override
+	public List<ExistingContaienrInfo> scanExistingContainers() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
 }

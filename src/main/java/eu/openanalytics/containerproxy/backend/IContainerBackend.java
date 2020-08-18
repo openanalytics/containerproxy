@@ -23,10 +23,16 @@ package eu.openanalytics.containerproxy.backend;
 import java.io.OutputStream;
 import java.util.function.BiConsumer;
 
+import org.apache.commons.lang3.tuple.Triple;
+
+import java.util.List;
+
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
+import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
+import eu.openanalytics.containerproxy.model.runtime.Container;
 
 public interface IContainerBackend {
 
@@ -68,4 +74,6 @@ public interface IContainerBackend {
 	 * not support output attaching.
 	 */
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy);
+	
+	public List<ExistingContaienrInfo> scanExistingContainers() throws Exception;
 }

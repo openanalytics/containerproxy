@@ -329,4 +329,11 @@ public class ProxyService {
 		}
 	}
 
+	public void addExistingProxy(Proxy proxy) {
+		activeProxies.add(proxy);
+		// TODO mappingmanager
+		// TODO eventService ?
+		// TODO logService
+	}
+	
 }

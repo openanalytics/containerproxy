@@ -116,6 +116,10 @@ public class Proxy {
 		this.containers = containers;
 	}
 	
+	public void addContainer(Container container) {
+		this.containers.add(container);
+	}
+	
 	public Map<String, URI> getTargets() {
 		return targets;
 	}

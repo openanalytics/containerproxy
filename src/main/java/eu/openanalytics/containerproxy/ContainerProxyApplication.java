@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.service.SessionPersistenceService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.servlet.api.ServletSessionConfig;
@@ -73,6 +74,9 @@ public class ContainerProxyApplication {
 
 	private final Logger log = LogManager.getLogger(getClass());
 
+	@Inject
+	private SessionPersistenceService sessionPersistenceService;
+	
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 

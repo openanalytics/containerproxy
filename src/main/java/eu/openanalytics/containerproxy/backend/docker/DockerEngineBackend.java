@@ -174,29 +174,24 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
 			ImmutableMap<String, String> labels = container.labels();
-			String proxyId = labels.get("openanalytics.eu/containerproxy-proxy-id");
-			
+			String proxyId = labels.get(LABEL_PROXY_ID);
 			if (proxyId == null) {
-				// this isn't a container created by us
-				continue;
+				continue; // this isn't a container created by us
 			}
 			
-			String specId = labels.get("openanalytics.eu/containerproxy-spec-id");
+			String specId = labels.get(LABEL_PROXY_SPEC_ID);
 			if (specId == null) {
-				// this isn't a container created by us
-				continue;
+				continue; // this isn't a container created by us
 			}
 			
-			String userId = labels.get("openanalytics.eu/containerproxy-user-id");
+			String userId = labels.get(LABEL_USER_ID);
 			if (userId == null) {
-				// this isn't a container created by us
-				continue;
+				continue; // this isn't a container created by us
 			}
 			
-			String startupTimestmap = labels.get("openanalytics.eu/containerproxy-proxy-startup-timestamp");
+			String startupTimestmap = labels.get(LABEL_STARTUP_TIMESTAMP);
 			if (startupTimestmap == null) {
-				// this isn't a container created by us
-				continue;
+				continue; // this isn't a container created by us
 			}
 			
 			Map<Integer, Integer> portBindings = new HashMap<>();
@@ -221,9 +216,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception {
 		// Calculate proxy routes for specified ports
 		Optional<Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(containerPort)).findFirst();
-		if (specifiedMapping.isEmpty()) {
-			// TODO
-		} else {
+		if (!specifiedMapping.isEmpty()) {
 			portAllocator.addExistingPort(proxy.getUserId(), hostPort);
 			String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
 			URI target = calculateTarget(container, containerPort, hostPort);

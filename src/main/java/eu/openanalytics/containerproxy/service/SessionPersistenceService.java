@@ -58,7 +58,7 @@ public class SessionPersistenceService {
 				if (!proxies.containsKey(containerInfo.getProxyId())) {
 					ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getProxySpecId());
 					if (proxySpec == null) {
-						// TODO warn log message?
+						log.warn(String.format("Found existing container (%s) but not corresponding proxy spec.", containerInfo.getContainerId()));
 						continue;
 					}
 					Proxy proxy = new Proxy();

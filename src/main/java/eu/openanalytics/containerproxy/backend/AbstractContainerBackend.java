@@ -161,6 +161,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 					expressionResolver,
 					userService.getCurrentAuth()
 					);
+			
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);
 

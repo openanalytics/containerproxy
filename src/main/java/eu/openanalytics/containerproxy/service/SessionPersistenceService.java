@@ -64,7 +64,7 @@ public class SessionPersistenceService {
 					Proxy proxy = new Proxy();
 					proxy.setId(containerInfo.getProxyId());
 					proxy.setSpec(proxySpec);
-					proxy.setStatus(ProxyStatus.Up); // TODO
+					proxy.setStatus(ProxyStatus.Stopped);
 					proxy.setStartupTimestamp(containerInfo.getStartupTimestamp());
 					proxy.setUserId(containerInfo.getUserId());
 					proxies.put(containerInfo.getProxyId(), proxy);
@@ -78,6 +78,12 @@ public class SessionPersistenceService {
 				
 				for (Map.Entry<Integer, Integer> portBinding : containerInfo.getPortBindings().entrySet()) {
 					containerBackend.setupPortMappingExistingProxy(proxy, container, portBinding.getKey(), portBinding.getValue());
+				}
+				
+				if (containerInfo.getRunning()) {
+					// as soon as one container of the Proxy is running, the Proxy is Up
+					// TODO discuss this
+					proxy.setStatus(ProxyStatus.Up);
 				}
 				
 				log.info("Found container with container id: " + containerInfo.getContainerId() + ", proxyId: " + containerInfo.getProxyId() + ", specId: " + containerInfo.getProxySpecId());

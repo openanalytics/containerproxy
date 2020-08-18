@@ -6,7 +6,7 @@ import com.spotify.docker.client.messages.PortBinding;
 
 public class ExistingContaienrInfo {
 		
-	public ExistingContaienrInfo(String containerId, String proxyId, String proxySpecId, String image, String userId, Map<Integer, Integer>  portBindings, long startupTimestamp) {
+	public ExistingContaienrInfo(String containerId, String proxyId, String proxySpecId, String image, String userId, Map<Integer, Integer>  portBindings, long startupTimestamp, boolean running) {
 		this.containerId = containerId;
 		this.proxyId = proxyId;
 		this.proxySpecId = proxySpecId;
@@ -14,6 +14,7 @@ public class ExistingContaienrInfo {
 		this.userId = userId;
 		this.portBindings = portBindings;
 		this.startupTimestamp = startupTimestamp;
+		this.running = running;
 	}
 	
 	private String containerId;
@@ -23,6 +24,7 @@ public class ExistingContaienrInfo {
 	private String userId;
 	private Map<Integer, Integer> portBindings;
 	private long startupTimestamp;
+	private boolean running;
 	
 	public String getContainerId() {
 		return containerId;
@@ -50,6 +52,10 @@ public class ExistingContaienrInfo {
 	
 	public long getStartupTimestamp() {
 		return startupTimestamp;
+	}
+	
+	public boolean getRunning() {
+		return running;
 	}
 	
 	// TODO copy?

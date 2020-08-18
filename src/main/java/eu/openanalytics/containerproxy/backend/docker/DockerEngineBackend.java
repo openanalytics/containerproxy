@@ -173,7 +173,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
-			// TODO only running containers
 			ImmutableMap<String, String> labels = container.labels();
 			String proxyId = labels.get("openanalytics.eu/containerproxy-proxy-id");
 			
@@ -207,7 +206,13 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				portBindings.put(Integer.valueOf(containerPort), Integer.valueOf(hostPort));
 			}	
 			
-			containers.add(new ExistingContaienrInfo(container.id(), proxyId, specId, container.image(), userId, portBindings, Long.valueOf(startupTimestmap).longValue()));
+			boolean running = container.state().toLowerCase().equals("running");
+			
+			containers.add(new ExistingContaienrInfo(container.id(), 
+					proxyId, specId, container.image(), userId, portBindings, 
+					Long.valueOf(startupTimestmap).longValue(),
+					running
+					));
 		}
 		
 		return containers;
@@ -219,7 +224,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		if (specifiedMapping.isEmpty()) {
 			// TODO
 		} else {
-			portAllocator.addExistingPort(proxy.getUserId(), specifiedMapping.get().getValue());
+			portAllocator.addExistingPort(proxy.getUserId(), hostPort);
 			String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
 			URI target = calculateTarget(container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);

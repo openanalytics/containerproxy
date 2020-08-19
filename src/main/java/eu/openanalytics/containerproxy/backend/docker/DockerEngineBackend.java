@@ -216,7 +216,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception {
 		// Calculate proxy routes for specified ports
 		Optional<Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(containerPort)).findFirst();
-		if (!specifiedMapping.isEmpty()) {
+		if (specifiedMapping.isPresent()) {
 			portAllocator.addExistingPort(proxy.getUserId(), hostPort);
 			String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
 			URI target = calculateTarget(container, containerPort, hostPort);

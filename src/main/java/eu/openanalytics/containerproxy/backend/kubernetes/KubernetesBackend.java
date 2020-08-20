@@ -65,6 +65,7 @@ import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -259,9 +260,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.withPorts(servicePorts)
 						.endSpec()
 					.done();
-			
+
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 10);
+			
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
 		
@@ -283,6 +285,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		return container;
+	}
+	
+	private boolean isServiceReady(Service service) {
+		if (service == null) {
+			return false;
+		}
+		if (service.getStatus() == null) {
+			return false;
+		}
+		if (service.getStatus().getLoadBalancer() == null) {
+			return false;
+		}
+		
+		return true;
 	}
 
 	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {

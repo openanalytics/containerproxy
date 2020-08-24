@@ -31,8 +31,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
+import org.springframework.web.filter.FormContentFilter;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
-import org.springframework.web.filter.HttpPutFormContentFilter;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 
@@ -97,16 +97,18 @@ public class ContainerProxyApplication {
 	
 	// Disable specific Spring filters that parse the request body, preventing it from being proxied.
 	
-	@Bean
-	public FilterRegistrationBean<HiddenHttpMethodFilter> registration1(HiddenHttpMethodFilter filter) {
-		FilterRegistrationBean<HiddenHttpMethodFilter> registration = new FilterRegistrationBean<>(filter);
-		registration.setEnabled(false);
-		return registration;
-	}
+	// TODO properly test this 
+	// https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-2.2-Release-Notes#httphiddenmethodfilter-disabled-by-default 
+//	@Bean
+//	public FilterRegistrationBean<HiddenHttpMethodFilter> registration1(HiddenHttpMethodFilter filter) {
+//		FilterRegistrationBean<HiddenHttpMethodFilter> registration = new FilterRegistrationBean<>(filter);
+//		registration.setEnabled(false);
+//		return registration;
+//	}
 	
 	@Bean
-	public FilterRegistrationBean<HttpPutFormContentFilter> registration2(HttpPutFormContentFilter filter) {
-		FilterRegistrationBean<HttpPutFormContentFilter> registration = new FilterRegistrationBean<>(filter);
+	public FilterRegistrationBean<FormContentFilter> registration2(FormContentFilter filter) {
+		FilterRegistrationBean<FormContentFilter> registration = new FilterRegistrationBean<>(filter);
 		registration.setEnabled(false);
 		return registration;
 	}

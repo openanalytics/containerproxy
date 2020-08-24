@@ -12,7 +12,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.0.0.RELEASE</version>
+		<version>2.3.3.RELEASE</version>
 		<relativePath />
 	</parent>
 
@@ -44,6 +44,11 @@
 			<!-- Currently used only for the opensaml 2.6.6 dependency -->
 			<id>alfresco</id>
 			<url>https://artifacts.alfresco.com/nexus/content/repositories/public/</url>
+		</repository>
+		<repository>
+			<!-- Currently used only for the opensaml 2.6.6 dependency -->
+			<id>spring</id>
+			<url>https://repo.spring.io/plugins-release/</url>
 		</repository>
 	</repositories>
 
@@ -98,7 +103,7 @@
 		<dependency>
 			<groupId>org.springframework.security.oauth.boot</groupId>
 			<artifactId>spring-security-oauth2-autoconfigure</artifactId>
-			<version>2.1.2.RELEASE</version>
+			<version>2.3.3.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
@@ -123,10 +128,13 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 
 		<!-- Spring social security components -->
-		<!-- Note: also includes an embedded datasource (H2) to remember social
-			logins -->
+		<!-- Note: also includes an embedded datasource (H2) to remember social logins -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jdbc</artifactId>
@@ -223,6 +231,7 @@
 		<dependency>
 			<groupId>org.thymeleaf.extras</groupId>
 			<artifactId>thymeleaf-extras-springsecurity4</artifactId>
+			<version>3.0.2.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars</groupId>
@@ -290,6 +299,7 @@
 
 				<executions>
 					<execution>
+			            <id>repackage</id>
 						<goals>
 							<goal>repackage</goal>
 						</goals>

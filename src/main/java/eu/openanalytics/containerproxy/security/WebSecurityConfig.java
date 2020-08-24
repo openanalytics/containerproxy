@@ -63,7 +63,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	private List<ICustomSecurityConfig> customConfigs;
 	
 	@Override
-	public void configure(WebSecurity web) throws Exception {
+	public void configure(WebSecurity web) {
 //		web
 //			.ignoring().antMatchers("/css/**").and()
 //			.ignoring().antMatchers("/img/**").and()
@@ -72,7 +72,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 //			.ignoring().antMatchers("/webjars/**").and();
 //		
 		if (customConfigs != null) {
-			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(web);
+			for (ICustomSecurityConfig cfg: customConfigs) {
+				try {
+					cfg.apply(web);
+				} catch (Exception e) {
+					e.printStackTrace();
+					// TODO exit process?
+				}
+			}
 		}
 	}
 
@@ -103,6 +110,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				}
 		}
 		
+		// Allow public access to health endpoint
+		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
+		
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);
@@ -128,6 +138,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 		
 		auth.configureHttpSecurity(http);
+
 	}
 
 	@Bean

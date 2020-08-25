@@ -34,6 +34,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
 import org.springframework.web.filter.HttpPutFormContentFilter;
 
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+
 import javax.inject.Inject;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -107,5 +109,14 @@ public class ContainerProxyApplication {
 		FilterRegistrationBean<HttpPutFormContentFilter> registration = new FilterRegistrationBean<>(filter);
 		registration.setEnabled(false);
 		return registration;
+	}
+
+	/**
+	 * Register the Jackson module which implements compatibility between javax.json and Jackson.
+	 * @return
+	 */
+	@Bean
+	public JSR353Module jsr353Module() {
+	  return new JSR353Module();
 	}
 }

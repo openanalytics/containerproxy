@@ -38,6 +38,7 @@ public class Proxy {
 
 	private long startupTimestamp;
 	private String userId;
+	private String namespace;
 	
 	private List<Container> containers;
 	private Map<String,URI> targets;
@@ -101,5 +102,13 @@ public class Proxy {
 	
 	public void setTargets(Map<String, URI> targets) {
 		this.targets = targets;
+	}
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
 	}
 }

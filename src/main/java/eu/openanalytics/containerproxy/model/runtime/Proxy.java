@@ -104,6 +104,9 @@ public class Proxy {
 		this.targets = targets;
 	}
 
+	/**
+	 *  TODO this is a Kube specific paramter -> remove it here
+	 */
 	public String getNamespace() {
 		return namespace;
 	}

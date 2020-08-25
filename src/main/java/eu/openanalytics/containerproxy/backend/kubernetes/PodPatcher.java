@@ -44,7 +44,7 @@ public class PodPatcher {
 	private Environment environment;
 
 	private final ObjectMapper mapper = new ObjectMapper();
-	
+
 	private boolean loggingEnabled = false;
 
 	@PostConstruct
@@ -68,8 +68,8 @@ public class PodPatcher {
 	}
 
 	/**
-	 * Applies a JsonPatch to the given Pod.
-	 * When proxy.kubernetes.debug-patches
+	 * Applies a JsonPatch to the given Pod. When proxy.kubernetes.debug-patches is
+	 * enabled the original and patched specification will be logged as YAML.
 	 */
 	public Pod patchWithDebug(Pod pod, JsonPatch patch) throws JsonProcessingException {
 		Pod patchedPod = patch(pod, patch);

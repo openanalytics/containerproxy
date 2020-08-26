@@ -35,6 +35,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import javax.inject.Inject;
+
 import org.apache.commons.io.IOUtils;
 
 import com.google.common.base.Splitter;
@@ -48,11 +50,11 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -90,6 +92,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PARAM_SERVICE = "service";
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
+	
+	@Inject
+	private PodPatcher podPatcher;
 	
 	private KubernetesClient kubeClient;
 	
@@ -201,10 +206,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
 		
-		DoneablePod doneablePod = kubeClient.pods().inNamespace(kubeNamespace).createNew()
+		PodBuilder podBuilder = new PodBuilder()
 				.withApiVersion(apiVersion)
 				.withKind("Pod")
 				.withNewMetadata()
+					.withNamespace(kubeNamespace)
 					.withName("sp-pod-" + container.getId())
 					.addToLabels(spec.getLabels())
 					.addToLabels("app", container.getId())
@@ -221,11 +227,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 		
-		Pod startupPod = doneablePod.withSpec(podSpec).done();
+		Pod startupPod = podBuilder.withSpec(podSpec).build();
+		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
+		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
+		proxy.setNamespace(effectiveKubeNamespace);
+		Pod startedPod = kubeClient.pods().inNamespace(patchedPod.getMetadata().getNamespace()).create(patchedPod);
 		
 		// Workaround: waitUntilReady appears to be buggy.
-		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupPod).fromServer().get()), 60, 1000);
-		Pod pod = kubeClient.resource(startupPod).fromServer().get();
+		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startedPod).fromServer().get()), 60, 1000);
+		Pod pod = kubeClient.resource(startedPod).fromServer().get();
 		
 		Service service = null;
 		if (isUseInternalNetwork()) {
@@ -235,7 +245,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.map(p -> new ServicePortBuilder().withPort(p).build())
 					.collect(Collectors.toList());
 			
-			Service startupService = kubeClient.services().inNamespace(kubeNamespace).createNew()
+			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace).createNew()
 					.withApiVersion(apiVersion)
 					.withKind("Service")
 					.withNewMetadata()
@@ -247,9 +257,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.withPorts(servicePorts)
 						.endSpec()
 					.done();
-			
+
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
 		
@@ -272,6 +283,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		
 		return container;
 	}
+	
+	private boolean isServiceReady(Service service) {
+		if (service == null) {
+			return false;
+		}
+		if (service.getStatus() == null) {
+			return false;
+		}
+		if (service.getStatus().getLoadBalancer() == null) {
+			return false;
+		}
+		
+		return true;
+	}
 
 	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
@@ -293,7 +318,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
-		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+		String kubeNamespace = proxy.getNamespace();
+		if (kubeNamespace == null) {
+			kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+		}
 		for (Container container: proxy.getContainers()) {
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
@@ -308,7 +336,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return (stdOut, stdErr) -> {
 			try {
 				Container container = proxy.getContainers().get(0);
-				String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+				String kubeNamespace = proxy.getNamespace();
+				if (kubeNamespace == null) {
+					kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+				}
 				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName("sp-pod-" + container.getId()).watchLog();
 				IOUtils.copy(watcher.getOutput(), stdOut);
 			} catch (IOException e) {

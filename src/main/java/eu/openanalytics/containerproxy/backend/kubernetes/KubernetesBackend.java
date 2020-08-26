@@ -259,7 +259,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.done();
 
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 10);
+			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
 			
 			service = kubeClient.resource(startupService).fromServer().get();
 		}

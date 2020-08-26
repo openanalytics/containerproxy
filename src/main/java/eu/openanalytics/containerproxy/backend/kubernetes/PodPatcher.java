@@ -57,6 +57,9 @@ public class PodPatcher {
 	 * Applies a JsonPatch to the given Pod.
 	 */
 	public Pod patch(Pod pod, JsonPatch patch) {
+		if (patch == null) {
+			return pod;
+		}
 		// 1. convert Pod to javax.json.JsonValue object.
 		// This conversion does not actually convert to a string, but some internal
 		// representation of Jackson.

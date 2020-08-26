@@ -71,6 +71,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 
@@ -118,6 +119,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
+	}
+
+	public void initialize(KubernetesClient client) {
+		kubeClient = client;
 	}
 
 	@Override
@@ -231,7 +236,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		proxy.setNamespace(effectiveKubeNamespace);
-		Pod startedPod = kubeClient.pods().inNamespace(patchedPod.getMetadata().getNamespace()).create(patchedPod);
+		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 		
 		// Workaround: waitUntilReady appears to be buggy.
 		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startedPod).fromServer().get()), 60, 1000);
@@ -352,5 +357,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
 	}
+
 
 }

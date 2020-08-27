@@ -413,7 +413,7 @@ public class TestIntegrationOnKube {
 			String containerId = proxy.getContainers().get(0).getId();
 			
 			// Check whether the effectively used namepsace is correct
-			assertEquals(overridenNamespace, proxy.getNamespace());
+			assertEquals(overridenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
 			// no pods should exists in the default namespace
 			PodList podList = client.pods().inNamespace(session.getNamespace()).list();
 			assertEquals(0, podList.getItems().size());

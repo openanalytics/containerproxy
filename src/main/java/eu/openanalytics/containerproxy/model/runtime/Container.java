@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.model.runtime;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class Container {
@@ -44,6 +46,8 @@ public class Container {
 	public void setSpec(ContainerSpec spec) {
 		this.spec = spec;
 	}
+
+	@JsonIgnore
 	public Map<String, Object> getParameters() {
 		return parameters;
 	}

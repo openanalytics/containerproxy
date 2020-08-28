@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -50,10 +50,10 @@ import org.apache.kerby.kerberos.kerb.type.ticket.TicketFlags;
 public class KRBUtils {
 
 	private static KrbClient krbClient = new KrbClient((KrbConfig) null);
-	
+
 	/**
 	 * Perform a KRB5 login via GSS-API in order to obtain a TGT for the given principal.
-	 * 
+	 *
 	 * @return A newly acquired TGT for the principal.
 	 * @throws Exception If the login fails.
 	 */
@@ -78,7 +78,7 @@ public class KRBUtils {
 		};
 		Set<Principal> princ = new HashSet<Principal>(1);
 		princ.add(new KerberosPrincipal(principal));
-		
+
 		if (sun.security.krb5.internal.Krb5.DEBUG) {
 			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
 			System.out.println("DEBUG: Config isForwardable = " + config.getBooleanValue("libdefaults", "forwardable"));
@@ -86,17 +86,17 @@ public class KRBUtils {
 			System.out.println("DEBUG: KDCOptions isForwardable = " + opts.get(sun.security.krb5.internal.Krb5.TKT_OPTS_FORWARDABLE));
 			System.out.println("DEBUG: Requesting TGT for " + principal);
 		}
-		
+
 		Subject proxySubject = new Subject(false, princ, new HashSet<Object>(), new HashSet<Object>());
 		LoginContext lc = new LoginContext("", proxySubject, null, cfg);
 		lc.login();
-		
+
 		KerberosTicket tgt = findServiceTGT(proxySubject);
-		
+
 		if (sun.security.krb5.internal.Krb5.DEBUG) {
 			System.out.println("DEBUG: TGT (KerberosTicket) isForwardable = " + tgt.isForwardable());
 		}
-		
+
 		return tgt;
 	}
 
@@ -113,22 +113,22 @@ public class KRBUtils {
 			}
 		});
 	}
-	
+
 	/**
 	 * Obtain a Service Ticket (SGT) from a KDC, using the S4U2Self extension.
 	 * The resulting ticket is from the proxy service for the proxy service,
 	 * on behalf of the client principal.
-	 * 
+	 *
 	 * @param clientPrincipal The client principal on whose behalf to request a ticket.
 	 * @param serviceTGT The proxy TGT.
 	 * @return A SGT from the proxy service, for the proxy service.
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	@SuppressWarnings("restriction")
 	public static SgtTicket obtainImpersonationTicket(String clientPrincipal, KerberosTicket serviceTGT) throws Exception {
 		// Get our own TGT that will be used to make the S4U2Proxy request
 		sun.security.krb5.Credentials serviceTGTCreds = sun.security.jgss.krb5.Krb5Util.ticketToCreds(serviceTGT);
-		
+
 		if (sun.security.krb5.internal.Krb5.DEBUG) {
 			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
 			System.out.println("DEBUG: Config isForwardable = " + config.getBooleanValue("libdefaults", "forwardable"));

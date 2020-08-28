@@ -12,7 +12,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.3.RELEASE</version>
+                <version>2.3.3.RELEASE</version>
 		<relativePath />
 	</parent>
 
@@ -134,7 +134,12 @@
 		</dependency>
 
 		<!-- Spring social security components -->
+<<<<<<< Upstream, based on origin/develop
 		<!-- Note: also includes an embedded datasource (H2) to remember social logins -->
+=======
+		<!-- Note: also includes an embedded datasource (H2) to remember social
+			logins -->
+>>>>>>> 2861317 Fix /api/route/{id} endpoint after Undertow upgrade
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jdbc</artifactId>
@@ -376,4 +381,8 @@
 			</plugin>
 		</plugins>
 	</build>
+<<<<<<< Upstream, based on origin/develop
+=======
+
+>>>>>>> 2861317 Fix /api/route/{id} endpoint after Undertow upgrade
 </project>

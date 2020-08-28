@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
+import io.undertow.UndertowOptions;
 import io.undertow.servlet.api.ServletSessionConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -75,6 +76,7 @@ public class ContainerProxyApplication {
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> {
+			info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
 			if (Boolean.valueOf(environment.getProperty("logging.requestdump", "false"))) {
 				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
 			}

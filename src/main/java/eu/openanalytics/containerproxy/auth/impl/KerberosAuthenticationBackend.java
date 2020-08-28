@@ -45,6 +45,7 @@ import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosT
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.context.annotation.Lazy;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
@@ -62,6 +63,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	Environment environment;
 	
+	@Lazy
 	@Inject
 	AuthenticationManager authenticationManager;
 

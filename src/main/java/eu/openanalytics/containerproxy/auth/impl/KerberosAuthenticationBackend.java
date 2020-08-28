@@ -32,6 +32,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -81,7 +82,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 
 		SpnegoAuthenticationProcessingFilter filter = new SpnegoAuthenticationProcessingFilter();
 		filter.setAuthenticationManager(authenticationManager);

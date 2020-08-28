@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLEntryPoint;
 import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
@@ -61,7 +62,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		http
 			.exceptionHandling().authenticationEntryPoint(samlEntryPoint)
 		.and()

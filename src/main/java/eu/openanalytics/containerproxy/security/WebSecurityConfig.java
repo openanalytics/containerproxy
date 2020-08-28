@@ -33,12 +33,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity.RequestMatcherConfigurer;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
@@ -117,13 +120,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);
 		}
+		
 
 		if (auth.hasAuthorization()) {
 			http.authorizeRequests().antMatchers(
 						"/login", "/signin/**",
 						"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
-			http.authorizeRequests().anyRequest().fullyAuthenticated();
-
 			http
 				.formLogin()
 					.loginPage("/login")
@@ -136,8 +138,16 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
 			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
 		}
-		
-		auth.configureHttpSecurity(http);
+	
+		// The `anyRequest` method may only be called once.
+		// Therefore we call it here, make our changes to it and forward it to the various authentication backends
+		ExpressionUrlAuthorizationConfigurer<HttpSecurity>.AuthorizedUrl anyRequestConfigurer =  http.authorizeRequests().anyRequest();
+
+		if (auth.hasAuthorization()) {
+			anyRequestConfigurer.fullyAuthenticated();
+		}
+
+		auth.configureHttpSecurity(http, anyRequestConfigurer);
 
 	}
 

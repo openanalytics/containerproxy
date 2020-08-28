@@ -115,6 +115,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		
 		// Allow public access to health endpoint
 		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
+		http.authorizeRequests().antMatchers("/actuator/health/readiness").permitAll();
+		http.authorizeRequests().antMatchers("/actuator/health/liveness").permitAll();
 		
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {

@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
-import io.undertow.UndertowOptions;
 import io.undertow.servlet.api.ServletSessionConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -31,6 +30,8 @@ import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.web.filter.FormContentFilter;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
@@ -42,6 +43,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Properties;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
@@ -60,7 +62,9 @@ public class ContainerProxyApplication {
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
 		if (!hasExternalConfig) app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
-
+		
+		setDefaultProperties(app);
+		
 		try {
 			app.setLogStartupInfo(false);
 			app.run(args);
@@ -123,4 +127,12 @@ public class ContainerProxyApplication {
 	public JSR353Module jsr353Module() {
 	  return new JSR353Module();
 	}
+	
+	private static void setDefaultProperties(SpringApplication app ) {
+		Properties properties = new Properties();
+		properties.put("management.health.ldap.enabled", false);
+		properties.put("management.endpoint.health.probes.enabled", true);
+		app.setDefaultProperties(properties);
+	}
+	
 }

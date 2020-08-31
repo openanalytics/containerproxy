@@ -173,19 +173,12 @@ public class KRBUtils {
 		}
 		
 		// Make a S4U2Proxy request to get a backend ST
-		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
-				sun.security.krb5.internal.KDCOptions.with(sun.security.krb5.internal.KDCOptions.CNAME_IN_ADDL_TKT, sun.security.krb5.internal.KDCOptions.FORWARDABLE),
-				serviceTGTCreds,
+		sun.security.krb5.Credentials creds = sun.security.krb5.internal.CredentialsUtil.acquireS4U2proxyCreds(
+				backendServiceName,
+				sunTicket,
 				serviceTGTCreds.getClient(),
-				serviceTGTCreds.getClientAlias(),
-				new sun.security.krb5.PrincipalName(backendServiceName),
-				// FIXME I don't know what needs to be passed here
-				null,
-				new sun.security.krb5.internal.Ticket[]{sunTicket},
-				null
-		);
-		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
-
+				serviceTGTCreds);
+		
 		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
 		return sgtTicket;
 	}

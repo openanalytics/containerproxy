@@ -71,7 +71,6 @@ import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 
 @Component
 public class KeycloakAuthenticationBackend implements IAuthenticationBackend {

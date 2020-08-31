@@ -45,11 +45,11 @@
 			<id>alfresco</id>
 			<url>https://artifacts.alfresco.com/nexus/content/repositories/public/</url>
 		</repository>
-		<repository>
-			<!-- Currently used only for the opensaml 2.6.6 dependency -->
-			<id>spring</id>
-			<url>https://repo.spring.io/plugins-release/</url>
-		</repository>
+                <repository>
+                        <!-- Currently used only for the spring-social-github 1.0.0.M4 dependency -->
+                        <id>spring</id>
+                        <url>https://repo.spring.io/plugins-release/</url>
+                </repository>
 	</repositories>
 
 	<dependencies>

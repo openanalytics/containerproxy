@@ -103,15 +103,6 @@ public class ContainerProxyApplication {
 	
 	// Disable specific Spring filters that parse the request body, preventing it from being proxied.
 	
-	// TODO properly test this 
-	// https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-2.2-Release-Notes#httphiddenmethodfilter-disabled-by-default 
-//	@Bean
-//	public FilterRegistrationBean<HiddenHttpMethodFilter> registration1(HiddenHttpMethodFilter filter) {
-//		FilterRegistrationBean<HiddenHttpMethodFilter> registration = new FilterRegistrationBean<>(filter);
-//		registration.setEnabled(false);
-//		return registration;
-//	}
-	
 	@Bean
 	public FilterRegistrationBean<FormContentFilter> registration2(FormContentFilter filter) {
 		FilterRegistrationBean<FormContentFilter> registration = new FilterRegistrationBean<>(filter);

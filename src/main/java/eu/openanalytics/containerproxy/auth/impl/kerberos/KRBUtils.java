@@ -173,17 +173,16 @@ public class KRBUtils {
 		}
 		
 		// Make a S4U2Proxy request to get a backend ST
-//		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
-//				serviceTGTCreds,
-//				sunTicket,
-//				new sun.security.krb5.PrincipalName(backendServiceName));
-//		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
-//
-//		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
-//		return sgtTicket;
-		return null;
+		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
+				serviceTGTCreds,
+				sunTicket,
+				new sun.security.krb5.PrincipalName(backendServiceName));
+		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
+
+		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
+		return sgtTicket;
 	}
-	
+
 	@SuppressWarnings("restriction")
 	private static SgtTicket convertToTicket(sun.security.krb5.Credentials creds, String sName, String sRealm) throws Exception {
 		EncTgsRepPart rep = new EncTgsRepPart();

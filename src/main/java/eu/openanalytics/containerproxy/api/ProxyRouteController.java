@@ -55,7 +55,7 @@ public class ProxyRouteController extends BaseController {
 			// Ensure that the caller is the owner of the target proxy.
 			boolean hasAccess = false;
 			String baseURL = SessionHelper.getContextPath(environment, true) + "api/route/";
-			String mapping = request.getRequestURI().substring(baseURL.length()); // TODO
+			String mapping = request.getRequestURI().substring(baseURL.length());
 			String proxyId = mappingManager.getProxyId(mapping);
 			if (proxyId != null) {
 				Proxy proxy = proxyService.findProxy(p -> proxyId.equals(p.getId()), false);

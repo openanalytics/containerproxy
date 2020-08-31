@@ -79,8 +79,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				try {
 					cfg.apply(web);
 				} catch (Exception e) {
+					// This function may not throw exceptions, therefore we exit the process here
+					// We do not want half-configured security.
 					e.printStackTrace();
-					// TODO exit process?
+					System.exit(1);
 				}
 			}
 		}

@@ -182,7 +182,7 @@ public class KRBUtils {
 		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
 		return sgtTicket;
 	}
-	
+
 	@SuppressWarnings("restriction")
 	private static SgtTicket convertToTicket(sun.security.krb5.Credentials creds, String sName, String sRealm) throws Exception {
 		EncTgsRepPart rep = new EncTgsRepPart();

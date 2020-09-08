@@ -71,6 +71,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 
@@ -90,6 +91,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	private static final String PARAM_POD = "pod";
 	private static final String PARAM_SERVICE = "service";
+	private static final String PARAM_NAMESPACE = "namespace";
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
 	
@@ -118,6 +120,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
+	}
+
+	public void initialize(KubernetesClient client) {
+		kubeClient = client;
 	}
 
 	@Override
@@ -230,8 +236,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Pod startupPod = podBuilder.withSpec(podSpec).build();
 		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
-		proxy.setNamespace(effectiveKubeNamespace);
-		Pod startedPod = kubeClient.pods().inNamespace(patchedPod.getMetadata().getNamespace()).create(patchedPod);
+		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
+		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 		
 		// Workaround: waitUntilReady appears to be buggy.
 		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startedPod).fromServer().get()), 60, 1000);
@@ -318,11 +324,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
-		String kubeNamespace = proxy.getNamespace();
-		if (kubeNamespace == null) {
-			kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
-		}
 		for (Container container: proxy.getContainers()) {
+			String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
+			if (kubeNamespace == null) {
+				kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+			}
+			
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
@@ -336,7 +343,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return (stdOut, stdErr) -> {
 			try {
 				Container container = proxy.getContainers().get(0);
-				String kubeNamespace = proxy.getNamespace();
+				String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
 				if (kubeNamespace == null) {
 					kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 				}
@@ -352,5 +359,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
 	}
+
 
 }

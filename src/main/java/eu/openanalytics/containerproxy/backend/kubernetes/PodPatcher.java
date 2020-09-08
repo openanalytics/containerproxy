@@ -25,6 +25,8 @@ import javax.inject.Inject;
 import javax.json.JsonPatch;
 import javax.json.JsonStructure;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -46,6 +48,8 @@ public class PodPatcher {
 	private final ObjectMapper mapper = new ObjectMapper();
 
 	private boolean loggingEnabled = false;
+
+	private final Logger log = LogManager.getLogger(getClass());
 
 	@PostConstruct
 	public void init() {
@@ -75,11 +79,12 @@ public class PodPatcher {
 	 * enabled the original and patched specification will be logged as YAML.
 	 */
 	public Pod patchWithDebug(Pod pod, JsonPatch patch) throws JsonProcessingException {
+		if (loggingEnabled) {
+			log.info("Original Pod: " + SerializationUtils.dumpAsYaml(pod));
+		}
 		Pod patchedPod = patch(pod, patch);
 		if (loggingEnabled) {
-			// TODO change to logging
-			System.out.println(SerializationUtils.dumpAsYaml(pod));
-			System.out.println(SerializationUtils.dumpAsYaml(patchedPod));
+			log.info("Patched Pod: " + SerializationUtils.dumpAsYaml(patchedPod));
 		}
 		return patchedPod;
 	}

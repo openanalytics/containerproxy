@@ -218,11 +218,6 @@
 			<artifactId>kubernetes-client</artifactId>
 			<version>4.2.2</version>
 		</dependency>
-		<dependency>
-			<groupId>io.fabric8</groupId>
-			<artifactId>kubernetes-server-mock</artifactId>
-			<version>4.2.2</version>
-		</dependency>
 
 		<!-- UI frameworks -->
 		<dependency>

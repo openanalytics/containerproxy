@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -268,7 +268,7 @@ public class TestIntegrationOnKube {
 	@Test
 	public void launchProxyWithSecretRef() throws Exception {
 		// first create the required secret
-		
+
 		client.secrets().inNamespace(session.getNamespace()).create(
 				new SecretBuilder()
 					.withNewMetadata()
@@ -276,7 +276,7 @@ public class TestIntegrationOnKube {
 					.endMetadata()
 					.addToData("username", "YWRtaW4=")
 					.build());
-		
+
 		String specId = environment.getProperty("proxy.specs[3].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
@@ -294,7 +294,7 @@ public class TestIntegrationOnKube {
 		ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 		assertEquals(true, container.getReady());
 		assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-		
+
 		// Check Env Variables
 		List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
 		Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
@@ -333,14 +333,14 @@ public class TestIntegrationOnKube {
 		ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 		assertEquals(true, container.getReady());
 		assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-		
+
 		// Check Resource limits/requests
 		ResourceRequirements req = pod.getSpec().getContainers().get(0).getResources();
 		assertEquals(new Quantity("1"), req.getRequests().get("cpu"));
 		assertEquals(new Quantity("1Gi"), req.getRequests().get("memory"));
 		assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
 		assertEquals(new Quantity("2Gi"), req.getLimits().get("memory"));
-		
+
 		proxyService.stopProxy(proxy, false, true);
 
 		// Give Kube the time to clean
@@ -372,9 +372,9 @@ public class TestIntegrationOnKube {
 		ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 		assertEquals(true, container.getReady());
 		assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-		
+
 		assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
-		
+
 		proxyService.stopProxy(proxy, false, true);
 
 		// Give Kube the time to clean
@@ -397,21 +397,21 @@ public class TestIntegrationOnKube {
 						.withName(overridenNamespace)
 					.endMetadata()
 					.build());
-			
+
 			client.serviceAccounts().inNamespace(overridenNamespace).create(new ServiceAccountBuilder()
 					.withNewMetadata()
 						.withName(serviceAccountName)
 						.withNamespace(overridenNamespace)
 					.endMetadata()
 					.build());
-			
+
 			String specId = environment.getProperty("proxy.specs[6].id");
 
 			ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
 			ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
 			Proxy proxy = proxyService.startProxy(spec, true);
 			String containerId = proxy.getContainers().get(0).getId();
-			
+
 			// Check whether the effectively used namepsace is correct
 			assertEquals(overridenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
 			// no pods should exists in the default namespace
@@ -433,7 +433,7 @@ public class TestIntegrationOnKube {
 			ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 			assertEquals(true, container.getReady());
 			assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-			
+
 			serviceList = client.services().inNamespace(overridenNamespace).list();
 			assertEquals(1, serviceList.getItems().size());
 			Service service = serviceList.getItems().get(0);
@@ -463,12 +463,12 @@ public class TestIntegrationOnKube {
 			try {
 				client.namespaces().withName(overridenNamespace).delete();
 			} catch(Exception e) {
-				
+
 			}
 			try {
 				client.serviceAccounts().withName(serviceAccountName).delete();
 			} catch(Exception e) {
-				
+
 			}
 		}
 	}
@@ -495,7 +495,7 @@ public class TestIntegrationOnKube {
 		ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 		assertEquals(true, container.getReady());
 		assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-		
+
 		// Check volumes: one HostPath is added using SP and one using patches
 		assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
 		assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(1).getName());
@@ -511,7 +511,7 @@ public class TestIntegrationOnKube {
 		assertEquals("VALUE1", env.get("VAR1").getValue()); // value is a String "null"
 		assertTrue(env.containsKey("ADDED_VAR"));
 		assertEquals("VALUE", env.get("ADDED_VAR").getValue()); // value is a String "null"
-		
+
 		proxyService.stopProxy(proxy, false, true);
 
 		// Give Kube the time to clean

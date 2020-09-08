@@ -134,12 +134,7 @@
 		</dependency>
 
 		<!-- Spring social security components -->
-<<<<<<< Upstream, based on origin/develop
 		<!-- Note: also includes an embedded datasource (H2) to remember social logins -->
-=======
-		<!-- Note: also includes an embedded datasource (H2) to remember social
-			logins -->
->>>>>>> 2861317 Fix /api/route/{id} endpoint after Undertow upgrade
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jdbc</artifactId>
@@ -384,5 +379,8 @@
 <<<<<<< Upstream, based on origin/develop
 =======
 
+<<<<<<< HEAD
 >>>>>>> 2861317 Fix /api/route/{id} endpoint after Undertow upgrade
+=======
+>>>>>>> branch 'feature/22879' of https://scm.openanalytics.eu/git/containerproxy.git
 </project>

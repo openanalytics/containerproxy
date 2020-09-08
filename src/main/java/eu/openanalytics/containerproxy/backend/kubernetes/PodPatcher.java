@@ -79,11 +79,12 @@ public class PodPatcher {
 	 * enabled the original and patched specification will be logged as YAML.
 	 */
 	public Pod patchWithDebug(Pod pod, JsonPatch patch) throws JsonProcessingException {
+		if (loggingEnabled) {
+			log.info("Original Pod: " + SerializationUtils.dumpAsYaml(pod));
+		}
 		Pod patchedPod = patch(pod, patch);
 		if (loggingEnabled) {
-			// TODO change to logging
-			log.info(SerializationUtils.dumpAsYaml(pod));
-			log.info(SerializationUtils.dumpAsYaml(patchedPod));
+			log.info("Patched Pod: " + SerializationUtils.dumpAsYaml(patchedPod));
 		}
 		return patchedPod;
 	}

@@ -81,7 +81,7 @@ public class KRBUtils {
 
 		if (sun.security.krb5.internal.Krb5.DEBUG) {
 			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
-			System.out.println("DEBUG: Config isForwardable = " + config.getBooleanValue("libdefaults", "forwardable"));
+			System.out.println("DEBUG: Config isForwardable = " + getBooleanValue(config, "libdefaults", "forwardable"));
 			sun.security.krb5.internal.KDCOptions opts = new sun.security.krb5.internal.KDCOptions();
 			System.out.println("DEBUG: KDCOptions isForwardable = " + opts.get(sun.security.krb5.internal.Krb5.TKT_OPTS_FORWARDABLE));
 			System.out.println("DEBUG: Requesting TGT for " + principal);
@@ -131,7 +131,7 @@ public class KRBUtils {
 
 		if (sun.security.krb5.internal.Krb5.DEBUG) {
 			sun.security.krb5.Config config = sun.security.krb5.Config.getInstance();
-			System.out.println("DEBUG: Config isForwardable = " + config.getBooleanValue("libdefaults", "forwardable"));
+			System.out.println("DEBUG: Config isForwardable = " + getBooleanValue(config, "libdefaults", "forwardable"));
 			sun.security.krb5.internal.KDCOptions opts = new sun.security.krb5.internal.KDCOptions();
 			System.out.println("DEBUG: KDCOptions isForwardable = " + opts.get(sun.security.krb5.internal.Krb5.TKT_OPTS_FORWARDABLE));
 			System.out.println("DEBUG: TGT (KerberosTicket) isForwardable = " + serviceTGT.isForwardable());
@@ -173,12 +173,12 @@ public class KRBUtils {
 		}
 		
 		// Make a S4U2Proxy request to get a backend ST
-		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
-				serviceTGTCreds,
+		sun.security.krb5.Credentials creds = sun.security.krb5.internal.CredentialsUtil.acquireS4U2proxyCreds(
+				backendServiceName,
 				sunTicket,
-				new sun.security.krb5.PrincipalName(backendServiceName));
-		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
-
+				serviceTGTCreds.getClient(),
+				serviceTGTCreds);
+		
 		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
 		return sgtTicket;
 	}
@@ -235,5 +235,20 @@ public class KRBUtils {
 		} else {
 			krbClient.storeTicket(ticket, cCacheFile);
 		}
+	}
+
+	/**
+	 * Used to provide compatibility between differnt JDKs.
+	 * The Config.getBooleanValue is removed in newer versions in favor of getBooleanObject.
+	 * However, getBooleanObject is private in older versions.
+	 */
+	private static boolean getBooleanValue(sun.security.krb5.Config config, String...keys) {
+        String val = config.get(keys);
+        if (val != null && val.equalsIgnoreCase("true")) {
+            return true;
+        } else {
+            return false;
+        }
+		
 	}
 }

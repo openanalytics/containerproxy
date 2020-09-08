@@ -173,21 +173,12 @@ public class KRBUtils {
 		}
 		
 		// Make a S4U2Proxy request to get a backend ST
-<<<<<<< Upstream, based on origin/develop
 		sun.security.krb5.Credentials creds = sun.security.krb5.internal.CredentialsUtil.acquireS4U2proxyCreds(
 				backendServiceName,
 				sunTicket,
 				serviceTGTCreds.getClient(),
 				serviceTGTCreds);
 		
-=======
-		sun.security.krb5.KrbTgsReq req = new sun.security.krb5.KrbTgsReq(
-				serviceTGTCreds,
-				sunTicket,
-				new sun.security.krb5.PrincipalName(backendServiceName));
-		sun.security.krb5.Credentials creds = req.sendAndGetCreds();
-
->>>>>>> 84a4908 Fix TODOs
 		SgtTicket sgtTicket = convertToTicket(creds, backendServiceName, proxyServiceTicket.getRealm());
 		return sgtTicket;
 	}

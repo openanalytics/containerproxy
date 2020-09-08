@@ -376,11 +376,4 @@
 			</plugin>
 		</plugins>
 	</build>
-<<<<<<< Upstream, based on origin/develop
-=======
-
-<<<<<<< HEAD
->>>>>>> 2861317 Fix /api/route/{id} endpoint after Undertow upgrade
-=======
->>>>>>> branch 'feature/22879' of https://scm.openanalytics.eu/git/containerproxy.git
 </project>

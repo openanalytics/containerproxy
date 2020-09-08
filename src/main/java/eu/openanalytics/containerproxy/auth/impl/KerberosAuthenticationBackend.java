@@ -32,6 +32,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -45,6 +46,7 @@ import org.springframework.security.kerberos.authentication.sun.SunJaasKerberosT
 import org.springframework.security.kerberos.web.authentication.SpnegoAuthenticationProcessingFilter;
 import org.springframework.security.kerberos.web.authentication.SpnegoEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.context.annotation.Lazy;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
@@ -62,6 +64,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	Environment environment;
 	
+	@Lazy
 	@Inject
 	AuthenticationManager authenticationManager;
 
@@ -79,7 +82,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 
 		SpnegoAuthenticationProcessingFilter filter = new SpnegoAuthenticationProcessingFilter();
 		filter.setAuthenticationManager(authenticationManager);

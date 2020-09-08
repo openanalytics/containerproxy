@@ -39,6 +39,7 @@ import org.springframework.security.authentication.rcp.RemoteAuthenticationManag
 import org.springframework.security.authentication.rcp.RemoteAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
@@ -72,7 +73,7 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		// Nothing to do.
 	}
 

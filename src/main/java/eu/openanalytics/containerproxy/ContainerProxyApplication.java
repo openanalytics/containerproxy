@@ -48,8 +48,8 @@ import java.util.Properties;
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
-	private static final String CONFIG_FILENAME = "application.yml";
-	private static final String CONFIG_DEMO_PROFILE = "demo";
+	public static final String CONFIG_FILENAME = "application.yml";
+	public static final String CONFIG_DEMO_PROFILE = "demo";
 	
 	@Inject
 	private Environment environment;

@@ -21,8 +21,6 @@
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -39,7 +37,6 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
-import javax.json.JsonValue;
 
 import org.apache.commons.io.IOUtils;
 
@@ -76,9 +73,9 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.utils.Serialization;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -139,16 +136,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
-
-		// create additional manifests
-		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
-			List<HasMetadata> objects = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get();
-			for (HasMetadata object : objects) {
-				if (kubeClient.resource(object).fromServer().get() == null) {
-					kubeClient.resource(object).createOrReplace();
-				}
-			}
-		}
 		
 		String[] volumeStrings = Optional.ofNullable(spec.getVolumes()).orElse(new String[] {});
 		List<Volume> volumes = new ArrayList<>();
@@ -252,6 +239,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
+		
+		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
+		createAdditionalManifstes(proxy, effectiveKubeNamespace);
+		
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 		
 		// Workaround: waitUntilReady appears to be buggy.
@@ -306,6 +297,41 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return container;
 	}
 	
+	
+	/**
+	 * Creates the extra manifests/resources defined in the ProxySpec.
+	 * 
+	 * The resource will only be created if it does not already exist.
+	 */
+	private void createAdditionalManifstes(Proxy proxy, String namespace) {
+		for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
+			if (kubeClient.resource(fullObject).fromServer().get() == null) {
+				kubeClient.resource(fullObject).createOrReplace();
+			}
+		}
+	}
+
+	/**
+	 * Converts the additional manifests of the spec into HasMetadat objects.
+	 * When the resource has no namespace definition, the provided namespace
+	 * parameter will be used.
+	 */
+	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+		ArrayList<HasMetadata> result = new ArrayList<HasMetadata>();
+		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
+			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(manifest.getBytes())); // used to determine whether the manifest has specified a namespace
+
+			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get().get(0);
+			if (object.getMetadata().getNamespace() == null) {
+				// the load method (in some cases) automatically sets a namepsace when no namespace is provided
+				// therefore we overwrite this namespace with the namsepace of the pod.
+				fullObject.getMetadata().setNamespace(namespace);
+			}
+			result.add(fullObject);
+		}
+		return result;
+	}
+	
 	private boolean isServiceReady(Service service) {
 		if (service == null) {
 			return false;
@@ -352,11 +378,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (service != null) kubeClient.services().inNamespace(kubeNamespace).delete(service);
 
 			// delete additional manifests
-			for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
-				List<HasMetadata> objects = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get();
-				for (HasMetadata object : objects) {
-					kubeClient.resource(object).delete();
-				}
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, kubeNamespace)) {
+				kubeClient.resource(fullObject).delete();
 			}
 		}
 	}

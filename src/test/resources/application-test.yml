@@ -108,6 +108,39 @@ proxy:
         value:
           name: ADDED_VAR
           value: VALUE
+  - id: 01_hello_manifests
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+    kubernetes-pod-patches: |
+      - op: replace
+        path: /metadata/namespace
+        value: it-b9fa0a24-overriden
+    kubernetes-additional-manifests:
+     - |
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: manifests-pvc
+          namespace: it-b9fa0a24-overriden
+        spec:
+         storageClassName: standard
+         accessModes:
+            - ReadWriteOnce
+         resources:
+           requests:
+             storage: 5Gi
+     - |
+         apiVersion: v1
+         kind: Secret
+         metadata:
+           name: manifests-secret
+         type: Opaque
+         data:
+           password: cGFzc3dvcmQ=
+
   - id: 02_hello
     container-specs:
     - image: "openanalytics/shinyproxy-demo"

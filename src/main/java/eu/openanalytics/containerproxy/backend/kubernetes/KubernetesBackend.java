@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -36,6 +39,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
+import javax.json.JsonValue;
 
 import org.apache.commons.io.IOUtils;
 
@@ -52,6 +56,7 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -134,6 +139,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
+
+		// create additional manifests
+		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
+			List<HasMetadata> objects = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get();
+			for (HasMetadata object : objects) {
+				if (kubeClient.resource(object).fromServer().get() == null) {
+					kubeClient.resource(object).createOrReplace();
+				}
+			}
+		}
 		
 		String[] volumeStrings = Optional.ofNullable(spec.getVolumes()).orElse(new String[] {});
 		List<Volume> volumes = new ArrayList<>();
@@ -287,6 +302,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			proxy.getTargets().put(mapping, target);
 		}
 		
+		
 		return container;
 	}
 	
@@ -334,6 +350,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
 			if (service != null) kubeClient.services().inNamespace(kubeNamespace).delete(service);
+
+			// delete additional manifests
+			for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
+				List<HasMetadata> objects = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get();
+				for (HasMetadata object : objects) {
+					kubeClient.resource(object).delete();
+				}
+			}
 		}
 	}
 	

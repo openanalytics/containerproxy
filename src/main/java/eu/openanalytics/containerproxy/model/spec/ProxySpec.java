@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.json.JsonPatch;
 import javax.json.JsonValue;
@@ -50,6 +51,7 @@ public class ProxySpec {
 	private Map<String, String> settings = new HashMap<>();
 	
 	private JsonPatch kubernetesPodPatches;
+	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 
 	public ProxySpec() {
 		settings = new HashMap<>();
@@ -154,6 +156,14 @@ public class ProxySpec {
 	private void setKubernetesPodPatches(JsonPatch kubernetesPodPatches) {
 		this.kubernetesPodPatches = kubernetesPodPatches;
 	}
+
+	public void setKubernetesAdditionalManifests(List<String> manifests) {
+		this.kubernetesAdditionalManifests = manifests;
+	}
+
+	public List<String> getKubernetesAdditionalManifests() {
+		return kubernetesAdditionalManifests;
+	}
 	
 	public void copy(ProxySpec target) {
 		target.setId(id);
@@ -193,6 +203,10 @@ public class ProxySpec {
 		if (kubernetesPodPatches != null) {
 			// JsonPatch is an immutable object
 			target.setKubernetesPodPatches(kubernetesPodPatches);
+		}
+		
+		if (kubernetesAdditionalManifests != null) {
+			target.setKubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().collect(Collectors.toList()));
 		}
 		
 	}

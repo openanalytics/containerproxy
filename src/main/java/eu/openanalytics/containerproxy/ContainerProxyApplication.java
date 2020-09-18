@@ -123,6 +123,9 @@ public class ContainerProxyApplication {
 		Properties properties = new Properties();
 		properties.put("management.health.ldap.enabled", false);
 		properties.put("management.endpoint.health.probes.enabled", true);
+	
+		// use in-memory session storage by default. Can be overwritten in application.yml
+		properties.put("spring.session.store-type", "none");
 		app.setDefaultProperties(properties);
 	}
 	

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -64,11 +65,15 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.ServiceList;
@@ -474,7 +479,7 @@ public class TestIntegrationOnKube {
 	}
 
 	/**
-	 * Test whethet the merging of properties works properly
+	 * Test whether the merging of properties works properly
 	 */
 	@Test
 	public void launchProxyWithPatchesWithMerging() throws Exception {
@@ -522,6 +527,169 @@ public class TestIntegrationOnKube {
 		assertEquals(0, podList.getItems().size());
 
 		assertEquals(0, proxyService.getProxies(null, true).size());
+	}
+
+	/**
+	 * Tests the creation and deleting of additional manifests.
+	 * The first manifest contains a namespace definition.
+	 * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
+	 */
+	@Test
+	public void launchProxyWithAdditionalManifests() throws Exception {
+		final String overridenNamespace = "it-b9fa0a24-overriden";
+		try {
+			System.out.println(client);
+			client.namespaces().create(new NamespaceBuilder()
+					.withNewMetadata()
+						.withName(overridenNamespace)
+					.endMetadata()
+					.build());
+			
+			String specId = environment.getProperty("proxy.specs[8].id");
+
+			ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+			ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+			Proxy proxy = proxyService.startProxy(spec, true);
+			String containerId = proxy.getContainers().get(0).getId();
+
+			PodList podList = client.pods().inNamespace(overridenNamespace).list();
+			assertEquals(1, podList.getItems().size());
+			Pod pod = podList.getItems().get(0);
+			assertEquals("Running", pod.getStatus().getPhase());
+			assertEquals(overridenNamespace, pod.getMetadata().getNamespace());
+			assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+			assertEquals(1, pod.getStatus().getContainerStatuses().size());
+			ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+			assertEquals(true, container.getReady());
+			assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+			
+			PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overridenNamespace).list();
+			assertEquals(1, claimList.getItems().size());
+			PersistentVolumeClaim claim = claimList.getItems().get(0);
+			assertEquals(overridenNamespace, claim.getMetadata().getNamespace());
+			assertEquals("manifests-pvc", claim.getMetadata().getName());
+
+			// secret has no namespace defined -> should be created in the namespace defined by the pod patches
+			SecretList sercetList = client.secrets().inNamespace(overridenNamespace).list();
+			assertEquals(2, sercetList.getItems().size());
+			for (Secret secret : sercetList.getItems()) {
+				if (secret.getMetadata().getName().startsWith("default-token")) {
+					continue;
+				}
+				assertEquals(overridenNamespace, secret.getMetadata().getNamespace());
+				assertEquals("manifests-secret", secret.getMetadata().getName());
+			}
+
+			proxyService.stopProxy(proxy, false, true);
+
+			// Give Kube the time to clean
+			Thread.sleep(2000);
+
+			// all pods should be deleted
+			podList = client.pods().inNamespace(session.getNamespace()).list();
+			assertEquals(0, podList.getItems().size());
+			// all additional manifests should be deleted
+			assertEquals(1, client.secrets().inNamespace(overridenNamespace).list().getItems().size());
+			assertTrue(client.secrets().inNamespace(overridenNamespace).list()
+					.getItems().get(0).getMetadata().getName().startsWith("default-token"));
+			assertEquals(0, client.persistentVolumeClaims().inNamespace(overridenNamespace).list().getItems().size());
+
+			assertEquals(0, proxyService.getProxies(null, true).size());
+		} finally {
+			// just to be sure both the namespace and service account are cleaned up
+			client.namespaces().withName(overridenNamespace).delete();
+		}
+	}
+	
+	/**
+	 * Tests the creation and deleting of additional manifests.
+	 * The first manifest contains a namespace definition.
+	 * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
+	 * 
+	 * This is exactly the same test as the previous one, except that the PVC already exists (and should not be re-created).
+	 */
+	@Test
+	public void launchProxyWithAdditionalManifestsOfWhichOneAlreadyExists() throws Exception {
+		final String overridenNamespace = "it-b9fa0a24-overriden";
+		try {
+			System.out.println(client);
+			client.namespaces().create(new NamespaceBuilder()
+					.withNewMetadata()
+						.withName(overridenNamespace)
+					.endMetadata()
+					.build());
+			
+			// create the PVC
+			String pvcSpec = 
+					"apiVersion: v1\n" + 
+					"kind: PersistentVolumeClaim\n" + 
+					"metadata:\n" + 
+					"   name: manifests-pvc\n" + 
+					"   namespace: it-b9fa0a24-overriden\n" + 
+					"spec:\n" + 
+					"   storageClassName: standard\n" + 
+					"   accessModes:\n" + 
+					"     - ReadWriteOnce\n" + 
+					"   resources:\n" + 
+					"      requests:\n" + 
+					"          storage: 5Gi";
+			
+			client.load(new ByteArrayInputStream(pvcSpec.getBytes())).createOrReplace();
+			
+			String specId = environment.getProperty("proxy.specs[8].id");
+
+			ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+			ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+			Proxy proxy = proxyService.startProxy(spec, true);
+			String containerId = proxy.getContainers().get(0).getId();
+
+			PodList podList = client.pods().inNamespace(overridenNamespace).list();
+			assertEquals(1, podList.getItems().size());
+			Pod pod = podList.getItems().get(0);
+			assertEquals("Running", pod.getStatus().getPhase());
+			assertEquals(overridenNamespace, pod.getMetadata().getNamespace());
+			assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+			assertEquals(1, pod.getStatus().getContainerStatuses().size());
+			ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+			assertEquals(true, container.getReady());
+			assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+			
+			PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overridenNamespace).list();
+			assertEquals(1, claimList.getItems().size());
+			PersistentVolumeClaim claim = claimList.getItems().get(0);
+			assertEquals(overridenNamespace, claim.getMetadata().getNamespace());
+			assertEquals("manifests-pvc", claim.getMetadata().getName());
+
+			// secret has no namespace defined -> should be created in the namespace defined by the pod patches
+			SecretList sercetList = client.secrets().inNamespace(overridenNamespace).list();
+			assertEquals(2, sercetList.getItems().size());
+			for (Secret secret : sercetList.getItems()) {
+				if (secret.getMetadata().getName().startsWith("default-token")) {
+					continue;
+				}
+				assertEquals(overridenNamespace, secret.getMetadata().getNamespace());
+				assertEquals("manifests-secret", secret.getMetadata().getName());
+			}
+
+			proxyService.stopProxy(proxy, false, true);
+
+			// Give Kube the time to clean
+			Thread.sleep(2000);
+
+			// all pods should be deleted
+			podList = client.pods().inNamespace(session.getNamespace()).list();
+			assertEquals(0, podList.getItems().size());
+			// all additional manifests should be deleted
+			assertEquals(1, client.secrets().inNamespace(overridenNamespace).list().getItems().size());
+			assertTrue(client.secrets().inNamespace(overridenNamespace).list()
+					.getItems().get(0).getMetadata().getName().startsWith("default-token"));
+			assertEquals(0, client.persistentVolumeClaims().inNamespace(overridenNamespace).list().getItems().size());
+
+			assertEquals(0, proxyService.getProxies(null, true).size());
+		} finally {
+			// just to be sure both the namespace and service account are cleaned up
+			client.namespaces().withName(overridenNamespace).delete();
+		}
 	}
 
 	public static class TestConfiguration {

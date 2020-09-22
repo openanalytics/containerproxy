@@ -21,12 +21,16 @@
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,8 +44,16 @@ import javax.inject.Inject;
 
 import org.apache.commons.io.IOUtils;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -97,6 +109,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
 	
+	private static final String LABEL_PROXIED_APP = "openanalytics.eu/containerproxy-proxied-app";
+	private static final String LABEL_INSTANCE = "openanalytics.eu/sp-instance";
+		
+	
 	@Inject
 	private PodPatcher podPatcher;
 	
@@ -122,6 +138,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
+		try {
+			log.info("Hash of config is: " + getInstanceId());
+		} catch(Exception e) {
+			throw new RuntimeException("Cannot compute hash of config", e);
+		}
 	}
 
 	public void initialize(KubernetesClient client) {
@@ -222,7 +243,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withName("sp-pod-" + container.getId())
 					.addToLabels(spec.getLabels())
 					.addToLabels("app", container.getId())
-					.endMetadata();
+					.addToLabels(LABEL_INSTANCE, getInstanceId())
+					.addToLabels(LABEL_PROXIED_APP, "true")
+				.endMetadata();
 		
 		PodSpec podSpec = new PodSpec();
 		podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
@@ -262,6 +285,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withKind("Service")
 					.withNewMetadata()
 						.withName("sp-service-" + container.getId())
+						.addToLabels(LABEL_INSTANCE, getInstanceId())
+						.addToLabels(LABEL_PROXIED_APP, "true")
 						.endMetadata()
 					.withNewSpec()
 						.addToSelector("app", container.getId())
@@ -405,6 +430,42 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	@Override
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
+	}
+	
+	private String instanceId = null;
+	
+	/**
+	 * Calculates a hash of the config file (i.e. application.yaml).
+	 */
+	private String getInstanceId() throws JsonParseException, JsonMappingException, IOException, NoSuchAlgorithmException {
+		if (instanceId != null) {
+			return instanceId;
+		}
+		
+		/**
+		 * We need a hash of some "canonical" version of the config file.
+		 * The hash should not change when e.g. comments are added to the file.
+		 * Therefore we read the application.yml file into an Object and then 
+		 * dump it again into YAML. We also sort the keys of maps and properties so that
+		 * the order does not matter for the resulting hash.
+		 */
+		ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+		objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+		objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+        
+		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
+		if (!file.exists()) {
+			file = Paths.get(ContainerProxyApplication.CONFIG_DEMO_PROFILE).toFile();
+		}
+
+		Object parsedConfig = objectMapper.readValue(file, Object.class);
+		String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
+		
+		MessageDigest digest = MessageDigest.getInstance("SHA-1");
+		digest.reset();
+		digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
+		instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
+		return instanceId;
 	}
 
 

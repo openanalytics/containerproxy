@@ -48,8 +48,8 @@ import java.util.Properties;
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
-	private static final String CONFIG_FILENAME = "application.yml";
-	private static final String CONFIG_DEMO_PROFILE = "demo";
+	public static final String CONFIG_FILENAME = "application.yml";
+	public static final String CONFIG_DEMO_PROFILE = "demo";
 	
 	@Inject
 	private Environment environment;
@@ -123,6 +123,9 @@ public class ContainerProxyApplication {
 		Properties properties = new Properties();
 		properties.put("management.health.ldap.enabled", false);
 		properties.put("management.endpoint.health.probes.enabled", true);
+	
+		// use in-memory session storage by default. Can be overwritten in application.yml
+		properties.put("spring.session.store-type", "none");
 		app.setDefaultProperties(properties);
 	}
 	

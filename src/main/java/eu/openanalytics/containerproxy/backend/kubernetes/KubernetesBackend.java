@@ -141,7 +141,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		try {
 			log.info("Hash of config is: " + getInstanceId());
 		} catch(Exception e) {
-			e.printStackTrace();
+			throw new RuntimeException("Cannot compute hash of config", e);
 		}
 	}
 

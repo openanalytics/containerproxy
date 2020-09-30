@@ -33,6 +33,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
+import org.springframework.session.data.redis.config.ConfigureRedisAction;
 import org.springframework.web.filter.FormContentFilter;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
 
@@ -116,7 +117,16 @@ public class ContainerProxyApplication {
 	 */
 	@Bean
 	public JSR353Module jsr353Module() {
-	  return new JSR353Module();
+		return new JSR353Module();
+	}
+
+	/**
+	 * Compatibility with AWS ElastiCache
+	 * @return
+	 */
+	@Bean
+	public static ConfigureRedisAction configureRedisAction() {
+		return ConfigureRedisAction.NO_OP;
 	}
 	
 	private static void setDefaultProperties(SpringApplication app ) {

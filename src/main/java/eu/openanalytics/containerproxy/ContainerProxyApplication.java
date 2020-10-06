@@ -136,6 +136,10 @@ public class ContainerProxyApplication {
 	
 		// use in-memory session storage by default. Can be overwritten in application.yml
 		properties.put("spring.session.store-type", "none");
+		
+		// disable multi-part handling by Spring. We don't need this anywhere in the application.
+		// When enabled this will cause problems when proxying file-uploads to the shiny apps.
+		properties.put("spring.servlet.multipart.enabled", "false");
 		app.setDefaultProperties(properties);
 	}
 	

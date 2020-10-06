@@ -143,15 +143,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
 		}
 	
-		// The `anyRequest` method may only be called once.
-		// Therefore we call it here, make our changes to it and forward it to the various authentication backends
-		ExpressionUrlAuthorizationConfigurer<HttpSecurity>.AuthorizedUrl anyRequestConfigurer =  http.authorizeRequests().anyRequest();
 
 		if (auth.hasAuthorization()) {
+			// The `anyRequest` method may only be called once.
+			// Therefore we call it here, make our changes to it and forward it to the various authentication backends
+			ExpressionUrlAuthorizationConfigurer<HttpSecurity>.AuthorizedUrl anyRequestConfigurer =  http.authorizeRequests().anyRequest();
 			anyRequestConfigurer.fullyAuthenticated();
+			auth.configureHttpSecurity(http, anyRequestConfigurer);
 		}
 
-		auth.configureHttpSecurity(http, anyRequestConfigurer);
 
 	}
 

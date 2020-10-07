@@ -188,7 +188,7 @@
 		<dependency>
 			<groupId>org.springframework.security.extensions</groupId>
 			<artifactId>spring-security-saml2-core</artifactId>
-			<version>1.0.9.RELEASE</version>
+			<version>1.0.10.RELEASE</version>
 		</dependency>
 
 		<!-- Kerberos -->
@@ -207,7 +207,7 @@
 		<dependency>
 			<groupId>com.spotify</groupId>
 			<artifactId>docker-client</artifactId>
-			<version>8.15.2</version>
+			<version>8.15.3</version>
 		</dependency>
 		<!-- Jersey, a dependency of docker-client with wonky version constraints -->
 		<dependency>
@@ -297,6 +297,33 @@
 			<scope>test</scope>
 		</dependency>
 
+
+                <!-- Recursive dependencies which are upgraded for security -->
+                <dependency>
+                    <groupId>commons-collections</groupId>
+                    <artifactId>commons-collections</artifactId>
+                    <version>3.2.2</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                    <version>1.19</version>
+                </dependency>
+                <dependency>
+                    <groupId>commons-beanutils</groupId>
+                    <artifactId>commons-beanutils</artifactId>
+                    <version>1.9.4</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                    <version>25.0-jre</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-core</artifactId>
+                    <version>5.2.9.RELEASE</version>
+                </dependency>
 	</dependencies>
 
 	<build>
@@ -384,4 +411,27 @@
 			</plugin>
 		</plugins>
 	</build>
+
+        <profiles>
+          <profile>
+            <id>owasp-dependency-check</id>
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>org.owasp</groupId>
+                  <artifactId>dependency-check-maven</artifactId>
+                  <version>6.0.2</version>
+                  <executions>
+                    <execution>
+                      <goals>
+                        <goal>check</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+                </plugin>
+              </plugins>
+            </build>
+          </profile>
+        </profiles>
+
 </project>

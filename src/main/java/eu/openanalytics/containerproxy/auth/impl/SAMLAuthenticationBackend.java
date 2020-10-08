@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import javax.inject.Inject;
+
+import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,6 +53,9 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	
 	@Autowired(required = false)
 	private SAMLAuthenticationProvider samlAuthenticationProvider;
+
+	@Inject
+	private Environment environment;
 	
 	@Override
 	public String getName() {
@@ -77,6 +83,9 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public String getLogoutSuccessURL() {
-		return "/";
+		String logoutURL = environment.getProperty("proxy.saml.logout-url");
+		System.out.println("LogoutURL: " + logoutURL);
+		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = "/";
+		return logoutURL;
 	}
 }

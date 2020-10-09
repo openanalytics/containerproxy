@@ -38,7 +38,7 @@
 	<repositories>
 		<repository>
 			<id>clojars</id>
-			<url>http://clojars.org/repo/</url>
+			<url>https://clojars.org/repo/</url>
 		</repository>
 		<repository>
 			<!-- Currently used only for the opensaml 2.6.6 dependency -->

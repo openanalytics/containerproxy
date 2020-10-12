@@ -1,5 +1,6 @@
 proxy:
   authentication: simple
+  container-backend: docker
 
   users:
   - name: demo
@@ -17,6 +18,129 @@ proxy:
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         default: 3838
+  - id: 01_hello_volume
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      volumes:
+       - "/srv/myvolume1:/srv/myvolume1"
+       - "/srv/myvolume2:/srv/myvolume2"
+  - id: 01_hello_env
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      env:
+        VAR1:
+        VAR2: VALUE2
+        VAR3: VALUE3
+  - id: 01_hello_secret
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      env:
+        MY_SECRET: secretKeyRef:mysecret:username
+  - id: 01_hello_limits
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      cpu-request: 1
+      cpu-limit: 2
+      memory-request: "1Gi"
+      memory-limit: "2Gi"
+  - id: 01_hello_priv
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      privileged: true
+  - id: 01_hello_patches1
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+    kubernetes-pod-patches: |
+      - op: replace
+        path: /metadata/namespace
+        value: it-b9fa0a24-overriden
+      - op: add
+        path: /spec/containers/0/resources
+        value:
+           requests:
+             cpu: "1"
+           limits:
+             cpu: "1"
+      - op: add
+        path: /spec/serviceAccountName
+        value: sp-ittest-b9fa0a24-account
+  - id: 01_hello_patches2
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+      volumes:
+       - "/srv/myvolume1:/srv/myvolume1"
+      env:
+        VAR1: VALUE1
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/volumeMounts/0
+        value:
+          mountPath: /cache
+          name: cache-volume
+      - op: add
+        path: /spec/volumes/0
+        value:
+          name: cache-volume
+          emptyDir: {}
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: ADDED_VAR
+          value: VALUE
+  - id: 01_hello_manifests
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+    kubernetes-pod-patches: |
+      - op: replace
+        path: /metadata/namespace
+        value: it-b9fa0a24-overriden
+    kubernetes-additional-manifests:
+     - |
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: manifests-pvc
+          namespace: it-b9fa0a24-overriden
+        spec:
+         storageClassName: standard
+         accessModes:
+            - ReadWriteOnce
+         resources:
+           requests:
+             storage: 5Gi
+     - |
+         apiVersion: v1
+         kind: Secret
+         metadata:
+           name: manifests-secret
+         type: Opaque
+         data:
+           password: cGFzc3dvcmQ=
+
   - id: 02_hello
     container-specs:
     - image: "openanalytics/shinyproxy-demo"

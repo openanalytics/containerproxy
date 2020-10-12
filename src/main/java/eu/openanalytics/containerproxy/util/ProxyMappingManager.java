@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -88,6 +88,7 @@ public class ProxyMappingManager {
 				super.getConnection(target, exchange, callback, timeout, timeUnit);
 			}
 		};
+		proxyClient.setMaxQueueSize(100);
 		proxyClient.addHost(target);
 
 		mappings.put(mapping, proxyId);

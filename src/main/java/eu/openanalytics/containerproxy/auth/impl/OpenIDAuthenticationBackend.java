@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -87,13 +88,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
 		authorizedClientService = new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepo);
 		
+		anyRequestConfigurer.authenticated();
+		
 		http
-			.authorizeRequests().anyRequest().authenticated()
-			.and()
 			.oauth2Login()
 				.loginPage("/login")
 				.clientRegistrationRepository(clientRegistrationRepo)

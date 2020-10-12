@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,12 +20,17 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,10 +40,20 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import javax.inject.Inject;
+
 import org.apache.commons.io.IOUtils;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -48,11 +63,12 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -71,6 +87,7 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.utils.Serialization;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -88,8 +105,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	private static final String PARAM_POD = "pod";
 	private static final String PARAM_SERVICE = "service";
+	private static final String PARAM_NAMESPACE = "namespace";
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
+	
+	private static final String LABEL_PROXIED_APP = "openanalytics.eu/containerproxy-proxied-app";
+	private static final String LABEL_INSTANCE = "openanalytics.eu/sp-instance";
+		
+	
+	@Inject
+	private PodPatcher podPatcher;
 	
 	private KubernetesClient kubeClient;
 	
@@ -113,6 +138,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
+		try {
+			log.info("Hash of config is: " + getInstanceId());
+		} catch(Exception e) {
+			throw new RuntimeException("Cannot compute hash of config", e);
+		}
+	}
+
+	public void initialize(KubernetesClient client) {
+		kubeClient = client;
 	}
 
 	@Override
@@ -201,14 +235,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
 		
-		DoneablePod doneablePod = kubeClient.pods().inNamespace(kubeNamespace).createNew()
+		PodBuilder podBuilder = new PodBuilder()
 				.withApiVersion(apiVersion)
 				.withKind("Pod")
 				.withNewMetadata()
+					.withNamespace(kubeNamespace)
 					.withName("sp-pod-" + container.getId())
 					.addToLabels(spec.getLabels())
 					.addToLabels("app", container.getId())
-					.endMetadata();
+					.addToLabels(LABEL_INSTANCE, getInstanceId())
+					.addToLabels(LABEL_PROXIED_APP, "true")
+				.endMetadata();
 		
 		PodSpec podSpec = new PodSpec();
 		podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
@@ -221,11 +258,19 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 		
-		Pod startupPod = doneablePod.withSpec(podSpec).done();
+		Pod startupPod = podBuilder.withSpec(podSpec).build();
+		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
+		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
+		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
+		
+		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
+		createAdditionalManifstes(proxy, effectiveKubeNamespace);
+		
+		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 		
 		// Workaround: waitUntilReady appears to be buggy.
-		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupPod).fromServer().get()), 60, 1000);
-		Pod pod = kubeClient.resource(startupPod).fromServer().get();
+		Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startedPod).fromServer().get()), 60, 1000);
+		Pod pod = kubeClient.resource(startedPod).fromServer().get();
 		
 		Service service = null;
 		if (isUseInternalNetwork()) {
@@ -235,11 +280,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.map(p -> new ServicePortBuilder().withPort(p).build())
 					.collect(Collectors.toList());
 			
-			Service startupService = kubeClient.services().inNamespace(kubeNamespace).createNew()
+			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace).createNew()
 					.withApiVersion(apiVersion)
 					.withKind("Service")
 					.withNewMetadata()
 						.withName("sp-service-" + container.getId())
+						.addToLabels(LABEL_INSTANCE, getInstanceId())
+						.addToLabels(LABEL_PROXIED_APP, "true")
 						.endMetadata()
 					.withNewSpec()
 						.addToSelector("app", container.getId())
@@ -247,9 +294,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.withPorts(servicePorts)
 						.endSpec()
 					.done();
-			
+
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> Readiness.isReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
 		
@@ -270,7 +318,57 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			proxy.getTargets().put(mapping, target);
 		}
 		
+		
 		return container;
+	}
+	
+	
+	/**
+	 * Creates the extra manifests/resources defined in the ProxySpec.
+	 * 
+	 * The resource will only be created if it does not already exist.
+	 */
+	private void createAdditionalManifstes(Proxy proxy, String namespace) {
+		for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
+			if (kubeClient.resource(fullObject).fromServer().get() == null) {
+				kubeClient.resource(fullObject).createOrReplace();
+			}
+		}
+	}
+
+	/**
+	 * Converts the additional manifests of the spec into HasMetadat objects.
+	 * When the resource has no namespace definition, the provided namespace
+	 * parameter will be used.
+	 */
+	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+		ArrayList<HasMetadata> result = new ArrayList<HasMetadata>();
+		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
+			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(manifest.getBytes())); // used to determine whether the manifest has specified a namespace
+
+			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get().get(0);
+			if (object.getMetadata().getNamespace() == null) {
+				// the load method (in some cases) automatically sets a namepsace when no namespace is provided
+				// therefore we overwrite this namespace with the namsepace of the pod.
+				fullObject.getMetadata().setNamespace(namespace);
+			}
+			result.add(fullObject);
+		}
+		return result;
+	}
+	
+	private boolean isServiceReady(Service service) {
+		if (service == null) {
+			return false;
+		}
+		if (service.getStatus() == null) {
+			return false;
+		}
+		if (service.getStatus().getLoadBalancer() == null) {
+			return false;
+		}
+		
+		return true;
 	}
 
 	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
@@ -293,12 +391,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
-		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		for (Container container: proxy.getContainers()) {
+			String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
+			if (kubeNamespace == null) {
+				kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+			}
+			
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
 			if (service != null) kubeClient.services().inNamespace(kubeNamespace).delete(service);
+
+			// delete additional manifests
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, kubeNamespace)) {
+				kubeClient.resource(fullObject).delete();
+			}
 		}
 	}
 	
@@ -308,7 +415,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return (stdOut, stdErr) -> {
 			try {
 				Container container = proxy.getContainers().get(0);
-				String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+				String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
+				if (kubeNamespace == null) {
+					kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+				}
 				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName("sp-pod-" + container.getId()).watchLog();
 				IOUtils.copy(watcher.getOutput(), stdOut);
 			} catch (IOException e) {
@@ -321,5 +431,42 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
 	}
+	
+	private String instanceId = null;
+	
+	/**
+	 * Calculates a hash of the config file (i.e. application.yaml).
+	 */
+	private String getInstanceId() throws JsonParseException, JsonMappingException, IOException, NoSuchAlgorithmException {
+		if (instanceId != null) {
+			return instanceId;
+		}
+		
+		/**
+		 * We need a hash of some "canonical" version of the config file.
+		 * The hash should not change when e.g. comments are added to the file.
+		 * Therefore we read the application.yml file into an Object and then 
+		 * dump it again into YAML. We also sort the keys of maps and properties so that
+		 * the order does not matter for the resulting hash.
+		 */
+		ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+		objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+		objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+        
+		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
+		if (!file.exists()) {
+			file = Paths.get(ContainerProxyApplication.CONFIG_DEMO_PROFILE).toFile();
+		}
+
+		Object parsedConfig = objectMapper.readValue(file, Object.class);
+		String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
+		
+		MessageDigest digest = MessageDigest.getInstance("SHA-1");
+		digest.reset();
+		digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
+		instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
+		return instanceId;
+	}
+
 
 }

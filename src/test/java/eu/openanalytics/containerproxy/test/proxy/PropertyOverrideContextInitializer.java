@@ -18,19 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.strategy.impl;
+package eu.openanalytics.containerproxy.test.proxy;
 
-import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.test.context.support.TestPropertySourceUtils;
 
-import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-
-@Component
-public class DefaultProxyTestStrategy implements IProxyTestStrategy {
+public class PropertyOverrideContextInitializer
+		implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
 	@Override
-	public boolean testProxy(Proxy proxy) {
-		return true;
+	public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
+				"proxy.kubernetes.namespace=" + TestIntegrationOnKube.session.getNamespace());
 	}
-
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,6 +38,7 @@ public class Proxy {
 
 	private long startupTimestamp;
 	private String userId;
+	private String namespace;
 	
 	private List<Container> containers;
 	private Map<String,URI> targets;
@@ -102,4 +103,5 @@ public class Proxy {
 	public void setTargets(Map<String, URI> targets) {
 		this.targets = targets;
 	}
+
 }

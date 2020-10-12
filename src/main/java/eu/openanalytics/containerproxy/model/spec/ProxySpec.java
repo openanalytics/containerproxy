@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,10 +20,22 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import javax.json.JsonPatch;
+import javax.json.JsonValue;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 
 public class ProxySpec {
 
@@ -37,6 +49,9 @@ public class ProxySpec {
 	private List<RuntimeSettingSpec> runtimeSettingSpecs;
 
 	private Map<String, String> settings = new HashMap<>();
+	
+	private JsonPatch kubernetesPodPatches;
+	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 
 	public ProxySpec() {
 		settings = new HashMap<>();
@@ -105,6 +120,50 @@ public class ProxySpec {
 	public void setSettings(Map<String, String> settings) {
 		this.settings = settings;
 	}
+
+	/**
+	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
+	 */
+	public JsonValue getKubernetesPodPatch() {
+		if (this.kubernetesPodPatches == null) {
+			return null;
+		} else {
+			return kubernetesPodPatches.toJsonArray();
+		}
+	}
+
+	/**
+	 * Returns the Kubernetes Pod Patch as a JsonPatch, so it can be directly be used to patch the spec.
+	 * Should not be returned by API responses.
+	 */
+	@JsonIgnore
+	public JsonPatch getKubernetesPodPatchAsJsonpatch() {
+		return kubernetesPodPatches;
+	}
+
+	public void setKubernetesPodPatches(String kubernetesPodPatches) throws JsonParseException, JsonMappingException, IOException {
+		try {
+			// convert the raw YAML string into a JsonPatch
+			ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
+			yamlReader.registerModule(new JSR353Module());
+			this.kubernetesPodPatches = yamlReader.readValue(kubernetesPodPatches, JsonPatch.class);
+		} catch (Exception exception) {
+			exception.printStackTrace(); // log the exception for easier debugging
+			throw exception;
+		}
+	}
+
+	private void setKubernetesPodPatches(JsonPatch kubernetesPodPatches) {
+		this.kubernetesPodPatches = kubernetesPodPatches;
+	}
+
+	public void setKubernetesAdditionalManifests(List<String> manifests) {
+		this.kubernetesAdditionalManifests = manifests;
+	}
+
+	public List<String> getKubernetesAdditionalManifests() {
+		return kubernetesAdditionalManifests;
+	}
 	
 	public void copy(ProxySpec target) {
 		target.setId(id);
@@ -139,5 +198,17 @@ public class ProxySpec {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());
 			target.getSettings().putAll(settings);
 		}
+		
+		
+		if (kubernetesPodPatches != null) {
+			// JsonPatch is an immutable object
+			target.setKubernetesPodPatches(kubernetesPodPatches);
+		}
+		
+		if (kubernetesAdditionalManifests != null) {
+			target.setKubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().collect(Collectors.toList()));
+		}
+		
 	}
+
 }

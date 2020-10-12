@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
@@ -44,6 +46,8 @@ public class Container {
 	public void setSpec(ContainerSpec spec) {
 		this.spec = spec;
 	}
+
+	@JsonIgnore
 	public Map<String, Object> getParameters() {
 		return parameters;
 	}

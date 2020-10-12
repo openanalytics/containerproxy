@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 
@@ -44,7 +45,7 @@ public class SocialAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void configureHttpSecurity(HttpSecurity http) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		// Nothing to do.
 	}
 

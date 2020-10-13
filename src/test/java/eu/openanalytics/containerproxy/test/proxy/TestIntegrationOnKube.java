@@ -412,6 +412,9 @@ public class TestIntegrationOnKube {
 						.withNamespace(overridenNamespace)
 					.endMetadata()
 					.build());
+			
+			// Give Kube time to setup ServiceAccount
+			Thread.sleep(2000);
 
 			String specId = environment.getProperty("proxy.specs[6].id");
 

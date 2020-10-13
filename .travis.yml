@@ -21,6 +21,7 @@ services:
 
 before_install:
 - docker pull openanalytics/shinyproxy-demo
+- socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock &
 - sudo apt-get -qq -y install conntrack
 
 before_script:

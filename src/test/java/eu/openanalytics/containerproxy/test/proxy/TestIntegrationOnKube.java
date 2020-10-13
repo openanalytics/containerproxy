@@ -397,14 +397,7 @@ public class TestIntegrationOnKube {
 		final String overridenNamespace = "it-b9fa0a24-overriden";
 		final String serviceAccountName = "sp-ittest-b9fa0a24-account";
 		try {
-			while (client.namespaces().withName(overridenNamespace).get() != null) {
-				Thread.sleep(1000);
-			}
-			client.namespaces().create(new NamespaceBuilder()
-					.withNewMetadata()
-						.withName(overridenNamespace)
-					.endMetadata()
-					.build());
+			createOverridenNamespace();
 
 			client.serviceAccounts().inNamespace(overridenNamespace).create(new ServiceAccountBuilder()
 					.withNewMetadata()
@@ -470,12 +463,7 @@ public class TestIntegrationOnKube {
 			assertEquals(0, proxyService.getProxies(null, true).size());
 
 		} finally {
-			// just to be sure both the namespace and service account are cleaned up
-			try {
-				client.namespaces().withName(overridenNamespace).delete();
-			} catch(Exception e) {
-
-			}
+			deleteOverridenNamespace();
 			try {
 				client.serviceAccounts().withName(serviceAccountName).delete();
 			} catch(Exception e) {
@@ -542,14 +530,8 @@ public class TestIntegrationOnKube {
 	 */
 	@Test
 	public void launchProxyWithAdditionalManifests() throws Exception {
-		final String overridenNamespace = "it-b9fa0a24-overriden";
 		try {
-			System.out.println(client);
-			client.namespaces().create(new NamespaceBuilder()
-					.withNewMetadata()
-						.withName(overridenNamespace)
-					.endMetadata()
-					.build());
+			createOverridenNamespace();
 			
 			String specId = environment.getProperty("proxy.specs[8].id");
 
@@ -602,8 +584,7 @@ public class TestIntegrationOnKube {
 
 			assertEquals(0, proxyService.getProxies(null, true).size());
 		} finally {
-			// just to be sure both the namespace and service account are cleaned up
-			client.namespaces().withName(overridenNamespace).delete();
+			deleteOverridenNamespace();
 		}
 	}
 	
@@ -616,14 +597,8 @@ public class TestIntegrationOnKube {
 	 */
 	@Test
 	public void launchProxyWithAdditionalManifestsOfWhichOneAlreadyExists() throws Exception {
-		final String overridenNamespace = "it-b9fa0a24-overriden";
 		try {
-			System.out.println(client);
-			client.namespaces().create(new NamespaceBuilder()
-					.withNewMetadata()
-						.withName(overridenNamespace)
-					.endMetadata()
-					.build());
+			createOverridenNamespace();
 			
 			// create the PVC
 			String pvcSpec = 
@@ -693,8 +668,30 @@ public class TestIntegrationOnKube {
 
 			assertEquals(0, proxyService.getProxies(null, true).size());
 		} finally {
+			deleteOverridenNamespace();
+		}
+	}
+	
+	private final String overridenNamespace = "it-b9fa0a24-overriden";
+
+	private void createOverridenNamespace() throws InterruptedException {
+		deleteOverridenNamespace();
+		while (client.namespaces().withName(overridenNamespace).get() != null) {
+			Thread.sleep(1000);
+		}
+		client.namespaces().create(new NamespaceBuilder()
+				.withNewMetadata()
+					.withName(overridenNamespace)
+				.endMetadata()
+				.build());
+	}
+
+	private void deleteOverridenNamespace() throws InterruptedException {
+		try {
 			// just to be sure both the namespace and service account are cleaned up
 			client.namespaces().withName(overridenNamespace).delete();
+		} catch (Exception e) {
+			// ignore
 		}
 	}
 
@@ -748,4 +745,5 @@ public class TestIntegrationOnKube {
 			// No-ops
 		}
 	}
+
 }

@@ -25,7 +25,7 @@ Learn more at https://containerproxy.io (in progress)
 Clone this repository and run
 
 ```
-mvn -U clean install
+mvn -U clean install -DskipTests
 ```
 
 The build will result in a single `.jar` file that is made available in the `target` directory.

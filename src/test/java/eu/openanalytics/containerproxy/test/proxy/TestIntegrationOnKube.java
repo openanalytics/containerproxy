@@ -397,6 +397,9 @@ public class TestIntegrationOnKube {
 		final String overridenNamespace = "it-b9fa0a24-overriden";
 		final String serviceAccountName = "sp-ittest-b9fa0a24-account";
 		try {
+			while (client.namespaces().withName(overridenNamespace).get() != null) {
+				Thread.sleep(1000);
+			}
 			client.namespaces().create(new NamespaceBuilder()
 					.withNewMetadata()
 						.withName(overridenNamespace)

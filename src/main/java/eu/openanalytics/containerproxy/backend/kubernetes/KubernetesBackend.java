@@ -457,6 +457,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		if (!file.exists()) {
 			file = Paths.get(ContainerProxyApplication.CONFIG_DEMO_PROFILE).toFile();
 		}
+		if (!file.exists()) {
+			// this should only happen in tests
+			instanceId = "unknown-instance-id";
+			return instanceId;
+		}
 
 		Object parsedConfig = objectMapper.readValue(file, Object.class);
 		String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);

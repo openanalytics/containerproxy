@@ -81,6 +81,7 @@ public class TestConcurrentUsers {
 		String proxyId2 = loginAndLaunchProxy(user1[0], user1[1], specIds[0]);
 		doDeleteProxy(proxyId1, user1[0], user1[1]);
 		doDeleteProxy(proxyId2, user1[0], user1[1]);
+		Thread.sleep(2000); // delete is handled async -> give time to stop container
 	}
 
 	@Test
@@ -89,6 +90,7 @@ public class TestConcurrentUsers {
 		String proxyId2 = loginAndLaunchProxy(user1[0], user1[1], specIds[1]);
 		doDeleteProxy(proxyId1, user1[0], user1[1]);
 		doDeleteProxy(proxyId2, user1[0], user1[1]);
+		Thread.sleep(2000); // delete is handled async -> give time to stop container
 	}
 
 	@Test
@@ -97,6 +99,7 @@ public class TestConcurrentUsers {
 		String proxyId2 = loginAndLaunchProxy(user2[0], user2[1], specIds[0]);
 		doDeleteProxy(proxyId1, user1[0], user1[1]);
 		doDeleteProxy(proxyId2, user2[0], user2[1]);
+		Thread.sleep(2000); // delete is handled async -> give time to stop container
 	}
 
 	@Test
@@ -105,6 +108,7 @@ public class TestConcurrentUsers {
 		String proxyId2 = loginAndLaunchProxy(user2[0], user2[1], specIds[1]);
 		doDeleteProxy(proxyId1, user1[0], user1[1]);
 		doDeleteProxy(proxyId2, user2[0], user2[1]);
+		Thread.sleep(2000); // delete is handled async -> give time to stop container
 	}
 
 	private String loginAndLaunchProxy(String username, String password, String specId) throws Exception {

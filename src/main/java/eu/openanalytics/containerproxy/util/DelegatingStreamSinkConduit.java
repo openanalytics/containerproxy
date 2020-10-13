@@ -35,9 +35,11 @@ import org.xnio.conduits.WriteReadyHandler;
 public class DelegatingStreamSinkConduit implements StreamSinkConduit {
 
 	private StreamSinkConduit delegate;
-	private Consumer<byte[]> writeListener;
+	private Runnable writeListener;
 	
-	public DelegatingStreamSinkConduit(StreamSinkConduit delegate, Consumer<byte[]> writeListener) {
+
+	
+	public DelegatingStreamSinkConduit(StreamSinkConduit delegate, Runnable writeListener) {
 		this.delegate = delegate;
 		this.writeListener = writeListener;
 	}
@@ -119,14 +121,10 @@ public class DelegatingStreamSinkConduit implements StreamSinkConduit {
 
 	@Override
 	public int write(ByteBuffer src) throws IOException {
-		if (writeListener == null) {
-			return delegate.write(src);
-		} else {
-			byte[] data = new byte[src.remaining()];
-			src.get(data);
-			writeListener.accept(data);
-			return delegate.write(ByteBuffer.wrap(data));
+		if (writeListener != null) {
+			writeListener.run();
 		}
+		return delegate.write(src);
 	}
 
 	@Override

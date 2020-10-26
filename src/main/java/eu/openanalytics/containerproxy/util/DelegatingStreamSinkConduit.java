@@ -127,6 +127,10 @@ public class DelegatingStreamSinkConduit implements StreamSinkConduit {
 		return delegate.write(src);
 	}
 
+	public int writeWithoutNotifying(ByteBuffer src) throws IOException {
+		return delegate.write(src);
+	}
+
 	@Override
 	public long write(ByteBuffer[] srcs, int offs, int len) throws IOException {
 		return delegate.write(srcs, offs, len);

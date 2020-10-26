@@ -26,7 +26,7 @@ package eu.openanalytics.containerproxy.util;
  */
 public class ChannelActiveListener implements Runnable {
 
-	long lastWrite = 0;
+	private long lastWrite = 0;
 	
 	@Override
 	public void run() {
@@ -38,6 +38,12 @@ public class ChannelActiveListener implements Runnable {
 	 */
 	public boolean isActive(long period) {
 		long diff = System.currentTimeMillis() - lastWrite;
+		
+		// make sure the period is at least 5 seconds
+		// this ensures that when the socket is active, the ping is delayed for at least 5 seconds
+		if (period < 5000) {
+			period = 5000;
+		}
 
 		if (diff <= period) {
 			return true;

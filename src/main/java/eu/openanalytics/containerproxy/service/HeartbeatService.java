@@ -153,7 +153,7 @@ public class HeartbeatService {
 			if (!streamConn.isOpen()) return;
 			
 			try {
-				streamConn.getSinkChannel().write(ByteBuffer.wrap(WEBSOCKET_PING));
+				((DelegatingStreamSinkConduit) streamConn.getSinkChannel().getConduit()).writeWithoutNotifying(ByteBuffer.wrap(WEBSOCKET_PING));
 				streamConn.getSinkChannel().flush();
 			} catch (IOException e) {
 				// Ignore failure, keep trying as long as the stream connection is valid.

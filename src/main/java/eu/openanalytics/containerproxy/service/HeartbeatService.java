@@ -44,6 +44,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.DelegatingStreamSinkConduit;
 import eu.openanalytics.containerproxy.util.DelegatingStreamSourceConduit;
+import eu.openanalytics.containerproxy.util.ChannelActiveListener;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.protocol.http.HttpServerConnection;
 
@@ -127,27 +128,38 @@ public class HeartbeatService {
 			if (!streamConn.isOpen()) return;
 			
 			ConduitStreamSinkChannel sinkChannel = streamConn.getSinkChannel();
-			DelegatingStreamSinkConduit conduitWrapper = new DelegatingStreamSinkConduit(sinkChannel.getConduit(), null);
+			ChannelActiveListener writeListener = new ChannelActiveListener();
+			DelegatingStreamSinkConduit conduitWrapper = new DelegatingStreamSinkConduit(sinkChannel.getConduit(), writeListener);
 			sinkChannel.setConduit(conduitWrapper);
 			
 			ConduitStreamSourceChannel sourceChannel = streamConn.getSourceChannel();
 			DelegatingStreamSourceConduit srcConduitWrapper = new DelegatingStreamSourceConduit(sourceChannel.getConduit(), data -> checkPong(data));
 			sourceChannel.setConduit(srcConduitWrapper);
 			
-			heartbeatExecutor.schedule(() -> sendPing(streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
+			heartbeatExecutor.schedule(() -> sendPing(writeListener, streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
 		}
 		
-		private void sendPing(StreamConnection streamConn) {
+		private void sendPing(ChannelActiveListener writeListener, StreamConnection streamConn) {
+			if (writeListener.isActive(getHeartbeatRate())) {
+				// active means that data was written to the channel in the least heartbeat interval
+				// therefore we don't send a ping now to not cause collisions
+
+				// reschedule ping
+				heartbeatExecutor.schedule(() -> sendPing(writeListener, streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
+				// mark as we received a heartbeat
+				heartbeatReceived(proxyId);
+				return;
+			}
 			if (!streamConn.isOpen()) return;
 			
 			try {
-				streamConn.getSinkChannel().write(ByteBuffer.wrap(WEBSOCKET_PING));
+				((DelegatingStreamSinkConduit) streamConn.getSinkChannel().getConduit()).writeWithoutNotifying(ByteBuffer.wrap(WEBSOCKET_PING));
 				streamConn.getSinkChannel().flush();
 			} catch (IOException e) {
 				// Ignore failure, keep trying as long as the stream connection is valid.
 			}
 			
-			heartbeatExecutor.schedule(() -> sendPing(streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
+			heartbeatExecutor.schedule(() -> sendPing(writeListener, streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
 		}
 
 		private void checkPong(byte[] response) {

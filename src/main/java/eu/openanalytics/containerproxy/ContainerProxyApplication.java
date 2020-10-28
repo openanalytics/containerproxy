@@ -140,6 +140,9 @@ public class ContainerProxyApplication {
 		// disable multi-part handling by Spring. We don't need this anywhere in the application.
 		// When enabled this will cause problems when proxying file-uploads to the shiny apps.
 		properties.put("spring.servlet.multipart.enabled", "false");
+		
+		// disable logging of requests, since this reads part of the requests and therefore undertow is unable to correctly handle those requests
+		properties.put("logging.level.org.springframework.web.servlet.DispatcherServlet", "INFO");
 		app.setDefaultProperties(properties);
 	}
 	

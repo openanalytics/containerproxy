@@ -68,6 +68,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	//TODO rename vars?
 	protected static final String ENV_VAR_USER_NAME = "SHINYPROXY_USERNAME";
 	protected static final String ENV_VAR_USER_GROUPS = "SHINYPROXY_USERGROUPS";
+	protected static final String ENV_VAR_REALM_ID = "SHINYPROXY_REALM_ID";
 	
 	protected final Logger log = LogManager.getLogger(getClass());
 	
@@ -191,6 +192,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		String[] groups = userService.getGroups(userService.getCurrentAuth());
 		env.add(String.format("%s=%s", ENV_VAR_USER_GROUPS, Arrays.stream(groups).collect(Collectors.joining(","))));
 		
+		String realmId = environment.getProperty("proxy.realm-id");
+		if (realmId != null) {
+			env.add(String.format("%s=%s", ENV_VAR_REALM_ID, realmId)); 
+		}
+
 		String envFile = containerSpec.getEnvFile();
 		if (envFile != null && Files.isRegularFile(Paths.get(envFile))) {
 			Properties envProps = new Properties();

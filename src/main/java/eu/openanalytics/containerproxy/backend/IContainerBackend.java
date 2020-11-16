@@ -26,6 +26,7 @@ import java.util.function.BiConsumer;
 import org.apache.commons.lang3.tuple.Triple;
 
 import java.util.List;
+import java.util.Map;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -77,5 +78,5 @@ public interface IContainerBackend {
 	
 	public List<ExistingContaienrInfo> scanExistingContainers() throws Exception;
 	
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception;
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 }

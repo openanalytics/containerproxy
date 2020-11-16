@@ -22,7 +22,12 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import java.net.URI;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.apache.commons.lang3.tuple.Triple;
 
@@ -188,10 +193,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort)
-			throws Exception {
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
 		// TODO Auto-generated method stub
-		
 	}
 
 }

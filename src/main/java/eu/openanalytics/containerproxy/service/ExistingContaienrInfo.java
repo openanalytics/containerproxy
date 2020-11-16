@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2019 Open Analytics
+ * Copyright (C) 2016-2020 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,7 +26,16 @@ import com.spotify.docker.client.messages.PortBinding;
 
 public class ExistingContaienrInfo {
 		
-	public ExistingContaienrInfo(String containerId, String proxyId, String proxySpecId, String image, String userId, Map<Integer, Integer>  portBindings, long startupTimestamp, boolean running) {
+	public ExistingContaienrInfo(String containerId,
+			String proxyId,
+			String proxySpecId,
+			String image, 
+			String userId, 
+			Map<Integer, Integer> portBindings,
+			long startupTimestamp, 
+			boolean running,
+			Map<String, Object> parameters
+			) {
 		this.containerId = containerId;
 		this.proxyId = proxyId;
 		this.proxySpecId = proxySpecId;
@@ -35,6 +44,7 @@ public class ExistingContaienrInfo {
 		this.portBindings = portBindings;
 		this.startupTimestamp = startupTimestamp;
 		this.running = running;
+		this.parameters = parameters;
 	}
 	
 	private String containerId;
@@ -45,6 +55,7 @@ public class ExistingContaienrInfo {
 	private Map<Integer, Integer> portBindings;
 	private long startupTimestamp;
 	private boolean running;
+	private Map<String, Object> parameters;
 	
 	public String getContainerId() {
 		return containerId;
@@ -76,6 +87,10 @@ public class ExistingContaienrInfo {
 	
 	public boolean getRunning() {
 		return running;
+	}
+
+	public Map<String, Object> getParameters() {
+		return parameters;
 	}
 	
 	// TODO copy?

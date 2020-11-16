@@ -485,15 +485,81 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	@Override
 	public List<ExistingContaienrInfo> scanExistingContainers() {
-		// TODO Auto-generated method stub
-		return null;
+		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
+		
+		for (Pod pod : kubeClient.pods().list().getItems()) { // TODO namespace?
+			Map<String, String> labels = pod.getMetadata().getLabels();
+			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
+			if (proxyId == null) {
+				continue; // this isn't a container created by us
+			}
+
+			String containerId = labels.get("app"); // TODO
+			if (containerId == null) {
+				continue; // this isn't a container created by us
+			}
+			
+			String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
+			if (specId == null) {
+				continue; // this isn't a container created by us
+			}
+			
+			String userId = labels.get(RUNTIME_LABEL_USER_ID);
+			if (userId == null) {
+				continue; // this isn't a container created by us
+			}
+			
+			String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
+			if (startupTimestmap == null) {
+				continue; // this isn't a container created by us
+			}
+			
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			for (ContainerPort portMapping: pod.getSpec().getContainers().get(0).getPorts()) {
+				Integer hostPort = portMapping.getHostPort();
+				Integer containerPort = portMapping.getContainerPort();
+				portBindings.put(containerPort, hostPort);
+			}	
+			
+			boolean running = pod.getStatus().getContainerStatuses().get(0).getReady(); // TODO
+			
+
+			HashMap<String, Object> parameters = new HashMap();
+			parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
+			parameters.put(PARAM_POD, pod);
+			
+			if (!isUseInternalNetwork()) {
+				Service service = kubeClient.services().inNamespace(pod.getMetadata().getNamespace()).withName("sp-service-" + containerId).get();
+				parameters.put(PARAM_SERVICE, service);
+			}
+			
+			containers.add(new ExistingContaienrInfo(containerId, 
+					proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings, 
+					Long.valueOf(startupTimestmap).longValue(),
+					running,
+					parameters
+			));
+		}
+		
+		return containers;
 	}
 
 	@Override
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort)
-			throws Exception {
-		// TODO Auto-generated method stub
-		
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		Service service = (Service) container.getParameters().get(PARAM_SERVICE);
+		// Calculate proxy routes for all configured ports.
+		for (String mappingKey: container.getSpec().getPortMapping().keySet()) {
+			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
+			
+			int servicePort = -1;
+			if (service != null) servicePort = service.getSpec().getPorts().stream()
+					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
+					.findAny().orElse(-1);
+			
+			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
+			URI target = calculateTarget(container, containerPort, servicePort);
+			proxy.getTargets().put(mapping, target);
+		}
 	}
 
 }

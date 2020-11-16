@@ -206,21 +206,24 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			containers.add(new ExistingContaienrInfo(container.id(), 
 					proxyId, specId, container.image(), userId, portBindings, 
 					Long.valueOf(startupTimestmap).longValue(),
-					running
+					running,
+					new HashMap()
 					));
 		}
 		
 		return containers;
 	}
 	
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Integer containerPort, Integer hostPort) throws Exception {
-		// Calculate proxy routes for specified ports
-		Optional<Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(containerPort)).findFirst();
-		if (specifiedMapping.isPresent()) {
-			portAllocator.addExistingPort(proxy.getUserId(), hostPort);
-			String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
-			proxy.getTargets().put(mapping, target);
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		for (Map.Entry<Integer, Integer> portBinding : portBindings.entrySet()) {
+			// Calculate proxy routes for specified ports
+			Optional<Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(portBinding.getKey())).findFirst();
+			if (specifiedMapping.isPresent()) {
+				portAllocator.addExistingPort(proxy.getUserId(), portBinding.getValue());
+				String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
+				URI target = calculateTarget(container, portBinding.getKey(), portBinding.getValue());
+				proxy.getTargets().put(mapping, target);
+			}
 		}
 	}
 	

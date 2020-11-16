@@ -45,7 +45,7 @@ public class SessionPersistenceService {
 	protected static final String PROPERTY_PERSISTENCE_SESSIONS = "proxy.persistence_sessions";
 
 	
-	private Logger log = LogManager.getLogger(UserService.class);
+	private Logger log = LogManager.getLogger(SessionPersistenceService.class);
 
 	@Inject
 	private Environment environment;

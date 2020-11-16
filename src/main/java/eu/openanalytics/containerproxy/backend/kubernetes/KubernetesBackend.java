@@ -484,11 +484,18 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 
 	@Override
-	public List<ExistingContaienrInfo> scanExistingContainers() {
+	public List<ExistingContaienrInfo> scanExistingContainers() throws JsonParseException, JsonMappingException, NoSuchAlgorithmException, IOException {
 		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
 		
 		for (Pod pod : kubeClient.pods().list().getItems()) { // TODO namespace?
 			Map<String, String> labels = pod.getMetadata().getLabels();
+
+			String instanceId = labels.get(RUNTIME_LABEL_INSTANCE);
+			if (instanceId == null || !instanceId.equals(instanceId)) {
+				log.debug("Ignoring pod {} because instanceId {} is not correct", pod.getMetadata().getName(), instanceId);
+				continue; // this isn't a container created by this instance of ShinyProxy
+			}
+
 			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
 			if (proxyId == null) {
 				continue; // this isn't a container created by us
@@ -522,7 +529,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}	
 			
 			boolean running = pod.getStatus().getContainerStatuses().get(0).getReady(); // TODO
-			
 
 			HashMap<String, Object> parameters = new HashMap();
 			parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());

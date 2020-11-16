@@ -49,7 +49,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
+import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
@@ -169,8 +169,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	public List<ExistingContaienrInfo> scanExistingContainers() throws Exception {
-		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
 			ImmutableMap<String, String> labels = container.labels();
@@ -203,7 +203,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			
 			boolean running = container.state().toLowerCase().equals("running");
 			
-			containers.add(new ExistingContaienrInfo(container.id(), 
+			containers.add(new ExistingContainerInfo(container.id(),
 					proxyId, specId, container.image(), userId, portBindings, 
 					Long.valueOf(startupTimestmap).longValue(),
 					running,

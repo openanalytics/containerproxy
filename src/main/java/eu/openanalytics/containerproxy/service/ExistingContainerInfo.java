@@ -22,17 +22,15 @@ package eu.openanalytics.containerproxy.service;
 
 import java.util.Map;
 
-import com.spotify.docker.client.messages.PortBinding;
+public class ExistingContainerInfo {
 
-public class ExistingContaienrInfo {
-		
-	public ExistingContaienrInfo(String containerId,
+	public ExistingContainerInfo(String containerId,
 			String proxyId,
 			String proxySpecId,
-			String image, 
-			String userId, 
+			String image,
+			String userId,
 			Map<Integer, Integer> portBindings,
-			long startupTimestamp, 
+			long startupTimestamp,
 			boolean running,
 			Map<String, Object> parameters
 			) {
@@ -46,7 +44,7 @@ public class ExistingContaienrInfo {
 		this.running = running;
 		this.parameters = parameters;
 	}
-	
+
 	private String containerId;
 	private String proxyId;
 	private String proxySpecId;
@@ -56,11 +54,11 @@ public class ExistingContaienrInfo {
 	private long startupTimestamp;
 	private boolean running;
 	private Map<String, Object> parameters;
-	
+
 	public String getContainerId() {
 		return containerId;
 	}
-	
+
 	public String getProxyId() {
 		return proxyId;
 	}
@@ -76,15 +74,15 @@ public class ExistingContaienrInfo {
 	public String getUserId() {
 		return userId;
 	}
-	
+
 	public Map<Integer, Integer> getPortBindings() {
 		return portBindings;
 	}
-	
+
 	public long getStartupTimestamp() {
 		return startupTimestamp;
 	}
-	
+
 	public boolean getRunning() {
 		return running;
 	}
@@ -92,6 +90,6 @@ public class ExistingContaienrInfo {
 	public Map<String, Object> getParameters() {
 		return parameters;
 	}
-	
+
 	// TODO copy?
 }

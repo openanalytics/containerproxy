@@ -32,7 +32,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
-import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
+import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 
 public interface IContainerBackend {
@@ -76,7 +76,7 @@ public interface IContainerBackend {
 	 */
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy);
 	
-	public List<ExistingContaienrInfo> scanExistingContainers() throws Exception;
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception;
 	
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 }

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,7 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
+import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -83,6 +84,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -96,6 +99,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
 	private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
 	private static final String PROPERTY_NODE_SELECTOR = "node-selector";
+	private static final String PROPERTY_APP_NAMESPACES = "proxy.app-namespaces";
 	
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
@@ -482,12 +486,25 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 	
 
-
 	@Override
-	public List<ExistingContaienrInfo> scanExistingContainers() throws JsonParseException, JsonMappingException, NoSuchAlgorithmException, IOException {
-		ArrayList<ExistingContaienrInfo> containers = new ArrayList<ExistingContaienrInfo>();
+	public List<ExistingContainerInfo> scanExistingContainers() throws JsonParseException, JsonMappingException, NoSuchAlgorithmException, IOException {
+
+		List<String> namespaces = new ArrayList<>();
+		int i = 0;
+		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
+		while (appNamespace != null) {
+			namespaces.add(appNamespace);
+			i++;
+			appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
+		} 
+		namespaces.add(getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE));
 		
-		for (Pod pod : kubeClient.pods().list().getItems()) { // TODO namespace?
+		log.debug("Looking for existing pods in namespaces {}", namespaces);
+
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+
+		for (String namespace : namespaces) {
+			for (Pod pod : kubeClient.pods().inNamespace(namespace).list().getItems()) { // TODO namespace?
 			Map<String, String> labels = pod.getMetadata().getLabels();
 
 			String instanceId = labels.get(RUNTIME_LABEL_INSTANCE);
@@ -535,16 +552,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			parameters.put(PARAM_POD, pod);
 			
 			if (!isUseInternalNetwork()) {
-				Service service = kubeClient.services().inNamespace(pod.getMetadata().getNamespace()).withName("sp-service-" + containerId).get();
+					Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
 				parameters.put(PARAM_SERVICE, service);
 			}
 			
-			containers.add(new ExistingContaienrInfo(containerId, 
+				containers.add(new ExistingContainerInfo(containerId,
 					proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings, 
 					Long.valueOf(startupTimestmap).longValue(),
 					running,
 					parameters
 			));
+		}
 		}
 		
 		return containers;

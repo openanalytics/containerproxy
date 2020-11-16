@@ -70,7 +70,7 @@ public class AppRecoveryService {
 
 			Map<String, Proxy> proxies = new HashMap();
 
-			for (ExistingContaienrInfo containerInfo: containerBackend.scanExistingContainers()) {
+			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
 				if (!proxies.containsKey(containerInfo.getProxyId())) {
 					ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getProxySpecId());
 					if (proxySpec == null) {

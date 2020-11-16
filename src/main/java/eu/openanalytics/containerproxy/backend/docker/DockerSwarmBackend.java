@@ -45,7 +45,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.ExistingContaienrInfo;
+import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
@@ -187,7 +187,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	public List<ExistingContaienrInfo> scanExistingContainers() {
+	public List<ExistingContainerInfo> scanExistingContainers() {
 		// TODO Auto-generated method stub
 		return null;
 	}

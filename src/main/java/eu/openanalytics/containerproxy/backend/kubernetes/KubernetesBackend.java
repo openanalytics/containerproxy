@@ -39,17 +39,20 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import javax.json.JsonPatch;
 
 import javax.inject.Inject;
 
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 
@@ -59,6 +62,8 @@ import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -258,8 +263,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 		
+		JsonPatch patch = readPatchFromSpec(spec, proxy);
+		
 		Pod startupPod = podBuilder.withSpec(podSpec).build();
-		Pod patchedPod = podPatcher.patchWithDebug(startupPod, proxy.getSpec().getKubernetesPodPatchAsJsonpatch());
+		Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
 		
@@ -322,6 +329,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return container;
 	}
 	
+	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {
+		String patchAsString = proxy.getSpec().getKubernetesPodPatch();
+		if (patchAsString == null) {
+			return null;
+		}
+		
+		// resolve expressions
+		SpecExpressionContext context = SpecExpressionContext.create(containerSpec, proxy, proxy.getSpec());
+		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
+		
+		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
+		yamlReader.registerModule(new JSR353Module());
+		return yamlReader.readValue(expressionAwarePatch, JsonPatch.class);
+	}
 	
 	/**
 	 * Creates the extra manifests/resources defined in the ProxySpec.
@@ -342,11 +363,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * parameter will be used.
 	 */
 	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+		SpecExpressionContext context = SpecExpressionContext.create(proxy, proxy.getSpec());
+
 		ArrayList<HasMetadata> result = new ArrayList<HasMetadata>();
 		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
-			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(manifest.getBytes())); // used to determine whether the manifest has specified a namespace
+			String expressionManifest = expressionResolver.evaluateToString(manifest, context);
+			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(expressionManifest.getBytes())); // used to determine whether the manifest has specified a namespace
 
-			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(manifest.getBytes())).get().get(0);
+			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(expressionManifest.getBytes())).get().get(0);
 			if (object.getMetadata().getNamespace() == null) {
 				// the load method (in some cases) automatically sets a namepsace when no namespace is provided
 				// therefore we overwrite this namespace with the namsepace of the pod.

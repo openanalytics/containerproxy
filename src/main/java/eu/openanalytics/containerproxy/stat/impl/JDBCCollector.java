@@ -33,8 +33,11 @@ import eu.openanalytics.containerproxy.service.EventService.Event;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 
 /**
- * E.g.:
+ * 
+ * # MonetDB, Postgresql, MySQL/MariaDB
  * usage-stats-url: jdbc:monetdb://localhost:50000/usage_stats
+ * usage-stats-url: jdbc:postgresql://localhost/postgres
+ * usage-stats-url: jdbc:mysql://localhost/shinyproxy
  * 
  * Assumed table layout:
  * 
@@ -43,10 +46,23 @@ import eu.openanalytics.containerproxy.stat.IStatCollector;
  *  username varchar(128),
  *  type varchar(128),
  *  data text
+ * ); 
+ * 
+ * 
+ * # MS SQL Server
+ * usage-stats-url: jdbc:sqlserver://localhost;databaseName=shinyproxy
+ * 
+ * Assumed table layout:
+ * 
+ * create table event(
+ *   event_time datetime,
+ *   username varchar(128),
+ *   type varchar(128),
+ *   data text
  * );
  * 
  */
-public class MonetDBCollector implements IStatCollector {
+public class JDBCCollector implements IStatCollector {
 
 	@Override
 	public void accept(Event event, Environment env) throws IOException {

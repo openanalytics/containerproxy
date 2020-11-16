@@ -34,7 +34,7 @@ import org.springframework.stereotype.Service;
 import eu.openanalytics.containerproxy.service.EventService;
 import eu.openanalytics.containerproxy.service.EventService.Event;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
-import eu.openanalytics.containerproxy.stat.impl.MonetDBCollector;
+import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 
 @Service
 public class StatCollectorRegistry implements Consumer<Event> {
@@ -76,8 +76,8 @@ public class StatCollectorRegistry implements Consumer<Event> {
 		if (baseURL == null || baseURL.isEmpty()) return null;
 		if (baseURL.toLowerCase().contains("/write?db=")) {
 			return new InfluxDBCollector();
-		} else if (baseURL.toLowerCase().startsWith("jdbc:monetdb")) {
-			return new MonetDBCollector();
+		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
+			return new JDBCCollector();
 		}
 		return null;
 	}

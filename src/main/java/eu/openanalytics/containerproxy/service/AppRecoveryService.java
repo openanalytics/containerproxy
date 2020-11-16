@@ -40,38 +40,37 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 
 @Service
-public class SessionPersistenceService {
+public class AppRecoveryService {
 
-	protected static final String PROPERTY_PERSISTENCE_SESSIONS = "proxy.persistence_sessions";
+	protected static final String PROPERTY_RECOVER_RUNNING_APPS = "proxy.recover_running_apps";
 
-	
-	private Logger log = LogManager.getLogger(SessionPersistenceService.class);
+	private Logger log = LogManager.getLogger(AppRecoveryService.class);
 
 	@Inject
 	private Environment environment;
-	
+
 	@Inject
 	private IContainerBackend containerBackend;
-	
+
 	@Inject
 	private IProxySpecProvider proxySpecProvider;
-	
+
 	@Inject
 	private ProxyService proxyService;
-	
+
 	@Inject
 	private HeartbeatService heartbeatService;
-	
+
 	private boolean isReady = false;
 
 	@EventListener(ApplicationReadyEvent.class)
-	public void resumePreviousSessions() throws Exception {
-		if (Boolean.valueOf(environment.getProperty("proxy.persistence_sessions", "false"))) {
-			log.info("Peristence sessions enabled");
+	public void recoverRunningApps() throws Exception {
+		if (Boolean.valueOf(environment.getProperty(PROPERTY_RECOVER_RUNNING_APPS, "false"))) {
+			log.info("Recovery of running apps enabled");
 
 			Map<String, Proxy> proxies = new HashMap();
 
-			for (ExistingContaienrInfo containerInfo: containerBackend.scanExistingContainers()) {				
+			for (ExistingContaienrInfo containerInfo: containerBackend.scanExistingContainers()) {
 				if (!proxies.containsKey(containerInfo.getProxyId())) {
 					ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getProxySpecId());
 					if (proxySpec == null) {
@@ -85,16 +84,16 @@ public class SessionPersistenceService {
 					proxy.setStartupTimestamp(containerInfo.getStartupTimestamp());
 					proxy.setUserId(containerInfo.getUserId());
 					proxies.put(containerInfo.getProxyId(), proxy);
-				} 
+				}
 				Proxy proxy = proxies.get(containerInfo.getProxyId());
 				Container container = new Container();
 				container.setId(containerInfo.getContainerId());
 				container.setParameters(containerInfo.getParameters());
 				container.setSpec(proxy.getSpec().getContainerSpec(containerInfo.getImage()));
 				proxy.addContainer(container);
-				
+
 				containerBackend.setupPortMappingExistingProxy(proxy, container, containerInfo.getPortBindings());
-				
+
 				if (containerInfo.getRunning()) {
 					// as soon as one container of the Proxy is running, the Proxy is Up
 					// TODO discuss this
@@ -106,16 +105,16 @@ public class SessionPersistenceService {
 				proxyService.addExistingProxy(proxy);
 				heartbeatService.heartbeatReceived(proxy.getId());
 			}
-			
+
 		} else {
-			log.info("Peristence sessions disabled");
+			log.info("Recovery of running apps disabled");
 		}
-		
+
 		isReady = true;
 	}
 
 	public boolean isReady() {
 		return isReady;
 	}
-	
+
 }

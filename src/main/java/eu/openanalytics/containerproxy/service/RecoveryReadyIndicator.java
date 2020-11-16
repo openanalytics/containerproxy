@@ -27,14 +27,14 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SessionPeristsenceReadyIndicator implements HealthIndicator {
+public class AppRecoveryReadyIndicator implements HealthIndicator {
 
 	@Inject
-	public SessionPersistenceService sessionPersistenceService;
+	public AppRecoveryService appRecoveryService;
 
     @Override
     public Health health() {
-    	if (sessionPersistenceService.isReady()) {
+    	if (appRecoveryService.isReady()) {
     		return Health.up().build();
     	}
 		return Health.down().build();

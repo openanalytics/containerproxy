@@ -133,9 +133,24 @@ public class ContainerSpec {
 	public void setLabels(Map<String, String> labels) {
 		this.labels = labels;
 	}
+	
+	public void addLabel(String key, String value) {
+		if (this.labels.containsKey(key)) {
+			throw new IllegalStateException("Cannot add duplicate label with key " + key);
+		} else {
+			labels.put(key, value);
+		}
+	}
+	
+	public void removeLabel(String key) {
+		labels.remove(key);
+	}
+
+
 	public Map<String, String> getSettings() {
 		return settings;
 	}
+	
 	public void setSettings(Map<String, String> settings) {
 		this.settings = settings;
 	}

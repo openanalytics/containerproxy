@@ -70,6 +70,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String ENV_VAR_USER_GROUPS = "SHINYPROXY_USERGROUPS";
 	protected static final String ENV_VAR_REALM_ID = "SHINYPROXY_REALM_ID";
 	
+	protected static final String LABEL_PROXY_ID = "openanalytics.eu/sp-proxy-id";
+	protected static final String LABEL_USER_ID = "openanalytics.eu/sp-user-id";
+	protected static final String LABEL_PROXY_SPEC_ID = "openanalytics.eu/sp-spec-id";
+	protected static final String LABEL_STARTUP_TIMESTAMP = "openanalytics.eu/sp-proxy-startup-timestamp";
+
 	protected final Logger log = LogManager.getLogger(getClass());
 	
 	private boolean useInternalNetwork;
@@ -126,9 +131,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
+
+			// add labels need for App Recovery and maintenance
+			spec.addLabel(LABEL_PROXY_ID, proxy.getId());
+			spec.addLabel(LABEL_USER_ID, proxy.getUserId());
+			spec.addLabel(LABEL_PROXY_SPEC_ID, proxy.getSpec().getId());
+			spec.addLabel(LABEL_STARTUP_TIMESTAMP, String.valueOf(proxy.getStartupTimestamp()));
+
 			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);
+			
+			// remove labels needed for App Recovery since they do not really belong to the spec
+			spec.removeLabel(LABEL_PROXY_ID);
+			spec.removeLabel(LABEL_USER_ID);
+			spec.removeLabel(LABEL_PROXY_SPEC_ID);
+			spec.removeLabel(LABEL_STARTUP_TIMESTAMP);
+			
 			proxy.getContainers().add(c);
 		}
 	}

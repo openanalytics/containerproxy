@@ -109,7 +109,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
 	
-	private static final String LABEL_PROXIED_APP = "openanalytics.eu/containerproxy-proxied-app";
+	private static final String LABEL_PROXIED_APP = "openanalytics.eu/containerproxy-proxied-app"; // TODO rename to "sp-proxied-app" ?
 	private static final String LABEL_INSTANCE = "openanalytics.eu/sp-instance";
 		
 	

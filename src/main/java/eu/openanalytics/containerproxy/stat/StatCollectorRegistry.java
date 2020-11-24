@@ -77,7 +77,7 @@ public class StatCollectorRegistry implements Consumer<Event> {
 		if (baseURL.toLowerCase().contains("/write?db=")) {
 			return new InfluxDBCollector();
 		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
-			return new JDBCCollector();
+			return new JDBCCollector(environment);
 		}
 		return null;
 	}

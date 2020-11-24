@@ -29,6 +29,8 @@ import java.sql.Timestamp;
 
 import org.springframework.core.env.Environment;
 
+import com.zaxxer.hikari.HikariDataSource;
+
 import eu.openanalytics.containerproxy.service.EventService.Event;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 
@@ -56,24 +58,23 @@ import eu.openanalytics.containerproxy.stat.IStatCollector;
  */
 public class JDBCCollector implements IStatCollector {
 
-	private Connection conn;
+	private HikariDataSource ds;
+
+	public JDBCCollector(Environment environment) {
+		String baseURL = environment.getProperty("proxy.usage-stats-url");
+		String username = environment.getProperty("proxy.usage-stats-username", "monetdb");
+		String password = environment.getProperty("proxy.usage-stats-password", "monetdb");
+		ds = new HikariDataSource();
+		ds.setJdbcUrl(baseURL);
+		ds.setUsername(username);
+		ds.setPassword(password);
+	}
+
 
 	@Override
 	public void accept(Event event, Environment env) throws IOException {
-		synchronized (this) {
-			String baseURL = env.getProperty("proxy.usage-stats-url");
-			String username = env.getProperty("proxy.usage-stats-username", "monetdb");
-			String password = env.getProperty("proxy.usage-stats-password", "monetdb");
-			try {
-				if (conn == null || conn.isClosed()) {
-					conn = DriverManager.getConnection(baseURL, username, password);
-				}
-			} catch (SQLException e) {
-				throw new IOException("Failed to connect to " + baseURL, e);
-			}
-		}
 		String sql = "INSERT INTO event(event_time, username, type, data) VALUES (?,?,?,?)";
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = ds.getConnection().prepareStatement(sql)) {
 			stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
 			stmt.setString(2, event.user);
 			stmt.setString(3, event.type);

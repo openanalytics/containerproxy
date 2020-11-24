@@ -39,12 +39,15 @@ import org.springframework.web.filter.HiddenHttpMethodFilter;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Properties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
@@ -57,6 +60,8 @@ public class ContainerProxyApplication {
 
 	@Inject
 	private ProxyMappingManager mappingManager;
+
+	private final Logger log = LogManager.getLogger(getClass());
 
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -76,6 +81,13 @@ public class ContainerProxyApplication {
 			if (e instanceof PortInUseException) System.exit(-1);
 		}
 	}
+	
+	@PostConstruct
+    public void init() {
+		if (environment.getProperty("server.use-forward-headers") != null) {
+			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release. See https://shinyproxy.io/documentation/security/#https-ssl--tls on how to change your configuration.");
+		}
+    }
 
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {

@@ -58,6 +58,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.security.FixedDefaultOAuth2AuthorizationRequestResolver;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
@@ -86,7 +87,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	public boolean hasAuthorization() {
 		return true;
 	}
-
+	
 	@Override
 	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
@@ -99,9 +100,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.loginPage("/login")
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(authorizedClientService)
+				.authorizationEndpoint()
+					.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI))
+				.and()
 				.userInfoEndpoint()
 					.userAuthoritiesMapper(createAuthoritiesMapper())
 					.oidcUserService(createOidcUserService());
+
 	}
 
 	@Override

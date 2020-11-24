@@ -71,7 +71,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String ENV_VAR_REALM_ID = "SHINYPROXY_REALM_ID";
 	
 	protected static final String LABEL_PROXY_ID = "openanalytics.eu/sp-proxy-id";
-	protected static final String LABEL_USER_ID = "openanalytics.eu/sp-user-id";
 	protected static final String LABEL_PROXY_SPEC_ID = "openanalytics.eu/sp-spec-id";
 	protected static final String LABEL_STARTUP_TIMESTAMP = "openanalytics.eu/sp-proxy-startup-timestamp";
 
@@ -134,7 +133,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 			// add labels need for App Recovery and maintenance
 			spec.addLabel(LABEL_PROXY_ID, proxy.getId());
-			spec.addLabel(LABEL_USER_ID, proxy.getUserId());
 			spec.addLabel(LABEL_PROXY_SPEC_ID, proxy.getSpec().getId());
 			spec.addLabel(LABEL_STARTUP_TIMESTAMP, String.valueOf(proxy.getStartupTimestamp()));
 
@@ -144,7 +142,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			
 			// remove labels needed for App Recovery since they do not really belong to the spec
 			spec.removeLabel(LABEL_PROXY_ID);
-			spec.removeLabel(LABEL_USER_ID);
 			spec.removeLabel(LABEL_PROXY_SPEC_ID);
 			spec.removeLabel(LABEL_STARTUP_TIMESTAMP);
 			

@@ -60,6 +60,7 @@ import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube.TestConfiguration;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -77,6 +78,7 @@ import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.ServiceList;
+import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
@@ -248,7 +250,7 @@ public class TestIntegrationOnKube {
 		List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
 		Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 		assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
-		assertEquals("null", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
+		assertEquals("jack", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
 		assertTrue(env.containsKey("SHINYPROXY_USERGROUPS"));
 		assertEquals(null, env.get("SHINYPROXY_USERGROUPS").getValue());
 		assertTrue(env.containsKey("VAR1"));
@@ -672,6 +674,64 @@ public class TestIntegrationOnKube {
 		}
 	}
 	
+	
+	/**
+	 * Tests the use of Spring Epxression in kubernetes patches and additional manifests.
+	 */
+	@Test
+	public void launchProxyWithExpressionInPatchAndManifests() throws Exception {
+		String specId = environment.getProperty("proxy.specs[9].id");
+
+		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+		Proxy proxy = proxyService.startProxy(spec, true);
+		String containerId = proxy.getContainers().get(0).getId();
+
+		PodList podList = client.pods().inNamespace(session.getNamespace()).list();
+		assertEquals(1, podList.getItems().size());
+		Pod pod = podList.getItems().get(0);
+		assertEquals("Running", pod.getStatus().getPhase());
+		assertEquals(session.getNamespace(), pod.getMetadata().getNamespace());
+		assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+		assertEquals(1, pod.getStatus().getContainerStatuses().size());
+		ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+		assertEquals(true, container.getReady());
+		assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+		
+		
+		// check env variables
+		List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+		Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+		assertTrue(env.containsKey("CUSTOM_USERNAME"));
+		assertTrue(env.containsKey("PROXY_ID"));
+		assertEquals("jack", env.get("CUSTOM_USERNAME").getValue());
+		assertEquals(proxy.getId(), env.get("PROXY_ID").getValue());
+		
+		PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(session.getNamespace()).list();
+		assertEquals(1, claimList.getItems().size());
+		PersistentVolumeClaim claim = claimList.getItems().get(0);
+		assertEquals(session.getNamespace(), claim.getMetadata().getNamespace());
+		assertEquals("home-dir-pvc-jack", claim.getMetadata().getName());
+		
+		// check volume mount
+		Volume volume = pod.getSpec().getVolumes().get(0);
+		assertEquals("home-dir-pvc-jack", volume.getName());
+		assertEquals("home-dir-pvc-jack", volume.getPersistentVolumeClaim().getClaimName());
+
+		proxyService.stopProxy(proxy, false, true);
+
+		// Give Kube the time to clean
+		Thread.sleep(2000);
+
+		// all pods should be deleted
+		podList = client.pods().inNamespace(session.getNamespace()).list();
+		assertEquals(0, podList.getItems().size());
+		// all additional manifests should be deleted
+		assertEquals(0, client.persistentVolumeClaims().inNamespace(session.getNamespace()).list().getItems().size());
+
+		assertEquals(0, proxyService.getProxies(null, true).size());
+	}
+	
 	private final String overridenNamespace = "it-b9fa0a24-overriden";
 
 	private void createOverridenNamespace() throws InterruptedException {
@@ -695,6 +755,12 @@ public class TestIntegrationOnKube {
 		}
 	}
 
+	public static class MockedUserService extends UserService {
+		public String getCurrentUserId() {
+			return "jack";
+		}
+	}
+
 	public static class TestConfiguration {
 		@Bean
 		@Primary
@@ -706,6 +772,12 @@ public class TestIntegrationOnKube {
 		@Primary
 		public AbstractFactoryBean<IContainerBackend> backendFactory() {
 			return new TestContainerBackendFactory();
+		}
+
+		@Bean
+		@Primary
+		public UserService mockedUserService() {
+			return new MockedUserService();
 		}
 
 	}

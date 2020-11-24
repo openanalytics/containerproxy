@@ -20,22 +20,11 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import javax.json.JsonPatch;
-import javax.json.JsonValue;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 
 public class ProxySpec {
 
@@ -50,7 +39,7 @@ public class ProxySpec {
 
 	private Map<String, String> settings = new HashMap<>();
 	
-	private JsonPatch kubernetesPodPatches;
+	private String kubernetesPodPatches;
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 
 	public ProxySpec() {
@@ -124,36 +113,11 @@ public class ProxySpec {
 	/**
 	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
 	 */
-	public JsonValue getKubernetesPodPatch() {
-		if (this.kubernetesPodPatches == null) {
-			return null;
-		} else {
-			return kubernetesPodPatches.toJsonArray();
-		}
-	}
-
-	/**
-	 * Returns the Kubernetes Pod Patch as a JsonPatch, so it can be directly be used to patch the spec.
-	 * Should not be returned by API responses.
-	 */
-	@JsonIgnore
-	public JsonPatch getKubernetesPodPatchAsJsonpatch() {
+	public String getKubernetesPodPatch() {
 		return kubernetesPodPatches;
 	}
 
-	public void setKubernetesPodPatches(String kubernetesPodPatches) throws JsonParseException, JsonMappingException, IOException {
-		try {
-			// convert the raw YAML string into a JsonPatch
-			ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-			yamlReader.registerModule(new JSR353Module());
-			this.kubernetesPodPatches = yamlReader.readValue(kubernetesPodPatches, JsonPatch.class);
-		} catch (Exception exception) {
-			exception.printStackTrace(); // log the exception for easier debugging
-			throw exception;
-		}
-	}
-
-	private void setKubernetesPodPatches(JsonPatch kubernetesPodPatches) {
+	public void setKubernetesPodPatches(String kubernetesPodPatches) {
 		this.kubernetesPodPatches = kubernetesPodPatches;
 	}
 
@@ -201,7 +165,6 @@ public class ProxySpec {
 		
 		
 		if (kubernetesPodPatches != null) {
-			// JsonPatch is an immutable object
 			target.setKubernetesPodPatches(kubernetesPodPatches);
 		}
 		

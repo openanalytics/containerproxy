@@ -149,6 +149,46 @@ proxy:
          data:
            password: cGFzc3dvcmQ=
 
+  - id: 01_hello_manifests_espression
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/env/-
+        value: 
+           name: CUSTOM_USERNAME
+           value: "#{proxy.userId}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value: 
+           name: PROXY_ID
+           value: "#{proxy.id}"
+      - op: add
+        path: /spec/volumes
+        value:
+          - name: "home-dir-pvc-#{proxy.userId}"
+            persistentVolumeClaim:
+              claimName: "home-dir-pvc-#{proxy.userId}"
+      - op: add
+        path: /spec/containers/0/volumeMounts
+        value:
+          - mountPath: "/home/#{proxy.userId}"
+            name: "home-dir-pvc-#{proxy.userId}"
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: "home-dir-pvc-#{proxy.userId}"
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
   - id: 02_hello
     container-specs:
     - image: "openanalytics/shinyproxy-demo"

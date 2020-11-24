@@ -27,6 +27,13 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
+/**
+ * Disables the handling of OAuth on the `/app_direct` URL.
+ * See issue #23799.
+ * 
+ * Without this, the Filter will eat the body of the (POST) request. As a result Undertow will not be able
+ * to proxy the request to the container.
+ */
 public class FixedDefaultOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 	
 	private DefaultOAuth2AuthorizationRequestResolver delegate;

@@ -100,12 +100,14 @@ public class JDBCCollector implements IStatCollector {
 	@Override
 	public void accept(Event event, Environment env) throws IOException {
 		String sql = "INSERT INTO event(event_time, username, type, data) VALUES (?,?,?,?)";
-		try (PreparedStatement stmt = ds.getConnection().prepareStatement(sql)) {
-			stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
-			stmt.setString(2, event.user);
-			stmt.setString(3, event.type);
-			stmt.setString(4, event.data);
-			stmt.executeUpdate();
+		try (Connection con = ds.getConnection()) {
+			try (PreparedStatement stmt = con.prepareStatement(sql)) {
+				stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+				stmt.setString(2, event.user);
+				stmt.setString(3, event.type);
+				stmt.setString(4, event.data);
+				stmt.executeUpdate();
+		   }
 		} catch (SQLException e) {
 			throw new IOException("Exception while loggin stats", e);
 		}

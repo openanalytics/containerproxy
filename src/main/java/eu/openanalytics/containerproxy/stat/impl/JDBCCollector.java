@@ -29,6 +29,8 @@ import java.sql.Timestamp;
 
 import org.springframework.core.env.Environment;
 
+import com.zaxxer.hikari.HikariDataSource;
+
 import eu.openanalytics.containerproxy.service.EventService.Event;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 
@@ -56,29 +58,56 @@ import eu.openanalytics.containerproxy.stat.IStatCollector;
  */
 public class JDBCCollector implements IStatCollector {
 
-	private Connection conn;
+	private HikariDataSource ds;
+
+	public JDBCCollector(Environment environment) {
+		String baseURL = environment.getProperty("proxy.usage-stats-url");
+		String username = environment.getProperty("proxy.usage-stats-username", "monetdb");
+		String password = environment.getProperty("proxy.usage-stats-password", "monetdb");
+		ds = new HikariDataSource();
+		ds.setJdbcUrl(baseURL);
+		ds.setUsername(username);
+		ds.setPassword(password);
+
+		Long connectionTimeout = environment.getProperty("proxy.usage-stats-hikari.connection-timeout", Long.class);
+		if (connectionTimeout != null) {
+			ds.setConnectionTimeout(connectionTimeout);
+		}
+
+		Long idleTimeout = environment.getProperty("proxy.usage-stats-hikari.idle-timeout", Long.class);
+		if (idleTimeout != null) {
+			ds.setIdleTimeout(idleTimeout);
+		}
+
+		Long maxLifetime = environment.getProperty("proxy.usage-stats-hikari.max-lifetime", Long.class);
+		if (maxLifetime != null) {
+			ds.setMaxLifetime(maxLifetime);
+		}
+		
+		Integer minimumIdle = environment.getProperty("proxy.usage-stats-hikari.minimum-idle", Integer.class);
+		if (minimumIdle != null) {
+			ds.setMinimumIdle(minimumIdle);
+		}
+
+		Integer maximumPoolSize = environment.getProperty("proxy.usage-stats-hikari.maximum-pool-size", Integer.class);
+		if (maximumPoolSize != null) {
+			ds.setMaximumPoolSize(maximumPoolSize);
+		}
+		
+	}
+
 
 	@Override
 	public void accept(Event event, Environment env) throws IOException {
-		synchronized (this) {
-			String baseURL = env.getProperty("proxy.usage-stats-url");
-			String username = env.getProperty("proxy.usage-stats-username", "monetdb");
-			String password = env.getProperty("proxy.usage-stats-password", "monetdb");
-			try {
-				if (conn == null || conn.isClosed()) {
-					conn = DriverManager.getConnection(baseURL, username, password);
-				}
-			} catch (SQLException e) {
-				throw new IOException("Failed to connect to " + baseURL, e);
-			}
-		}
 		String sql = "INSERT INTO event(event_time, username, type, data) VALUES (?,?,?,?)";
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
-			stmt.setString(2, event.user);
-			stmt.setString(3, event.type);
-			stmt.setString(4, event.data);
-			stmt.executeUpdate();
+		try (Connection con = ds.getConnection()) {
+			try (PreparedStatement stmt = con.prepareStatement(sql)) {
+				stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+				stmt.setString(2, event.user);
+				stmt.setString(3, event.type);
+				stmt.setString(4, event.data);
+				stmt.executeUpdate();
+		   }
 		} catch (SQLException e) {
 			throw new IOException("Exception while loggin stats", e);
 		}

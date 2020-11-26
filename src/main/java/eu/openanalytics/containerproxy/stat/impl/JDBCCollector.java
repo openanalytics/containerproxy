@@ -68,6 +68,32 @@ public class JDBCCollector implements IStatCollector {
 		ds.setJdbcUrl(baseURL);
 		ds.setUsername(username);
 		ds.setPassword(password);
+
+		Long connectionTimeout = environment.getProperty("proxy.usage-stats-hikari.connection-timeout", Long.class);
+		if (connectionTimeout != null) {
+			ds.setConnectionTimeout(connectionTimeout);
+		}
+
+		Long idleTimeout = environment.getProperty("proxy.usage-stats-hikari.idle-timeout", Long.class);
+		if (idleTimeout != null) {
+			ds.setIdleTimeout(idleTimeout);
+		}
+
+		Long maxLifetime = environment.getProperty("proxy.usage-stats-hikari.max-lifetime", Long.class);
+		if (maxLifetime != null) {
+			ds.setMaxLifetime(maxLifetime);
+		}
+		
+		Integer minimumIdle = environment.getProperty("proxy.usage-stats-hikari.minimum-idle", Integer.class);
+		if (minimumIdle != null) {
+			ds.setMinimumIdle(minimumIdle);
+		}
+
+		Integer maximumPoolSize = environment.getProperty("proxy.usage-stats-hikari.maximum-pool-size", Integer.class);
+		if (maximumPoolSize != null) {
+			ds.setMaximumPoolSize(maximumPoolSize);
+		}
+		
 	}
 
 

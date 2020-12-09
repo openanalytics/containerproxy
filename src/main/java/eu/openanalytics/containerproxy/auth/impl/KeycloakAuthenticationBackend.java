@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.servlet.ServletException;
 
-import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
@@ -44,7 +43,6 @@ import org.keycloak.adapters.springsecurity.authentication.KeycloakAuthenticatio
 import org.keycloak.adapters.springsecurity.authentication.KeycloakLogoutHandler;
 import org.keycloak.adapters.springsecurity.filter.KeycloakAuthenticationProcessingFilter;
 import org.keycloak.adapters.springsecurity.filter.KeycloakPreAuthActionsFilter;
-import org.keycloak.adapters.springsecurity.filter.QueryParamPresenceRequestMatcher;
 import org.keycloak.adapters.springsecurity.management.HttpSessionManager;
 import org.keycloak.adapters.springsecurity.token.KeycloakAuthenticationToken;
 import org.keycloak.representations.IDToken;
@@ -52,10 +50,12 @@ import org.keycloak.representations.adapters.config.AdapterConfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -83,7 +83,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	Environment environment;
 
 	@Inject
-	AuthenticationManager authenticationManager;
+	WebSecurityConfigurerAdapter webSecurityConfigurerAdapter;
 	
 	@Inject
 	ApplicationContext ctx;
@@ -135,7 +135,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	                    new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
 	            );
 		
-		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
+		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(webSecurityConfigurerAdapter.authenticationManagerBean(), requestMatcher);
 		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
 		filter.setApplicationContext(ctx);

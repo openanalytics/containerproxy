@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,9 +34,13 @@ import eu.openanalytics.containerproxy.api.BaseController;
 @Controller
 public class AuthErrorController extends BaseController {
 
+	@Inject
+	private Environment environment;
+
 	@RequestMapping(value = "/auth-error", method = RequestMethod.GET)
-    public String getLoginPage(ModelMap map, HttpServletRequest request) {
+	public String getAuthErrorPage(ModelMap map, HttpServletRequest request) {
+		map.put("application_name", environment.getProperty("spring.application.name"));
 		return "auth-error";
-    }
+	}
 
 }

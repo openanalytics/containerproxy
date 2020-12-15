@@ -155,6 +155,8 @@ public class ContainerProxyApplication {
 		
 		// disable logging of requests, since this reads part of the requests and therefore undertow is unable to correctly handle those requests
 		properties.put("logging.level.org.springframework.web.servlet.DispatcherServlet", "INFO");
+		
+		properties.put("spring.application.name", "ContainerProxy");
 		app.setDefaultProperties(properties);
 	}
 	

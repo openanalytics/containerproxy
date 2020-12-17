@@ -286,6 +286,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 		, maxTries, 1000);
 		if (!Readiness.isReady(kubeClient.resource(startedPod).fromServer().get())) {
+			Pod pod = kubeClient.resource(startedPod).fromServer().get();
+			container.getParameters().put(PARAM_POD, pod);
+			proxy.getContainers().add(container);
 			throw new ContainerProxyException("Container did not become ready in time");
 		}
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();

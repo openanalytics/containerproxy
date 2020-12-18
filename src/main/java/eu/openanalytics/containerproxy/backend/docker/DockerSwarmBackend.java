@@ -22,11 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
@@ -67,11 +63,13 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				.map(b -> b.split(":"))
 				.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
 				.toArray(i -> new Mount[i]);
+		Map<String, String> labels = spec.getLabels();
+		spec.getRuntimeLabels().forEach((key, value) -> labels.put(key, value.getSecond()));
 
 		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = 
 				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
 				.image(spec.getImage())
-				.labels(spec.getLabels())
+				.labels(labels)
 				.command(spec.getCmd())
 				.env(buildEnv(spec, proxy))
 				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns()).build())

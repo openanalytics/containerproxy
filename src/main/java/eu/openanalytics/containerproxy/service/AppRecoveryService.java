@@ -91,14 +91,9 @@ public class AppRecoveryService {
 				container.setParameters(containerInfo.getParameters());
 				container.setSpec(proxy.getSpec().getContainerSpec(containerInfo.getImage()));
 				proxy.addContainer(container);
+				proxy.setStatus(ProxyStatus.Up);
 
 				containerBackend.setupPortMappingExistingProxy(proxy, container, containerInfo.getPortBindings());
-
-				if (containerInfo.getRunning()) {
-					// as soon as one container of the Proxy is running, the Proxy is Up
-					// TODO discuss this
-					proxy.setStatus(ProxyStatus.Up);
-				}
 			}
 
 			for (Proxy proxy: proxies.values()) {

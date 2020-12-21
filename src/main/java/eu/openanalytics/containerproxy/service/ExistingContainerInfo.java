@@ -24,65 +24,65 @@ import java.util.Map;
 
 public class ExistingContainerInfo {
 
-	public ExistingContainerInfo(String containerId,
-			String proxyId,
-			String proxySpecId,
-			String image,
-			String userId,
-			Map<Integer, Integer> portBindings,
-			long startupTimestamp,
-			Map<String, Object> parameters
-			) {
-		this.containerId = containerId;
-		this.proxyId = proxyId;
-		this.proxySpecId = proxySpecId;
-		this.image = image;
-		this.userId = userId;
-		this.portBindings = portBindings;
-		this.startupTimestamp = startupTimestamp;
-		this.parameters = parameters;
-	}
+    public ExistingContainerInfo(String containerId,
+                                 String proxyId,
+                                 String proxySpecId,
+                                 String image,
+                                 String userId,
+                                 Map<Integer, Integer> portBindings,
+                                 long startupTimestamp,
+                                 Map<String, Object> parameters
+    ) {
+        this.containerId = containerId;
+        this.proxyId = proxyId;
+        this.proxySpecId = proxySpecId;
+        this.image = image;
+        this.userId = userId;
+        this.portBindings = portBindings;
+        this.startupTimestamp = startupTimestamp;
+        this.parameters = parameters;
+    }
 
-	private String containerId;
-	private String proxyId;
-	private String proxySpecId;
-	private String image;
-	private String userId;
-	private Map<Integer, Integer> portBindings;
-	private long startupTimestamp;
-	private Map<String, Object> parameters;
+    private final String containerId;
+    private final String proxyId;
+    private final String proxySpecId;
+    private final String image;
+    private final String userId;
+    private final Map<Integer, Integer> portBindings;
+    private final long startupTimestamp;
+    private final Map<String, Object> parameters;
 
-	public String getContainerId() {
-		return containerId;
-	}
+    public String getContainerId() {
+        return containerId;
+    }
 
-	public String getProxyId() {
-		return proxyId;
-	}
+    public String getProxyId() {
+        return proxyId;
+    }
 
-	public String getProxySpecId() {
-		return proxySpecId;
-	}
+    public String getProxySpecId() {
+        return proxySpecId;
+    }
 
-	public String getImage() {
-		return image;
-	}
+    public String getImage() {
+        return image;
+    }
 
-	public String getUserId() {
-		return userId;
-	}
+    public String getUserId() {
+        return userId;
+    }
 
-	public Map<Integer, Integer> getPortBindings() {
-		return portBindings;
-	}
+    public Map<Integer, Integer> getPortBindings() {
+        return portBindings;
+    }
 
-	public long getStartupTimestamp() {
-		return startupTimestamp;
-	}
+    public long getStartupTimestamp() {
+        return startupTimestamp;
+    }
 
-	public Map<String, Object> getParameters() {
-		return parameters;
-	}
+    public Map<String, Object> getParameters() {
+        return parameters;
+    }
 
-	// TODO copy?
+    // TODO copy?
 }

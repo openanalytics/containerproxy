@@ -485,7 +485,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() {
-		List<String> namespaces = new ArrayList<>();
+        HashSet<String> namespaces = new HashSet<>();
 		int i = 0;
 		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
 		while (appNamespace != null) {
@@ -497,10 +497,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		
 		log.debug("Looking for existing pods in namespaces {}", namespaces);
 
-		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
 		for (String namespace : namespaces) {
-            List<Pod> pods = kubeClient.pods().inAnyNamespace().withLabel(RUNTIME_LABEL_PROXIED_APP, "true").withLabel(RUNTIME_LABEL_INSTANCE, instanceId).list().getItems();
+            List<Pod> pods = kubeClient.pods().inNamespace(namespace).withLabel(RUNTIME_LABEL_PROXIED_APP, "true").withLabel(RUNTIME_LABEL_INSTANCE, instanceId).list().getItems();
 			for (Pod pod : pods) {
 				Map<String, String> labels = pod.getMetadata().getLabels();
 				Map<String, String> annotations = pod.getMetadata().getAnnotations();

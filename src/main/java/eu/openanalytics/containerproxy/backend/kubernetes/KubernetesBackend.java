@@ -500,16 +500,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
 
 		for (String namespace : namespaces) {
-			for (Pod pod : kubeClient.pods().inNamespace(namespace).list().getItems()) { // TODO namespace?
+            List<Pod> pods = kubeClient.pods().inAnyNamespace().withLabel(RUNTIME_LABEL_PROXIED_APP, "true").withLabel(RUNTIME_LABEL_INSTANCE, instanceId).list().getItems();
+			for (Pod pod : pods) {
 				Map<String, String> labels = pod.getMetadata().getLabels();
+				Map<String, String> annotations = pod.getMetadata().getAnnotations();
 
-				String podInstanceId = labels.get(RUNTIME_LABEL_INSTANCE);
-				if (podInstanceId == null || !podInstanceId.equals(instanceId)) {
-					log.debug("Ignoring pod {} because instanceId {} is not correct", pod.getMetadata().getName(), podInstanceId);
-					continue; // this isn't a container created by this instance of ShinyProxy
-				}
-
-				String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
+				String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID); // TODO convert to annotation
 				if (proxyId == null) {
 					continue; // this isn't a container created by us
 				}
@@ -519,17 +515,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue; // this isn't a container created by us
 				}
 				
-				String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
+				String specId = annotations.get(RUNTIME_LABEL_PROXY_SPEC_ID);
 				if (specId == null) {
 					continue; // this isn't a container created by us
 				}
 				
-				String userId = labels.get(RUNTIME_LABEL_USER_ID);
+				String userId = annotations.get(RUNTIME_LABEL_USER_ID);
 				if (userId == null) {
 					continue; // this isn't a container created by us
 				}
 				
-				String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
+				String startupTimestmap = annotations.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
 				if (startupTimestmap == null) {
 					continue; // this isn't a container created by us
 				}
@@ -541,8 +537,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					portBindings.put(containerPort, hostPort);
 				}	
 				
-				boolean running = pod.getStatus().getContainerStatuses().get(0).getReady(); // TODO
-
 				HashMap<String, Object> parameters = new HashMap();
 				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
 				parameters.put(PARAM_POD, pod);
@@ -552,11 +546,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					parameters.put(PARAM_SERVICE, service);
 				}
 				
-					containers.add(new ExistingContainerInfo(containerId,
-						proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings,
-							Long.parseLong(startupTimestmap),
-						running,
-						parameters
+				containers.add(new ExistingContainerInfo(containerId,
+					proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings,
+						Long.parseLong(startupTimestmap),
+					parameters
 				));
 			}
 		}

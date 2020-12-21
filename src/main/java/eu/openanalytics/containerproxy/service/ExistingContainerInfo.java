@@ -31,7 +31,6 @@ public class ExistingContainerInfo {
 			String userId,
 			Map<Integer, Integer> portBindings,
 			long startupTimestamp,
-			boolean running,
 			Map<String, Object> parameters
 			) {
 		this.containerId = containerId;
@@ -41,7 +40,6 @@ public class ExistingContainerInfo {
 		this.userId = userId;
 		this.portBindings = portBindings;
 		this.startupTimestamp = startupTimestamp;
-		this.running = running;
 		this.parameters = parameters;
 	}
 
@@ -52,7 +50,6 @@ public class ExistingContainerInfo {
 	private String userId;
 	private Map<Integer, Integer> portBindings;
 	private long startupTimestamp;
-	private boolean running;
 	private Map<String, Object> parameters;
 
 	public String getContainerId() {
@@ -81,10 +78,6 @@ public class ExistingContainerInfo {
 
 	public long getStartupTimestamp() {
 		return startupTimestamp;
-	}
-
-	public boolean getRunning() {
-		return running;
 	}
 
 	public Map<String, Object> getParameters() {

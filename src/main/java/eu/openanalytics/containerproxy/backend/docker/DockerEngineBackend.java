@@ -173,9 +173,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
-			boolean running = container.state().toLowerCase().equals("running");
-
-			if (!running) {
+			if (!container.state().toLowerCase().equals("running")) {
 				continue; // not recovering stopped/broken apps
 			}
 
@@ -218,7 +216,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			containers.add(new ExistingContainerInfo(container.id(),
 					proxyId, specId, container.image(), userId, portBindings,
 					Long.parseLong(startupTimestmap),
-					running,
 					new HashMap()
 					));
 		}

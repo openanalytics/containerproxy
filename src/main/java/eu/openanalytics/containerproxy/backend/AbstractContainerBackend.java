@@ -153,7 +153,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			// add labels need for App Recovery and maintenance
 			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_ID, true, proxy.getId());
 			spec.addRuntimeLabel(RUNTIME_LABEL_PROXIED_APP, true, "true");
-			spec.addRuntimeLabel(RUNTIME_LABEL_STARTUP_TIMESTAMP, true, String.valueOf(proxy.getStartupTimestamp()));
 			spec.addRuntimeLabel(RUNTIME_LABEL_INSTANCE, true, instanceId);
 
 			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_SPEC_ID, false, proxy.getSpec().getId());
@@ -163,6 +162,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			spec.addRuntimeLabel(RUNTIME_LABEL_USER_ID, false, proxy.getUserId());
 			String[] groups = userService.getGroups(userService.getCurrentAuth());
 			spec.addRuntimeLabel(RUNTIME_LABEL_USER_GROUPS, false, String.join(",", groups));
+			spec.addRuntimeLabel(RUNTIME_LABEL_STARTUP_TIMESTAMP, false, String.valueOf(proxy.getStartupTimestamp()));
 
 			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
 			Container c = startContainer(eSpec, proxy);

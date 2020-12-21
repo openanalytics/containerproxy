@@ -174,22 +174,23 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
 			ImmutableMap<String, String> labels = container.labels();
-			String proxyId = labels.get(LABEL_PROXY_ID);
+
+			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
 			if (proxyId == null) {
 				continue; // this isn't a container created by us
 			}
 			
-			String specId = labels.get(LABEL_PROXY_SPEC_ID);
+			String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
 			if (specId == null) {
 				continue; // this isn't a container created by us
 			}
 			
-			String userId = labels.get(LABEL_USER_ID);
+			String userId = labels.get(RUNTIME_LABEL_USER_ID);
 			if (userId == null) {
 				continue; // this isn't a container created by us
 			}
 			
-			String startupTimestmap = labels.get(LABEL_STARTUP_TIMESTAMP);
+			String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
 			if (startupTimestmap == null) {
 				continue; // this isn't a container created by us
 			}
@@ -198,14 +199,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			for (PortMapping portMapping: container.ports()) {
 				int hostPort = portMapping.publicPort();
 				int containerPort = portMapping.privatePort();
-				portBindings.put(Integer.valueOf(containerPort), Integer.valueOf(hostPort));
+				portBindings.put(containerPort, hostPort);
 			}	
 			
 			boolean running = container.state().toLowerCase().equals("running");
 			
 			containers.add(new ExistingContainerInfo(container.id(),
-					proxyId, specId, container.image(), userId, portBindings, 
-					Long.valueOf(startupTimestmap).longValue(),
+					proxyId, specId, container.image(), userId, portBindings,
+					Long.parseLong(startupTimestmap),
 					running,
 					new HashMap()
 					));

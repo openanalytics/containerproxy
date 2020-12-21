@@ -65,7 +65,7 @@ public class AppRecoveryService {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void recoverRunningApps() throws Exception {
-		if (Boolean.valueOf(environment.getProperty(PROPERTY_RECOVER_RUNNING_APPS, "false"))) {
+		if (Boolean.parseBoolean(environment.getProperty(PROPERTY_RECOVER_RUNNING_APPS, "false"))) {
 			log.info("Recovery of running apps enabled");
 
 			Map<String, Proxy> proxies = new HashMap();

@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,8 +83,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.security.NoSuchAlgorithmException;
-import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -487,8 +484,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	
 
 	@Override
-	public List<ExistingContainerInfo> scanExistingContainers() throws JsonParseException, JsonMappingException, NoSuchAlgorithmException, IOException {
-
+	public List<ExistingContainerInfo> scanExistingContainers() {
 		List<String> namespaces = new ArrayList<>();
 		int i = 0;
 		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
@@ -505,64 +501,64 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		for (String namespace : namespaces) {
 			for (Pod pod : kubeClient.pods().inNamespace(namespace).list().getItems()) { // TODO namespace?
-			Map<String, String> labels = pod.getMetadata().getLabels();
+				Map<String, String> labels = pod.getMetadata().getLabels();
 
-			String instanceId = labels.get(RUNTIME_LABEL_INSTANCE);
-			if (instanceId == null || !instanceId.equals(instanceId)) {
-				log.debug("Ignoring pod {} because instanceId {} is not correct", pod.getMetadata().getName(), instanceId);
-				continue; // this isn't a container created by this instance of ShinyProxy
-			}
+				String podInstanceId = labels.get(RUNTIME_LABEL_INSTANCE);
+				if (podInstanceId == null || !podInstanceId.equals(instanceId)) {
+					log.debug("Ignoring pod {} because instanceId {} is not correct", pod.getMetadata().getName(), podInstanceId);
+					continue; // this isn't a container created by this instance of ShinyProxy
+				}
 
-			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
-			if (proxyId == null) {
-				continue; // this isn't a container created by us
-			}
+				String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
+				if (proxyId == null) {
+					continue; // this isn't a container created by us
+				}
 
-			String containerId = labels.get("app"); // TODO
-			if (containerId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
-			if (specId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String userId = labels.get(RUNTIME_LABEL_USER_ID);
-			if (userId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
-			if (startupTimestmap == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			Map<Integer, Integer> portBindings = new HashMap<>();
-			for (ContainerPort portMapping: pod.getSpec().getContainers().get(0).getPorts()) {
-				Integer hostPort = portMapping.getHostPort();
-				Integer containerPort = portMapping.getContainerPort();
-				portBindings.put(containerPort, hostPort);
-			}	
-			
-			boolean running = pod.getStatus().getContainerStatuses().get(0).getReady(); // TODO
+				String containerId = labels.get("app"); // TODO
+				if (containerId == null) {
+					continue; // this isn't a container created by us
+				}
+				
+				String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
+				if (specId == null) {
+					continue; // this isn't a container created by us
+				}
+				
+				String userId = labels.get(RUNTIME_LABEL_USER_ID);
+				if (userId == null) {
+					continue; // this isn't a container created by us
+				}
+				
+				String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
+				if (startupTimestmap == null) {
+					continue; // this isn't a container created by us
+				}
+				
+				Map<Integer, Integer> portBindings = new HashMap<>();
+				for (ContainerPort portMapping: pod.getSpec().getContainers().get(0).getPorts()) {
+					Integer hostPort = portMapping.getHostPort();
+					Integer containerPort = portMapping.getContainerPort();
+					portBindings.put(containerPort, hostPort);
+				}	
+				
+				boolean running = pod.getStatus().getContainerStatuses().get(0).getReady(); // TODO
 
-			HashMap<String, Object> parameters = new HashMap();
-			parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
-			parameters.put(PARAM_POD, pod);
-			
-			if (!isUseInternalNetwork()) {
-					Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
-				parameters.put(PARAM_SERVICE, service);
+				HashMap<String, Object> parameters = new HashMap();
+				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
+				parameters.put(PARAM_POD, pod);
+				
+				if (!isUseInternalNetwork()) {
+						Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
+					parameters.put(PARAM_SERVICE, service);
+				}
+				
+					containers.add(new ExistingContainerInfo(containerId,
+						proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings,
+							Long.parseLong(startupTimestmap),
+						running,
+						parameters
+				));
 			}
-			
-				containers.add(new ExistingContainerInfo(containerId,
-					proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings, 
-					Long.valueOf(startupTimestmap).longValue(),
-					running,
-					parameters
-			));
-		}
 		}
 		
 		return containers;

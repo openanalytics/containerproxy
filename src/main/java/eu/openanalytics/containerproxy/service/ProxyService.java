@@ -107,13 +107,21 @@ public class ProxyService {
 
 	private WebSocketReconnectionMode defaultWebSocketReconnectionMode;
 
+	private boolean stopAppsOnShutdown;
+
+	private static final String PROPERTY_STOP_APPS_ON_SHUTDOWN = "proxy.stop_apps_on_shutdown";
+
 	@PostConstruct
 	public void init() {
 		defaultWebSocketReconnectionMode = environment.getProperty("proxy.defaultWebSocketReconnectionMode", WebSocketReconnectionMode.class, WebSocketReconnectionMode.None);
+	    stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_APPS_ON_SHUTDOWN));
 	}
 
 	@PreDestroy
 	public void shutdown() {
+		if (!stopAppsOnShutdown) {
+			return;
+		}
 		try {
 			containerKiller.shutdown();
 		} finally {
@@ -126,6 +134,8 @@ public class ProxyService {
 			}
 		}
 	}
+
+
 	
 	/**
 	 * Find the ProxySpec that matches the given ID.

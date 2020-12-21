@@ -173,7 +173,19 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
+			boolean running = container.state().toLowerCase().equals("running");
+
+			if (!running) {
+				continue; // not recovering stopped/broken apps
+			}
+
 			ImmutableMap<String, String> labels = container.labels();
+
+			String containerInstanceId = labels.get(RUNTIME_LABEL_INSTANCE);
+			if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
+				log.debug("Ignoring container {} because instanceId {} is not correct", container.id(), containerInstanceId);
+				continue; // this isn't a container created by this instance of ShinyProxy
+			}
 
 			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
 			if (proxyId == null) {
@@ -202,8 +214,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				portBindings.put(containerPort, hostPort);
 			}	
 			
-			boolean running = container.state().toLowerCase().equals("running");
-			
+
 			containers.add(new ExistingContainerInfo(container.id(),
 					proxyId, specId, container.image(), userId, portBindings,
 					Long.parseLong(startupTimestmap),

@@ -20,28 +20,18 @@
  */
 package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
-import okhttp3.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TestAppRecovery {
 
-    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-
-    private final OkHttpClient client = new OkHttpClient.Builder()
-            .addInterceptor(new BasicAuthInterceptor("demo", "demo"))
-            .build();
-
     @Test
     public void simpleTest() throws IOException, InterruptedException {
+        ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
@@ -50,10 +40,11 @@ public class TestAppRecovery {
             Assertions.assertTrue(instance1.start());
 
             // 2. create a proxy
-            Assertions.assertTrue(startProxy("01_hello"));
+            String id = shinyProxyClient.startProxy("01_hello");
+            Assertions.assertNotNull(id);
 
             // 3. get defined proxies
-            String originalBody = getProxies();
+            String originalBody = shinyProxyClient.getProxies();
             Assertions.assertNotNull(originalBody);
 
             // 4. stop the instance
@@ -65,18 +56,14 @@ public class TestAppRecovery {
             Assertions.assertTrue(instance2.start());
 
             // 6. get defined proxies
-            String newBody = getProxies();
+            String newBody = shinyProxyClient.getProxies();
             Assertions.assertNotNull(newBody);
 
             // 7. assert that the responses are equal
             Assertions.assertEquals(originalBody, newBody);
 
-            // 8. stop proxy
-            JsonReader jsonReader = Json.createReader(new StringReader(newBody));
-            JsonArray object = jsonReader.readArray();
-            jsonReader.close();
-            String id = object.get(0).asJsonObject().getString("id");
-            Assertions.assertTrue(stopProxy(id));
+            // 8. stop the proxy
+            Assertions.assertTrue(shinyProxyClient.stopProxy(id));
 
             // 9. stop the instance
             instance2.stop();
@@ -85,44 +72,5 @@ public class TestAppRecovery {
         }
     }
 
-    private boolean startProxy(String specId) {
-        Request request = new Request.Builder()
-                .post(RequestBody.create(null, new byte[0]))
-                .url("http://localhost:7583/api/proxy/" + specId)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            return response.code() == 201;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private boolean stopProxy(String proxyId) {
-        Request request = new Request.Builder()
-                .delete(RequestBody.create(null, new byte[0]))
-                .url("http://localhost:7583/api/proxy/" + proxyId)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            return response.code() == 200;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private String getProxies() {
-        Request request = new Request.Builder()
-                .get()
-                .url("http://localhost:7583/api/proxy/")
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            return response.body().string();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
 }

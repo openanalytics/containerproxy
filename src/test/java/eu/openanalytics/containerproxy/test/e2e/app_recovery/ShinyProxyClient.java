@@ -2,9 +2,8 @@ package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
 import okhttp3.*;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
+import javax.json.*;
+import java.util.HashSet;
 
 public class ShinyProxyClient {
 
@@ -52,14 +51,21 @@ public class ShinyProxyClient {
         }
     }
 
-    public String getProxies() {
+    public HashSet<JsonObject> getProxies() {
         Request request = new Request.Builder()
                 .get()
                 .url("http://localhost:7583/api/proxy/")
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            return response.body().string();
+            JsonReader jsonReader = Json.createReader(response.body().byteStream());
+            JsonArray array = jsonReader.readArray();
+            jsonReader.close();
+
+            HashSet<JsonObject> result = new HashSet();
+            array.forEach(v -> result.add(v.asJsonObject()));
+
+            return result;
         } catch (Exception e) {
             return null;
         }

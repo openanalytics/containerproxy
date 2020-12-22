@@ -20,14 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiConsumer;
-
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerCertificates;
 import com.spotify.docker.client.DockerClient;
@@ -35,12 +27,21 @@ import com.spotify.docker.client.DockerClient.LogsParam;
 import com.spotify.docker.client.LogStream;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
-
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.util.PortAllocator;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
 
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
@@ -110,6 +111,20 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
 	}
 
+	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
+
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		for (Map.Entry<Integer, Integer> portBinding : portBindings.entrySet()) {
+			// Calculate proxy routes for specified ports
+			Optional<Map.Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(portBinding.getKey())).findFirst();
+			if (specifiedMapping.isPresent()) {
+				portAllocator.addExistingPort(proxy.getUserId(), portBinding.getValue());
+				String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
+				URI target = calculateTarget(container, portBinding.getKey(), portBinding.getValue());
+				proxy.getTargets().put(mapping, target);
+			}
+		}
+	}
 
 	protected List<String> convertEnv(Map<String, String> env) {
 		List<String> res = new ArrayList<>();

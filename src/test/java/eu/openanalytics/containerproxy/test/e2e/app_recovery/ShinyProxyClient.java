@@ -1,3 +1,23 @@
+/**
+ * ContainerProxy
+ *
+ * Copyright (C) 2016-2020 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
 import okhttp3.*;
@@ -8,19 +28,25 @@ import java.util.HashSet;
 public class ShinyProxyClient {
 
     private final OkHttpClient client;
+    private final String baseUrl;
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    public ShinyProxyClient(String username, String password) {
+    public ShinyProxyClient(String username, String password, int port) {
+        this.baseUrl = "http://localhost:" + port;
         client = new OkHttpClient.Builder()
                 .addInterceptor(new BasicAuthInterceptor(username, password))
                 .build();
     }
 
+    public ShinyProxyClient(String username, String password) {
+        this(username, password, 7583);
+    }
+
     public String startProxy(String specId) {
         Request request = new Request.Builder()
                 .post(RequestBody.create(null, new byte[0]))
-                .url("http://localhost:7583/api/proxy/" + specId)
+                .url(baseUrl + "/api/proxy/" + specId)
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
@@ -30,6 +56,8 @@ public class ShinyProxyClient {
                 jsonReader.close();
                 return object.getString("id");
             } else {
+                System.out.println("BODY: " + response.body().string());
+                System.out.println("CODE: " + response.code());
                 return null;
             }
         } catch (Exception e) {
@@ -40,7 +68,7 @@ public class ShinyProxyClient {
     public boolean stopProxy(String proxyId) {
         Request request = new Request.Builder()
                 .delete(RequestBody.create(null, new byte[0]))
-                .url("http://localhost:7583/api/proxy/" + proxyId)
+                .url(baseUrl + "/api/proxy/" + proxyId)
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
@@ -54,7 +82,7 @@ public class ShinyProxyClient {
     public HashSet<JsonObject> getProxies() {
         Request request = new Request.Builder()
                 .get()
-                .url("http://localhost:7583/api/proxy/")
+                .url(baseUrl + "/api/proxy/")
                 .build();
 
         try (Response response = client.newCall(request).execute()) {

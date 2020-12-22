@@ -20,8 +20,13 @@
  */
 package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.json.JsonObject;
 import java.io.IOException;
@@ -31,13 +36,14 @@ import java.util.List;
 
 public class TestAppRecovery {
 
-    @Test
-    public void simple_recover_single_app_after_shutdown() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"docker", "kubernetes"})
+    public void simple_recover_single_app_after_shutdown(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_docker.yml");
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend));
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -53,7 +59,7 @@ public class TestAppRecovery {
             instance1.stop();
 
             // 5. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", "application-app-recovery_docker.yml");
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend));
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -74,8 +80,9 @@ public class TestAppRecovery {
         }
     }
 
-    @Test
-    public void complex_recover_multiple_apps_after_shutdown() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"docker", "kubernetes"})
+    public void complex_recover_multiple_apps_after_shutdown(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo");
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo2", "demo2");
         ShinyProxyClient shinyProxyClient3 = new ShinyProxyClient("demo3", "demo3");
@@ -83,7 +90,7 @@ public class TestAppRecovery {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_docker.yml");
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend));
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -128,7 +135,7 @@ public class TestAppRecovery {
             instance1.stop();
 
             // 9. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", "application-app-recovery_docker.yml");
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend));
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -171,19 +178,20 @@ public class TestAppRecovery {
         }
     }
 
-    @Test
-    public void simple_recover_multiple_instances() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"docker", "kubernetes"})
+    public void simple_recover_multiple_instances(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo", 7583);
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo", "demo", 7584);
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the first instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_docker.yml", 7583);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), 7583);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
             // 1. create the second instance
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", "application-app-recovery_docker_2.yml", 7584);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s_2.yml", backend), 7584);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -206,11 +214,11 @@ public class TestAppRecovery {
             instance2.stop();
 
             // 5. start both instances again
-            ShinyProxyInstance instance3 = new ShinyProxyInstance("3", "application-app-recovery_docker.yml", 7583);
+            ShinyProxyInstance instance3 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), 7583);
             instances.add(instance3);
             Assertions.assertTrue(instance3.start());
 
-            ShinyProxyInstance instance4 = new ShinyProxyInstance("4", "application-app-recovery_docker_2.yml", 7584);
+            ShinyProxyInstance instance4 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s_2.yml", backend), 7584);
             instances.add(instance4);
             Assertions.assertTrue(instance4.start());
 
@@ -238,4 +246,115 @@ public class TestAppRecovery {
 
     }
 
+    @Test
+    public void kubernetes_multiple_namespaces() throws InterruptedException, IOException {
+        try {
+            createOverriddenNamespace();
+            ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
+            List<ShinyProxyInstance> instances = new ArrayList<>();
+            try {
+                // 1. create the instance
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_kubernetes_multi_ns.yml");
+                instances.add(instance1);
+                Assertions.assertTrue(instance1.start());
+
+                // 2. create a proxy
+                String id1 = shinyProxyClient.startProxy("01_hello");
+                Assertions.assertNotNull(id1);
+
+                String id2 = shinyProxyClient.startProxy("02_hello");
+                Assertions.assertNotNull(id2);
+
+                // 3. get defined proxies
+                HashSet<JsonObject> originalProxies = shinyProxyClient.getProxies();
+                Assertions.assertNotNull(originalProxies);
+
+                // 4. stop the instance
+                instance1.stop();
+
+                // 5. start the instance again
+                ShinyProxyInstance instance2 = new ShinyProxyInstance("2", "application-app-recovery_kubernetes_multi_ns.yml");
+                instances.add(instance2);
+                Assertions.assertTrue(instance2.start());
+
+                // 6. get defined proxies
+                HashSet<JsonObject> newProxies = shinyProxyClient.getProxies();
+                Assertions.assertNotNull(newProxies);
+
+                // 7. assert that the responses are equal
+                Assertions.assertEquals(originalProxies, newProxies);
+
+                // 8. stop the proxy
+                Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
+                Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
+
+                // 9. stop the instance
+                instance2.stop();
+            } finally {
+                instances.forEach(ShinyProxyInstance::stop);
+            }
+        } finally {
+            deleteOverriddenNamespace();
+        }
+
+    }
+
+    @Test
+    public void shutdown_should_cleanup_by_default() throws InterruptedException, IOException {
+        createOverriddenNamespace();
+        try {
+            ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
+            List<ShinyProxyInstance> instances = new ArrayList<>();
+            try {
+                // 1. create the instance
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_kubernetes_normal_shutdown.yml");
+                instances.add(instance1);
+                Assertions.assertTrue(instance1.start());
+
+                // 2. create a proxy
+                String id = shinyProxyClient.startProxy("01_hello");
+                Assertions.assertNotNull(id);
+
+                // 3. stop the instance
+                instance1.stop();
+
+                // 4. wait for cleanup
+                Thread.sleep(5000);
+
+                // 4. check if pod is cleanup correctly
+                List<Pod> pods = client.pods().inNamespace(overriddenNamespace).list().getItems();
+                Assertions.assertEquals(0, pods.size());
+
+            } finally {
+                instances.forEach(ShinyProxyInstance::stop);
+            }
+        } finally {
+            deleteOverriddenNamespace();
+        }
+    }
+
+    private final String overriddenNamespace = "it-b9fa0a24-overridden";
+
+    private final DefaultKubernetesClient client = new DefaultKubernetesClient();
+
+    private void createOverriddenNamespace() throws InterruptedException {
+        deleteOverriddenNamespace();
+        while (client.namespaces().withName(overriddenNamespace).get() != null) {
+            Thread.sleep(1000);
+        }
+        client.namespaces().create(new NamespaceBuilder()
+                .withNewMetadata()
+                .withName(overriddenNamespace)
+                .endMetadata()
+                .build());
+    }
+
+    private void deleteOverriddenNamespace() throws InterruptedException {
+        try {
+            // just to be sure both the namespace and service account are cleaned up
+            client.namespaces().withName(overriddenNamespace).delete();
+        } catch (Exception e) {
+            // ignore
+        }
+    }
 }

@@ -114,15 +114,19 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
 
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		for (Map.Entry<Integer, Integer> portBinding : portBindings.entrySet()) {
-			// Calculate proxy routes for specified ports
-			Optional<Map.Entry<String, Integer>> specifiedMapping = container.getSpec().getPortMapping().entrySet().stream().filter(m -> m.getValue().equals(portBinding.getKey())).findFirst();
-			if (specifiedMapping.isPresent()) {
-				portAllocator.addExistingPort(proxy.getUserId(), portBinding.getValue());
-				String mapping = mappingStrategy.createMapping(specifiedMapping.get().getKey(), container, proxy);
-				URI target = calculateTarget(container, portBinding.getKey(), portBinding.getValue());
-				proxy.getTargets().put(mapping, target);
+		for (String mappingKey : container.getSpec().getPortMapping().keySet()) {
+			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
+
+			int servicePort = -1; // in case of internal networking
+			if (portBindings.containsKey(containerPort) && portBindings.get(containerPort) != 0) {
+				// in case of non internal networking
+				servicePort = portBindings.get(containerPort);
+				portAllocator.addExistingPort(proxy.getUserId(), servicePort);
 			}
+
+			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
+			URI target = calculateTarget(container, containerPort, servicePort);
+			proxy.getTargets().put(mapping, target);
 		}
 	}
 

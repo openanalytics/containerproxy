@@ -221,10 +221,12 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             }
 
             Map<Integer, Integer> portBindings = new HashMap<>();
-            for (PortConfig portMapping : service.endpoint().ports()) {
-                int hostPort = portMapping.publishedPort();
-                int containerPort = portMapping.targetPort();
-                portBindings.put(containerPort, hostPort);
+            if (service.endpoint() != null && service.endpoint().ports() != null){
+                for (PortConfig portMapping : service.endpoint().ports()) {
+                    int hostPort = portMapping.publishedPort();
+                    int containerPort = portMapping.targetPort();
+                    portBindings.put(containerPort, hostPort);
+                }
             }
 
             List<com.spotify.docker.client.messages.Container> containersInService = dockerClient.listContainers(DockerClient.ListContainersParam.withLabel("com.docker.swarm.service.id", service.id()));

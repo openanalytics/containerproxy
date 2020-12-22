@@ -33,18 +33,27 @@ public class ShinyProxyInstance {
     private Process process;
     private int port;
 
-    public ShinyProxyInstance(String id, String configFileName, int port) {
+    public ShinyProxyInstance(String id, String configFileName, int port, String extraArgs) {
         this.port = port;
         processBuilder = new ProcessBuilder("java", "-jar",
                 "target/containerproxy-0.9.0-SNAPSHOT-exec.jar",
                 "--spring.config.location=src/test/resources/" + configFileName,
-                "--server.port=" + port)
+                "--server.port=" + port,
+                extraArgs)
                 .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", id)))
                 .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", id)));
     }
 
+    public ShinyProxyInstance(String id, String configFileName, String extraArgs) {
+        this(id, configFileName, 7583, extraArgs);
+    }
+
+    public ShinyProxyInstance(String id, String configFileName, int port) {
+        this(id, configFileName, port, "");
+    }
+
     public ShinyProxyInstance(String id, String configFileName) {
-        this(id, configFileName, 7583);
+        this(id, configFileName, 7583, "");
     }
 
     public boolean start() throws IOException, InterruptedException {

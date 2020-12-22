@@ -26,6 +26,8 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.json.JsonObject;
@@ -33,17 +35,29 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class TestAppRecovery {
 
+    private static Stream<Arguments> provideStringsForIsBlank() {
+        return Stream.of(
+                Arguments.of("docker", ""),
+                Arguments.of("docker", "--proxy.docker.internal-networking=true"),
+                Arguments.of("docker-swarm", ""),
+                Arguments.of("docker-swarm", "--proxy.docker.internal-networking=true"),
+                Arguments.of("kubernetes", ""),
+                Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
+        );
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"docker", "kubernetes"})
-    public void simple_recover_single_app_after_shutdown(String backend) throws IOException, InterruptedException {
+    @MethodSource("provideStringsForIsBlank")
+    public void simple_recover_single_app_after_shutdown(String backend, String extraArgs) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend));
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -59,7 +73,7 @@ public class TestAppRecovery {
             instance1.stop();
 
             // 5. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend));
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -81,7 +95,7 @@ public class TestAppRecovery {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"docker", "kubernetes"})
+    @ValueSource(strings = {"docker", "docker-swarm", "kubernetes"})
     public void complex_recover_multiple_apps_after_shutdown(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo");
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo2", "demo2");
@@ -179,7 +193,7 @@ public class TestAppRecovery {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"docker", "kubernetes"})
+    @ValueSource(strings = {"docker", "docker-swarm", "kubernetes"})
     public void simple_recover_multiple_instances(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo", 7583);
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo", "demo", 7584);

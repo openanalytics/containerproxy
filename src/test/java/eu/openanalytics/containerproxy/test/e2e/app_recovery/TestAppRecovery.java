@@ -95,6 +95,59 @@ public class TestAppRecovery {
     }
 
     @ParameterizedTest
+    @MethodSource("provideStringsForIsBlank")
+    public void new_app_should_work_after_recovery(String backend, String extraArgs) throws IOException, InterruptedException {
+        ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
+        List<ShinyProxyInstance> instances = new ArrayList<>();
+        try {
+            // 1. create the instance
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            instances.add(instance1);
+            Assertions.assertTrue(instance1.start());
+
+            // 2. create a proxy
+            String id1 = shinyProxyClient.startProxy("01_hello");
+            Assertions.assertNotNull(id1);
+
+            // 3. get defined proxies
+            HashSet<JsonObject> originalProxies = shinyProxyClient.getProxies();
+            Assertions.assertNotNull(originalProxies);
+
+            // 4. stop the instance
+            instance1.stop();
+
+            // 5. start the instance again
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            instances.add(instance2);
+            Assertions.assertTrue(instance2.start());
+
+            // 6. get defined proxies
+            HashSet<JsonObject> newProxies = shinyProxyClient.getProxies();
+            Assertions.assertNotNull(newProxies);
+
+            // 7. assert that the responses are equal
+            Assertions.assertEquals(originalProxies, newProxies);
+
+            // 8. create a proxy
+            String id2 = shinyProxyClient.startProxy("02_hello");
+            Assertions.assertNotNull(id2);
+
+            // 9. test if both proxies are still reachable
+            System.out.println(shinyProxyClient.getProxyRequest(id1));
+            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id2));
+
+            // 8. stop both proxy
+            Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
+            Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
+
+            // 9. stop the instance
+            instance2.stop();
+        } finally {
+            instances.forEach(ShinyProxyInstance::stop);
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"docker", "docker-swarm", "kubernetes"})
     public void complex_recover_multiple_apps_after_shutdown(String backend) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo");

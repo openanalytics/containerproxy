@@ -99,5 +99,17 @@ public class ShinyProxyClient {
         }
     }
 
+    public String getProxyRequest(String id) {
+        Request request = new Request.Builder()
+                .get()
+                .url(baseUrl + "/api/route/" + id + "/")
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            return response.body().string();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
 }

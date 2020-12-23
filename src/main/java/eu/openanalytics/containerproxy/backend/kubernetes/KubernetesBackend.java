@@ -506,16 +506,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				Map<String, String> labels = pod.getMetadata().getLabels();
 				Map<String, String> annotations = pod.getMetadata().getAnnotations();
 
-				String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID); // TODO convert to annotation
-				if (proxyId == null) {
-					continue; // this isn't a container created by us
-				}
-
 				String containerId = labels.get("app"); // TODO
 				if (containerId == null) {
 					continue; // this isn't a container created by us
 				}
-				
+
+				String proxyId = annotations.get(RUNTIME_LABEL_PROXY_ID);
+				if (proxyId == null) {
+					continue; // this isn't a container created by us
+				}
+
 				String specId = annotations.get(RUNTIME_LABEL_PROXY_SPEC_ID);
 				if (specId == null) {
 					continue; // this isn't a container created by us

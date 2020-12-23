@@ -68,6 +68,7 @@ public class TestAppRecovery {
             // 3. get defined proxies
             HashSet<JsonObject> originalProxies = shinyProxyClient.getProxies();
             Assertions.assertNotNull(originalProxies);
+            Assertions.assertEquals(1, originalProxies.size());
 
             // 4. stop the instance
             instance1.stop();
@@ -133,7 +134,7 @@ public class TestAppRecovery {
             Assertions.assertNotNull(id2);
 
             // 9. test if both proxies are still reachable
-            System.out.println(shinyProxyClient.getProxyRequest(id1));
+            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id1));
             Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id2));
 
             // 8. stop both proxy
@@ -172,6 +173,7 @@ public class TestAppRecovery {
             // 3. get defined proxies
             HashSet<JsonObject> originalProxies1 = shinyProxyClient1.getProxies();
             Assertions.assertNotNull(originalProxies1);
+            Assertions.assertEquals(2, originalProxies1.size());
 
 
             // 4. create two proxies for user demo
@@ -272,9 +274,11 @@ public class TestAppRecovery {
             // 3. get defined proxies
             HashSet<JsonObject> originalProxies1 = shinyProxyClient1.getProxies();
             Assertions.assertNotNull(originalProxies1);
+            Assertions.assertEquals(1, originalProxies1.size());
 
             HashSet<JsonObject> originalProxies2 = shinyProxyClient2.getProxies();
             Assertions.assertNotNull(originalProxies2);
+            Assertions.assertEquals(1, originalProxies2.size());
 
             // 4. stop both instances
             instance1.stop();

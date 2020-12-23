@@ -151,10 +151,10 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
 			// add labels need for App Recovery and maintenance
-			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_ID, true, proxy.getId());
 			spec.addRuntimeLabel(RUNTIME_LABEL_PROXIED_APP, true, "true");
 			spec.addRuntimeLabel(RUNTIME_LABEL_INSTANCE, true, instanceId);
 
+			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_ID, false, proxy.getId());
 			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_SPEC_ID, false, proxy.getSpec().getId());
 			if (realmId != null) {
 				spec.addRuntimeLabel(RUNTIME_LABEL_REALM_ID, false, realmId);

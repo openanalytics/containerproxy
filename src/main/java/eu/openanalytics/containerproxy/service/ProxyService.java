@@ -276,18 +276,7 @@ public class ProxyService {
 			return proxy;
 		}
 
-		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
-		}
-
-		if (logService.isLoggingEnabled()) {
-			BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
-			if (outputAttacher == null) {
-				log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
-			} else {
-				logService.attachToOutput(proxy, outputAttacher);
-			}
-		}
+		setupProxy(proxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
 		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
@@ -340,8 +329,24 @@ public class ProxyService {
 		}
 	}
 
+	/**
+	 * Add existing Proxy to the ProxyService.
+	 * This is used by the AppRecovery feature.
+	 * @param proxy
+	 */
 	public void addExistingProxy(Proxy proxy) {
 		activeProxies.add(proxy);			
+
+		setupProxy(proxy);
+
+		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), proxy.getSpec().getId()); // TODO which event do we want here
+	}
+
+	/**
+	 * Setups the Mapping of and logging of the proxy.
+	 */
+	private void setupProxy(Proxy proxy) {
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}
@@ -354,9 +359,6 @@ public class ProxyService {
 				logService.attachToOutput(proxy, outputAttacher);
 			}
 		}
-		
-		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), proxy.getSpec().getId()); // TODO which event do we want here
 	}
-	
+
 }

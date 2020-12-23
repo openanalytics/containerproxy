@@ -26,6 +26,11 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
+/**
+ * Indicates whether the recovery of existing apps is completed.
+ * While the recovery is happening, the application may not be used.
+ * Therefore the readiness probes should report that the application is down.
+ */
 @Component
 public class AppRecoveryReadyIndicator implements HealthIndicator {
 

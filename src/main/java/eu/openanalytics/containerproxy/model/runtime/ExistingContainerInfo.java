@@ -18,10 +18,13 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service;
+package eu.openanalytics.containerproxy.model.runtime;
 
 import java.util.Map;
 
+/**
+ * Provides information about existing containers for the App Recovery feature.
+ */
 public class ExistingContainerInfo {
 
     public ExistingContainerInfo(String containerId,
@@ -84,5 +87,4 @@ public class ExistingContainerInfo {
         return parameters;
     }
 
-    // TODO copy?
 }

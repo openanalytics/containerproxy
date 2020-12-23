@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DockerClient;
+
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
@@ -35,7 +36,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 import java.net.URI;

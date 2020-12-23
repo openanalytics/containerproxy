@@ -25,6 +25,7 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -39,6 +40,11 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 
+/**
+ * Service to recover running apps after restart.
+ * This service does not contain code for specific backends, instead it delegates these parts to the
+ * scanExistingContainers and setupPortMappingExistingProxy methods of the container backends.
+ */
 @Service
 public class AppRecoveryService {
 

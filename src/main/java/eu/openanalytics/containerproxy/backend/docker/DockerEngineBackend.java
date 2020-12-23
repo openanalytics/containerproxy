@@ -27,16 +27,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 
 import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
-import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
@@ -49,7 +44,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 

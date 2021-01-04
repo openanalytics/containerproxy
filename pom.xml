@@ -289,29 +289,6 @@
 			<version>2.11.2</version>
 		</dependency>
 
-
-		<!-- Deps for tests -->
-		<dependency>
-			<groupId>org.arquillian.cube</groupId>
-			<artifactId>arquillian-cube-bom</artifactId>
-			<version>${version.arquillian_cube}</version>
-			<scope>import</scope>
-			<type>pom</type>
-		</dependency>
-		<dependency>
-			<groupId>org.arquillian.cube</groupId>
-  			<artifactId>arquillian-cube-kubernetes-starter</artifactId>
-  			<version>${version.arquillian_cube}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.arquillian.cube</groupId>
-			<artifactId>arquillian-cube-requirement</artifactId>
-			<version>${version.arquillian_cube}</version>
-			<scope>test</scope>
-		</dependency>
-
-
                 <!-- Recursive dependencies which are upgraded for security -->
                 <dependency>
                     <groupId>commons-collections</groupId>

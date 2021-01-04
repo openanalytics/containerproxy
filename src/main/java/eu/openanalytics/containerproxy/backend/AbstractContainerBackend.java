@@ -266,6 +266,20 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 
+	private File getPathToConfigFile() {
+		String path = environment.getProperty("spring.config.location");
+		if (path != null) {
+			return Paths.get(path).toFile();
+		}
+
+		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
+		if (file.exists()) {
+			return file;
+		}
+
+		return null;
+	}
+
 	/**
 	 * Calculates a hash of the config file (i.e. application.yaml).
 	 */
@@ -281,11 +295,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 		objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
 
-		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
-		if (!file.exists()) {
-			file = Paths.get(ContainerProxyApplication.CONFIG_DEMO_PROFILE).toFile();
-		}
-		if (!file.exists()) {
+		File file = getPathToConfigFile();
+		if (file == null) {
 			// this should only happen in tests
 			instanceId = "unknown-instance-id";
 			return instanceId;

@@ -18,7 +18,7 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.test.e2e.app_recovery;
+package eu.openanalytics.containerproxy.test.helpers;
 
 import okhttp3.*;
 

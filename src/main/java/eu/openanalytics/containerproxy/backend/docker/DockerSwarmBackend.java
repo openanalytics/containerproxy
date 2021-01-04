@@ -216,7 +216,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 continue; // this isn't a container created by us
             }
 
-            String startupTimestmap = labels.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
+            String startupTimestmap = labels.get(RUNTIME_LABEL_CREATED_TIMESTAMP);
             if (startupTimestmap == null) {
                 continue; // this isn't a container created by us
             }

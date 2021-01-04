@@ -1,5 +1,5 @@
 appNamespaces:
-  - it-b9fa0a24-overridden
+  - itest-overridden
 proxy:
   recover_running_apps: true
   stop_apps_on_shutdown: false
@@ -31,7 +31,7 @@ proxy:
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
-        value: it-b9fa0a24-overridden
+        value: itest-overridden
   - id: 03_hello
     container-specs:
       - image: "openanalytics/shinyproxy-demo"

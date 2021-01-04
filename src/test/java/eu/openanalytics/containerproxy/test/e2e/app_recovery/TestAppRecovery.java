@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
+import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -37,7 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class TestAppRecovery {
+public class TestAppRecovery extends KubernetesTestBase {
 
     private static Stream<Arguments> provideStringsForIsBlank() {
         return Stream.of(
@@ -87,6 +90,8 @@ public class TestAppRecovery {
 
             // 8. stop the proxy
             Assertions.assertTrue(shinyProxyClient.stopProxy(id));
+
+            Thread.sleep(500); // Give ShinyProxy time to cleanup
 
             // 9. stop the instance
             instance2.stop();
@@ -141,6 +146,8 @@ public class TestAppRecovery {
             Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
             Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
 
+            Thread.sleep(1000); // Give ShinyProxy time to cleanup
+
             // 9. stop the instance
             instance2.stop();
         } finally {
@@ -149,8 +156,8 @@ public class TestAppRecovery {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"docker", "docker-swarm", "kubernetes"})
-    public void complex_recover_multiple_apps_after_shutdown(String backend) throws IOException, InterruptedException {
+    @MethodSource("provideStringsForIsBlank")
+    public void complex_recover_multiple_apps_after_shutdown(String backend, String extraArgs) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo");
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo2", "demo2");
         ShinyProxyClient shinyProxyClient3 = new ShinyProxyClient("demo3", "demo3");
@@ -158,7 +165,7 @@ public class TestAppRecovery {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend));
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -204,7 +211,7 @@ public class TestAppRecovery {
             instance1.stop();
 
             // 9. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend));
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -240,6 +247,8 @@ public class TestAppRecovery {
             Assertions.assertTrue(shinyProxyClient3.stopProxy(id5));
             Assertions.assertTrue(shinyProxyClient3.stopProxy(id6));
 
+            Thread.sleep(2500); // Give ShinyProxy time to cleanup
+
             // 17. stop the instance
             instance2.stop();
         } finally {
@@ -248,19 +257,19 @@ public class TestAppRecovery {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"docker", "docker-swarm", "kubernetes"})
-    public void simple_recover_multiple_instances(String backend) throws IOException, InterruptedException {
+    @MethodSource("provideStringsForIsBlank")
+    public void simple_recover_multiple_instances(String backend, String extraArgs) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient1 = new ShinyProxyClient("demo", "demo", 7583);
         ShinyProxyClient shinyProxyClient2 = new ShinyProxyClient("demo", "demo", 7584);
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the first instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), 7583);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
             // 1. create the second instance
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s_2.yml", backend), 7584);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -285,11 +294,11 @@ public class TestAppRecovery {
             instance2.stop();
 
             // 5. start both instances again
-            ShinyProxyInstance instance3 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), 7583);
+            ShinyProxyInstance instance3 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance3);
             Assertions.assertTrue(instance3.start());
 
-            ShinyProxyInstance instance4 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s_2.yml", backend), 7584);
+            ShinyProxyInstance instance4 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance4);
             Assertions.assertTrue(instance4.start());
 
@@ -308,19 +317,19 @@ public class TestAppRecovery {
             Assertions.assertTrue(shinyProxyClient1.stopProxy(id1));
             Assertions.assertTrue(shinyProxyClient2.stopProxy(id2));
 
+            Thread.sleep(1000); // Give ShinyProxy time to cleanup
+
             // 9. stop the instance
             instance3.stop();
             instance4.stop();
         } finally {
             instances.forEach(ShinyProxyInstance::stop);
         }
-
     }
 
     @Test
-    public void kubernetes_multiple_namespaces() throws InterruptedException, IOException {
-        try {
-            createOverriddenNamespace();
+    public void kubernetes_multiple_namespaces() {
+        setup((client, namespace, overriddenNamespace) -> {
             ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
@@ -359,21 +368,20 @@ public class TestAppRecovery {
                 Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
                 Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
 
+                Thread.sleep(1000); // Give ShinyProxy time to cleanup
+
                 // 9. stop the instance
                 instance2.stop();
             } finally {
                 instances.forEach(ShinyProxyInstance::stop);
             }
-        } finally {
-            deleteOverriddenNamespace();
-        }
+        });
 
     }
 
     @Test
-    public void shutdown_should_cleanup_by_default() throws InterruptedException, IOException {
-        createOverriddenNamespace();
-        try {
+    public void shutdown_should_cleanup_by_default() {
+        setup((client, namespace, overriddenNamespace) -> {
             ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
@@ -399,33 +407,7 @@ public class TestAppRecovery {
             } finally {
                 instances.forEach(ShinyProxyInstance::stop);
             }
-        } finally {
-            deleteOverriddenNamespace();
-        }
+        });
     }
 
-    private final String overriddenNamespace = "it-b9fa0a24-overridden";
-
-    private final DefaultKubernetesClient client = new DefaultKubernetesClient();
-
-    private void createOverriddenNamespace() throws InterruptedException {
-        deleteOverriddenNamespace();
-        while (client.namespaces().withName(overriddenNamespace).get() != null) {
-            Thread.sleep(1000);
-        }
-        client.namespaces().create(new NamespaceBuilder()
-                .withNewMetadata()
-                .withName(overriddenNamespace)
-                .endMetadata()
-                .build());
-    }
-
-    private void deleteOverriddenNamespace() throws InterruptedException {
-        try {
-            // just to be sure both the namespace and service account are cleaned up
-            client.namespaces().withName(overriddenNamespace).delete();
-        } catch (Exception e) {
-            // ignore
-        }
-    }
 }

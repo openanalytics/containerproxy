@@ -3,7 +3,7 @@ proxy:
   container-backend: kubernetes
 
   kubernetes:
-    namespace: it-b9fa0a24-overridden
+    namespace: itest-overridden
 
   users:
   - name: demo

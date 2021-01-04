@@ -526,7 +526,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue; // this isn't a container created by us
 				}
 				
-				String startupTimestmap = annotations.get(RUNTIME_LABEL_STARTUP_TIMESTAMP);
+				String startupTimestmap = annotations.get(RUNTIME_LABEL_CREATED_TIMESTAMP);
 				if (startupTimestmap == null) {
 					continue; // this isn't a container created by us
 				}

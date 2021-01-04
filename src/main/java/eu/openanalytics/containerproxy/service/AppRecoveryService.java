@@ -26,6 +26,7 @@ import java.util.Map;
 import javax.inject.Inject;
 
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -95,7 +96,12 @@ public class AppRecoveryService {
 				Container container = new Container();
 				container.setId(containerInfo.getContainerId());
 				container.setParameters(containerInfo.getParameters());
-				container.setSpec(proxy.getSpec().getContainerSpec(containerInfo.getImage()));
+				ContainerSpec containerSpec = proxy.getSpec().getContainerSpec(containerInfo.getImage());
+				if (containerSpec == null) {
+					log.warn(String.format("Found existing container (%s) but not corresponding container spec.", containerInfo.getContainerId()));
+					continue;
+				}
+				container.setSpec(containerSpec);
 				proxy.addContainer(container);
 				proxy.setStatus(ProxyStatus.Up);
 

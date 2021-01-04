@@ -94,7 +94,16 @@ public class ProxySpec {
 	
 	public ContainerSpec getContainerSpec(String image) {
 		if (image == null || image.isEmpty()) return null;
-		return containerSpecs.stream().filter(s -> image.equals(s.getImage())).findAny().orElse(null);	
+		return containerSpecs.stream().filter(s -> {
+			if (image.endsWith(":latest") && !s.getImage().contains(":")) {
+				// if we query for the latest image and the spec does not contain a tag -> then add :latest to the
+                // image name of the spec.
+				// e.g. querying for "debian:latest" while "debian" is specified in the spec
+				return image.equals(s.getImage() + ":latest");
+			} else {
+				return image.equals(s.getImage());
+			}
+		}).findAny().orElse(null);
 	}
 	
 	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {

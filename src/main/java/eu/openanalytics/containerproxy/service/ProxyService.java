@@ -95,8 +95,17 @@ public class ProxyService {
 	
 	@PreDestroy
 	public void shutdown() {
-		containerKiller.shutdown();
-		for (Proxy proxy: getProxies(null, true)) backend.stopProxy(proxy);
+		try {
+			containerKiller.shutdown();
+		} finally {
+			for (Proxy proxy : activeProxies) {
+				try {
+					backend.stopProxy(proxy);
+				} catch (Exception exception) {
+					exception.printStackTrace();
+				}
+			}
+		}
 	}
 	
 	/**

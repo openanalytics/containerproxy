@@ -186,8 +186,6 @@ public class ContainerProxyApplication {
 
 		// enable redisSession check for the readiness probe
 		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession");
-		// disable default redis check since it's handled by redisSession
-		properties.put("management.health.redis.enabled=", "false");
 		// disable ldap health endpoint
 		properties.put("management.health.ldap.enabled", false);
 		// enable Kubernetes porobes

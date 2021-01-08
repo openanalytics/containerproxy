@@ -69,6 +69,7 @@ import eu.openanalytics.containerproxy.util.SessionHelper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 

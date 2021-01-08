@@ -115,7 +115,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 					public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
 							AuthenticationException exception) throws IOException, ServletException {
 						log.error(exception);
-						response.sendRedirect("/auth-error");
+						response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/auth-error").build().toUriString());
 					}
 					
 				})

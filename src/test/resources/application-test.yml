@@ -79,7 +79,7 @@ proxy:
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
-        value: it-b9fa0a24-overriden
+        value: itest-overridden
       - op: add
         path: /spec/containers/0/resources
         value:
@@ -125,14 +125,14 @@ proxy:
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
-        value: it-b9fa0a24-overriden
+        value: itest-overridden
     kubernetes-additional-manifests:
      - |
         apiVersion: v1
         kind: PersistentVolumeClaim
         metadata:
           name: manifests-pvc
-          namespace: it-b9fa0a24-overriden
+          namespace: itest-overridden
         spec:
          storageClassName: standard
          accessModes:

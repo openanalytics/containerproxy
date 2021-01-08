@@ -30,6 +30,6 @@ public class PropertyOverrideContextInitializer
 	@Override
 	public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
 		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
-				"proxy.kubernetes.namespace=" + TestIntegrationOnKube.session.getNamespace());
+				"proxy.kubernetes.namespace=" + TestIntegrationOnKube.namespace);
 	}
 }

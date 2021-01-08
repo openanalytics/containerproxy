@@ -25,10 +25,13 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -137,7 +140,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.logoutSuccessUrl(auth.getLogoutSuccessURL());
 			
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
-			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
+			http.addFilter(new BasicAuthenticationFilter(super.authenticationManagerBean()));
 		}
 	
 
@@ -162,5 +165,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			}
 		};
 	}
-	
+
+	@Bean(name="authenticationManager")
+	@ConditionalOnExpression("'${proxy.authentication}' == 'kerberos' || '${proxy.authentication}' == 'saml' || '${proxy.authentication}' == 'keycloak'")
+	@Override
+	public AuthenticationManager authenticationManagerBean() throws Exception {
+		return super.authenticationManagerBean();
+	}
+
 }

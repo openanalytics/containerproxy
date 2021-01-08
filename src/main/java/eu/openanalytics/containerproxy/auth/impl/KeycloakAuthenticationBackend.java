@@ -50,7 +50,9 @@ import org.keycloak.representations.adapters.config.AdapterConfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -85,7 +87,11 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	
 	@Inject
 	ApplicationContext ctx;
-	
+
+	@Inject
+	@Lazy
+	AuthenticationManager authenticationManager;
+
 	@Override
 	public String getName() {
 		return NAME;
@@ -126,14 +132,14 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		// Possible solution for issue #21037, create a custom RequestMatcher that doesn't include a QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) request matcher.
 		// The QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) caused the HTTP requests to be changed before they where processed.
 		// Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
-		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself  
+		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
 		RequestMatcher requestMatcher =
 				new OrRequestMatcher(
 	                    new AntPathRequestMatcher(KeycloakAuthenticationProcessingFilter.DEFAULT_LOGIN_URL),
 	                    new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
 	            );
-		
-		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(webSecurityConfigurerAdapter.authenticationManagerBean(), requestMatcher);
+
+		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
 		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
 		filter.setApplicationContext(ctx);

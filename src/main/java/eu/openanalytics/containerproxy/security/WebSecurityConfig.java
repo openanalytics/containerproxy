@@ -140,7 +140,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.logoutSuccessUrl(auth.getLogoutSuccessURL());
 			
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
-			http.addFilter(new BasicAuthenticationFilter(authenticationManagerBean()));
+			http.addFilter(new BasicAuthenticationFilter(super.authenticationManagerBean()));
 		}
 	
 

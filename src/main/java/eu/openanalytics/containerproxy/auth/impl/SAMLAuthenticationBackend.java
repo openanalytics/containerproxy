@@ -29,6 +29,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLEntryPoint;
+import org.springframework.security.saml.metadata.MetadataDisplayFilter;
 import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
 import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -47,7 +48,10 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	
 	@Autowired(required = false)
 	private MetadataGeneratorFilter metadataGeneratorFilter;
-	
+
+	@Autowired(required = false)
+	private MetadataDisplayFilter metadataDisplayFilter;
+
 	@Autowired(required = false)
 	private SAMLFilterSet samlFilter;
 	
@@ -73,6 +77,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 			.exceptionHandling().authenticationEntryPoint(samlEntryPoint)
 		.and()
 			.addFilterBefore(metadataGeneratorFilter, ChannelProcessingFilter.class)
+			.addFilterAfter(metadataDisplayFilter, MetadataGeneratorFilter.class)
 			.addFilterAfter(samlFilter, BasicAuthenticationFilter.class);
 	}
 

@@ -56,16 +56,13 @@ import org.springframework.security.saml.SAMLBootstrap;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.SAMLEntryPoint;
 import org.springframework.security.saml.SAMLProcessingFilter;
+import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
 import org.springframework.security.saml.log.SAMLDefaultLogger;
-import org.springframework.security.saml.metadata.CachingMetadataManager;
-import org.springframework.security.saml.metadata.ExtendedMetadata;
-import org.springframework.security.saml.metadata.ExtendedMetadataDelegate;
-import org.springframework.security.saml.metadata.MetadataGenerator;
-import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
+import org.springframework.security.saml.metadata.*;
 import org.springframework.security.saml.parser.ParserPoolHolder;
 import org.springframework.security.saml.processor.HTTPPostBinding;
 import org.springframework.security.saml.processor.HTTPRedirectDeflateBinding;
@@ -183,6 +180,15 @@ public class SAMLConfiguration {
 	@Bean
 	public MetadataGeneratorFilter metadataGeneratorFilter() {
 		return new MetadataGeneratorFilter(metadataGenerator());
+	}
+
+	@Bean
+	public MetadataDisplayFilter metadataDisplayFilter() throws MetadataProviderException, ResourceException {
+		MetadataDisplayFilter metadataDisplayFilter = new MetadataDisplayFilter();
+		metadataDisplayFilter.setContextProvider(contextProvider());
+		metadataDisplayFilter.setKeyManager(keyManager());
+		metadataDisplayFilter.setManager(metadata());
+		return metadataDisplayFilter;
 	}
 
 	@Bean

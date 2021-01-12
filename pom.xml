@@ -5,14 +5,14 @@
 
 	<groupId>eu.openanalytics</groupId>
 	<artifactId>containerproxy</artifactId>
-	<version>0.8.7</version>
+	<version>0.9.0-SNAPSHOT</version>
 	<name>ContainerProxy</name>
 	<packaging>jar</packaging>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-                <version>2.3.3.RELEASE</version>
+                <version>2.3.4.RELEASE</version>
 		<relativePath />
 	</parent>
 

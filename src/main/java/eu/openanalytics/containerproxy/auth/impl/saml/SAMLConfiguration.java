@@ -31,7 +31,10 @@ import java.util.Timer;
 import javax.inject.Inject;
 
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.velocity.app.VelocityEngine;
+import org.opensaml.saml2.core.Attribute;
 import org.opensaml.saml2.metadata.provider.HTTPMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
@@ -285,6 +288,8 @@ public class SAMLConfiguration {
 		return new SAMLFilterSet(chains);
 	}
 
+	private final Logger log = LogManager.getLogger(getClass());
+
 	@Bean
 	public SAMLAuthenticationProvider samlAuthenticationProvider() {
 		SAMLAuthenticationProvider samlAuthenticationProvider = new SAMLAuthenticationProvider();
@@ -294,8 +299,19 @@ public class SAMLConfiguration {
 	    		String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
 	    		String nameValue = credential.getAttributeAsString(nameAttribute);
 	    		if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
-	    		
-	    		List<GrantedAuthority> auth = new ArrayList<>();
+
+				List<Attribute> attributes = credential.getAttributes();
+
+				attributes.forEach((attribute) -> {
+					log.info(String.format("[SAML] User: %s => found Attribute with name : %s (%s) and value %s - %s",
+							nameValue,
+							attribute.getName(),
+							attribute.getFriendlyName(),
+                            credential.getAttributeAsString(attribute.getName()),
+							String.join(", ", credential.getAttributeAsStringArray(attribute.getName()))));
+				});
+
+				List<GrantedAuthority> auth = new ArrayList<>();
 	    		String rolesAttribute = environment.getProperty("proxy.saml.roles-attribute");
 	    		if (rolesAttribute != null  && !rolesAttribute.trim().isEmpty()) {
 	    			String[] roles = credential.getAttributeAsStringArray(rolesAttribute);

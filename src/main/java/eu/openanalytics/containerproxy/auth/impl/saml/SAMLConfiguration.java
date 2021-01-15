@@ -40,8 +40,11 @@ import org.opensaml.saml2.metadata.provider.HTTPMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
 import org.opensaml.util.resource.ResourceException;
+import org.opensaml.xml.XMLObject;
 import org.opensaml.xml.parse.StaticBasicParserPool;
 import org.opensaml.xml.parse.XMLParserException;
+import org.opensaml.xml.schema.XSAny;
+import org.opensaml.xml.schema.XSString;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -344,26 +347,17 @@ public class SAMLConfiguration {
 
 	private final Logger log = LogManager.getLogger(getClass());
 
+
+
 	@Bean
 	public SAMLAuthenticationProvider samlAuthenticationProvider() {
 		SAMLAuthenticationProvider samlAuthenticationProvider = new SAMLAuthenticationProvider();
 	    samlAuthenticationProvider.setUserDetails(new SAMLUserDetailsService() {
 	    	@Override
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
-				List<Attribute> attributes = credential.getAttributes();
 
 				if (Boolean.parseBoolean(environment.getProperty(PROP_LOG_ATTRIBUTES, "false"))) {
-					// don't use nameValue from below so that in the case this attribute isn't correctly setup,
-					// we can still log the attribtues (and the correct attribute can be found)
-					String userID = credential.getNameID().getValue();
-					attributes.forEach((attribute) -> {
-						log.info(String.format("[SAML] User: \"%s\" => attribute => name=\"%s\"(\"%s\") => value \"%s\" - \"%s\"",
-								userID,
-								attribute.getName(),
-								attribute.getFriendlyName(),
-								credential.getAttributeAsString(attribute.getName()),
-								String.join(", ", credential.getAttributeAsStringArray(attribute.getName()))));
-					});
+                    AttributeUtils.logAttributes(log, credential);
 				}
 
 				String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);

@@ -42,6 +42,8 @@ import eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAMLFilt
 public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "saml";
+
+	private static final String PROP_LOGOUT_URL = "proxy.saml.logout-url";
 	
 	@Autowired(required = false)
 	private SAMLEntryPoint samlEntryPoint;
@@ -88,7 +90,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public String getLogoutURL() {
-		if (environment.getProperty("proxy.saml.logout-url") != null) {
+		if (environment.getProperty(PROP_LOGOUT_URL) != null) {
 			return "/logout";
 		}
 		return "/saml/logout";
@@ -96,7 +98,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public String getLogoutSuccessURL() {
-		String logoutURL = environment.getProperty("proxy.saml.logout-url");
+		String logoutURL = environment.getProperty(PROP_LOGOUT_URL);
 		System.out.println("LogoutURL: " + logoutURL);
 		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = "/";
 		return logoutURL;

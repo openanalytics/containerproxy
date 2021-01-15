@@ -93,7 +93,17 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 public class SAMLConfiguration {
 
 	private static final String DEFAULT_NAME_ATTRIBUTE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
-	
+
+	private static final String PROP_LOG_ATTRIBUTES = "proxy.saml.log-attributes";
+	private static final String PROP_FORCE_AUTHN = "proxy.saml.force-authn";
+	private static final String PROP_KEYSTORE = "proxy.saml.keystore";
+	private static final String PROP_ENCRYPTION_CERT_NAME = "proxy.saml.encryption-cert-name";
+	private static final String PROP_ENCRYPTION_CERT_PASSWORD = "proxy.saml.encryption-cert-password";
+	private static final String PROP_ENCRYPTION_KEYSTORE_PASSWORD = "proxy.saml.keystore-password";
+	private static final String PROP_APP_ENTITY_ID = "proxy.saml.app-entity-id";
+	private static final String PROP_BASE_URL = "proxy.saml.app-base-url";
+	private static final String PROP_METADATA_URL = "proxy.saml.idp-metadata-url";
+
 	@Inject
 	private Environment environment;
 	
@@ -152,7 +162,7 @@ public class SAMLConfiguration {
 	public WebSSOProfileOptions defaultWebSSOProfileOptions() {
 		WebSSOProfileOptions webSSOProfileOptions = new WebSSOProfileOptions();
 		webSSOProfileOptions.setIncludeScoping(false);
-		webSSOProfileOptions.setForceAuthN(Boolean.valueOf(environment.getProperty("proxy.saml.force-authn", "false")));
+		webSSOProfileOptions.setForceAuthN(Boolean.valueOf(environment.getProperty(PROP_FORCE_AUTHN, "false")));
 		return webSSOProfileOptions;
 	}
 
@@ -168,13 +178,13 @@ public class SAMLConfiguration {
 
 	@Bean
 	public KeyManager keyManager() {
-		String keystore = environment.getProperty("proxy.saml.keystore");
+		String keystore = environment.getProperty(PROP_KEYSTORE);
 		if (keystore == null || keystore.isEmpty()) {
 			return new EmptyKeyManager();
 		} else {
-			String certName = environment.getProperty("proxy.saml.encryption-cert-name");
-			String certPW = environment.getProperty("proxy.saml.encryption-cert-password");
-			String keystorePW = environment.getProperty("proxy.saml.keystore-password", certPW);
+			String certName = environment.getProperty(PROP_ENCRYPTION_CERT_NAME);
+			String certPW = environment.getProperty(PROP_ENCRYPTION_CERT_PASSWORD);
+			String keystorePW = environment.getProperty(PROP_ENCRYPTION_KEYSTORE_PASSWORD, certPW);
 			
 			Resource keystoreFile = new FileSystemResource(keystore);
 			Map<String, String> passwords = new HashMap<>();
@@ -238,8 +248,8 @@ public class SAMLConfiguration {
 
 	@Bean
 	public MetadataGenerator metadataGenerator() {
-		String appEntityId = environment.getProperty("proxy.saml.app-entity-id");
-		String appBaseURL = environment.getProperty("proxy.saml.app-base-url");
+		String appEntityId = environment.getProperty(PROP_APP_ENTITY_ID);
+		String appBaseURL = environment.getProperty(PROP_BASE_URL);
 		
 		MetadataGenerator metadataGenerator = new MetadataGenerator();
 		metadataGenerator.setEntityId(appEntityId);
@@ -260,7 +270,7 @@ public class SAMLConfiguration {
 
 	@Bean
 	public ExtendedMetadataDelegate idpMetadata() throws MetadataProviderException, ResourceException {
-		String metadataURL = environment.getProperty("proxy.saml.idp-metadata-url");
+		String metadataURL = environment.getProperty(PROP_METADATA_URL);
 		
 		Timer backgroundTaskTimer = new Timer(true);
 		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(), metadataURL);   httpMetadataProvider.setParserPool(parserPool());
@@ -342,7 +352,7 @@ public class SAMLConfiguration {
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
 				List<Attribute> attributes = credential.getAttributes();
 
-				if (Boolean.parseBoolean(environment.getProperty("proxy.saml.log-attributes", "false"))) {
+				if (Boolean.parseBoolean(environment.getProperty(PROP_LOG_ATTRIBUTES, "false"))) {
 					// don't use nameValue from below so that in the case this attribute isn't correctly setup,
 					// we can still log the attribtues (and the correct attribute can be found)
 					String userID = credential.getNameID().getValue();

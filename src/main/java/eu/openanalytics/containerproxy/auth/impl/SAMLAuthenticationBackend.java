@@ -87,6 +87,14 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
+	public String getLogoutURL() {
+		if (environment.getProperty("proxy.saml.logout-url") != null) {
+			return "/logout";
+		}
+		return "/saml/logout";
+	}
+
+	@Override
 	public String getLogoutSuccessURL() {
 		String logoutURL = environment.getProperty("proxy.saml.logout-url");
 		System.out.println("LogoutURL: " + logoutURL);

@@ -135,7 +135,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.loginPage("/login")
 					.and()
 				.logout()
-					.logoutRequestMatcher(new AntPathRequestMatcher("/simple/logout"))
+					.logoutUrl(auth.getLogoutURL())
+					// important: set the next option after logoutUrl because it would otherwise get overwritten
+					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
 					.addLogoutHandler(logoutHandler)
 					.logoutSuccessUrl(auth.getLogoutSuccessURL());
 			

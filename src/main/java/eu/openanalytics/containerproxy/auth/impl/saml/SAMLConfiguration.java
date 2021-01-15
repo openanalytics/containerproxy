@@ -55,12 +55,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.saml.SAMLAuthenticationProvider;
-import org.springframework.security.saml.SAMLBootstrap;
-import org.springframework.security.saml.SAMLCredential;
-import org.springframework.security.saml.SAMLEntryPoint;
-import org.springframework.security.saml.SAMLLogoutFilter;
-import org.springframework.security.saml.SAMLProcessingFilter;
+import org.springframework.security.saml.*;
 import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.EmptyKeyManager;
@@ -126,6 +121,16 @@ public class SAMLConfiguration {
 		return new SAMLLogoutFilter(successLogoutHandler(),
 				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()},
 				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()});
+	}
+
+	/**
+	 * Filter responsible for the `/saml/SingleLogout` endpoint. This makes it possible for users to logout in the IDP
+	 * or any other application and get automatically logged out in ShinyProxy as well.
+	 */
+	@Bean
+	public SAMLLogoutProcessingFilter samlLogoutProcessingFilter() {
+		return new SAMLLogoutProcessingFilter(successLogoutHandler(),
+				securityContextLogoutHandler());
 	}
 
 	@Bean
@@ -322,6 +327,7 @@ public class SAMLConfiguration {
 		List<SecurityFilterChain> chains = new ArrayList<SecurityFilterChain>();
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/login/**"), samlEntryPoint()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/logout/**"), samlLogoutFilter()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SingleLogout/**"), samlLogoutProcessingFilter()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), samlWebSSOProcessingFilter()));
 		return new SAMLFilterSet(chains);
 	}

@@ -59,7 +59,11 @@ public interface IAuthenticationBackend {
 	public default String getLogoutSuccessURL() {
 		return "/login";
 	}
-	
+
+	public default String getLogoutURL() {
+		return "/logout";
+	}
+
 	public default void customizeContainer(ContainerSpec spec) {
 		// Default: do nothing.
 	}

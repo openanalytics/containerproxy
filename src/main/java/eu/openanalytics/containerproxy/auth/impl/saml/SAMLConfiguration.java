@@ -296,20 +296,21 @@ public class SAMLConfiguration {
 	    samlAuthenticationProvider.setUserDetails(new SAMLUserDetailsService() {
 	    	@Override
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
-	    		String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
-	    		String nameValue = credential.getAttributeAsString(nameAttribute);
-	    		if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
-
 				List<Attribute> attributes = credential.getAttributes();
 
+				String userID = credential.getNameID().getValue();
 				attributes.forEach((attribute) -> {
 					log.info(String.format("[SAML] User: %s => found Attribute with name : %s (%s) and value %s - %s",
-							nameValue,
+							userID,
 							attribute.getName(),
 							attribute.getFriendlyName(),
-                            credential.getAttributeAsString(attribute.getName()),
+							credential.getAttributeAsString(attribute.getName()),
 							String.join(", ", credential.getAttributeAsStringArray(attribute.getName()))));
 				});
+
+				String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
+				String nameValue = credential.getAttributeAsString(nameAttribute);
+				if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
 
 				List<GrantedAuthority> auth = new ArrayList<>();
 	    		String rolesAttribute = environment.getProperty("proxy.saml.roles-attribute");

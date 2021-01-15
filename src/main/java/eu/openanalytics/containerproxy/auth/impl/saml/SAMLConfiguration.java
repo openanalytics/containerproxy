@@ -342,15 +342,19 @@ public class SAMLConfiguration {
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
 				List<Attribute> attributes = credential.getAttributes();
 
-				String userID = credential.getNameID().getValue();
-				attributes.forEach((attribute) -> {
-					log.info(String.format("[SAML] User: %s => found Attribute with name : %s (%s) and value %s - %s",
-							userID,
-							attribute.getName(),
-							attribute.getFriendlyName(),
-							credential.getAttributeAsString(attribute.getName()),
-							String.join(", ", credential.getAttributeAsStringArray(attribute.getName()))));
-				});
+				if (Boolean.parseBoolean(environment.getProperty("proxy.saml.log-attributes", "false"))) {
+					// don't use nameValue from below so that in the case this attribute isn't correctly setup,
+					// we can still log the attribtues (and the correct attribute can be found)
+					String userID = credential.getNameID().getValue();
+					attributes.forEach((attribute) -> {
+						log.info(String.format("[SAML] User: \"%s\" => attribute => name=\"%s\"(\"%s\") => value \"%s\" - \"%s\"",
+								userID,
+								attribute.getName(),
+								attribute.getFriendlyName(),
+								credential.getAttributeAsString(attribute.getName()),
+								String.join(", ", credential.getAttributeAsStringArray(attribute.getName()))));
+					});
+				}
 
 				String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
 				String nameValue = credential.getAttributeAsString(nameAttribute);

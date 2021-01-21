@@ -34,6 +34,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
@@ -43,6 +44,8 @@ import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
+import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
+import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -96,6 +99,16 @@ public class ProxyService {
 
 	@Inject
 	private ApplicationEventPublisher applicationEventPublisher;
+
+	@Inject
+	private Environment environment;
+
+	private WebSocketReconnectionMode defaultWebSocketReconnectionMode;
+
+	@PostConstruct
+	public void init() {
+		defaultWebSocketReconnectionMode = environment.getProperty("proxy.defaultWebSocketReconnectionMode", WebSocketReconnectionMode.class, WebSocketReconnectionMode.None);
+	}
 
 	@PreDestroy
 	public void shutdown() {
@@ -220,6 +233,7 @@ public class ProxyService {
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
+		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(spec));
 		activeProxies.add(proxy);
 		
 		try {
@@ -282,6 +296,15 @@ public class ProxyService {
 		
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
+		}
+	}
+
+	private WebSocketReconnectionMode getWebSocketReconnectionMode(ProxySpec spec) {
+		WebSocketReconnectionMode mode = spec.getWebSocketReconnectionMode();
+		if (mode == null) {
+			return defaultWebSocketReconnectionMode;
+		} else {
+			return mode;
 		}
 	}
 

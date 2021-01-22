@@ -24,13 +24,20 @@ import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import org.keycloak.KeycloakPrincipal;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.ldap.userdetails.LdapUserDetails;
+import org.springframework.security.saml.SAMLCredential;
 
 public class SpecExpressionContext {
 
 	private ContainerSpec containerSpec;
 	private ProxySpec proxySpec;
 	private Proxy proxy;
-	private OpenIDAuthenticationBackend.CustomNameOidcUser defaultOidcUser;
+	private OpenIDAuthenticationBackend.CustomNameOidcUser oicdUser;
+	private KeycloakPrincipal keycloakUser;
+	private SAMLCredential samlCredential;
+	private LdapUserDetails ldapUser;
 
 	public ContainerSpec getContainerSpec() {
 		return containerSpec;
@@ -45,9 +52,21 @@ public class SpecExpressionContext {
 	}
 
 	public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
-		return defaultOidcUser;
+		return oicdUser;
 	}
-	
+
+	public KeycloakPrincipal getKeycloakUser() {
+		return keycloakUser;
+	}
+
+	public SAMLCredential getSamlCredential() {
+		return samlCredential;
+	}
+
+	public LdapUserDetails getLdapUser() {
+		return ldapUser;
+	}
+
 	public static SpecExpressionContext create(Object...objects) {
 		SpecExpressionContext ctx = new SpecExpressionContext();
 		for (Object o: objects) {
@@ -58,7 +77,13 @@ public class SpecExpressionContext {
 			} else if (o instanceof Proxy) {
 				ctx.proxy = (Proxy) o;
 			} else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-			    ctx.defaultOidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+			    ctx.oicdUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+			} else if (o instanceof KeycloakPrincipal) {
+				ctx.keycloakUser = (KeycloakPrincipal) o;
+			} else if (o instanceof SAMLCredential) {
+				ctx.samlCredential = (SAMLCredential) o;
+			} else if (o instanceof LdapUserDetails) {
+				ctx.ldapUser = (LdapUserDetails) o;
 			}
 		}
 		return ctx;

@@ -329,7 +329,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		SpecExpressionContext context = SpecExpressionContext.create(containerSpec,
 				proxy,
 				proxy.getSpec(),
-				userService.getCurrentAuth());
+				userService.getCurrentAuth().getPrincipal(),
+				userService.getCurrentAuth().getCredentials());
 		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
 		
 		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());

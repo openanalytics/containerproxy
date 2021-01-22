@@ -225,7 +225,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		return new KeycloakLogoutHandler(adapterDeploymentContext());
 	}
 	
-	private static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
+	public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
 		
 		private static final long serialVersionUID = -521347733024996150L;
 

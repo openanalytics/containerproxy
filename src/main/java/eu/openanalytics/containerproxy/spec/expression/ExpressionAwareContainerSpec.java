@@ -49,7 +49,8 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 		this.context = SpecExpressionContext.create(source,
 				proxy,
 				proxy.getSpec(),
-				currentAuth.getPrincipal()
+				currentAuth.getPrincipal(),
+				currentAuth.getCredentials()
 				);
 	}
 

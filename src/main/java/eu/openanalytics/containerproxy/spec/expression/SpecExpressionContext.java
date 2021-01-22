@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -29,7 +30,8 @@ public class SpecExpressionContext {
 	private ContainerSpec containerSpec;
 	private ProxySpec proxySpec;
 	private Proxy proxy;
-	
+	private OpenIDAuthenticationBackend.CustomNameOidcUser defaultOidcUser;
+
 	public ContainerSpec getContainerSpec() {
 		return containerSpec;
 	}
@@ -41,6 +43,10 @@ public class SpecExpressionContext {
 	public Proxy getProxy() {
 		return proxy;
 	}
+
+	public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
+		return defaultOidcUser;
+	}
 	
 	public static SpecExpressionContext create(Object...objects) {
 		SpecExpressionContext ctx = new SpecExpressionContext();
@@ -51,6 +57,8 @@ public class SpecExpressionContext {
 				ctx.proxySpec = (ProxySpec) o;
 			} else if (o instanceof Proxy) {
 				ctx.proxy = (Proxy) o;
+			} else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
+			    ctx.defaultOidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
 			}
 		}
 		return ctx;

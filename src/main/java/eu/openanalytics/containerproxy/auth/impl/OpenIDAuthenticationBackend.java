@@ -78,8 +78,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	
 	private Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
 	
-	private OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository;
-	
+	private static OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository;
+
 	@Inject
 	private Environment environment;
 	
@@ -251,22 +251,30 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				} catch (IllegalArgumentException ex) {
 					throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST), "Error while loading user info", ex);
 				}
+				
 				String nameAttributeKey = environment.getProperty("proxy.openid.username-attribute", "email");
-				return new CustomNameOidcUser(new HashSet<>(user.getAuthorities()), user.getIdToken(), user.getUserInfo(), nameAttributeKey);
+				return new CustomNameOidcUser(new HashSet<>(user.getAuthorities()),
+						user.getIdToken(),
+						user.getUserInfo(),
+						nameAttributeKey,
+						userRequest.getClientRegistration().getRegistrationId()
+				);
 			}
 		};
 	}
 	
-	private static class CustomNameOidcUser extends DefaultOidcUser {
+	public static class CustomNameOidcUser extends DefaultOidcUser {
 
 		private static final long serialVersionUID = 7563253562760236634L;
 		private static final String ID_ATTR_EMAILS = "emails";
 		
-		private boolean isEmailsAttribute;
+		private final boolean isEmailsAttribute;
+		private final String clientRegistrationId;
 		
-		public CustomNameOidcUser(Set<GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey) {
+		public CustomNameOidcUser(Set<GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey, String clientRegistrationId) {
 			super(authorities, idToken, userInfo, nameAttributeKey);
 			this.isEmailsAttribute = nameAttributeKey.equals(ID_ATTR_EMAILS);
+			this.clientRegistrationId = clientRegistrationId;
 		}
 
 		@Override
@@ -278,6 +286,20 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				else return emails.toString();
 			}
 			else return super.getName();
+		}
+
+		public String getRefreshToken() {
+			Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+			HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+			OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
+
+			if (client != null) {
+				OAuth2RefreshToken refreshToken = client.getRefreshToken();
+				if (refreshToken != null) {
+					return refreshToken.getTokenValue();
+				}
+			}
+			return null;
 		}
 	}
 }

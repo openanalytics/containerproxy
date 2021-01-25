@@ -18,16 +18,16 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.session;
+package eu.openanalytics.containerproxy.event;
 
 import org.springframework.context.ApplicationEvent;
 
-public class UserSessionLogoutEvent extends ApplicationEvent {
-    
-    private String userId;
-    private String sessionId;
+public class UserLoginEvent extends ApplicationEvent {
 
-    public UserSessionLogoutEvent(Object source, String userId, String sessionId) {
+    private final String userId;
+    private final String sessionId;
+
+    public UserLoginEvent(Object source, String userId, String sessionId) {
         super(source);
         this.userId = userId;
         this.sessionId = sessionId;
@@ -40,6 +40,7 @@ public class UserSessionLogoutEvent extends ApplicationEvent {
     public String getUserId() {
         return userId;
     }
+
 }
 
 

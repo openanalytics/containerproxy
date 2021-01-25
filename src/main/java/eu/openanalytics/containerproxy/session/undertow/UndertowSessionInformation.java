@@ -21,13 +21,12 @@
 package eu.openanalytics.containerproxy.session.undertow;
 
 import eu.openanalytics.containerproxy.session.ISessionInformation;
-import eu.openanalytics.containerproxy.session.UserSessionLogoutEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import io.undertow.server.HttpServerExchange;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.web.authentication.session.SessionFixationProtectionEvent;
-import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -66,7 +65,7 @@ public class UndertowSessionInformation implements ISessionInformation {
 
 
     @EventListener
-    public void onUserSessionLogoutEvent(UserSessionLogoutEvent event) {
+    public void onUserSessionLogoutEvent(UserLogoutEvent event) {
         synchronized (usersToSessionId) {
             if (usersToSessionId.containsKey(event.getUserId())) {
                 usersToSessionId.get(event.getUserId()).remove(event.getSessionId());

@@ -24,7 +24,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import eu.openanalytics.containerproxy.session.UserSessionLogoutEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
@@ -38,18 +38,9 @@ public class UserLogoutHandler implements LogoutHandler {
 	@Inject
 	private UserService userService;
 
-	@Inject
-	private ApplicationEventPublisher applicationEventPublisher;
-	
 	@Override
 	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 		userService.logout(authentication);
-
-		// TODO test for anonymous users
-		applicationEventPublisher.publishEvent(new UserSessionLogoutEvent(
-				this,
-				authentication.getName(),
-				request.getSession().getId()));
 	}
 	
 }

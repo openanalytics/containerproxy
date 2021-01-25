@@ -77,13 +77,14 @@ public class StatCollectorRegistry implements Consumer<Event> {
 	}
 	
 	private IStatCollector findCollector(String baseURL) {
-		if (baseURL == null || baseURL.isEmpty()) return null;
-		if (baseURL.toLowerCase().contains("/write?db=")) {
-			return new InfluxDBCollector();
-		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
-			return new JDBCCollector(environment);
-		}
-		return null;
+//		if (baseURL == null || baseURL.isEmpty()) return null;
+//		if (baseURL.toLowerCase().contains("/write?db=")) {
+//			return new InfluxDBCollector();
+//		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
+//			return new JDBCCollector(environment);
+//		}
+//		return null;
+        return micrometer;
 	}
 	
 }

@@ -27,8 +27,12 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
@@ -48,6 +52,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService.EventType;
 import eu.openanalytics.containerproxy.util.SessionHelper;
+import org.springframework.web.context.request.RequestContextHolder;
 
 
 @Service
@@ -68,7 +73,10 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	
 	@Inject
 	private IProxyLogoutStrategy logoutStrategy;
-	
+
+	@Inject
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -170,10 +178,22 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		if (event instanceof AbstractAuthenticationFailureEvent) {
 			Exception e = ((AbstractAuthenticationFailureEvent) event).getException();
 			log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
+			String userId = getUserId(source);
+			applicationEventPublisher.publishEvent(new AuthFailedEvent(
+					this,
+					userId,
+					RequestContextHolder.currentRequestAttributes().getSessionId()));
 		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
 			String userName = source.getName();
 			log.info(String.format("User logged in [user: %s]", userName));
 			eventService.post(EventType.Login.toString(), userName, null);
+
+			String userId = getUserId(source);
+			// TODO test for anonymous users
+			applicationEventPublisher.publishEvent(new UserLoginEvent(
+					this,
+					userId,
+					RequestContextHolder.currentRequestAttributes().getSessionId()));
 		}
 	}
 
@@ -189,6 +209,11 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
 
+		// TODO test for anonymous users
+		applicationEventPublisher.publishEvent(new UserLogoutEvent(
+				this,
+				userId,
+				RequestContextHolder.currentRequestAttributes().getSessionId()));
 	}
 
 }

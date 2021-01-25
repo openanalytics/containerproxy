@@ -20,17 +20,15 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
+import eu.openanalytics.containerproxy.event.*;
 import eu.openanalytics.containerproxy.service.EventService;
 import eu.openanalytics.containerproxy.session.ISessionInformation;
-import eu.openanalytics.containerproxy.session.UserSessionLogoutEvent;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.context.ApplicationListener;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
-import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.session.SessionDestroyedEvent;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -52,10 +50,22 @@ public class Micrometer implements IStatCollector {
 
     private AtomicLong loggedInUsersGauge;
 
+    private Timer appStartupTimer;
+
+    private Timer appUsageTimer;
+
+    private Counter appStartFailedCounter;
+
+    private Counter authFailedCounter;
+
     @PostConstruct
     public void init() {
         appsGauge = registry.gauge("apps", new AtomicInteger(0));
         loggedInUsersGauge = registry.gauge("users", new AtomicLong(0));
+        appStartupTimer = registry.timer("startupTime");
+        appUsageTimer = registry.timer("usageTime");
+        appStartFailedCounter = registry.counter("startFailed");
+        authFailedCounter = registry.counter("authFailed");
     }
 
     @Override
@@ -64,19 +74,48 @@ public class Micrometer implements IStatCollector {
             appsGauge.incrementAndGet();
         } else if (event.type.equals(EventService.EventType.ProxyStop.toString())) {
             appsGauge.decrementAndGet();
-        } else if (event.type.equals(EventService.EventType.Login.toString())
-                || event.type.equals(EventService.EventType.Logout.toString())) {
-            System.out.println(String.format("Event: %s", event.type));
-            loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
         } else {
             System.out.println("not processing events of this type yet");
         }
     }
 
     @EventListener
-    public void onUserSessionLogoutEvent(UserSessionLogoutEvent event) {
-        System.out.println("Update micrometer");
+    public void onUserLogoutEvent(UserLogoutEvent event) {
         loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
     }
+
+    @EventListener
+    public void onUserLoginEvent(UserLoginEvent event) {
+        loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
+    }
+
+    @EventListener
+    public void onProxyStartEvent(ProxyStartEvent event) {
+        System.out.printf("ProxyStartEvent %s, %s", event.getUserId(), event.getStartupTime());
+
+        appStartupTimer.record(event.getStartupTime());
+    }
+
+    @EventListener
+    public void onProxyStopEvent(ProxyStopEvent event) {
+        System.out.printf("ProxyStopEvent %s, %s", event.getUserId(), event.getUsageTime());
+
+        appUsageTimer.record(event.getUsageTime());
+    }
+
+    @EventListener
+    public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
+        System.out.printf("ProxyStartFailedEvent %s, %s", event.getUserId(), event.getSpecId());
+
+        appStartFailedCounter.increment();
+    }
+
+    @EventListener
+    public void onAuthFailedEvent(AuthFailedEvent event) {
+        System.out.printf("AuthFailedEvent %s, %s", event.getUserId(), event.getSessionId());
+
+        authFailedCounter.increment();
+    }
+
 
 }

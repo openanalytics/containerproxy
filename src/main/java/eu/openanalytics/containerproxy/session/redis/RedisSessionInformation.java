@@ -21,7 +21,7 @@
 package eu.openanalytics.containerproxy.session.redis;
 
 import eu.openanalytics.containerproxy.session.ISessionInformation;
-import eu.openanalytics.containerproxy.session.UserSessionLogoutEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -61,7 +61,7 @@ public class RedisSessionInformation implements ISessionInformation {
     }
 
     @EventListener
-    public void onUserSessionLogoutEvent(UserSessionLogoutEvent event) {
+    public void onUserSessionLogoutEvent(UserLogoutEvent event) {
         synchronized (usersToSessionId) {
             if (usersToSessionId.containsKey(event.getUserId())) {
                 usersToSessionId.get(event.getUserId()).remove(event.getSessionId());

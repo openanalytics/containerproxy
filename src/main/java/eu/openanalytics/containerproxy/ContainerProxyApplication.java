@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.session.undertow.CustomSessionManagerFactory;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.servlet.api.ServletSessionConfig;
@@ -31,6 +32,7 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -38,8 +40,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.session.data.redis.config.ConfigureRedisAction;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.web.filter.FormContentFilter;
 
 import javax.annotation.PostConstruct;
@@ -98,6 +104,9 @@ public class ContainerProxyApplication {
 		defaultCookieSerializer.setSameSite(sameSiteCookie);
 	}
 
+	@Inject
+	private CustomSessionManagerFactory customSessionManagerFactory;
+
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
@@ -113,6 +122,7 @@ public class ContainerProxyApplication {
 			sessionConfig.setHttpOnly(true);
 			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
 			info.setServletSessionConfig(sessionConfig);
+			info.setSessionManagerFactory(customSessionManagerFactory);
 		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
@@ -150,6 +160,12 @@ public class ContainerProxyApplication {
 	@Bean
 	public static ConfigureRedisAction configureRedisAction() {
 		return ConfigureRedisAction.NO_OP;
+	}
+
+	@Bean
+	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
+	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
+		return new SpringSessionBackedSessionRegistry<S>(sessionRepository);
 	}
 
 	@Bean

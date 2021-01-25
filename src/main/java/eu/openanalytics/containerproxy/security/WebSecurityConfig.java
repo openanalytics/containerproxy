@@ -116,7 +116,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/health/readiness").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/health/liveness").permitAll();
-		
+		http.authorizeRequests().antMatchers("/actuator/prometheus").permitAll();
+
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);

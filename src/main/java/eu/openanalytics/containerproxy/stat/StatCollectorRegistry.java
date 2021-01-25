@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.stat.impl.Micrometer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
@@ -48,6 +49,9 @@ public class StatCollectorRegistry implements Consumer<Event> {
 	EventService eventService;
 	
 	private IStatCollector collector;
+
+	@Inject
+	private Micrometer micrometer;
 	
 	@PostConstruct
 	public void init() {

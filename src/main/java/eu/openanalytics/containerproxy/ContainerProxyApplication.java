@@ -206,6 +206,8 @@ public class ContainerProxyApplication {
 
 		properties.put("spring.application.name", "ContainerProxy");
 
+		properties.put("management.metrics.export.defaults.enabled", "false");
+
 		// Health configuration
 		// ====================
 

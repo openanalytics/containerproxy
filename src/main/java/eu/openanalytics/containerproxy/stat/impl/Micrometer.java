@@ -29,11 +29,18 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.session.SessionDestroyedEvent;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.security.Principal;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,6 +65,10 @@ public class Micrometer implements IStatCollector {
 
     private Counter authFailedCounter;
 
+    private Counter userLogins;
+
+    private Counter userLogouts;
+
     @PostConstruct
     public void init() {
         appsGauge = registry.gauge("apps", new AtomicInteger(0));
@@ -66,6 +77,8 @@ public class Micrometer implements IStatCollector {
         appUsageTimer = registry.timer("usageTime");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
+        userLogins = registry.counter("userLogins");
+        userLogouts = registry.counter("userLogouts");
     }
 
     @Override
@@ -74,48 +87,50 @@ public class Micrometer implements IStatCollector {
             appsGauge.incrementAndGet();
         } else if (event.type.equals(EventService.EventType.ProxyStop.toString())) {
             appsGauge.decrementAndGet();
-        } else {
-            System.out.println("not processing events of this type yet");
         }
     }
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
+        // TODO in a HA setup this event should only be processed by one server
+        System.out.printf("UserLogoutEvent %s, %s, %s\n", event.getUserId(), event.getSessionId(), event.getWasExpired());
         loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
+        userLogouts.increment();
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) {
+        System.out.printf("UserLoginEvent, %s, %s \n", event.getUserId(), event.getSessionId());
         loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
+        userLogins.increment();
     }
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
-        System.out.printf("ProxyStartEvent %s, %s", event.getUserId(), event.getStartupTime());
+        System.out.printf("ProxyStartEvent %s ,%s\n", event.getUserId(), event.getStartupTime());
 
         appStartupTimer.record(event.getStartupTime());
     }
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
-        System.out.printf("ProxyStopEvent %s, %s", event.getUserId(), event.getUsageTime());
+        System.out.printf("ProxyStopEvent %s, %s\n", event.getUserId(), event.getUsageTime());
 
         appUsageTimer.record(event.getUsageTime());
     }
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
-        System.out.printf("ProxyStartFailedEvent %s, %s", event.getUserId(), event.getSpecId());
+        System.out.printf("ProxyStartFailedEvent %s, %s\n", event.getUserId(), event.getSpecId());
 
         appStartFailedCounter.increment();
     }
 
     @EventListener
     public void onAuthFailedEvent(AuthFailedEvent event) {
-        System.out.printf("AuthFailedEvent %s, %s", event.getUserId(), event.getSessionId());
+        System.out.printf("AuthFailedEvent %s, %s\n", event.getUserId(), event.getSessionId());
 
         authFailedCounter.increment();
     }
-
 
 }

@@ -26,11 +26,20 @@ public class UserLogoutEvent extends ApplicationEvent {
     
     private final String userId;
     private final String sessionId;
+    private final Boolean wasExpired;
 
-    public UserLogoutEvent(Object source, String userId, String sessionId) {
+    /**
+     *
+     * @param source
+     * @param userId
+     * @param sessionId
+     * @param wasExpired whether the user is logged autoamtically because the session has expired
+     */
+    public UserLogoutEvent(Object source, String userId, String sessionId, Boolean wasExpired) {
         super(source);
         this.userId = userId;
         this.sessionId = sessionId;
+        this.wasExpired = wasExpired;
     }
 
     public String getSessionId() {
@@ -39,6 +48,10 @@ public class UserLogoutEvent extends ApplicationEvent {
 
     public String getUserId() {
         return userId;
+    }
+
+    public Boolean getWasExpired() {
+        return wasExpired;
     }
 }
 

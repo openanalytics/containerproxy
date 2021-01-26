@@ -41,6 +41,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.session.data.redis.config.ConfigureRedisAction;
@@ -157,10 +158,10 @@ public class ContainerProxyApplication {
 	 *
 	 * @return
 	 */
-	@Bean
-	public static ConfigureRedisAction configureRedisAction() {
-		return ConfigureRedisAction.NO_OP;
-	}
+//	@Bean TODO TODO TODO https://aws.amazon.com/premiumsupport/knowledge-center/elasticache-redis-keyspace-notifications/ https://docs.spring.io/spring-session/docs/current/reference/html5/#api-redisindexedsessionrepository-sessiondestroyedevent
+//	public static ConfigureRedisAction configureRedisAction() {
+//		return ConfigureRedisAction.NO_OP;
+//	}
 
 	@Bean
 	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
@@ -188,6 +189,11 @@ public class ContainerProxyApplication {
 				}
 			};
 		}
+	}
+
+	@Bean
+	public HttpSessionEventPublisher httpSessionEventPublisher() {
+		return new HttpSessionEventPublisher();
 	}
 
 	private static void setDefaultProperties(SpringApplication app) {

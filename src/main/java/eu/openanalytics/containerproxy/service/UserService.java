@@ -20,21 +20,26 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.servlet.http.HttpSession;
 
+import com.google.common.cache.*;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.xpath.operations.Bool;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
@@ -43,7 +48,12 @@ import org.springframework.security.authentication.event.AuthenticationSuccessEv
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.session.SessionDestroyedEvent;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.session.Session;
+import org.springframework.session.events.SessionExpiredEvent;
 import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
@@ -183,7 +193,8 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 					this,
 					userId,
 					RequestContextHolder.currentRequestAttributes().getSessionId()));
-		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
+		} else if (event instanceof AuthenticationSuccessEvent) {
+//		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
 			String userName = source.getName();
 			log.info(String.format("User logged in [user: %s]", userName));
 			eventService.post(EventType.Login.toString(), userName, null);
@@ -198,22 +209,46 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	}
 
 	public void logout(Authentication auth) {
+		// TODO test for anonymous users
 		String userId = getUserId(auth);
 		if (userId == null) return;
-		
-//		if (authentication.getPrincipal() instanceof UserDetails) {
-//			userName = ((UserDetails) authentication.getPrincipal()).getUsername();
-//		}
-		
+
 		eventService.post(EventType.Logout.toString(), userId, null);
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
 
-		// TODO test for anonymous users
+		String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
 		applicationEventPublisher.publishEvent(new UserLogoutEvent(
 				this,
 				userId,
-				RequestContextHolder.currentRequestAttributes().getSessionId()));
+				sessionId,
+				false));
+	}
+
+	@EventListener
+	public void onSessionExpiredEvent(SessionExpiredEvent event) {
+		Session session = event.getSession();
+		String sessionId = session.getId();
+
+		Set<String> attributes = session.getAttributeNames();
+
+		for (String attributeName : attributes) {
+			Object attributeValue = session.getAttribute(attributeName);
+			if (attributeValue instanceof SecurityContext) {
+
+				Authentication authentication = ((SecurityContext) attributeValue).getAuthentication();
+				String userId = ((User) authentication.getPrincipal()).getUsername();
+
+				applicationEventPublisher.publishEvent(new UserLogoutEvent(
+						this,
+						userId,
+						sessionId,
+						true
+				));
+
+				break;
+			}
+		}
 	}
 
 }

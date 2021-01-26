@@ -52,7 +52,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.EventService.EventType;
 import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.ProxySpecException;
@@ -91,9 +90,6 @@ public class ProxyService {
 	
 	@Inject
 	private UserService userService;
-	
-	@Inject
-	private EventService eventService;
 	
 	@Inject
 	private LogService logService;
@@ -249,8 +245,6 @@ public class ProxyService {
 		}
 		
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
-		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), spec.getId());
-
 		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
 
 		return proxy;
@@ -275,8 +269,6 @@ public class ProxyService {
 				backend.stopProxy(proxy);
 				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-				eventService.post(EventType.ProxyStop.toString(), proxy.getUserId(), proxy.getSpec().getId());
-
 				applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(),
 						proxy.getSpec().getId(),
 						Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));

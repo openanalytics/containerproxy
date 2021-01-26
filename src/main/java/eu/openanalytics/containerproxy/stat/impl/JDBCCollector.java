@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.stat.impl;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -31,8 +30,8 @@ import org.springframework.core.env.Environment;
 
 import com.zaxxer.hikari.HikariDataSource;
 
-import eu.openanalytics.containerproxy.service.EventService.Event;
-import eu.openanalytics.containerproxy.stat.IStatCollector;
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 /**
  * 
@@ -56,11 +55,15 @@ import eu.openanalytics.containerproxy.stat.IStatCollector;
  * varchar(128), data text );
  * 
  */
-public class JDBCCollector implements IStatCollector {
+public class JDBCCollector extends AbstractDbCollector {
 
 	private HikariDataSource ds;
 
-	public JDBCCollector(Environment environment) {
+	@Inject
+	private Environment environment;
+
+	@PostConstruct
+	public void init() {
 		String baseURL = environment.getProperty("proxy.usage-stats-url");
 		String username = environment.getProperty("proxy.usage-stats-username", "monetdb");
 		String password = environment.getProperty("proxy.usage-stats-password", "monetdb");
@@ -96,20 +99,19 @@ public class JDBCCollector implements IStatCollector {
 		
 	}
 
-
 	@Override
-	public void accept(Event event, Environment env) throws IOException {
+	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
 		String sql = "INSERT INTO event(event_time, username, type, data) VALUES (?,?,?,?)";
 		try (Connection con = ds.getConnection()) {
 			try (PreparedStatement stmt = con.prepareStatement(sql)) {
-				stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
-				stmt.setString(2, event.user);
-				stmt.setString(3, event.type);
-				stmt.setString(4, event.data);
+				stmt.setTimestamp(1, new Timestamp(timestamp));
+				stmt.setString(2, userId);
+				stmt.setString(3, type);
+				stmt.setString(4, data);
 				stmt.executeUpdate();
 		   }
 		} catch (SQLException e) {
-			throw new IOException("Exception while loggin stats", e);
+			throw new IOException("Exception while logging stats", e);
 		}
 	}
 }

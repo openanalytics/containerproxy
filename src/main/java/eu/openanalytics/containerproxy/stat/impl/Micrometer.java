@@ -22,20 +22,15 @@ package eu.openanalytics.containerproxy.stat.impl;
 
 import eu.openanalytics.containerproxy.event.*;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.EventService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.io.IOException;
 
-@Component
 public class Micrometer implements IStatCollector {
 
     @Inject
@@ -54,6 +49,7 @@ public class Micrometer implements IStatCollector {
 
     @PostConstruct
     public void init() {
+
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
         appStartFailedCounter = registry.counter("startFailed");
@@ -65,10 +61,6 @@ public class Micrometer implements IStatCollector {
             registry.timer("startupTime", "spec.id", spec.getId());
             registry.timer("usageTime", "spec.id", spec.getId());
         }
-    }
-
-    @Override
-    public void accept(EventService.Event event, Environment env) throws IOException {
     }
 
     @EventListener

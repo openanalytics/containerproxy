@@ -60,22 +60,18 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.EventService.EventType;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.springframework.web.context.request.RequestContextHolder;
 
 
 @Service
-public class UserService implements ApplicationListener<AbstractAuthenticationEvent> {
+public class UserService {
 
 	private Logger log = LogManager.getLogger(UserService.class);
 
 	@Inject
 	private Environment environment;
 
-	@Inject
-	private EventService eventService;
-	
 	@Inject
 	@Lazy
 	// Note: lazy needed to work around early initialization conflict 
@@ -181,19 +177,18 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		}
 		return auth.getName();
 	}
-	
-	@Override
-	public void onApplicationEvent(AbstractAuthenticationEvent event) {
+
+	@EventListener
+	public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
 		Authentication source = event.getAuthentication();
-		if (event instanceof AbstractAuthenticationFailureEvent) {
-			Exception e = ((AbstractAuthenticationFailureEvent) event).getException();
-			log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
-			String userId = getUserId(source);
-			applicationEventPublisher.publishEvent(new AuthFailedEvent(
-					this,
-					userId,
-					RequestContextHolder.currentRequestAttributes().getSessionId()));
-		}
+		Exception e = event.getException();
+		log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
+		String userId = getUserId(source);
+
+		applicationEventPublisher.publishEvent(new AuthFailedEvent(
+				this,
+				userId,
+				RequestContextHolder.currentRequestAttributes().getSessionId()));
 	}
 
 	public void logout(Authentication auth) {
@@ -201,7 +196,6 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		String userId = getUserId(auth);
 		if (userId == null) return;
 
-		eventService.post(EventType.Logout.toString(), userId, null);
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
 
@@ -219,7 +213,6 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		String userName = auth.getName();
 
 		log.info(String.format("User logged in [user: %s]", userName));
-		eventService.post(EventType.Login.toString(), userName, null);
 
 		// TODO test for anonymous users
 		String userId = getUserId(auth);

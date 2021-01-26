@@ -21,11 +21,12 @@
 package eu.openanalytics.containerproxy.stat.impl;
 
 import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.EventService;
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -40,9 +41,8 @@ public class Micrometer implements IStatCollector {
     @Inject
     private MeterRegistry registry;
 
-    private Timer appStartupTimer;
-
-    private Timer appUsageTimer;
+    @Inject
+    private ProxyService proxyService;
 
     private Counter appStartFailedCounter;
 
@@ -52,20 +52,19 @@ public class Micrometer implements IStatCollector {
 
     private Counter userLogouts;
 
-    private Counter appStarts;
-
-    private Counter appStops;
-
     @PostConstruct
     public void init() {
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
-        appStarts = registry.counter("appStarts");
-        appStops = registry.counter("appStops");
-        appStartupTimer = registry.timer("startupTime");
-        appUsageTimer = registry.timer("usageTime");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
+
+        for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
+            registry.counter("appStarts", "spec.id", spec.getId());
+            registry.counter("appStops", "spec.id", spec.getId());
+            registry.timer("startupTime", "spec.id", spec.getId());
+            registry.timer("usageTime", "spec.id", spec.getId());
+        }
     }
 
     @Override
@@ -89,16 +88,16 @@ public class Micrometer implements IStatCollector {
     public void onProxyStartEvent(ProxyStartEvent event) {
         System.out.printf("ProxyStartEvent %s ,%s\n", event.getUserId(), event.getStartupTime());
 
-        appStarts.increment();
-        appStartupTimer.record(event.getStartupTime());
+        registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
+        registry.timer("startupTime", "spec.id", event.getSpecId()).record(event.getStartupTime());
     }
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
         System.out.printf("ProxyStopEvent %s, %s\n", event.getUserId(), event.getUsageTime());
 
-        appStops.increment();
-        appUsageTimer.record(event.getUsageTime());
+        registry.counter("appStops", "spec.id", event.getSpecId()).increment();
+        registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
     }
 
     @EventListener

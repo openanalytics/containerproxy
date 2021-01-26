@@ -193,18 +193,6 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 					this,
 					userId,
 					RequestContextHolder.currentRequestAttributes().getSessionId()));
-		} else if (event instanceof AuthenticationSuccessEvent) {
-//		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
-			String userName = source.getName();
-			log.info(String.format("User logged in [user: %s]", userName));
-			eventService.post(EventType.Login.toString(), userName, null);
-
-			String userId = getUserId(source);
-			// TODO test for anonymous users
-			applicationEventPublisher.publishEvent(new UserLoginEvent(
-					this,
-					userId,
-					RequestContextHolder.currentRequestAttributes().getSessionId()));
 		}
 	}
 
@@ -223,6 +211,22 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 				userId,
 				sessionId,
 				false));
+	}
+
+	@EventListener
+	public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
+		Authentication auth = event.getAuthentication();
+		String userName = auth.getName();
+
+		log.info(String.format("User logged in [user: %s]", userName));
+		eventService.post(EventType.Login.toString(), userName, null);
+
+		// TODO test for anonymous users
+		String userId = getUserId(auth);
+		applicationEventPublisher.publishEvent(new UserLoginEvent(
+				this,
+				userId,
+				RequestContextHolder.currentRequestAttributes().getSessionId()));
 	}
 
 	@EventListener

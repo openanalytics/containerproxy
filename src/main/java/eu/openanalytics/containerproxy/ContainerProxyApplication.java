@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import eu.openanalytics.containerproxy.session.undertow.CustomSessionManagerFactory;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.servlet.api.ServletSessionConfig;
@@ -105,9 +104,6 @@ public class ContainerProxyApplication {
 		defaultCookieSerializer.setSameSite(sameSiteCookie);
 	}
 
-	@Inject
-	private CustomSessionManagerFactory customSessionManagerFactory;
-
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
@@ -123,7 +119,6 @@ public class ContainerProxyApplication {
 			sessionConfig.setHttpOnly(true);
 			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
 			info.setServletSessionConfig(sessionConfig);
-			info.setSessionManagerFactory(customSessionManagerFactory);
 		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));

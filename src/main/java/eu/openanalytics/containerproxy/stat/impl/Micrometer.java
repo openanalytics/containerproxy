@@ -22,27 +22,18 @@ package eu.openanalytics.containerproxy.stat.impl;
 
 import eu.openanalytics.containerproxy.event.*;
 import eu.openanalytics.containerproxy.service.EventService;
-import eu.openanalytics.containerproxy.session.ISessionInformation;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.session.SessionDestroyedEvent;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.security.Principal;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class Micrometer implements IStatCollector {
@@ -50,12 +41,7 @@ public class Micrometer implements IStatCollector {
     @Inject
     private MeterRegistry registry;
 
-    @Inject
-    private ISessionInformation sessionInformation;
-
     private AtomicInteger appsGauge;
-
-    private AtomicLong loggedInUsersGauge;
 
     private Timer appStartupTimer;
 
@@ -72,7 +58,6 @@ public class Micrometer implements IStatCollector {
     @PostConstruct
     public void init() {
         appsGauge = registry.gauge("apps", new AtomicInteger(0));
-        loggedInUsersGauge = registry.gauge("users", new AtomicLong(0));
         appStartupTimer = registry.timer("startupTime");
         appUsageTimer = registry.timer("usageTime");
         appStartFailedCounter = registry.counter("startFailed");
@@ -94,14 +79,12 @@ public class Micrometer implements IStatCollector {
     public void onUserLogoutEvent(UserLogoutEvent event) {
         // TODO in a HA setup this event should only be processed by one server
         System.out.printf("UserLogoutEvent %s, %s, %s\n", event.getUserId(), event.getSessionId(), event.getWasExpired());
-        loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
         userLogouts.increment();
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) {
         System.out.printf("UserLoginEvent, %s, %s \n", event.getUserId(), event.getSessionId());
-        loggedInUsersGauge.set(sessionInformation.getLoggedInUsersCount());
         userLogins.increment();
     }
 

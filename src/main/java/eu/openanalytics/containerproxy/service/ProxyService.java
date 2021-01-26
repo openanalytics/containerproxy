@@ -229,8 +229,10 @@ public class ProxyService {
 		try {
 			backend.startProxy(proxy);
 		} finally {
-			if (proxy.getStatus() != ProxyStatus.Up) activeProxies.remove(proxy);
-			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			if (proxy.getStatus() != ProxyStatus.Up) {
+				activeProxies.remove(proxy);
+				applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			}
 		}
 		
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {

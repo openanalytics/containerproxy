@@ -33,15 +33,12 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class Micrometer implements IStatCollector {
 
     @Inject
     private MeterRegistry registry;
-
-    private AtomicInteger appsGauge;
 
     private Timer appStartupTimer;
 
@@ -55,24 +52,24 @@ public class Micrometer implements IStatCollector {
 
     private Counter userLogouts;
 
+    private Counter appStarts;
+
+    private Counter appStops;
+
     @PostConstruct
     public void init() {
-        appsGauge = registry.gauge("apps", new AtomicInteger(0));
+        userLogins = registry.counter("userLogins");
+        userLogouts = registry.counter("userLogouts");
+        appStarts = registry.counter("appStarts");
+        appStops = registry.counter("appStops");
         appStartupTimer = registry.timer("startupTime");
         appUsageTimer = registry.timer("usageTime");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
-        userLogins = registry.counter("userLogins");
-        userLogouts = registry.counter("userLogouts");
     }
 
     @Override
     public void accept(EventService.Event event, Environment env) throws IOException {
-        if (event.type.equals(EventService.EventType.ProxyStart.toString())) {
-            appsGauge.incrementAndGet();
-        } else if (event.type.equals(EventService.EventType.ProxyStop.toString())) {
-            appsGauge.decrementAndGet();
-        }
     }
 
     @EventListener
@@ -92,6 +89,7 @@ public class Micrometer implements IStatCollector {
     public void onProxyStartEvent(ProxyStartEvent event) {
         System.out.printf("ProxyStartEvent %s ,%s\n", event.getUserId(), event.getStartupTime());
 
+        appStarts.increment();
         appStartupTimer.record(event.getStartupTime());
     }
 
@@ -99,6 +97,7 @@ public class Micrometer implements IStatCollector {
     public void onProxyStopEvent(ProxyStopEvent event) {
         System.out.printf("ProxyStopEvent %s, %s\n", event.getUserId(), event.getUsageTime());
 
+        appStops.increment();
         appUsageTimer.record(event.getUsageTime());
     }
 

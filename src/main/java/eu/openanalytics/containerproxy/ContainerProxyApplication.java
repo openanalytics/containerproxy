@@ -206,7 +206,15 @@ public class ContainerProxyApplication {
 
 		properties.put("spring.application.name", "ContainerProxy");
 
-		properties.put("management.metrics.export.defaults.enabled", "false");
+		// Metrics configuration
+		// ====================
+
+		// disable all supported exporters by default
+		properties.put("management.metrics.export.prometheus.enabled", "false");
+		properties.put("management.metrics.export.influx .enabled", "false");
+		// Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
+
+		// ====================
 
 		// Health configuration
 		// ====================

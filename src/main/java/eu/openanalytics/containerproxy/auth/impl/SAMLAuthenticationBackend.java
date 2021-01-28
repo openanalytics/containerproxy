@@ -43,8 +43,9 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "saml";
 
-	private static final String PROP_LOGOUT_URL = "proxy.saml.logout-url";
-	
+	private static final String PROP_SUCCESS_LOGOUT_URL = "proxy.saml.logout-url";
+	private static final String PROP_SAML_LOGOUT_METHOD = "proxy.saml.logout-method";
+
 	@Autowired(required = false)
 	private SAMLEntryPoint samlEntryPoint;
 	
@@ -90,17 +91,29 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public String getLogoutURL() {
-		if (environment.getProperty(PROP_LOGOUT_URL) != null) {
+		LogoutMethod logoutMethod = environment.getProperty(PROP_SAML_LOGOUT_METHOD, LogoutMethod.class, LogoutMethod.LOCAL);
+		if (logoutMethod == LogoutMethod.LOCAL) {
 			return "/logout";
 		}
-		return "/saml/logout";
+		return "/saml/logout"; // LogoutMethod.SAML
 	}
 
 	@Override
 	public String getLogoutSuccessURL() {
-		String logoutURL = environment.getProperty(PROP_LOGOUT_URL);
-		System.out.println("LogoutURL: " + logoutURL);
-		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = "/";
+	    return determineLogoutSuccessURL(environment);
+	}
+
+	public static String determineLogoutSuccessURL(Environment environment) {
+		String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
+		if (logoutURL == null || logoutURL.trim().isEmpty()) {
+			logoutURL = "/";
+		}
 		return logoutURL;
 	}
+
+	private enum LogoutMethod {
+		LOCAL,
+		SAML
+	}
+
 }

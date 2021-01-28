@@ -1,0 +1,54 @@
+<!--
+
+    ContainerProxy
+
+    Copyright (C) 2016-2020 Open Analytics
+
+    ===========================================================================
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the Apache License as published by
+    The Apache Software Foundation, either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    Apache License for more details.
+
+    You should have received a copy of the Apache License
+    along with this program.  If not, see <http://www.apache.org/licenses/>
+
+-->
+<!DOCTYPE html>
+<html
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+
+<head lang="en">
+	<title th:text="${title}"></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<link rel="stylesheet" media="screen" th:href="@{/webjars/bootstrap/3.4.1/css/bootstrap.min.css}"/>
+	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
+	<link rel="stylesheet" media="screen" type="text/css" href="https://cdn.jsdelivr.net/bootstrap-social/5.1.1/bootstrap-social.css"/>
+	<link rel="stylesheet" media="screen" type="text/css" href="https://cdn.jsdelivr.net/fontawesome/4.7.0/css/font-awesome.min.css"/>
+	<script th:src="@{/webjars/jquery/3.5.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/3.4.1/js/bootstrap.min.js}"></script>
+</head>
+
+<body>
+	<div class="container">
+		<h2>You have been logged out successfully.</h2>
+		<p><a th:href="@{/}"><b>Login again</b></a></p>
+	</div>
+
+<style>
+h2 {
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+</style>
+	
+</body>
+
+</html>

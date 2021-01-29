@@ -210,9 +210,15 @@ public class ContainerProxyApplication {
 		// ====================
 
 		// disable all supported exporters by default
-		properties.put("management.metrics.export.prometheus.enabled", "false");
-		properties.put("management.metrics.export.influx .enabled", "false");
 		// Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
+		properties.put("management.metrics.export.prometheus.enabled", "false");
+		properties.put("management.metrics.export.influx.enabled", "false");
+		// set actuator to port 9090 (can be overwritten)
+		properties.put("management.server.port", "9090");
+		// enable prometheus endpoint by default (but not the exporter)
+		properties.put("management.endpoint.prometheus.enabled", "true");
+		// include prometheus and health endpoint in exposure
+		properties.put("management.endpoints.web.exposure.include", "health,prometheus");
 
 		// ====================
 
@@ -225,7 +231,7 @@ public class ContainerProxyApplication {
 		properties.put("management.health.ldap.enabled", false);
 		// disable default redis health endpoint since it's managed by redisSession
 		properties.put("management.health.redis.enabled", "false");
-		// enable Kubernetes porobes
+		// enable Kubernetes probes
 		properties.put("management.endpoint.health.probes.enabled", true);
 
 		// ====================

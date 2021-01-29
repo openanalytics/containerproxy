@@ -26,6 +26,8 @@ import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
@@ -38,6 +40,8 @@ public class Micrometer implements IStatCollector {
 
     @Inject
     private ProxyService proxyService;
+
+    private final Logger logger = LogManager.getLogger(getClass());
 
     private Counter appStartFailedCounter;
 
@@ -65,44 +69,39 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
-        // TODO in a HA setup this event should only be processed by one server
-        System.out.printf("UserLogoutEvent %s, %s, %s\n", event.getUserId(), event.getSessionId(), event.getWasExpired());
+        logger.debug("UserLogoutEvent [user: {}, sessionId: {}, expired: {}]", event.getUserId(), event.getSessionId(), event.getWasExpired());
         userLogouts.increment();
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) {
-        System.out.printf("UserLoginEvent, %s, %s \n", event.getUserId(), event.getSessionId());
+        logger.debug("UserLoginEvent [user: {}, sessionId: {}]", event.getUserId(), event.getSessionId());
         userLogins.increment();
     }
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
-        System.out.printf("ProxyStartEvent %s ,%s\n", event.getUserId(), event.getStartupTime());
-
+        logger.debug("ProxyStartEvent [user: {}, startupTime: {}]", event.getUserId(), event.getStartupTime());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
         registry.timer("startupTime", "spec.id", event.getSpecId()).record(event.getStartupTime());
     }
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
-        System.out.printf("ProxyStopEvent %s, %s\n", event.getUserId(), event.getUsageTime());
-
+        logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
         registry.counter("appStops", "spec.id", event.getSpecId()).increment();
         registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
     }
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
-        System.out.printf("ProxyStartFailedEvent %s, %s\n", event.getUserId(), event.getSpecId());
-
+        logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
         appStartFailedCounter.increment();
     }
 
     @EventListener
     public void onAuthFailedEvent(AuthFailedEvent event) {
-        System.out.printf("AuthFailedEvent %s, %s\n", event.getUserId(), event.getSessionId());
-
+        logger.debug("AuthFailedEvent [user: {}, sessionId: {}]", event.getUserId(), event.getSessionId());
         authFailedCounter.increment();
     }
 

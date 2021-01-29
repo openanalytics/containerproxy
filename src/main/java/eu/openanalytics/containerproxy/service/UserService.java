@@ -240,26 +240,26 @@ public class UserService {
 						true
 				));
 			} else if (authBackend.getName().equals("none")) {
+				log.info(String.format("Anonymous user logged out [user: %s]", event.getSession().getId()));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,
 						event.getSession().getId(),
 						event.getSession().getId(),
 						true
 				));
-				log.info(String.format("Anonymous user logged out [user: %s]", event.getSession().getId()));
 			}
 		}
 	}
 
 	@EventListener
 	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
+		log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
 		if (authBackend.getName().equals("none")) {
 			applicationEventPublisher.publishEvent(new UserLoginEvent(
 					this,
 					event.getSession().getId(),
 					event.getSession().getId()));
 		}
-		log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
 	}
 
 }

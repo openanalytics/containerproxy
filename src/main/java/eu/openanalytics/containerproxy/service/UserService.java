@@ -20,54 +20,50 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-import javax.servlet.http.HttpSession;
-
-import com.google.common.cache.*;
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
-import org.apache.commons.lang3.tuple.Pair;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.xpath.operations.Bool;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
 import org.springframework.security.authentication.event.AbstractAuthenticationFailureEvent;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
-import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.session.SessionDestroyedEvent;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.session.Session;
+import org.springframework.session.events.SessionCreatedEvent;
 import org.springframework.session.events.SessionExpiredEvent;
 import org.springframework.stereotype.Service;
-
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 
 @Service
 public class UserService {
 
-	private Logger log = LogManager.getLogger(UserService.class);
+	private final static String ATTRIBUTE_USER_INITIATED_LOGOUT = "SP_USER_INITIATED_LOGOUT";
+
+	private final Logger log = LogManager.getLogger(UserService.class);
 
 	@Inject
 	private Environment environment;
@@ -199,6 +195,10 @@ public class UserService {
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
 
+		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
+		session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
+
+
 		String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
 		applicationEventPublisher.publishEvent(new UserLogoutEvent(
 				this,
@@ -223,27 +223,28 @@ public class UserService {
 	}
 
 	@EventListener
-	public void onSessionExpiredEvent(SessionExpiredEvent event) {
-		Session session = event.getSession();
-		String sessionId = session.getId();
+	public void onHttpSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
+		String userInitiatedLogout = (String) event.getSession().getAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT);
 
-		Set<String> attributes = session.getAttributeNames();
+		if (userInitiatedLogout != null && userInitiatedLogout.equals("true")) {
+			// user initiated the logout
+			// event already handled by the logout() function above -> ignore it
+		} else {
+			// user did not initiated the logout -> session expired
+			// not already handled by any other handler
+			if (!event.getSecurityContexts().isEmpty()) {
+				SecurityContext securityContext = event.getSecurityContexts().get(0);
+				if (securityContext == null) return;
 
-		for (String attributeName : attributes) {
-			Object attributeValue = session.getAttribute(attributeName);
-			if (attributeValue instanceof SecurityContext) {
-
-				Authentication authentication = ((SecurityContext) attributeValue).getAuthentication();
+				Authentication authentication = securityContext.getAuthentication();
 				String userId = ((User) authentication.getPrincipal()).getUsername();
 
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,
 						userId,
-						sessionId,
+						event.getSession().getId(),
 						true
 				));
-
-				break;
 			}
 		}
 	}

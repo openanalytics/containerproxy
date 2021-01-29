@@ -42,10 +42,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.web.session.HttpSessionCreatedEvent;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
-import org.springframework.session.Session;
-import org.springframework.session.events.SessionCreatedEvent;
-import org.springframework.session.events.SessionExpiredEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -56,7 +54,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 
 @Service
 public class UserService {
@@ -188,7 +185,6 @@ public class UserService {
 	}
 
 	public void logout(Authentication auth) {
-		// TODO test for anonymous users
 		String userId = getUserId(auth);
 		if (userId == null) return;
 
@@ -197,7 +193,6 @@ public class UserService {
 
 		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
 		session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
-
 
 		String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
 		applicationEventPublisher.publishEvent(new UserLogoutEvent(
@@ -214,7 +209,6 @@ public class UserService {
 
 		log.info(String.format("User logged in [user: %s]", userName));
 
-		// TODO test for anonymous users
 		String userId = getUserId(auth);
 		applicationEventPublisher.publishEvent(new UserLoginEvent(
 				this,
@@ -245,8 +239,27 @@ public class UserService {
 						event.getSession().getId(),
 						true
 				));
+			} else if (authBackend.getName().equals("none")) {
+				applicationEventPublisher.publishEvent(new UserLogoutEvent(
+						this,
+						event.getSession().getId(),
+						event.getSession().getId(),
+						true
+				));
+				log.info(String.format("Anonymous user logged out [user: %s]", event.getSession().getId()));
 			}
 		}
+	}
+
+	@EventListener
+	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
+		if (authBackend.getName().equals("none")) {
+			applicationEventPublisher.publishEvent(new UserLoginEvent(
+					this,
+					event.getSession().getId(),
+					event.getSession().getId()));
+		}
+		log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
 	}
 
 }

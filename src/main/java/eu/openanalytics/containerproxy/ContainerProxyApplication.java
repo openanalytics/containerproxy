@@ -148,16 +148,6 @@ public class ContainerProxyApplication {
 		return new JSR353Module();
 	}
 
-	/**
-	 * Compatibility with AWS ElastiCache
-	 *
-	 * @return
-	 */
-//	@Bean TODO TODO TODO https://aws.amazon.com/premiumsupport/knowledge-center/elasticache-redis-keyspace-notifications/ https://docs.spring.io/spring-session/docs/current/reference/html5/#api-redisindexedsessionrepository-sessiondestroyedevent
-//	public static ConfigureRedisAction configureRedisAction() {
-//		return ConfigureRedisAction.NO_OP;
-//	}
-
 	@Bean
 	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
 	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {

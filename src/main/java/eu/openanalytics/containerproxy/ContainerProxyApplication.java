@@ -39,6 +39,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.session.data.redis.config.ConfigureRedisAction;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.filter.FormContentFilter;
 
 import javax.annotation.PostConstruct;
@@ -61,6 +62,9 @@ public class ContainerProxyApplication {
 
 	@Inject
 	private ProxyMappingManager mappingManager;
+
+	@Inject
+	private DefaultCookieSerializer defaultCookieSerializer;
 
 	private final Logger log = LogManager.getLogger(getClass());
 
@@ -88,6 +92,10 @@ public class ContainerProxyApplication {
 		if (environment.getProperty("server.use-forward-headers") != null) {
 			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release. See https://shinyproxy.io/documentation/security/#https-ssl--tls on how to change your configuration.");
 		}
+
+		String sameSiteCookie = environment.getProperty("proxy.same-site-cookie", "Lax");
+		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookie);
+		defaultCookieSerializer.setSameSite(sameSiteCookie);
 	}
 
 	@Bean

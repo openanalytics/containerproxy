@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import eu.openanalytics.containerproxy.api.BaseController;
 
 @Controller
-public class AuthErrorController extends BaseController {
+public class AuthController extends BaseController {
 
 	@Inject
 	private Environment environment;
@@ -41,6 +41,11 @@ public class AuthErrorController extends BaseController {
 	public String getAuthErrorPage(ModelMap map, HttpServletRequest request) {
 		map.put("application_name", environment.getProperty("spring.application.name"));
 		return "auth-error";
+	}
+
+	@RequestMapping(value = "/app-access-denied", method = RequestMethod.GET)
+	public String getAppAccessDeniedPage(ModelMap map, HttpServletRequest request) {
+		return "app-access-denied";
 	}
 
 }

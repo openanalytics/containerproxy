@@ -20,13 +20,10 @@
  */
 package eu.openanalytics.containerproxy.security;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -43,8 +40,8 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
+import javax.inject.Inject;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -61,7 +58,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Inject
 	private Environment environment;
-	
+
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
 	
@@ -128,8 +125,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		if (auth.hasAuthorization()) {
 			http.authorizeRequests().antMatchers(
-						"/login", "/signin/**", "/auth-error", "/logout-success",
-						"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
+					"/login", "/signin/**", "/auth-error", "/app-access-denied", "/logout-success",
+					"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
 			http
 				.formLogin()
 					.loginPage("/login")

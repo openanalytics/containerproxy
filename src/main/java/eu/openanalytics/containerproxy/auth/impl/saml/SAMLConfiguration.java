@@ -311,7 +311,7 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SimpleUrlAuthenticationFailureHandler authenticationFailureHandler() {
-		SimpleUrlAuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler();
+		AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 		failureHandler.setUseForward(true);
 		failureHandler.setDefaultFailureUrl("/error");
 		return failureHandler;

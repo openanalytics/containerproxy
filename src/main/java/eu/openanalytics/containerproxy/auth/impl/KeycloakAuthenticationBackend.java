@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.servlet.ServletException;
 
+import eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler;
 import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
@@ -39,6 +40,7 @@ import org.keycloak.adapters.spi.KeycloakAccount;
 import org.keycloak.adapters.springsecurity.AdapterDeploymentContextFactoryBean;
 import org.keycloak.adapters.springsecurity.account.KeycloakRole;
 import org.keycloak.adapters.springsecurity.authentication.KeycloakAuthenticationEntryPoint;
+import org.keycloak.adapters.springsecurity.authentication.KeycloakAuthenticationFailureHandler;
 import org.keycloak.adapters.springsecurity.authentication.KeycloakAuthenticationProvider;
 import org.keycloak.adapters.springsecurity.authentication.KeycloakLogoutHandler;
 import org.keycloak.adapters.springsecurity.filter.KeycloakAuthenticationProcessingFilter;
@@ -141,6 +143,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 
 		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
 		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
+		filter.setAuthenticationFailureHandler(keycloakAuthenticationFailureHandler());
 		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
 		filter.setApplicationContext(ctx);
 		filter.afterPropertiesSet();
@@ -167,6 +170,11 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
 	protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
 		return new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl());
+	}
+
+	@Bean
+	public KeycloakAuthenticationFailureHandler keycloakAuthenticationFailureHandler() {
+		return new AuthenticationFaillureHandler();
 	}
 
 	@Bean

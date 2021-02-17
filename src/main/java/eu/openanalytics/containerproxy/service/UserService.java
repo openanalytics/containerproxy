@@ -188,6 +188,7 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		eventService.post(EventType.Logout.toString(), userId, null);
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
+
 	}
 
 }

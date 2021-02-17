@@ -31,6 +31,7 @@ import java.util.Timer;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -157,7 +158,7 @@ public class SAMLConfiguration {
 	@Bean
 	public SimpleUrlLogoutSuccessHandler successLogoutHandler() {
 		SimpleUrlLogoutSuccessHandler successLogoutHandler = new SimpleUrlLogoutSuccessHandler();
-		successLogoutHandler.setDefaultTargetUrl("/");
+		successLogoutHandler.setDefaultTargetUrl(SAMLAuthenticationBackend.determineLogoutSuccessURL(environment));
 		return successLogoutHandler;
 	}
 	
@@ -310,7 +311,7 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SimpleUrlAuthenticationFailureHandler authenticationFailureHandler() {
-		SimpleUrlAuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler();
+		AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 		failureHandler.setUseForward(true);
 		failureHandler.setDefaultFailureUrl("/error");
 		return failureHandler;

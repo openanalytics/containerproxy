@@ -20,7 +20,10 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.saml;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensaml.common.SAMLException;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -34,10 +37,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Objects;
 
 import static eu.openanalytics.containerproxy.auth.impl.saml.AlreadyLoggedInFilter.REQ_PROP_AUTH_BEFORE_SSO;
 
 public class AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+
+    private final Logger logger = LogManager.getLogger(getClass());
 
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response, AuthenticationException exception)
@@ -59,6 +65,11 @@ public class AuthenticationFailureHandler extends SimpleUrlAuthenticationFailure
                     || samlException.getMessage().startsWith("InResponseToField of the Response doesn't correspond to sent message"))
                     || samlException.getMessage().equals("Unsupported request")) {
                 response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/").build().toUriString());
+                return;
+            } else if (samlException.getCause() instanceof CredentialsExpiredException) {
+                logger.warn("The credentials of the user has expired, this typically indicates a misconfiguration, see https://shinyproxy.io/faq/#the-credentials-of-the-user-expire-when-using-saml for more information!");
+                response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/auth-error").build().toUriString());
+                return;
             }
         }
 

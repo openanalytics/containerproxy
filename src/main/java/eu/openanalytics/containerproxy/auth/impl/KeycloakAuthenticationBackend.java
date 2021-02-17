@@ -173,6 +173,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Bean
+	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
 	public KeycloakAuthenticationFailureHandler keycloakAuthenticationFailureHandler() {
 		return new AuthenticationFaillureHandler();
 	}

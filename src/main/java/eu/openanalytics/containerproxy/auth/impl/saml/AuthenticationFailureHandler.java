@@ -77,7 +77,7 @@ public class AuthenticationFailureHandler extends SimpleUrlAuthenticationFailure
     }
 
     private boolean isOrWasAuthenticated(HttpServletRequest request) {
-        if (request.getAttribute(REQ_PROP_AUTH_BEFORE_SSO).equals("true")) {
+        if (Objects.equals(request.getAttribute(REQ_PROP_AUTH_BEFORE_SSO), "true")) {
             // Before doing a SSO request we check whether the user is authenticated, if so we set the SP_REQ_PROP_AUTH_BEFORE_SSO
             // property. If the auth failed, the Spring SecurityContext is cleared and thus we cannot use that to
             // check whether the user is authenticated.

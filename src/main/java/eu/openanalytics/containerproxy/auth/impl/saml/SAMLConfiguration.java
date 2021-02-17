@@ -81,6 +81,7 @@ public class SAMLConfiguration {
 
 	private static final String PROP_LOG_ATTRIBUTES = "proxy.saml.log-attributes";
 	private static final String PROP_FORCE_AUTHN = "proxy.saml.force-authn";
+	private static final String PROP_MAX_AUTHENTICATION_AGE = "proxy.saml.max-authentication-age";
 	private static final String PROP_KEYSTORE = "proxy.saml.keystore";
 	private static final String PROP_ENCRYPTION_CERT_NAME = "proxy.saml.encryption-cert-name";
 	private static final String PROP_ENCRYPTION_CERT_PASSWORD = "proxy.saml.encryption-cert-password";
@@ -98,7 +99,7 @@ public class SAMLConfiguration {
 
 	@Inject
 	private UserLogoutHandler userLogoutHandler;
-	
+
 	@Bean
 	public SAMLEntryPoint samlEntryPoint() {
 		SAMLEntryPoint samlEntryPoint = new SAMLEntryPoint();
@@ -314,7 +315,12 @@ public class SAMLConfiguration {
 
 	@Bean
 	public WebSSOProfileConsumer webSSOprofileConsumer() {
-		return new WebSSOProfileConsumerImpl();
+		WebSSOProfileConsumerImpl res = new WebSSOProfileConsumerImpl();
+		Integer maxAuthenticationAge = environment.getProperty(PROP_MAX_AUTHENTICATION_AGE, Integer.class);
+		if (maxAuthenticationAge != null) {
+			res.setMaxAuthenticationAge(maxAuthenticationAge);
+		}
+		return res;
 	}
 
 	@Bean

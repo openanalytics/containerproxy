@@ -41,7 +41,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.session.HttpSessionCreatedEvent;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
@@ -230,8 +229,7 @@ public class UserService {
 				SecurityContext securityContext = event.getSecurityContexts().get(0);
 				if (securityContext == null) return;
 
-				Authentication authentication = securityContext.getAuthentication();
-				String userId = ((User) authentication.getPrincipal()).getUsername();
+				String userId = securityContext.getAuthentication().getName();
 
 				log.info(String.format("User logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(

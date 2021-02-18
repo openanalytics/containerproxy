@@ -149,12 +149,6 @@ public class ContainerProxyApplication {
 	}
 
 	@Bean
-	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
-	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
-		return new SpringSessionBackedSessionRegistry<S>(sessionRepository);
-	}
-
-	@Bean
 	public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
 		if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
 			// if we are using redis for session -> use a proper health check for redis

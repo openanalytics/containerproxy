@@ -253,8 +253,8 @@ public class UserService {
 
 	@EventListener
 	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
-		log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
 		if (authBackend.getName().equals("none")) {
+			log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
 			applicationEventPublisher.publishEvent(new UserLoginEvent(
 					this,
 					event.getSession().getId(),

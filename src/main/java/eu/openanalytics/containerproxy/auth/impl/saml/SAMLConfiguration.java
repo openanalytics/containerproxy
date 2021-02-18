@@ -21,31 +21,17 @@
 package eu.openanalytics.containerproxy.auth.impl.saml;
 
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-
-import javax.inject.Inject;
-
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.velocity.app.VelocityEngine;
-import org.opensaml.saml2.core.Attribute;
 import org.opensaml.saml2.metadata.provider.HTTPMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
 import org.opensaml.util.resource.ResourceException;
-import org.opensaml.xml.XMLObject;
 import org.opensaml.xml.parse.StaticBasicParserPool;
 import org.opensaml.xml.parse.XMLParserException;
-import org.opensaml.xml.schema.XSAny;
-import org.opensaml.xml.schema.XSString;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -60,7 +46,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml.*;
-import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
@@ -74,14 +59,7 @@ import org.springframework.security.saml.processor.SAMLBinding;
 import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.userdetails.SAMLUserDetailsService;
 import org.springframework.security.saml.util.VelocityFactory;
-import org.springframework.security.saml.websso.SingleLogoutProfile;
-import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
-import org.springframework.security.saml.websso.WebSSOProfile;
-import org.springframework.security.saml.websso.WebSSOProfileConsumer;
-import org.springframework.security.saml.websso.WebSSOProfileConsumerHoKImpl;
-import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
-import org.springframework.security.saml.websso.WebSSOProfileImpl;
-import org.springframework.security.saml.websso.WebSSOProfileOptions;
+import org.springframework.security.saml.websso.*;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -92,6 +70,9 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import javax.inject.Inject;
+import java.util.*;
+
 @Configuration
 @ConditionalOnProperty(name="proxy.authentication", havingValue="saml")
 public class SAMLConfiguration {
@@ -100,6 +81,7 @@ public class SAMLConfiguration {
 
 	private static final String PROP_LOG_ATTRIBUTES = "proxy.saml.log-attributes";
 	private static final String PROP_FORCE_AUTHN = "proxy.saml.force-authn";
+	private static final String PROP_MAX_AUTHENTICATION_AGE = "proxy.saml.max-authentication-age";
 	private static final String PROP_KEYSTORE = "proxy.saml.keystore";
 	private static final String PROP_ENCRYPTION_CERT_NAME = "proxy.saml.encryption-cert-name";
 	private static final String PROP_ENCRYPTION_CERT_PASSWORD = "proxy.saml.encryption-cert-password";
@@ -117,7 +99,7 @@ public class SAMLConfiguration {
 
 	@Inject
 	private UserLogoutHandler userLogoutHandler;
-	
+
 	@Bean
 	public SAMLEntryPoint samlEntryPoint() {
 		SAMLEntryPoint samlEntryPoint = new SAMLEntryPoint();
@@ -327,8 +309,18 @@ public class SAMLConfiguration {
 	}
 
 	@Bean
+    public AlreadyLoggedInFilter alreadyLoggedInFilter() {
+		return new AlreadyLoggedInFilter();
+	}
+
+	@Bean
 	public WebSSOProfileConsumer webSSOprofileConsumer() {
-		return new WebSSOProfileConsumerImpl();
+		WebSSOProfileConsumerImpl res = new WebSSOProfileConsumerImpl();
+		Integer maxAuthenticationAge = environment.getProperty(PROP_MAX_AUTHENTICATION_AGE, Integer.class);
+		if (maxAuthenticationAge != null) {
+			res.setMaxAuthenticationAge(maxAuthenticationAge);
+		}
+		return res;
 	}
 
 	@Bean
@@ -342,7 +334,7 @@ public class SAMLConfiguration {
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/login/**"), samlEntryPoint()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/logout/**"), samlLogoutFilter()));
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SingleLogout/**"), samlLogoutProcessingFilter()));
-		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), samlWebSSOProcessingFilter()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), alreadyLoggedInFilter(), samlWebSSOProcessingFilter()));
 		return new SAMLFilterSet(chains);
 	}
 

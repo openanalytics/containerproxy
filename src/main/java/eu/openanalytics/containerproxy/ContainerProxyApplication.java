@@ -43,7 +43,6 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
-import org.springframework.session.data.redis.config.ConfigureRedisAction;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.web.filter.FormContentFilter;
@@ -168,6 +167,15 @@ public class ContainerProxyApplication {
 				}
 			};
 		}
+	}
+
+	/**
+	 * This Bean ensures that User Session are properly expired when using Redis for session storage.
+	 */
+	@Bean
+	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
+	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
+		return new SpringSessionBackedSessionRegistry<S>(sessionRepository);
 	}
 
 	@Bean

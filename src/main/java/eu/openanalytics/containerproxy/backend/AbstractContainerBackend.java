@@ -142,7 +142,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			stopProxy(proxy);
 			throw new ContainerProxyException("Container did not respond in time");
 		}
-		
+
+		proxy.setStartupTimestamp(System.currentTimeMillis());
 		proxy.setStatus(ProxyStatus.Up);
 	}
 	

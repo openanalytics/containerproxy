@@ -53,7 +53,9 @@ import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -71,6 +73,8 @@ import eu.openanalytics.containerproxy.util.SessionHelper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
@@ -82,7 +86,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	
 	private Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
 	
-	private OAuth2AuthorizedClientService authorizedClientService;
+	private OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository;
 	
 	@Inject
 	private Environment environment;
@@ -100,15 +104,15 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	@Override
 	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
-		authorizedClientService = new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepo);
-		
+		oAuth2AuthorizedClientRepository = new HttpSessionOAuth2AuthorizedClientRepository();
+
 		anyRequestConfigurer.authenticated();
 		
 		http
 			.oauth2Login()
 				.loginPage("/login")
 				.clientRegistrationRepository(clientRegistrationRepo)
-				.authorizedClientService(authorizedClientService)
+				.authorizedClientRepository(oAuth2AuthorizedClientRepository)
 				.authorizationEndpoint()
 					.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI))
 				.and()
@@ -151,7 +155,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		if (auth == null) return;
 
 		OidcUser user = (OidcUser) auth.getPrincipal();
-		OAuth2AuthorizedClient client = authorizedClientService.loadAuthorizedClient(REG_ID, user.getName());
+		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
 		if (client == null || client.getAccessToken() == null) return;
 		
 		env.add(ENV_TOKEN_NAME + "=" + client.getAccessToken().getTokenValue());

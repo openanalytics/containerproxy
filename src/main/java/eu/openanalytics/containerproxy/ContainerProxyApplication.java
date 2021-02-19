@@ -90,7 +90,7 @@ public class ContainerProxyApplication {
 	@PostConstruct
 	public void init() {
 		if (environment.getProperty("server.use-forward-headers") != null) {
-			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release. See https://shinyproxy.io/documentation/security/#https-ssl--tls on how to change your configuration.");
+			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on how to change your configuration.");
 		}
 
 		String sameSiteCookie = environment.getProperty("proxy.same-site-cookie", "Lax");

@@ -90,6 +90,11 @@ public class SAMLConfiguration {
 	private static final String PROP_APP_ENTITY_ID = "proxy.saml.app-entity-id";
 	private static final String PROP_BASE_URL = "proxy.saml.app-base-url";
 	private static final String PROP_METADATA_URL = "proxy.saml.idp-metadata-url";
+	private static final String PROP_LB_SERVER_NAME = "proxy.saml.lb-server-name";
+	private static final String PROP_LB_CONTEXT_PATH = "proxy.saml.lb-context-path";
+	private static final String PROP_LB_PORT_IN_URL = "proxy.saml.lb-port-in-url";
+	private static final String PROP_LB_SCHEME = "proxy.saml.lb-scheme";
+	private static final String PROP_LB_SERVER_PORT = "proxy.saml.lb-server-port";
 
 	@Inject
 	private Environment environment;
@@ -282,28 +287,20 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SAMLContextProviderImpl contextProvider() {
-		SAMLContextProviderImpl provider;
-		String serverName = environment.getProperty("proxy.saml.lb-server-name");
+		String serverName = environment.getProperty(PROP_LB_SERVER_NAME);
+		
 		if (serverName != null && !serverName.isEmpty()) {
 			SAMLContextProviderLB lbProvider = new SAMLContextProviderLB();
+
 			lbProvider.setServerName(serverName);
-			String contextPath = environment.getProperty("proxy.saml.lb-context-path");
-			if (contextPath == null) contextPath = "/";
-			lbProvider.setContextPath(contextPath);
-			String portInUrl = environment.getProperty("proxy.saml.lb-port-in-url");
-			if (portInUrl == null) portInUrl = "false";
-			lbProvider.setIncludeServerPortInRequestURL(Boolean.valueOf(portInUrl));
-			String scheme = environment.getProperty("proxy.saml.lb-scheme");
-			if (scheme == null) scheme = "https";
-			lbProvider.setScheme(scheme);
-			String serverPort = environment.getProperty("proxy.saml.lb-server-port");
-			if (serverPort == null) serverPort = "443";
-			lbProvider.setServerPort(Integer.valueOf(serverPort));
-			provider = lbProvider;
-		} else {
-			provider = new SAMLContextProviderImpl();
+			lbProvider.setContextPath(environment.getProperty(PROP_LB_CONTEXT_PATH, "/"));
+			lbProvider.setIncludeServerPortInRequestURL(environment.getProperty(PROP_LB_PORT_IN_URL, Boolean.class, false));
+			lbProvider.setScheme(environment.getProperty(PROP_LB_SCHEME, "https"));
+			lbProvider.setServerPort(environment.getProperty(PROP_LB_SERVER_PORT, Integer.class, 443));
+
+			return lbProvider;
 		}
-		return provider;
+		return new SAMLContextProviderImpl();
 	}
 
 	@Bean

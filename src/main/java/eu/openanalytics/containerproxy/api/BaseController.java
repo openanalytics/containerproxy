@@ -20,13 +20,31 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+
 public class BaseController {
+
+	@Inject
+	private Environment environment;
+
+	protected void prepareMap(ModelMap map) {
+		map.put("title", environment.getProperty("proxy.title", "ShinyProxy"));
+		map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
+		map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
+		map.put("jqueryJs", "/webjars/jquery/3.5.0/jquery.min.js");
+	}
 
 	public static class NotFoundException extends RuntimeException {
 		

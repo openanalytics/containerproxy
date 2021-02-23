@@ -78,7 +78,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String RUNTIME_LABEL_USER_GROUPS = "openanalytics.eu/sp-user-groups";
 	protected static final String RUNTIME_LABEL_REALM_ID = "openanalytics.eu/sp-realm-id";
 	protected static final String RUNTIME_LABEL_PROXY_SPEC_ID = "openanalytics.eu/sp-spec-id";
-	protected static final String RUNTIME_LABEL_STARTUP_TIMESTAMP = "openanalytics.eu/sp-proxy-startup-timestamp";
+	protected static final String RUNTIME_LABEL_CREATED_TIMESTAMP = "openanalytics.eu/sp-proxy-created-timestamp";
 	protected static final String RUNTIME_LABEL_PROXIED_APP = "openanalytics.eu/sp-proxied-app";
 	protected static final String RUNTIME_LABEL_INSTANCE = "openanalytics.eu/sp-instance";
 
@@ -162,7 +162,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			spec.addRuntimeLabel(RUNTIME_LABEL_USER_ID, false, proxy.getUserId());
 			String[] groups = userService.getGroups(userService.getCurrentAuth());
 			spec.addRuntimeLabel(RUNTIME_LABEL_USER_GROUPS, false, String.join(",", groups));
-			spec.addRuntimeLabel(RUNTIME_LABEL_STARTUP_TIMESTAMP, false, String.valueOf(proxy.getStartupTimestamp()));
+			spec.addRuntimeLabel(RUNTIME_LABEL_CREATED_TIMESTAMP, false, String.valueOf(proxy.getCreatedTimestamp()));
 
 			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
 			Container c = startContainer(eSpec, proxy);

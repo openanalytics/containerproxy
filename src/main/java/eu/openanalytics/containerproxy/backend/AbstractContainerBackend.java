@@ -129,8 +129,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	public void startProxy(Proxy proxy) throws ContainerProxyException {
 		proxy.setId(UUID.randomUUID().toString());
 		proxy.setStatus(ProxyStatus.Starting);
-		proxy.setStartupTimestamp(System.currentTimeMillis());
-
+		proxy.setCreatedTimestamp(System.currentTimeMillis());
+		
 		try {
 			doStartProxy(proxy);
 		} catch (Throwable t) {
@@ -142,7 +142,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			stopProxy(proxy);
 			throw new ContainerProxyException("Container did not respond in time");
 		}
-		
+
+		proxy.setStartupTimestamp(System.currentTimeMillis());
 		proxy.setStatus(ProxyStatus.Up);
 	}
 	

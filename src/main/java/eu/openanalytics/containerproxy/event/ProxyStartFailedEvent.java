@@ -18,27 +18,27 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.auth;
+package eu.openanalytics.containerproxy.event;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import org.springframework.context.ApplicationEvent;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.stereotype.Component;
+public class ProxyStartFailedEvent extends ApplicationEvent {
 
-import eu.openanalytics.containerproxy.service.UserService;
+    private final String userId;
+    private final String specId;
 
-@Component
-public class UserLogoutHandler implements LogoutHandler {
+    public ProxyStartFailedEvent(Object source, String userId, String specId) {
+        super(source);
+        this.userId = userId;
+        this.specId = specId;
+    }
 
-	@Inject
-	private UserService userService;
+    public String getUserId() {
+        return userId;
+    }
 
-	@Override
-	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-		userService.logout(authentication);
-	}
-	
+    public String getSpecId() {
+        return specId;
+    }
+
 }

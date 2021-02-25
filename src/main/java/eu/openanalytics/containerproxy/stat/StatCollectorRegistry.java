@@ -20,66 +20,48 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
-import java.io.IOException;
-import java.util.function.Consumer;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
-import eu.openanalytics.containerproxy.service.EventService;
-import eu.openanalytics.containerproxy.service.EventService.Event;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
+import eu.openanalytics.containerproxy.stat.impl.Micrometer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
-@Service
-public class StatCollectorRegistry implements Consumer<Event> {
+import javax.inject.Inject;
+
+@Configuration
+class StatCollectorFactory {
 	
-	private Logger log = LogManager.getLogger(StatCollectorRegistry.class);
+	private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
 	
 	@Inject
-	Environment environment;
-	
+	private Environment environment;
+
 	@Inject
-	EventService eventService;
-	
-	private IStatCollector collector;
-	
-	@PostConstruct
-	public void init() {
+	private ApplicationContext applicationContext;
+
+	@Bean
+	public IStatCollector statsCollector() {
 		String baseURL = environment.getProperty("proxy.usage-stats-url");
-		collector = findCollector(baseURL);
-		if (collector == null) {
+		if (baseURL == null || baseURL.isEmpty()) {
 			log.info("Disabled. Usage statistics will not be processed.");
-		} else {
-			eventService.addListener(this);
-			log.info(String.format("Enabled. Sending usage statistics to %s", baseURL));
+			return null;
 		}
-	}
-	
-	@Override
-	public void accept(Event event) {
-		if (collector != null) {
-			try {
-				collector.accept(event, environment);
-			} catch (IOException e) {
-				log.error("Failed to submit usage statistic event", e);
-			}
-		}
-	}
-	
-	private IStatCollector findCollector(String baseURL) {
-		if (baseURL == null || baseURL.isEmpty()) return null;
+
+		log.info(String.format("Enabled. Sending usage statistics to %s.", baseURL));
+
 		if (baseURL.toLowerCase().contains("/write?db=")) {
-			return new InfluxDBCollector();
+			return applicationContext.getAutowireCapableBeanFactory().createBean(InfluxDBCollector.class);
 		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
-			return new JDBCCollector(environment);
+			return applicationContext.getAutowireCapableBeanFactory().createBean(JDBCCollector.class);
+		} else if (baseURL.equalsIgnoreCase("micrometer")) {
+			return applicationContext.getAutowireCapableBeanFactory().createBean(Micrometer.class);
+		} else {
+			throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", baseURL));
 		}
-		return null;
 	}
 	
 }

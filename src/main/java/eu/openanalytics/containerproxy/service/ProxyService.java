@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.service;
 
 import java.io.OutputStream;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,8 +37,12 @@ import java.util.stream.Collectors;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -47,7 +52,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.EventService.EventType;
 import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.ProxySpecException;
@@ -88,11 +92,11 @@ public class ProxyService {
 	private UserService userService;
 	
 	@Inject
-	private EventService eventService;
-	
-	@Inject
 	private LogService logService;
-	
+
+	@Inject
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	@PreDestroy
 	public void shutdown() {
 		try {
@@ -221,7 +225,10 @@ public class ProxyService {
 		try {
 			backend.startProxy(proxy);
 		} finally {
-			if (proxy.getStatus() != ProxyStatus.Up) activeProxies.remove(proxy);
+			if (proxy.getStatus() != ProxyStatus.Up) {
+				activeProxies.remove(proxy);
+				applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			}
 		}
 		
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
@@ -238,8 +245,8 @@ public class ProxyService {
 		}
 		
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
-		eventService.post(EventType.ProxyStart.toString(), proxy.getUserId(), spec.getId());
-		
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
+
 		return proxy;
 	}
 
@@ -262,7 +269,10 @@ public class ProxyService {
 				backend.stopProxy(proxy);
 				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-				eventService.post(EventType.ProxyStop.toString(), proxy.getUserId(), proxy.getSpec().getId());
+				applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(),
+						proxy.getSpec().getId(),
+						Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}

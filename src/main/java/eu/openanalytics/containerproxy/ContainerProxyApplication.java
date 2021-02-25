@@ -31,6 +31,7 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -38,8 +39,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.session.data.redis.config.ConfigureRedisAction;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.web.filter.FormContentFilter;
 
 import javax.annotation.PostConstruct;
@@ -142,16 +147,6 @@ public class ContainerProxyApplication {
 		return new JSR353Module();
 	}
 
-	/**
-	 * Compatibility with AWS ElastiCache
-	 *
-	 * @return
-	 */
-	@Bean
-	public static ConfigureRedisAction configureRedisAction() {
-		return ConfigureRedisAction.NO_OP;
-	}
-
 	@Bean
 	public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
 		if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
@@ -174,11 +169,27 @@ public class ContainerProxyApplication {
 		}
 	}
 
+	/**
+	 * This Bean ensures that User Session are properly expired when using Redis for session storage.
+	 */
+	@Bean
+	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
+	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
+		return new SpringSessionBackedSessionRegistry<S>(sessionRepository);
+	}
+
+	@Bean
+	public HttpSessionEventPublisher httpSessionEventPublisher() {
+		return new HttpSessionEventPublisher();
+	}
+
 	private static void setDefaultProperties(SpringApplication app) {
 		Properties properties = new Properties();
 
 		// use in-memory session storage by default. Can be overwritten in application.yml
 		properties.put("spring.session.store-type", "none");
+		// required for proper working of the SP_USER_INITIATED_LOGOUT session attribute in the UserService
+		properties.put("spring.session.redis.flush-mode", "IMMEDIATE");
 
 		// disable multi-part handling by Spring. We don't need this anywhere in the application.
 		// When enabled this will cause problems when proxying file-uploads to the shiny apps.
@@ -189,6 +200,22 @@ public class ContainerProxyApplication {
 
 		properties.put("spring.application.name", "ContainerProxy");
 
+		// Metrics configuration
+		// ====================
+
+		// disable all supported exporters by default
+		// Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
+		properties.put("management.metrics.export.prometheus.enabled", "false");
+		properties.put("management.metrics.export.influx.enabled", "false");
+		// set actuator to port 9090 (can be overwritten)
+		properties.put("management.server.port", "9090");
+		// enable prometheus endpoint by default (but not the exporter)
+		properties.put("management.endpoint.prometheus.enabled", "true");
+		// include prometheus and health endpoint in exposure
+		properties.put("management.endpoints.web.exposure.include", "health,prometheus");
+
+		// ====================
+
 		// Health configuration
 		// ====================
 
@@ -198,7 +225,7 @@ public class ContainerProxyApplication {
 		properties.put("management.health.ldap.enabled", false);
 		// disable default redis health endpoint since it's managed by redisSession
 		properties.put("management.health.redis.enabled", "false");
-		// enable Kubernetes porobes
+		// enable Kubernetes probes
 		properties.put("management.endpoint.health.probes.enabled", true);
 
 		// ====================

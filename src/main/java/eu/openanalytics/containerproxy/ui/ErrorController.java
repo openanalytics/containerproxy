@@ -78,7 +78,8 @@ public class ErrorController extends BaseController implements org.springframewo
 		if (response.getStatus() == 200 && (exception != null) && isAccountStatusException(exception)) {
 			return "redirect:/";
 		}
-		
+
+		prepareMap(map);
 		map.put("message", msg[0]);
 		map.put("stackTrace", msg[1]);
 		map.put("status", response.getStatus());

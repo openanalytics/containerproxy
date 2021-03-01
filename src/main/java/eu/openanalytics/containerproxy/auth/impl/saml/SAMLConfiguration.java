@@ -47,6 +47,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml.*;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
+import org.springframework.security.saml.context.SAMLContextProviderLB;
 import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
@@ -89,6 +90,11 @@ public class SAMLConfiguration {
 	private static final String PROP_APP_ENTITY_ID = "proxy.saml.app-entity-id";
 	private static final String PROP_BASE_URL = "proxy.saml.app-base-url";
 	private static final String PROP_METADATA_URL = "proxy.saml.idp-metadata-url";
+	private static final String PROP_LB_SERVER_NAME = "proxy.saml.lb-server-name";
+	private static final String PROP_LB_CONTEXT_PATH = "proxy.saml.lb-context-path";
+	private static final String PROP_LB_PORT_IN_URL = "proxy.saml.lb-port-in-url";
+	private static final String PROP_LB_SCHEME = "proxy.saml.lb-scheme";
+	private static final String PROP_LB_SERVER_PORT = "proxy.saml.lb-server-port";
 
 	@Inject
 	private Environment environment;
@@ -281,6 +287,19 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SAMLContextProviderImpl contextProvider() {
+		String serverName = environment.getProperty(PROP_LB_SERVER_NAME);
+		
+		if (serverName != null && !serverName.isEmpty()) {
+			SAMLContextProviderLB lbProvider = new SAMLContextProviderLB();
+
+			lbProvider.setServerName(serverName);
+			lbProvider.setContextPath(environment.getProperty(PROP_LB_CONTEXT_PATH, "/"));
+			lbProvider.setIncludeServerPortInRequestURL(environment.getProperty(PROP_LB_PORT_IN_URL, Boolean.class, false));
+			lbProvider.setScheme(environment.getProperty(PROP_LB_SCHEME, "https"));
+			lbProvider.setServerPort(environment.getProperty(PROP_LB_SERVER_PORT, Integer.class, 443));
+
+			return lbProvider;
+		}
 		return new SAMLContextProviderImpl();
 	}
 

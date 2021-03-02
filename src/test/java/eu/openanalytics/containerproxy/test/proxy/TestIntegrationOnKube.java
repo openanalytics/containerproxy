@@ -699,11 +699,6 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         });
 	}
 
-    public static class MockedUserService extends UserService {
-        public String getCurrentUserId() {
-            return "jack";
-        }
-    }
 
     public static class TestConfiguration {
         @Bean

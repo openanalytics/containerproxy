@@ -24,6 +24,7 @@ import java.net.URI;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.service.UserService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,6 +68,12 @@ public class TestProxyService {
 		@Primary
 		public ProxyMappingManager mappingManager() {
 			return new NoopMappingManager();
+		}
+
+		@Bean
+		@Primary
+		public UserService mockedUserService() {
+			return new MockedUserService();
 		}
 	}
 	

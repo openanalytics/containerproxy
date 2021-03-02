@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -699,11 +699,6 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         });
 	}
 
-    public static class MockedUserService extends UserService {
-        public String getCurrentUserId() {
-            return "jack";
-        }
-    }
 
     public static class TestConfiguration {
         @Bean

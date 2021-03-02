@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -37,6 +37,7 @@ public class Proxy {
 	private ProxyStatus status;
 
 	private long startupTimestamp;
+	private long createdTimestamp;
 	private String userId;
 	private String namespace;
 	
@@ -78,6 +79,14 @@ public class Proxy {
 
 	public void setStartupTimestamp(long startupTimestamp) {
 		this.startupTimestamp = startupTimestamp;
+	}
+
+	public long getCreatedTimestamp() {
+		return createdTimestamp;
+	}
+
+	public void setCreatedTimestamp(long createdTimestamp) {
+		this.createdTimestamp = createdTimestamp;
 	}
 
 	public String getUserId() {

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -59,7 +59,11 @@ public interface IAuthenticationBackend {
 	public default String getLogoutSuccessURL() {
 		return "/login";
 	}
-	
+
+	public default String getLogoutURL() {
+		return "/logout";
+	}
+
 	public default void customizeContainer(ContainerSpec spec) {
 		// Default: do nothing.
 	}

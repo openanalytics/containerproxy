@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,29 +27,41 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Optional;
 
+import eu.openanalytics.containerproxy.event.*;
 import org.apache.commons.io.IOUtils;
+
+import eu.openanalytics.containerproxy.stat.IStatCollector;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 
-import eu.openanalytics.containerproxy.service.EventService.Event;
-import eu.openanalytics.containerproxy.stat.IStatCollector;
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 
 /**
  * E.g.:
  * usage-stats-url: http://localhost:8086/write?db=shinyproxy_usagestats
  */
-public class InfluxDBCollector implements IStatCollector {
+public class InfluxDBCollector extends AbstractDbCollector {
+
+	private String destination;
+
+	@PostConstruct
+	public void init() {
+		destination = environment.getProperty("proxy.usage-stats-url");
+	}
+
+	@Inject
+	private Environment environment;
 
 	@Override
-	public void accept(Event event, Environment env) throws IOException {
-		String destination = env.getProperty("proxy.usage-stats-url");
-		String data = Optional.ofNullable(event.data).orElse("");
-		String body = String.format("event,username=%s,type=%s data=\"%s\"", event.user.replace(" ", "\\ "), event.type.replace(" ", "\\ "), data);
-		doPost(destination, body);
-	}
-	
-	private void doPost(String url, String body) throws IOException {
-		HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
+		String body = String.format("event,username=%s,type=%s data=\"%s\"",
+				userId.replace(" ", "\\ "),
+				type.replace(" ", "\\ "),
+				Optional.ofNullable(data).orElse(""));
+
+		HttpURLConnection conn = (HttpURLConnection) new URL(destination).openConnection();
 		conn.setRequestMethod("POST");
 		conn.setDoOutput(true);
 		try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {

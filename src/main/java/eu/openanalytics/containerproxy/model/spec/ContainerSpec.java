@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -19,6 +19,9 @@
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
 package eu.openanalytics.containerproxy.model.spec;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.springframework.data.util.Pair;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,7 +45,18 @@ public class ContainerSpec {
 	private String cpuLimit;
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
-	
+
+	/**
+	 * RuntimeLabels are labels which are calculated at runtime and contain metadata about the proxy.
+	 * These should not be included in API responses.
+	 *
+	 * The boolean in the pair indicates whether the value is "safe". Safe values are calculated by
+	 * ShinyProxy itself and contain no user data.
+	 * In practice, safe labels are saved as Kubernetes labels and non-safe labels are saved as
+	 * Kubernetes annotations.
+	 */
+	private Map<String, Pair<Boolean, String>> runtimeLabels = new HashMap<>();
+
 	public String getImage() {
 		return image;
 	}
@@ -127,26 +141,32 @@ public class ContainerSpec {
 	public void setCpuLimit(String cpuLimit) {
 		this.cpuLimit = cpuLimit;
 	}
+
 	public Map<String, String> getLabels() {
 		return labels;
 	}
+
 	public void setLabels(Map<String, String> labels) {
 		this.labels = labels;
 	}
-	
-	public void addLabel(String key, String value) {
-		if (this.labels.containsKey(key)) {
+
+	@JsonIgnore
+	public Map<String, Pair<Boolean, String>> getRuntimeLabels() {
+		return runtimeLabels;
+	}
+
+	public void setRuntimeLabels(Map<String, Pair<Boolean, String>> runtimeLabels) {
+		this.runtimeLabels = runtimeLabels;
+	}
+
+	public void addRuntimeLabel(String key, Boolean safe, String value) {
+		if (this.runtimeLabels.containsKey(key)) {
 			throw new IllegalStateException("Cannot add duplicate label with key " + key);
 		} else {
-			labels.put(key, value);
+			runtimeLabels.put(key, Pair.of(safe, value));
 		}
 	}
 	
-	public void removeLabel(String key) {
-		labels.remove(key);
-	}
-
-
 	public Map<String, String> getSettings() {
 		return settings;
 	}

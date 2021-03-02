@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -31,18 +31,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import javax.json.JsonPatch;
 
 import javax.inject.Inject;
 
+import io.fabric8.kubernetes.api.model.*;
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -65,34 +61,14 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.Retrying;
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
-import io.fabric8.kubernetes.api.model.ContainerPort;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.LocalObjectReference;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.api.model.PodSpec;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
-import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
-import io.fabric8.kubernetes.api.model.SecurityContext;
-import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServicePort;
-import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
-import io.fabric8.kubernetes.api.model.VolumeMount;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import org.opensaml.ws.wsaddressing.impl.MetadataBuilder;
+import org.springframework.data.util.Pair;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -113,11 +89,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PARAM_NAMESPACE = "namespace";
 	
 	private static final String SECRET_KEY_REF = "secretKeyRef";
-	
-	private static final String LABEL_PROXIED_APP = "openanalytics.eu/containerproxy-proxied-app"; // TODO rename to "sp-proxied-app" ?
-	private static final String LABEL_INSTANCE = "openanalytics.eu/sp-instance";
-		
-	
+
 	@Inject
 	private PodPatcher podPatcher;
 	
@@ -143,14 +115,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
-		try {
-			log.info("Hash of config is: " + getInstanceId());
-		} catch(Exception e) {
-			throw new RuntimeException("Cannot compute hash of config", e);
-		}
 	}
 
 	public void initialize(KubernetesClient client) {
+		super.initialize();
 		kubeClient = client;
 	}
 
@@ -239,19 +207,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		} else {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
-		
+
+		ObjectMetaBuilder objectMetaBuilder = new ObjectMetaBuilder()
+				.withNamespace(kubeNamespace)
+				.withName("sp-pod-" + container.getId())
+				.addToLabels(spec.getLabels())
+				.addToLabels("app", container.getId());
+
+		for (Map.Entry<String, Pair<Boolean, String>> runtimeLabel : spec.getRuntimeLabels().entrySet()) {
+			if (runtimeLabel.getValue().getFirst()) {
+				objectMetaBuilder.addToLabels(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
+			} else {
+				objectMetaBuilder.addToAnnotations(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
+			}
+		}
+
 		PodBuilder podBuilder = new PodBuilder()
 				.withApiVersion(apiVersion)
 				.withKind("Pod")
-				.withNewMetadata()
-					.withNamespace(kubeNamespace)
-					.withName("sp-pod-" + container.getId())
-					.addToLabels(spec.getLabels())
-					.addToLabels("app", container.getId())
-					.addToLabels(LABEL_INSTANCE, getInstanceId())
-					.addToLabels(LABEL_PROXIED_APP, "true")
-				.endMetadata();
-		
+                .withMetadata(objectMetaBuilder.build());
+
 		PodSpec podSpec = new PodSpec();
 		podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
 		podSpec.setVolumes(volumes);
@@ -306,9 +281,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withKind("Service")
 					.withNewMetadata()
 						.withName("sp-service-" + container.getId())
-						.addToLabels(LABEL_INSTANCE, getInstanceId())
-						.addToLabels(LABEL_PROXIED_APP, "true")
-						.endMetadata()
+						.addToLabels(RUNTIME_LABEL_PROXY_ID, proxy.getId())
+						.addToLabels(RUNTIME_LABEL_PROXIED_APP, "true")
+						.addToLabels(RUNTIME_LABEL_INSTANCE, instanceId)
+					.endMetadata()
 					.withNewSpec()
 						.addToSelector("app", container.getId())
 						.withType("NodePort")
@@ -470,46 +446,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return PROPERTY_PREFIX;
 	}
 	
-	private String instanceId = null;
-	
-	/**
-	 * Calculates a hash of the config file (i.e. application.yaml).
-	 */
-	private String getInstanceId() throws JsonParseException, JsonMappingException, IOException, NoSuchAlgorithmException {
-		if (instanceId != null) {
-			return instanceId;
-		}
-		
-		/**
-		 * We need a hash of some "canonical" version of the config file.
-		 * The hash should not change when e.g. comments are added to the file.
-		 * Therefore we read the application.yml file into an Object and then 
-		 * dump it again into YAML. We also sort the keys of maps and properties so that
-		 * the order does not matter for the resulting hash.
-		 */
-		ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-		objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-		objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-        
-		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
-		if (!file.exists()) {
-			file = Paths.get(ContainerProxyApplication.CONFIG_DEMO_PROFILE).toFile();
-		}
-		if (!file.exists()) {
-			// this should only happen in tests
-			instanceId = "unknown-instance-id";
-			return instanceId;
-		}
-
-		Object parsedConfig = objectMapper.readValue(file, Object.class);
-		String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
-		
-		MessageDigest digest = MessageDigest.getInstance("SHA-1");
-		digest.reset();
-		digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
-		instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
-		return instanceId;
-	}
 
 
 }

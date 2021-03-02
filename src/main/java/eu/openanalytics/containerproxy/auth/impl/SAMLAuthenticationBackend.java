@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,6 +29,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLEntryPoint;
+import org.springframework.security.saml.metadata.MetadataDisplayFilter;
 import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
 import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -41,13 +42,19 @@ import eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAMLFilt
 public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "saml";
-	
+
+	private static final String PROP_SUCCESS_LOGOUT_URL = "proxy.saml.logout-url";
+	private static final String PROP_SAML_LOGOUT_METHOD = "proxy.saml.logout-method";
+
 	@Autowired(required = false)
 	private SAMLEntryPoint samlEntryPoint;
 	
 	@Autowired(required = false)
 	private MetadataGeneratorFilter metadataGeneratorFilter;
-	
+
+	@Autowired(required = false)
+	private MetadataDisplayFilter metadataDisplayFilter;
+
 	@Autowired(required = false)
 	private SAMLFilterSet samlFilter;
 	
@@ -73,6 +80,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 			.exceptionHandling().authenticationEntryPoint(samlEntryPoint)
 		.and()
 			.addFilterBefore(metadataGeneratorFilter, ChannelProcessingFilter.class)
+			.addFilterAfter(metadataDisplayFilter, MetadataGeneratorFilter.class)
 			.addFilterAfter(samlFilter, BasicAuthenticationFilter.class);
 	}
 
@@ -82,10 +90,30 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
+	public String getLogoutURL() {
+		LogoutMethod logoutMethod = environment.getProperty(PROP_SAML_LOGOUT_METHOD, LogoutMethod.class, LogoutMethod.LOCAL);
+		if (logoutMethod == LogoutMethod.LOCAL) {
+			return "/logout";
+		}
+		return "/saml/logout"; // LogoutMethod.SAML
+	}
+
+	@Override
 	public String getLogoutSuccessURL() {
-		String logoutURL = environment.getProperty("proxy.saml.logout-url");
-		System.out.println("LogoutURL: " + logoutURL);
-		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = "/";
+	    return determineLogoutSuccessURL(environment);
+	}
+
+	public static String determineLogoutSuccessURL(Environment environment) {
+		String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
+		if (logoutURL == null || logoutURL.trim().isEmpty()) {
+			logoutURL = "/";
+		}
 		return logoutURL;
 	}
+
+	private enum LogoutMethod {
+		LOCAL,
+		SAML
+	}
+
 }

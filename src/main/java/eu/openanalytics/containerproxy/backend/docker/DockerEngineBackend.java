@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -72,11 +72,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		Optional.ofNullable(spec.getDns()).ifPresent(dns -> hostConfigBuilder.dns(dns));
 		Optional.ofNullable(spec.getVolumes()).ifPresent(v -> hostConfigBuilder.binds(v));
 		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
-		
+
+		Map<String, String> labels = spec.getLabels();
+		spec.getRuntimeLabels().forEach((key, value) -> labels.put(key, value.getSecond()));
+
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
 			    .image(spec.getImage())
-			    .labels(spec.getLabels())
+			    .labels(labels)
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
 			    .env(buildEnv(spec, proxy))

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,7 +35,7 @@ public class UserLogoutHandler implements LogoutHandler {
 
 	@Inject
 	private UserService userService;
-	
+
 	@Override
 	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 		userService.logout(authentication);

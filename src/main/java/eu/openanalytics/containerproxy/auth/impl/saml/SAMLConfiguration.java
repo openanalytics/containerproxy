@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,17 +20,11 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.saml;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
+import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.velocity.app.VelocityEngine;
 import org.opensaml.saml2.metadata.provider.HTTPMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
@@ -51,21 +45,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.saml.SAMLAuthenticationProvider;
-import org.springframework.security.saml.SAMLBootstrap;
-import org.springframework.security.saml.SAMLCredential;
-import org.springframework.security.saml.SAMLEntryPoint;
-import org.springframework.security.saml.SAMLProcessingFilter;
+import org.springframework.security.saml.*;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
+import org.springframework.security.saml.context.SAMLContextProviderLB;
 import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
 import org.springframework.security.saml.log.SAMLDefaultLogger;
-import org.springframework.security.saml.metadata.CachingMetadataManager;
-import org.springframework.security.saml.metadata.ExtendedMetadata;
-import org.springframework.security.saml.metadata.ExtendedMetadataDelegate;
-import org.springframework.security.saml.metadata.MetadataGenerator;
-import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
+import org.springframework.security.saml.metadata.*;
 import org.springframework.security.saml.parser.ParserPoolHolder;
 import org.springframework.security.saml.processor.HTTPPostBinding;
 import org.springframework.security.saml.processor.HTTPRedirectDeflateBinding;
@@ -73,44 +60,101 @@ import org.springframework.security.saml.processor.SAMLBinding;
 import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.userdetails.SAMLUserDetailsService;
 import org.springframework.security.saml.util.VelocityFactory;
-import org.springframework.security.saml.websso.WebSSOProfile;
-import org.springframework.security.saml.websso.WebSSOProfileConsumer;
-import org.springframework.security.saml.websso.WebSSOProfileConsumerHoKImpl;
-import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
-import org.springframework.security.saml.websso.WebSSOProfileImpl;
-import org.springframework.security.saml.websso.WebSSOProfileOptions;
+import org.springframework.security.saml.websso.*;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import javax.inject.Inject;
+import java.util.*;
 
 @Configuration
 @ConditionalOnProperty(name="proxy.authentication", havingValue="saml")
 public class SAMLConfiguration {
 
 	private static final String DEFAULT_NAME_ATTRIBUTE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
-	
+
+	private static final String PROP_LOG_ATTRIBUTES = "proxy.saml.log-attributes";
+	private static final String PROP_FORCE_AUTHN = "proxy.saml.force-authn";
+	private static final String PROP_MAX_AUTHENTICATION_AGE = "proxy.saml.max-authentication-age";
+	private static final String PROP_KEYSTORE = "proxy.saml.keystore";
+	private static final String PROP_ENCRYPTION_CERT_NAME = "proxy.saml.encryption-cert-name";
+	private static final String PROP_ENCRYPTION_CERT_PASSWORD = "proxy.saml.encryption-cert-password";
+	private static final String PROP_ENCRYPTION_KEYSTORE_PASSWORD = "proxy.saml.keystore-password";
+	private static final String PROP_APP_ENTITY_ID = "proxy.saml.app-entity-id";
+	private static final String PROP_BASE_URL = "proxy.saml.app-base-url";
+	private static final String PROP_METADATA_URL = "proxy.saml.idp-metadata-url";
+	private static final String PROP_LB_SERVER_NAME = "proxy.saml.lb-server-name";
+	private static final String PROP_LB_CONTEXT_PATH = "proxy.saml.lb-context-path";
+	private static final String PROP_LB_PORT_IN_URL = "proxy.saml.lb-port-in-url";
+	private static final String PROP_LB_SCHEME = "proxy.saml.lb-scheme";
+	private static final String PROP_LB_SERVER_PORT = "proxy.saml.lb-server-port";
+
 	@Inject
 	private Environment environment;
 	
 	@Inject
 	@Lazy
 	private AuthenticationManager authenticationManager;
-	
+
+	@Inject
+	private UserLogoutHandler userLogoutHandler;
+
 	@Bean
 	public SAMLEntryPoint samlEntryPoint() {
 		SAMLEntryPoint samlEntryPoint = new SAMLEntryPoint();
 		samlEntryPoint.setDefaultProfileOptions(defaultWebSSOProfileOptions());
 		return samlEntryPoint;
 	}
+
+	@Bean
+	public SingleLogoutProfile logoutProfile() {
+		return new SingleLogoutProfileImpl();
+	}
+
+	@Bean
+	public SAMLLogoutFilter samlLogoutFilter() {
+		return new SAMLLogoutFilter(successLogoutHandler(),
+				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()},
+				new LogoutHandler[]{userLogoutHandler, securityContextLogoutHandler()});
+	}
+
+	/**
+	 * Filter responsible for the `/saml/SingleLogout` endpoint. This makes it possible for users to logout in the IDP
+	 * or any other application and get automatically logged out in ShinyProxy as well.
+	 */
+	@Bean
+	public SAMLLogoutProcessingFilter samlLogoutProcessingFilter() {
+		return new SAMLLogoutProcessingFilter(successLogoutHandler(),
+				securityContextLogoutHandler());
+	}
+
+	@Bean
+	public SecurityContextLogoutHandler securityContextLogoutHandler() {
+		SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
+		logoutHandler.setInvalidateHttpSession(true);
+		logoutHandler.setClearAuthentication(true);
+		return logoutHandler;
+	}
+
+	@Bean
+	public SimpleUrlLogoutSuccessHandler successLogoutHandler() {
+		SimpleUrlLogoutSuccessHandler successLogoutHandler = new SimpleUrlLogoutSuccessHandler();
+		successLogoutHandler.setDefaultTargetUrl(SAMLAuthenticationBackend.determineLogoutSuccessURL(environment));
+		return successLogoutHandler;
+	}
 	
 	@Bean
 	public WebSSOProfileOptions defaultWebSSOProfileOptions() {
 		WebSSOProfileOptions webSSOProfileOptions = new WebSSOProfileOptions();
 		webSSOProfileOptions.setIncludeScoping(false);
-		webSSOProfileOptions.setForceAuthN(Boolean.valueOf(environment.getProperty("proxy.saml.force-authn", "false")));
+		webSSOProfileOptions.setForceAuthN(Boolean.valueOf(environment.getProperty(PROP_FORCE_AUTHN, "false")));
 		return webSSOProfileOptions;
 	}
 
@@ -126,13 +170,13 @@ public class SAMLConfiguration {
 
 	@Bean
 	public KeyManager keyManager() {
-		String keystore = environment.getProperty("proxy.saml.keystore");
+		String keystore = environment.getProperty(PROP_KEYSTORE);
 		if (keystore == null || keystore.isEmpty()) {
 			return new EmptyKeyManager();
 		} else {
-			String certName = environment.getProperty("proxy.saml.encryption-cert-name");
-			String certPW = environment.getProperty("proxy.saml.encryption-cert-password");
-			String keystorePW = environment.getProperty("proxy.saml.keystore-password", certPW);
+			String certName = environment.getProperty(PROP_ENCRYPTION_CERT_NAME);
+			String certPW = environment.getProperty(PROP_ENCRYPTION_CERT_PASSWORD);
+			String keystorePW = environment.getProperty(PROP_ENCRYPTION_KEYSTORE_PASSWORD, certPW);
 			
 			Resource keystoreFile = new FileSystemResource(keystore);
 			Map<String, String> passwords = new HashMap<>();
@@ -186,9 +230,18 @@ public class SAMLConfiguration {
 	}
 
 	@Bean
+	public MetadataDisplayFilter metadataDisplayFilter() throws MetadataProviderException, ResourceException {
+		MetadataDisplayFilter metadataDisplayFilter = new MetadataDisplayFilter();
+		metadataDisplayFilter.setContextProvider(contextProvider());
+		metadataDisplayFilter.setKeyManager(keyManager());
+		metadataDisplayFilter.setManager(metadata());
+		return metadataDisplayFilter;
+	}
+
+	@Bean
 	public MetadataGenerator metadataGenerator() {
-		String appEntityId = environment.getProperty("proxy.saml.app-entity-id");
-		String appBaseURL = environment.getProperty("proxy.saml.app-base-url");
+		String appEntityId = environment.getProperty(PROP_APP_ENTITY_ID);
+		String appBaseURL = environment.getProperty(PROP_BASE_URL);
 		
 		MetadataGenerator metadataGenerator = new MetadataGenerator();
 		metadataGenerator.setEntityId(appEntityId);
@@ -209,7 +262,7 @@ public class SAMLConfiguration {
 
 	@Bean
 	public ExtendedMetadataDelegate idpMetadata() throws MetadataProviderException, ResourceException {
-		String metadataURL = environment.getProperty("proxy.saml.idp-metadata-url");
+		String metadataURL = environment.getProperty(PROP_METADATA_URL);
 		
 		Timer backgroundTaskTimer = new Timer(true);
 		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(), metadataURL);   httpMetadataProvider.setParserPool(parserPool());
@@ -234,6 +287,19 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SAMLContextProviderImpl contextProvider() {
+		String serverName = environment.getProperty(PROP_LB_SERVER_NAME);
+		
+		if (serverName != null && !serverName.isEmpty()) {
+			SAMLContextProviderLB lbProvider = new SAMLContextProviderLB();
+
+			lbProvider.setServerName(serverName);
+			lbProvider.setContextPath(environment.getProperty(PROP_LB_CONTEXT_PATH, "/"));
+			lbProvider.setIncludeServerPortInRequestURL(environment.getProperty(PROP_LB_PORT_IN_URL, Boolean.class, false));
+			lbProvider.setScheme(environment.getProperty(PROP_LB_SCHEME, "https"));
+			lbProvider.setServerPort(environment.getProperty(PROP_LB_SERVER_PORT, Integer.class, 443));
+
+			return lbProvider;
+		}
 		return new SAMLContextProviderImpl();
 	}
 
@@ -246,7 +312,7 @@ public class SAMLConfiguration {
 
 	@Bean
 	public SimpleUrlAuthenticationFailureHandler authenticationFailureHandler() {
-		SimpleUrlAuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler();
+		AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 		failureHandler.setUseForward(true);
 		failureHandler.setDefaultFailureUrl("/error");
 		return failureHandler;
@@ -262,8 +328,18 @@ public class SAMLConfiguration {
 	}
 
 	@Bean
+    public AlreadyLoggedInFilter alreadyLoggedInFilter() {
+		return new AlreadyLoggedInFilter();
+	}
+
+	@Bean
 	public WebSSOProfileConsumer webSSOprofileConsumer() {
-		return new WebSSOProfileConsumerImpl();
+		WebSSOProfileConsumerImpl res = new WebSSOProfileConsumerImpl();
+		Integer maxAuthenticationAge = environment.getProperty(PROP_MAX_AUTHENTICATION_AGE, Integer.class);
+		if (maxAuthenticationAge != null) {
+			res.setMaxAuthenticationAge(maxAuthenticationAge);
+		}
+		return res;
 	}
 
 	@Bean
@@ -275,9 +351,15 @@ public class SAMLConfiguration {
 	public SAMLFilterSet samlFilter() throws Exception {
 		List<SecurityFilterChain> chains = new ArrayList<SecurityFilterChain>();
 		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/login/**"), samlEntryPoint()));
-		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), samlWebSSOProcessingFilter()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/logout/**"), samlLogoutFilter()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SingleLogout/**"), samlLogoutProcessingFilter()));
+		chains.add(new DefaultSecurityFilterChain(new AntPathRequestMatcher("/saml/SSO/**"), alreadyLoggedInFilter(), samlWebSSOProcessingFilter()));
 		return new SAMLFilterSet(chains);
 	}
+
+	private final Logger log = LogManager.getLogger(getClass());
+
+
 
 	@Bean
 	public SAMLAuthenticationProvider samlAuthenticationProvider() {
@@ -285,11 +367,16 @@ public class SAMLConfiguration {
 	    samlAuthenticationProvider.setUserDetails(new SAMLUserDetailsService() {
 	    	@Override
 	    	public Object loadUserBySAML(SAMLCredential credential) throws UsernameNotFoundException {
-	    		String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
-	    		String nameValue = credential.getAttributeAsString(nameAttribute);
-	    		if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
-	    		
-	    		List<GrantedAuthority> auth = new ArrayList<>();
+
+				if (Boolean.parseBoolean(environment.getProperty(PROP_LOG_ATTRIBUTES, "false"))) {
+                    AttributeUtils.logAttributes(log, credential);
+				}
+
+				String nameAttribute = environment.getProperty("proxy.saml.name-attribute", DEFAULT_NAME_ATTRIBUTE);
+				String nameValue = credential.getAttributeAsString(nameAttribute);
+				if (nameValue == null) throw new UsernameNotFoundException("Name attribute missing from SAML assertion: " + nameAttribute);
+
+				List<GrantedAuthority> auth = new ArrayList<>();
 	    		String rolesAttribute = environment.getProperty("proxy.saml.roles-attribute");
 	    		if (rolesAttribute != null  && !rolesAttribute.trim().isEmpty()) {
 	    			String[] roles = credential.getAttributeAsStringArray(rolesAttribute);

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,6 +28,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.keycloak.adapters.OIDCAuthenticationError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AccountStatusException;
@@ -39,22 +40,46 @@ import org.springframework.web.util.NestedServletException;
 
 import eu.openanalytics.containerproxy.api.BaseController;
 
+import static eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler.SP_KEYCLOAK_ERROR_REASON;
+
 @Controller
 @RequestMapping("/error")
 public class ErrorController extends BaseController implements org.springframework.boot.web.servlet.error.ErrorController {
-	
+
 	@RequestMapping(produces = "text/html")
 	public String handleError(ModelMap map, HttpServletRequest request, HttpServletResponse response) {
+
+		// handle keycloak errors
+	    Object obj = request.getSession().getAttribute(SP_KEYCLOAK_ERROR_REASON);
+	    if (obj instanceof OIDCAuthenticationError.Reason) {
+	    	request.getSession().removeAttribute(SP_KEYCLOAK_ERROR_REASON);
+			OIDCAuthenticationError.Reason reason = (OIDCAuthenticationError.Reason) obj;
+	    	if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
+				reason == OIDCAuthenticationError.Reason.STALE_TOKEN) {
+	    		// These errors are typically caused by users using wrong bookmarks (e.g. bookmarks with states in)
+				// or when some cookies got stale. However, the user is logged into the IDP, therefore it's enough to
+				// send the user to the main page and they will get logged in automatically.
+				return "redirect:/";
+			} else {
+				return "redirect:/auth-error";
+			}
+		}
+
 		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
-		if (exception == null) exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+		if (exception == null) {
+			exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+		}
 
 		String[] msg = createMsgStack(exception);
-		if (exception == null) msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
-
-		if (response.getStatus() == 200 && isAccountStatusException(exception)) {
-			return "/";
+		if (exception == null) {
+			msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
 		}
-		
+
+		if (response.getStatus() == 200 && (exception != null) && isAccountStatusException(exception)) {
+			return "redirect:/";
+		}
+
+		prepareMap(map);
 		map.put("message", msg[0]);
 		map.put("stackTrace", msg[1]);
 		map.put("status", response.getStatus());
@@ -102,7 +127,7 @@ public class ErrorController extends BaseController implements org.springframewo
 		
 		return new String[] { message, stackTrace };
 	}
-	
+
 	private boolean isAccountStatusException(Throwable exception) {
 		if (exception instanceof AccountStatusException) return true;
 		if (exception.getCause() != null) return isAccountStatusException(exception.getCause());

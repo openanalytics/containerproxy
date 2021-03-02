@@ -1,10 +1,10 @@
 <pre>
-       ____            _        _                 ____                      
-      / ___|___  _ __ | |_ __ _(_)_ __   ___ _ __|  _ \ _ __ _____  ___   _ 
+       ____            _        _                 ____
+      / ___|___  _ __ | |_ __ _(_)_ __   ___ _ __|  _ \ _ __ _____  ___   _
      | |   / _ \| '_ \| __/ _` | | '_ \ / _ \ '__| |_) | '__/ _ \ \/ / | | |
      | |__| (_) | | | | || (_| | | | | |  __/ |  |  __/| | | (_) >  <| |_| |
       \____\___/|_| |_|\__\__,_|_|_| |_|\___|_|  |_|   |_|  \___/_/\_\\__, |
-                                                                       |___/ 
+                                                                       |___/
 
 </pre>
 
@@ -18,7 +18,7 @@ It is the engine that powers a.o. [ShinyProxy](https://shinyproxy.io) but can be
 
 Learn more at https://containerproxy.io (in progress)
 
-#### (c) Copyright Open Analytics NV, 2017-2020 - Apache License 2.0
+#### (c) Copyright Open Analytics NV, 2017-2021 - Apache License 2.0
 
 ## Building from source
 

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,6 +27,8 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -52,15 +54,15 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBClientCacheRegistry;
 import eu.openanalytics.containerproxy.auth.impl.kerberos.KRBTicketRenewalManager;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.service.EventService;
-import eu.openanalytics.containerproxy.service.EventService.EventType;
 
 public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "kerberos";
 
 	private KRBClientCacheRegistry ccacheReg;
-	
+
+	private KRBTicketRenewalManager renewalManager;
+
 	@Inject
 	Environment environment;
 	
@@ -68,9 +70,6 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	AuthenticationManager authenticationManager;
 
-	@Inject
-	EventService eventService;
-	
 	@Override
 	public String getName() {
 		return NAME;
@@ -116,12 +115,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		ticketValidator.setDebug(true);
 		ticketValidator.afterPropertiesSet();
 		
-		KRBTicketRenewalManager renewalManager = new KRBTicketRenewalManager(
+		renewalManager = new KRBTicketRenewalManager(
 				delegSvcPrinc, delegSvcKeytab, backendPrincipals, ccacheReg, ticketRenewInterval);
-		
-		eventService.addListener(e -> {
-			if (EventType.Logout.toString().equals(e.type)) renewalManager.stop(e.user);
-		});
 		
 		KerberosServiceAuthenticationProvider authProvider = new KerberosServiceAuthenticationProvider() {
 			@Override
@@ -136,6 +131,11 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		authProvider.afterPropertiesSet();
 		
 		auth.authenticationProvider(authProvider);
+	}
+
+	@EventListener
+	public void on(UserLogoutEvent event) {
+		renewalManager.stop(event.getUserId());
 	}
 
 	@Override

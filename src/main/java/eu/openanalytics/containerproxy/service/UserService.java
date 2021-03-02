@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,47 +20,50 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.SessionHelper;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.event.AbstractAuthenticationFailureEvent;
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.session.HttpSessionCreatedEvent;
+import org.springframework.security.web.session.HttpSessionDestroyedEvent;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.inject.Inject;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.core.env.Environment;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
-import org.springframework.security.authentication.event.AbstractAuthenticationFailureEvent;
-import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
-import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.EventService.EventType;
-import eu.openanalytics.containerproxy.util.SessionHelper;
-
-
 @Service
-public class UserService implements ApplicationListener<AbstractAuthenticationEvent> {
+public class UserService {
 
-	private Logger log = LogManager.getLogger(UserService.class);
+	private final static String ATTRIBUTE_USER_INITIATED_LOGOUT = "SP_USER_INITIATED_LOGOUT";
+
+	private final Logger log = LogManager.getLogger(UserService.class);
 
 	@Inject
 	private Environment environment;
 
-	@Inject
-	private EventService eventService;
-	
 	@Inject
 	@Lazy
 	// Note: lazy needed to work around early initialization conflict 
@@ -68,7 +71,10 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 	
 	@Inject
 	private IProxyLogoutStrategy logoutStrategy;
-	
+
+	@Inject
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -163,31 +169,96 @@ public class UserService implements ApplicationListener<AbstractAuthenticationEv
 		}
 		return auth.getName();
 	}
-	
-	@Override
-	public void onApplicationEvent(AbstractAuthenticationEvent event) {
+
+	@EventListener
+	public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
 		Authentication source = event.getAuthentication();
-		if (event instanceof AbstractAuthenticationFailureEvent) {
-			Exception e = ((AbstractAuthenticationFailureEvent) event).getException();
-			log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
-		} else if (event instanceof AuthenticationSuccessEvent || event instanceof InteractiveAuthenticationSuccessEvent) {
-			String userName = source.getName();
-			log.info(String.format("User logged in [user: %s]", userName));
-			eventService.post(EventType.Login.toString(), userName, null);
-		}
+		Exception e = event.getException();
+		log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
+		String userId = getUserId(source);
+
+		applicationEventPublisher.publishEvent(new AuthFailedEvent(
+				this,
+				userId,
+				RequestContextHolder.currentRequestAttributes().getSessionId()));
 	}
 
 	public void logout(Authentication auth) {
 		String userId = getUserId(auth);
 		if (userId == null) return;
-		
-//		if (authentication.getPrincipal() instanceof UserDetails) {
-//			userName = ((UserDetails) authentication.getPrincipal()).getUsername();
-//		}
-		
-		eventService.post(EventType.Logout.toString(), userId, null);
+
 		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 		log.info(String.format("User logged out [user: %s]", userId));
+
+		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
+		session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
+
+		String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
+		applicationEventPublisher.publishEvent(new UserLogoutEvent(
+				this,
+				userId,
+				sessionId,
+				false));
+	}
+
+	@EventListener
+	public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
+		Authentication auth = event.getAuthentication();
+		String userName = auth.getName();
+
+		log.info(String.format("User logged in [user: %s]", userName));
+
+		String userId = getUserId(auth);
+		applicationEventPublisher.publishEvent(new UserLoginEvent(
+				this,
+				userId,
+				RequestContextHolder.currentRequestAttributes().getSessionId()));
+	}
+
+	@EventListener
+	public void onHttpSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
+		String userInitiatedLogout = (String) event.getSession().getAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT);
+
+		if (userInitiatedLogout != null && userInitiatedLogout.equals("true")) {
+			// user initiated the logout
+			// event already handled by the logout() function above -> ignore it
+		} else {
+			// user did not initiated the logout -> session expired
+			// not already handled by any other handler
+			if (!event.getSecurityContexts().isEmpty()) {
+				SecurityContext securityContext = event.getSecurityContexts().get(0);
+				if (securityContext == null) return;
+
+				String userId = securityContext.getAuthentication().getName();
+
+				log.info(String.format("User logged out [user: %s]", userId));
+				applicationEventPublisher.publishEvent(new UserLogoutEvent(
+						this,
+						userId,
+						event.getSession().getId(),
+						true
+				));
+			} else if (authBackend.getName().equals("none")) {
+				log.info(String.format("Anonymous user logged out [user: %s]", event.getSession().getId()));
+				applicationEventPublisher.publishEvent(new UserLogoutEvent(
+						this,
+						event.getSession().getId(),
+						event.getSession().getId(),
+						true
+				));
+			}
+		}
+	}
+
+	@EventListener
+	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
+		if (authBackend.getName().equals("none")) {
+			log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
+			applicationEventPublisher.publishEvent(new UserLoginEvent(
+					this,
+					event.getSession().getId(),
+					event.getSession().getId()));
+		}
 	}
 
 }

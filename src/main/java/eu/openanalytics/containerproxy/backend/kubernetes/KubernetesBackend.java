@@ -118,6 +118,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	public void initialize(KubernetesClient client) {
+		super.initialize();
 		kubeClient = client;
 	}
 

@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl.saml;
 
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
+import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -265,7 +266,15 @@ public class SAMLConfiguration {
 		String metadataURL = environment.getProperty(PROP_METADATA_URL);
 		
 		Timer backgroundTaskTimer = new Timer(true);
-		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(), metadataURL);   httpMetadataProvider.setParserPool(parserPool());
+		HttpClient httpClient = new HttpClient();
+		String proxyHost = System.getProperty("PROXY_HTTP","NONE");
+		if (proxyHost != "NONE") {
+			HostConfiguration hostConfiguration = new HostConfiguration();
+			hostConfiguration.setProxy(proxyHost, Integer.parseInt(System.getProperty("PROXY_PORT","3128")));
+			httpClient.setHostConfiguration(hostConfiguration);
+		}
+		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, httpClient, metadataURL);
+		httpMetadataProvider.setParserPool(parserPool());
 		ExtendedMetadataDelegate extendedMetadataDelegate = new ExtendedMetadataDelegate(httpMetadataProvider , extendedMetadata());
 		extendedMetadataDelegate.setMetadataTrustCheck(false);
 		extendedMetadataDelegate.setMetadataRequireSignature(false);

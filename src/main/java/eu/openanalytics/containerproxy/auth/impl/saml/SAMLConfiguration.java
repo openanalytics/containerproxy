@@ -267,10 +267,10 @@ public class SAMLConfiguration {
 		
 		Timer backgroundTaskTimer = new Timer(true);
 		HttpClient httpClient = new HttpClient();
-		String proxyHost = System.getProperty("PROXY_HTTP","NONE");
+		String proxyHost = System.getProperty("http.proxyHost","NONE");
 		if (proxyHost != "NONE") {
 			HostConfiguration hostConfiguration = new HostConfiguration();
-			hostConfiguration.setProxy(proxyHost, Integer.parseInt(System.getProperty("PROXY_PORT","3128")));
+			hostConfiguration.setProxy(proxyHost, Integer.parseInt(System.getProperty("http.proxyPort","3128")));
 			httpClient.setHostConfiguration(hostConfiguration);
 		}
 		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, httpClient, metadataURL);

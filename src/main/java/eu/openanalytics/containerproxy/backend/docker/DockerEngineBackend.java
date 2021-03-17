@@ -35,12 +35,31 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
+import com.spotify.docker.client.messages.Image;
 
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
+
+	private boolean isImagePresent(String imageName) throws Exception {
+		List<Image> searchResult = dockerClient.listImages();
+		for (Image image: searchResult) {
+			for (String tag :image.repoTags()) {
+				if (tag.equals(imageName)) {
+					return true;
+				}
+				// It is allowed to just use the image name without a tag
+				// In this case docker choose the image with the tag "latest"
+				// So we also need to check if we find the image when we append the latest tag
+				if (tag.equals(imageName + ":latest")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
@@ -84,6 +103,19 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .cmd(spec.getCmd())
 			    .env(buildEnv(spec, proxy))
 			    .build();
+
+		// pull image, if it is not present locally
+		if (!isImagePresent(spec.getImage())) {
+			// It is allowed to just use the image name without a tag
+			// In this case we need to pull the image with the tag "latest"
+			// This can be removed when issue #873 in spotify/docker-client is fixed
+			if (spec.getImage().lastIndexOf(":") <= spec.getImage().lastIndexOf("/")) {
+				dockerClient.pull(spec.getImage() + ":latest");
+			} else {
+				dockerClient.pull(spec.getImage());
+			}
+		}
+
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		
 		if (spec.getNetworkConnections() != null) {

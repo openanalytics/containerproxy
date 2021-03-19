@@ -4,3 +4,5 @@ logs
 
 .idea
 *.iml
+.vscode/
+build.sh

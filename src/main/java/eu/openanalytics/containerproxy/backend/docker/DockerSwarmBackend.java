@@ -24,6 +24,9 @@ import java.net.URI;
 import java.net.URL;
 import java.util.*;
 
+import javax.validation.constraints.Null;
+
+import com.spotify.docker.client.messages.RegistryAuth;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
@@ -38,10 +41,13 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
 	private static final String PARAM_SERVICE_ID = "serviceId";
+	private Logger log = LogManager.getLogger(DockerSwarmBackend.class);
 
 	@Override
 	public void initialize() throws ContainerProxyException {
@@ -106,7 +112,49 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
 		}
 		
-		String serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+		// create service with registry auth, if failes fallback to without auth info
+		// the end result is docker swarm will pull the image when not avaialbe on disk
+		String serviceId;
+
+		// Get container settings for container-auth-domain and container-auth-user and container-auth-password
+		// ziyunxiao: there is a betterway to populate ContainerSpec with auth parameter before 
+		// calling this function. Hopefully someone more familiar with this project can 
+		// rewrite this logic
+		List<ContainerSpec> cspecs = proxy.getSpec().getContainerSpecs();				
+		String authDomain = null, authUser = null, authPassword = null;
+		for(int i=0; i<cspecs.size(); i++){
+			ContainerSpec cspec = cspecs.get(i);
+			if (cspec.getImage() == spec.getImage()){
+				authDomain = cspec.getAuthDomain();
+				authUser = cspec.getAuthUser();
+				authPassword = cspec.getAuthPassword();
+				log.info("image: " + spec.getImage() + ", domain: " + authDomain);
+				break;
+			}
+		}
+
+		if (authDomain != null  && authUser != null && authPassword != null){
+			RegistryAuth registryAuth = RegistryAuth.builder()
+			.serverAddress(authDomain)
+			.username(authUser)
+			.password(authPassword)				
+			.build();
+			try{
+				serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
+			}catch (Exception ex){
+				log.error("Not able to create service with authentication.");
+				log.error(ex);
+				// fallback to original logic, in case any error.
+				// there is a bug that the project docker-clinet is depending on jersey-common version 2.22
+				// but somehow shinyproxy the end output of jersey-common version is 2.30 
+				// which org.glassfish.jersey.internal.util.Base64 is removed.
+				serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+			}
+			
+		} else{
+			serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+		}
+		
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
 		
 		// Give the service some time to start up and launch a container.

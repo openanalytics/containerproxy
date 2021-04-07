@@ -195,3 +195,36 @@ proxy:
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         default: 3838
+  - id: 01_hello_manifests_persistent # 11
+    container-specs:
+       - image: "openanalytics/shinyproxy-demo"
+         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+         port-mapping:
+           default: 3838
+    kubernetes-pod-patches: |
+       - op: replace
+         path: /metadata/namespace
+         value: itest-overridden
+    kubernetes-additional-manifests:
+       - |
+         apiVersion: v1
+         kind: Secret
+         metadata:
+           name: manifests-secret
+         type: Opaque
+         data:
+           password: cGFzc3dvcmQ=
+    kubernetes-additional-persistent-manifests:
+       - |
+         apiVersion: v1
+         kind: PersistentVolumeClaim
+         metadata:
+           name: manifests-pvc
+           namespace: itest-overridden
+         spec:
+          storageClassName: standard
+          accessModes:
+             - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi

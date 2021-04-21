@@ -141,10 +141,34 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				+ OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI 
 				+ "/" + REG_ID;
 	}
-	
+
+	private String getIdToken() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth == null) return "";
+
+		OidcUser user = (OidcUser) auth.getPrincipal();
+		return user.getIdToken().getTokenValue();
+	}
+
+	@Override
+	public String getLogoutURL() {
+		String logoutURL = environment.getProperty("proxy.openid.logout-url");
+		String providerLogoutURL = environment.getProperty("proxy.openid.provider-logout-url");
+		String provider = environment.getProperty("proxy.openid.provider");
+
+		if (providerLogoutURL == null || providerLogoutURL.trim().isEmpty()) {
+			return "/logout";
+		} else if (provider.trim().equals("okta")) {
+			providerLogoutURL += "?id_token_hint=" + getIdToken();
+			providerLogoutURL += "&post_logout_redirect_uri=" + logoutURL;
+		}
+		
+		return providerLogoutURL;
+	}
+
 	@Override
 	public String getLogoutSuccessURL() {
-		String logoutURL = environment.getProperty("proxy.openid.logout-url");
+		String logoutURL = environment.getProperty("proxy.openid.logout-success-url");
 		if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = IAuthenticationBackend.super.getLogoutSuccessURL();
 		return logoutURL;
 	}
@@ -172,7 +196,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 			if (scope == null) break;
 			else scopes.add(scope);
 		}
-		
+
 		ClientRegistration client = ClientRegistration.withRegistrationId(REG_ID)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
 				.clientName(REG_ID)

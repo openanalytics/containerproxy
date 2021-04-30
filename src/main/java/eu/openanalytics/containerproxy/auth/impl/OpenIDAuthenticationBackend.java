@@ -155,11 +155,11 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		if (auth == null) return;
 
 		OidcUser user = (OidcUser) auth.getPrincipal();
-		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-		OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
-		if (client == null || client.getAccessToken() == null) return;
+		#HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		#OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
+		#if (client == null || client.getAccessToken() == null) return;
 		
-		env.add(ENV_TOKEN_NAME + "=" + client.getAccessToken().getTokenValue());
+		env.add(ENV_TOKEN_NAME + "=" + user.getIdToken().getTokenValue();
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {
@@ -247,6 +247,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 			};
 		}
 	}
+
 	
 	protected OidcUserService createOidcUserService() {
 		// Use a custom UserService that supports the 'emails' array attribute.

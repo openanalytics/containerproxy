@@ -155,11 +155,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		if (auth == null) return;
 
 		OidcUser user = (OidcUser) auth.getPrincipal();
-		#HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-		#OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
-		#if (client == null || client.getAccessToken() == null) return;
-		
-		env.add(ENV_TOKEN_NAME + "=" + user.getIdToken().getTokenValue();
+		env.add(ENV_TOKEN_NAME + "=" + user.getIdToken().getTokenValue());
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {

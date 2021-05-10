@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
@@ -124,29 +125,38 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			throw new RuntimeException("Cannot compute hash of config", e);
 		}
 	}
-	
+
 	@Override
-	public void startProxy(Proxy proxy) throws ContainerProxyException {
+	public SuccessOrFailure<Proxy> startProxy(Proxy proxy) throws ContainerProxyException {
 		proxy.setId(UUID.randomUUID().toString());
 		proxy.setStatus(ProxyStatus.Starting);
 		proxy.setCreatedTimestamp(System.currentTimeMillis());
-		
+
 		try {
 			doStartProxy(proxy);
+
+			if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
+				log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				stopProxy(proxy);
+				return SuccessOrFailure.createSuccess(proxy);
+			}
+
+			if (!testStrategy.testProxy(proxy)) {
+				stopProxy(proxy);
+				return SuccessOrFailure.createFailure(proxy, "Container did not respond in time");
+			}
+
+			proxy.setStartupTimestamp(System.currentTimeMillis());
+			proxy.setStatus(ProxyStatus.Up);
+
+			return SuccessOrFailure.createSuccess(proxy);
 		} catch (Throwable t) {
 			stopProxy(proxy);
-			throw new ContainerProxyException("Failed to start container", t);
-		}
-		
-		if (!testStrategy.testProxy(proxy)) {
-			stopProxy(proxy);
-			throw new ContainerProxyException("Container did not respond in time");
+			return SuccessOrFailure.createFailure(proxy, "Container failed to start", t);
 		}
 
-		proxy.setStartupTimestamp(System.currentTimeMillis());
-		proxy.setStatus(ProxyStatus.Up);
 	}
-	
+
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);

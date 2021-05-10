@@ -117,7 +117,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		String targetProtocol;
 		String targetHostName;
 		String targetPort;
-		
+		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+
 		if (isUseInternalNetwork()) {
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 			
@@ -125,8 +126,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			// See comments on https://github.com/docker/for-win/issues/1009
 			ContainerInfo info = dockerClient.inspectContainer(container.getId());
 			targetHostName = info.config().hostname();
-//			targetHostName = container.getName();
-			
+
 			targetPort = String.valueOf(containerPort);
 		} else {
 			URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
@@ -135,7 +135,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			targetPort = String.valueOf(hostPort);
 		}
 		
-		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
 	
 	@Override

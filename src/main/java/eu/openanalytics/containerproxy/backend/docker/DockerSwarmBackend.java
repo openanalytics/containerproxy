@@ -146,6 +146,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
+		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
 		int targetPort;
 		
 		if (isUseInternalNetwork()) {
@@ -158,8 +159,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			targetHostName = hostURL.getHost();
 			targetPort = servicePort;
 		}
-		
-		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
+
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
 	
 	@Override

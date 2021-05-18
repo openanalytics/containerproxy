@@ -102,17 +102,22 @@ public class HeartbeatService {
 		}
 	}
 	
-	private void heartbeatReceived(String proxyId) {
-		Proxy proxy = proxyService.getProxy(proxyId);
-		if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxyId);
-		if (proxy != null) proxyHeartbeats.put(proxyId, System.currentTimeMillis());
+	public void heartbeatReceived(String proxyId) {
+		heartbeatReceived(proxyService.getProxy(proxyId));
 	}
-	
-	private long getHeartbeatRate() {
+
+	public void heartbeatReceived(Proxy proxy) {
+		if (proxy != null) {
+			if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxy.getId());
+			proxyHeartbeats.put(proxy.getId(), System.currentTimeMillis());
+		}
+	}
+
+	public long getHeartbeatRate() {
 		return Long.parseLong(environment.getProperty(PROP_RATE, "10000"));
 	}
 	
-	private long getHeartbeatTimeout() {
+	public long getHeartbeatTimeout() {
 		return Long.parseLong(environment.getProperty(PROP_TIMEOUT, "60000"));
 	}
 	

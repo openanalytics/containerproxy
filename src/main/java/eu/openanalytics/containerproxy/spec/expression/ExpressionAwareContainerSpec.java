@@ -26,6 +26,7 @@ import java.util.Map;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import org.springframework.data.util.Pair;
+import org.springframework.security.core.Authentication;
 
 /**
  * Adds expression support to ContainerSpecs.
@@ -41,13 +42,18 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	private ContainerSpec source;
 	private SpecExpressionResolver resolver;
 	private SpecExpressionContext context;
-	
-	public ExpressionAwareContainerSpec(ContainerSpec source, Proxy proxy, SpecExpressionResolver resolver) {
+
+	public ExpressionAwareContainerSpec(ContainerSpec source, Proxy proxy, SpecExpressionResolver resolver, Authentication currentAuth) {
 		this.source = source;
 		this.resolver = resolver;
-		this.context = SpecExpressionContext.create(source, proxy, proxy.getSpec());
+		this.context = SpecExpressionContext.create(source,
+				proxy,
+				proxy.getSpec(),
+				currentAuth.getPrincipal(),
+				currentAuth.getCredentials()
+				);
 	}
-	
+
 	public String getImage() {
 		return resolve(source.getImage());
 	}
@@ -111,12 +117,12 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 		source.getSettings().entrySet().stream().forEach(e -> settings.put(e.getKey(), resolve(e.getValue())));
 		return settings;
 	}
-	
+
 	protected String resolve(String expression) {
 		if (expression == null) return null;
 		return resolver.evaluateToString(expression, context);
 	}
-	
+
 	protected String[] resolve(String[] expression) {
 		if (expression == null) return null;
 		String[] unresolved = (String[]) expression;

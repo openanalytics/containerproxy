@@ -165,7 +165,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			spec.addRuntimeLabel(RUNTIME_LABEL_USER_GROUPS, false, String.join(",", groups));
 			spec.addRuntimeLabel(RUNTIME_LABEL_CREATED_TIMESTAMP, false, String.valueOf(proxy.getCreatedTimestamp()));
 
-			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec, proxy, expressionResolver);
+			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec,
+					proxy,
+					expressionResolver,
+					userService.getCurrentAuth()
+					);
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);
 

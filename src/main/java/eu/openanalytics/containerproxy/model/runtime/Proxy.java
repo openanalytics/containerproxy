@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
 
 public class Proxy {
 
@@ -39,7 +40,7 @@ public class Proxy {
 	private long startupTimestamp;
 	private long createdTimestamp;
 	private String userId;
-	private String namespace;
+	private WebSocketReconnectionMode webSocketReconnectionMode;
 	
 	private List<Container> containers;
 	private Map<String,URI> targets;
@@ -111,6 +112,14 @@ public class Proxy {
 	
 	public void setTargets(Map<String, URI> targets) {
 		this.targets = targets;
+	}
+
+	public WebSocketReconnectionMode getWebSocketReconnectionMode() {
+		return webSocketReconnectionMode;
+	}
+
+	public void setWebSocketReconnectionMode(WebSocketReconnectionMode webSocketReconnectionMode) {
+	    this.webSocketReconnectionMode = webSocketReconnectionMode;
 	}
 
 }

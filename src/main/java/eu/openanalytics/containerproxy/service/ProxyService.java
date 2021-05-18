@@ -41,6 +41,7 @@ import javax.inject.Inject;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -228,24 +229,26 @@ public class ProxyService {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
-		
+
 		Proxy proxy = new Proxy();
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
 		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(spec));
 		activeProxies.add(proxy);
-		
-		try {
-			backend.startProxy(proxy);
-		} finally {
-			if (proxy.getStatus() != ProxyStatus.Up) {
-				activeProxies.remove(proxy);
-				applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
-			}
+
+		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);
+		if (res.isFailure()) {
+			activeProxies.remove(proxy);
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			throw new ContainerProxyException(res.getMessage(), res.getThrowable());
+		} else if (res.getValue().getStatus() == ProxyStatus.Stopped) {
+			// Proxy start succeeded, but the Proxy was stopped in the meantime
+			activeProxies.remove(proxy);
+			return proxy;
 		}
-		
-		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
+
+		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}
 
@@ -257,7 +260,7 @@ public class ProxyService {
 				logService.attachToOutput(proxy, outputAttacher);
 			}
 		}
-		
+
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
 		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
 

@@ -26,6 +26,7 @@ import java.util.function.BiConsumer;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 
 public interface IContainerBackend {
 
@@ -45,7 +46,7 @@ public interface IContainerBackend {
 	 * @param proxy The proxy to start up.
 	 * @throws ContainerProxyException If the startup fails for any reason.
 	 */
-	public void startProxy(Proxy proxy) throws ContainerProxyException;
+	public SuccessOrFailure<Proxy> startProxy(Proxy proxy) throws ContainerProxyException;
 	
 	/**
 	 * Stop the given proxy. Any resources used by the proxy should be released.

@@ -253,8 +253,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				return new CustomNameOidcUser(new HashSet<>(user.getAuthorities()),
 						user.getIdToken(),
 						user.getUserInfo(),
-						nameAttributeKey,
-						userRequest.getClientRegistration().getRegistrationId()
+						nameAttributeKey
 				);
 			}
 		};
@@ -266,12 +265,10 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		private static final String ID_ATTR_EMAILS = "emails";
 		
 		private final boolean isEmailsAttribute;
-		private final String clientRegistrationId;
-		
-		public CustomNameOidcUser(Set<GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey, String clientRegistrationId) {
+
+		public CustomNameOidcUser(Set<GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey) {
 			super(authorities, idToken, userInfo, nameAttributeKey);
 			this.isEmailsAttribute = nameAttributeKey.equals(ID_ATTR_EMAILS);
-			this.clientRegistrationId = clientRegistrationId;
 		}
 
 		@Override

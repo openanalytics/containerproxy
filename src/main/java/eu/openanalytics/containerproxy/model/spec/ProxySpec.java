@@ -42,6 +42,7 @@ public class ProxySpec {
 	
 	private String kubernetesPodPatches;
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
+	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
 	public ProxySpec() {
 		settings = new HashMap<>();
@@ -137,7 +138,16 @@ public class ProxySpec {
 	public List<String> getKubernetesAdditionalManifests() {
 		return kubernetesAdditionalManifests;
 	}
-	
+
+	public void setKubernetesAdditionalPersistentManifests(List<String> manifests) {
+		this.kubernetesAdditionalPersistentManifests = manifests;
+	}
+
+	public List<String> getKubernetesAdditionalPersistentManifests() {
+		return kubernetesAdditionalPersistentManifests;
+	}
+
+
 	public void copy(ProxySpec target) {
 		target.setId(id);
 		target.setDisplayName(displayName);
@@ -179,9 +189,13 @@ public class ProxySpec {
 		}
 		
 		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().collect(Collectors.toList()));
+			target.setKubernetesAdditionalManifests(new ArrayList<>(kubernetesAdditionalManifests));
 		}
-		
+
+		if (kubernetesAdditionalPersistentManifests != null) {
+			target.setKubernetesAdditionalPersistentManifests(new ArrayList<>(kubernetesAdditionalPersistentManifests));
+		}
+
 	}
 
 }

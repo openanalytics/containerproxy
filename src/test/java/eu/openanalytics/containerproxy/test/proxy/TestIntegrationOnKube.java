@@ -641,7 +641,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
 
 	/**
-	 * Tests the use of Spring Epxression in kubernetes patches and additional manifests.
+	 * Tests the use of Spring Expression in kubernetes patches and additional manifests.
 	 */
 	@Test
 	public void launchProxyWithExpressionInPatchAndManifests() throws Exception {
@@ -698,6 +698,70 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             assertEquals(0, proxyService.getProxies(null, true).size());
         });
 	}
+
+    /**
+     * Tests the creation and deleting of additional manifests (both persistent and non-persistent).
+     * The first manifest contains a namespace definition and is non-persistent (it is a secret).
+     * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
+     * It is a PVC which should be persistent.
+     */
+    @Test
+    public void launchProxyWithAdditionalPersistentManifests() throws Exception {
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[11].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(overriddenNamespace).list();
+            assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            assertEquals("Running", pod.getStatus().getPhase());
+            assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            assertEquals(true, container.getReady());
+            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
+            assertEquals(1, claimList.getItems().size());
+            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
+            assertEquals("manifests-pvc", claim.getMetadata().getName());
+
+            // secret has no namespace defined -> should be created in the namespace defined by the pod patches
+            SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
+            assertEquals(2, sercetList.getItems().size());
+            for (Secret secret : sercetList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+                assertEquals("manifests-secret", secret.getMetadata().getName());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+
+            // the PVC should not be deleted
+            assertEquals(1, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
+
+            assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
 
 
     public static class TestConfiguration {

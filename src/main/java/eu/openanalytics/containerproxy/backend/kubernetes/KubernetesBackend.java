@@ -21,16 +21,12 @@
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -41,25 +37,19 @@ import javax.inject.Inject;
 import io.fabric8.kubernetes.api.model.*;
 import org.apache.commons.io.IOUtils;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -67,7 +57,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import org.opensaml.ws.wsaddressing.impl.MetadataBuilder;
 import org.springframework.data.util.Pair;
 
 public class KubernetesBackend extends AbstractContainerBackend {
@@ -246,7 +235,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
 		
 		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
-		createAdditionalManifstes(proxy, effectiveKubeNamespace);
+		createAdditionalManifests(proxy, effectiveKubeNamespace);
 		
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 		
@@ -343,31 +332,44 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * 
 	 * The resource will only be created if it does not already exist.
 	 */
-	private void createAdditionalManifstes(Proxy proxy, String namespace) {
+	private void createAdditionalManifests(Proxy proxy, String namespace) {
 		for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
+			if (kubeClient.resource(fullObject).fromServer().get() == null) {
+				kubeClient.resource(fullObject).createOrReplace();
+			}
+		}
+		for (HasMetadata fullObject: getAdditionPersistentManifestsAsObjects(proxy, namespace)) {
 			if (kubeClient.resource(fullObject).fromServer().get() == null) {
 				kubeClient.resource(fullObject).createOrReplace();
 			}
 		}
 	}
 
+	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+		return parseAdditionalManifests(proxy, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
+	}
+
+	private List<HasMetadata> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) {
+		return parseAdditionalManifests(proxy, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+	}
+
 	/**
-	 * Converts the additional manifests of the spec into HasMetadat objects.
+	 * Converts the additional manifests of the spec into HasMetadata objects.
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+	private List<HasMetadata> parseAdditionalManifests(Proxy proxy, String namespace, List<String> manifests) {
 		SpecExpressionContext context = SpecExpressionContext.create(proxy, proxy.getSpec());
 
-		ArrayList<HasMetadata> result = new ArrayList<HasMetadata>();
-		for (String manifest : proxy.getSpec().getKubernetesAdditionalManifests()) {
+		ArrayList<HasMetadata> result = new ArrayList<>();
+		for (String manifest : manifests) {
 			String expressionManifest = expressionResolver.evaluateToString(manifest, context);
 			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(expressionManifest.getBytes())); // used to determine whether the manifest has specified a namespace
 
 			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(expressionManifest.getBytes())).get().get(0);
 			if (object.getMetadata().getNamespace() == null) {
-				// the load method (in some cases) automatically sets a namepsace when no namespace is provided
-				// therefore we overwrite this namespace with the namsepace of the pod.
+				// the load method (in some cases) automatically sets a namespace when no namespace is provided
+				// therefore we overwrite this namespace with the namespace of the pod.
 				fullObject.getMetadata().setNamespace(namespace);
 			}
 			result.add(fullObject);

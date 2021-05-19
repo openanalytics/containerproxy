@@ -326,4 +326,30 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
 		return instanceId;
 	}
+
+	/**
+	 * Computes the correct targetPath to use, to make the configuration of the targetPath easier.
+	 *  - Removes any double slashes (can happen when using SpeL surrounded with static paths)
+	 *  - Ensures the path does not end with a slash. The rest of the code assumes the targetPath does not end with a slash.
+	 *  - Ensures the path starts with a slash (as it will be concatenated after the targetPort)
+	 *  - Ensures the path is empty when not path is defined (or when a single / is defined)
+	 */
+	public static String computeTargetPath(String targetPath) {
+		if (targetPath == null) {
+			return "";
+		}
+
+		targetPath = targetPath.replaceAll("/+", "/"); // replace consecutive slashes
+
+		if (!targetPath.startsWith("/")) {
+			targetPath = "/" + targetPath;
+		}
+
+		if (targetPath.endsWith("/")) {
+			// remove every ending /
+			targetPath = targetPath.substring(0, targetPath.length() - 1);
+		}
+
+		return targetPath;
+	}
 }

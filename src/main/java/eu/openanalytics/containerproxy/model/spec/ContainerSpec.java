@@ -43,6 +43,7 @@ public class ContainerSpec {
 	private String memoryLimit;
 	private String cpuRequest;
 	private String cpuLimit;
+	private String targetPath;
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
 
@@ -174,7 +175,15 @@ public class ContainerSpec {
 	public void setSettings(Map<String, String> settings) {
 		this.settings = settings;
 	}
-	
+
+	public String getTargetPath() {
+		return targetPath;
+	}
+
+	public void setTargetPath(String targetPath) {
+		this.targetPath = targetPath;
+	}
+
 	public void copy(ContainerSpec target) {
 		target.setImage(image);
 		if (cmd != null) target.setCmd(Arrays.copyOf(cmd, cmd.length));
@@ -204,5 +213,7 @@ public class ContainerSpec {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());
 			target.getSettings().putAll(settings);
 		}
+		target.setTargetPath(targetPath);
 	}
+
 }

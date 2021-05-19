@@ -395,7 +395,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
-		
+		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+
 		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 		
 		if (isUseInternalNetwork()) {
@@ -405,8 +406,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			targetHostName = pod.getStatus().getHostIP();
 			targetPort = servicePort;
 		}
-		
-		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
+
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
 	
 	@Override

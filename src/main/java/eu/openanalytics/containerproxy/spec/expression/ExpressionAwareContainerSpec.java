@@ -96,6 +96,10 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	public String getCpuLimit() {
 		return resolve(source.getCpuLimit());
 	}
+
+	public String getTargetPath() {
+		return resolve(source.getTargetPath());
+	}
 	public boolean isPrivileged() {
 		return source.isPrivileged();
 	}

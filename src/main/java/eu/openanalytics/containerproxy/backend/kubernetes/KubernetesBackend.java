@@ -20,6 +20,32 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
+import javax.json.JsonPatch;
+
+import javax.inject.Inject;
+
+import com.google.common.collect.ImmutableMap;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
+import io.fabric8.kubernetes.api.model.*;
+import org.apache.commons.io.IOUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,10 +55,10 @@ import com.google.common.base.Splitter;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -501,36 +527,29 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
 		for (String namespace : namespaces) {
-            List<Pod> pods = kubeClient.pods().inNamespace(namespace).withLabel(RUNTIME_LABEL_PROXIED_APP, "true").withLabel(RUNTIME_LABEL_INSTANCE, instanceId).list().getItems();
+            List<Pod> pods = kubeClient.pods().inNamespace(namespace)
+					.withLabel(ProxiedAppKey.inst.getKeyAsLabel(), "true")
+					.withLabel(InstanceIdKey.inst.getKeyAsLabel(), instanceId)
+					.list().getItems();
+
 			for (Pod pod : pods) {
 				Map<String, String> labels = pod.getMetadata().getLabels();
 				Map<String, String> annotations = pod.getMetadata().getAnnotations();
 
-				String containerId = labels.get("app"); // TODO
+				if (labels == null) {
+				    continue;
+				}
+
+				String containerId = labels.get("app");
 				if (containerId == null) {
 					continue; // this isn't a container created by us
 				}
 
-				String proxyId = annotations.get(RUNTIME_LABEL_PROXY_ID);
-				if (proxyId == null) {
-					continue; // this isn't a container created by us
+				Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAndAnnotationsAsRuntimeValues(containerId, labels, annotations);
+				if (runtimeValues == null) {
+					continue;
 				}
 
-				String specId = annotations.get(RUNTIME_LABEL_PROXY_SPEC_ID);
-				if (specId == null) {
-					continue; // this isn't a container created by us
-				}
-				
-				String userId = annotations.get(RUNTIME_LABEL_USER_ID);
-				if (userId == null) {
-					continue; // this isn't a container created by us
-				}
-				
-				String startupTimestmap = annotations.get(RUNTIME_LABEL_CREATED_TIMESTAMP);
-				if (startupTimestmap == null) {
-					continue; // this isn't a container created by us
-				}
-				
 				Map<Integer, Integer> portBindings = new HashMap<>();
 				for (ContainerPort portMapping: pod.getSpec().getContainers().get(0).getPorts()) {
 					Integer hostPort = portMapping.getHostPort();
@@ -547,16 +566,47 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					parameters.put(PARAM_SERVICE, service);
 				}
 				
-				containers.add(new ExistingContainerInfo(containerId,
-					proxyId, specId, pod.getSpec().getContainers().get(0).getImage(), userId, portBindings,
-						Long.parseLong(startupTimestmap),
-					parameters
-				));
+				containers.add(new ExistingContainerInfo(containerId, runtimeValues,
+						pod.getSpec().getContainers().get(0).getImage(),  portBindings, parameters));
 			}
 		}
 		
 		return containers;
 	}
+
+	private Map<RuntimeValueKey, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,
+																						Map<String, String> labels,
+																						Map<String, String> annotations) {
+
+		String containerInstanceId = labels.get(InstanceIdKey.inst.getKeyAsLabel());
+		if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
+			log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
+			return null;
+		}
+
+		Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+
+		for (RuntimeValueKey key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+			if (key.getIncludeAsLabel()) {
+				String value = labels.get(key.getKeyAsLabel());
+				if (value != null) {
+					runtimeValues.put(key, new RuntimeValue(key, value));
+				}
+			} else if (key.getIncludeAsAnnotation() && annotations != null) {
+				String value = annotations.get(key.getKeyAsLabel());
+				if (value != null) {
+					runtimeValues.put(key, new RuntimeValue(key, value));
+				}
+			} else if (key.isRequired()) {
+				// value is null but is required
+				log.warn("Ignoring container {} because no label or annotation named {} is found", containerId, key.getKeyAsLabel());
+				return null;
+			}
+		}
+
+		return runtimeValues;
+	}
+
 
 	@Override
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {

@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+
 import java.util.Map;
 
 /**
@@ -28,63 +31,48 @@ import java.util.Map;
 public class ExistingContainerInfo {
 
     public ExistingContainerInfo(String containerId,
-                                 String proxyId,
-                                 String proxySpecId,
+                                 Map<RuntimeValueKey, RuntimeValue> runtimeValues,
                                  String image,
-                                 String userId,
                                  Map<Integer, Integer> portBindings,
-                                 long startupTimestamp,
                                  Map<String, Object> parameters
     ) {
         this.containerId = containerId;
-        this.proxyId = proxyId;
-        this.proxySpecId = proxySpecId;
+        this.runtimeValues = runtimeValues;
         this.image = image;
-        this.userId = userId;
         this.portBindings = portBindings;
-        this.startupTimestamp = startupTimestamp;
         this.parameters = parameters;
+
     }
 
     private final String containerId;
-    private final String proxyId;
-    private final String proxySpecId;
+    private final Map<RuntimeValueKey, RuntimeValue> runtimeValues;
     private final String image;
-    private final String userId;
     private final Map<Integer, Integer> portBindings;
-    private final long startupTimestamp;
     private final Map<String, Object> parameters;
 
     public String getContainerId() {
         return containerId;
     }
 
-    public String getProxyId() {
-        return proxyId;
-    }
-
-    public String getProxySpecId() {
-        return proxySpecId;
+    public Map<RuntimeValueKey, RuntimeValue> getRuntimeValues() {
+        return runtimeValues;
     }
 
     public String getImage() {
         return image;
     }
 
-    public String getUserId() {
-        return userId;
-    }
 
     public Map<Integer, Integer> getPortBindings() {
         return portBindings;
     }
 
-    public long getStartupTimestamp() {
-        return startupTimestamp;
-    }
-
     public Map<String, Object> getParameters() {
         return parameters;
+    }
+
+    public RuntimeValue getRuntimeValue(RuntimeValueKey key) {
+        return runtimeValues.get(key);
     }
 
 }

@@ -20,13 +20,18 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.backend.IContainerBackend;
+import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -34,12 +39,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.backend.IContainerBackend;
-import eu.openanalytics.containerproxy.model.runtime.Container;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import javax.inject.Inject;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Service to recover running apps after restart.
@@ -78,21 +80,25 @@ public class AppRecoveryService {
 			Map<String, Proxy> proxies = new HashMap();
 
 			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
-				if (!proxies.containsKey(containerInfo.getProxyId())) {
-					ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getProxySpecId());
+			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getValue();
+
+				if (!proxies.containsKey(proxyId)) {
+					ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getValue());
 					if (proxySpec == null) {
 						log.warn(String.format("Found existing container (%s) but not corresponding proxy spec.", containerInfo.getContainerId()));
 						continue;
 					}
 					Proxy proxy = new Proxy();
-					proxy.setId(containerInfo.getProxyId());
+					proxy.setId(proxyId);
 					proxy.setSpec(proxySpec);
 					proxy.setStatus(ProxyStatus.Stopped);
-					proxy.setStartupTimestamp(containerInfo.getStartupTimestamp());
-					proxy.setUserId(containerInfo.getUserId());
-					proxies.put(containerInfo.getProxyId(), proxy);
+					proxy.setCreatedTimestamp(Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getValue()));
+					proxy.setUserId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
+					proxy.addRuntimeValues(containerInfo.getRuntimeValues());
+
+					proxies.put(proxyId, proxy);
 				}
-				Proxy proxy = proxies.get(containerInfo.getProxyId());
+				Proxy proxy = proxies.get(proxyId);
 				Container container = new Container();
 				container.setId(containerInfo.getContainerId());
 				container.setParameters(containerInfo.getParameters());

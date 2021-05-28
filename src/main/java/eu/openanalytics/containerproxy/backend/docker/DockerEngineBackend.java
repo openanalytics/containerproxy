@@ -20,16 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
 import com.spotify.docker.client.messages.Container.PortMapping;
@@ -39,12 +29,21 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
-
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
@@ -169,38 +168,15 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
-			if (!container.state().toLowerCase().equals("running")) {
+			if (!container.state().equalsIgnoreCase("running")) {
 				continue; // not recovering stopped/broken apps
 			}
 
-			ImmutableMap<String, String> labels = container.labels();
-
-			String containerInstanceId = labels.get(RUNTIME_LABEL_INSTANCE);
-			if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
-				log.debug("Ignoring container {} because instanceId {} is not correct", container.id(), containerInstanceId);
-				continue; // this isn't a container created by this instance of ShinyProxy
+			Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(container.id(), container.labels());
+			if (runtimeValues == null) {
+				continue;
 			}
 
-			String proxyId = labels.get(RUNTIME_LABEL_PROXY_ID);
-			if (proxyId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String specId = labels.get(RUNTIME_LABEL_PROXY_SPEC_ID);
-			if (specId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String userId = labels.get(RUNTIME_LABEL_USER_ID);
-			if (userId == null) {
-				continue; // this isn't a container created by us
-			}
-			
-			String startupTimestmap = labels.get(RUNTIME_LABEL_CREATED_TIMESTAMP);
-			if (startupTimestmap == null) {
-				continue; // this isn't a container created by us
-			}
-			
 			Map<Integer, Integer> portBindings = new HashMap<>();
 			for (PortMapping portMapping: container.ports()) {
 				int hostPort = portMapping.publicPort();
@@ -208,12 +184,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				portBindings.put(containerPort, hostPort);
 			}	
 			
+			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap()));
 
-			containers.add(new ExistingContainerInfo(container.id(),
-					proxyId, specId, container.image(), userId, portBindings,
-					Long.parseLong(startupTimestmap),
-					new HashMap()
-					));
 		}
 		
 		return containers;

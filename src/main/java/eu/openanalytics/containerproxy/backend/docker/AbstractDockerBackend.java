@@ -20,6 +20,15 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
+
+import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerCertificates;
 import com.spotify.docker.client.DockerClient;
@@ -31,6 +40,10 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.util.PortAllocator;
 
 import java.io.IOException;
@@ -138,6 +151,35 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		}
 
 		return res;
+	}
+
+	protected Map<RuntimeValueKey, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
+	    if (labels == null) {
+	    	return null;
+		}
+
+		String containerInstanceId = labels.get(InstanceIdKey.inst.getKeyAsLabel());
+		if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
+			log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
+			return null;
+		}
+
+		Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+
+		for (RuntimeValueKey key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
+				String value = labels.get(key.getKeyAsLabel());
+				if (value != null) {
+					runtimeValues.put(key, new RuntimeValue(key, value));
+				} else if (key.isRequired()) {
+					// value is null but is required
+					log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());
+					return null;
+				}
+			}
+		}
+
+		return runtimeValues;
 	}
 
 }

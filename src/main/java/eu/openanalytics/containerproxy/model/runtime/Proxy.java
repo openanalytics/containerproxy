@@ -25,9 +25,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
+import net.minidev.json.annotate.JsonIgnore;
 
 public class Proxy {
 
@@ -44,7 +52,9 @@ public class Proxy {
 	
 	private List<Container> containers;
 	private Map<String,URI> targets;
-	
+
+	private Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+
 	public Proxy() {
 		containers = new ArrayList<>();
 		targets = new HashMap<>();
@@ -122,4 +132,51 @@ public class Proxy {
 	    this.webSocketReconnectionMode = webSocketReconnectionMode;
 	}
 
+	@JsonProperty("runtimeValues")
+	public Map<String, String> getRuntimeValuesJson() {
+	    // only output key<->value in JSON
+	    Map<String, String> result = new HashMap<>();
+	    for (RuntimeValue value : runtimeValues.values()) {
+	    	result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+		}
+	    return result;
+	}
+
+	@JsonIgnore
+	public Map<RuntimeValueKey, RuntimeValue> getRuntimeValues() {
+		return runtimeValues;
+	}
+
+	public void setRuntimeValues(Map<RuntimeValueKey, RuntimeValue> runtimeValues) {
+		this.runtimeValues = runtimeValues;
+	}
+
+	public void addRuntimeValue(RuntimeValue runtimeValue) {
+		if (this.runtimeValues.containsKey(runtimeValue.getKey())) {
+			throw new IllegalStateException("Cannot add duplicate label with key " + runtimeValue.getKey().getKeyAsEnvVar());
+		} else {
+			runtimeValues.put(runtimeValue.getKey(), runtimeValue);
+		}
+	}
+
+	public void addRuntimeValues(List<RuntimeValue> runtimeValues) {
+		for (RuntimeValue runtimeValue: runtimeValues) {
+			addRuntimeValue(runtimeValue);
+		}
+	}
+
+	/**
+	 * Used in SpEL of application.yml
+	 */
+	public String getRuntimeValue(String keyAsEnvVar) {
+		Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+		return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+	}
+
+	public String getRuntimeValue(RuntimeValueKey key) {
+		Objects.requireNonNull(key, "key may not be null");
+		RuntimeValue runtimeValue = runtimeValues.get(key);
+		Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
+		return runtimeValue.getValue();
+	}
 }

@@ -34,6 +34,7 @@ import javax.json.JsonPatch;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import io.fabric8.kubernetes.api.model.*;
 import org.apache.commons.io.IOUtils;
 
@@ -57,7 +58,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import org.springframework.data.util.Pair;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -197,17 +197,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
 
+		Map<String, String> serviceLabels = new HashMap<>();
+
 		ObjectMetaBuilder objectMetaBuilder = new ObjectMetaBuilder()
 				.withNamespace(kubeNamespace)
 				.withName("sp-pod-" + container.getId())
 				.addToLabels(spec.getLabels())
 				.addToLabels("app", container.getId());
 
-		for (Map.Entry<String, Pair<Boolean, String>> runtimeLabel : spec.getRuntimeLabels().entrySet()) {
-			if (runtimeLabel.getValue().getFirst()) {
-				objectMetaBuilder.addToLabels(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
-			} else {
-				objectMetaBuilder.addToAnnotations(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
+		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+            if (runtimeValue.getKey().getIncludeAsLabel()) {
+				objectMetaBuilder.addToLabels(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+				serviceLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+			}
+			if (runtimeValue.getKey().getIncludeAsAnnotation()) {
+				objectMetaBuilder.addToAnnotations(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 			}
 		}
 
@@ -270,9 +274,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withKind("Service")
 					.withNewMetadata()
 						.withName("sp-service-" + container.getId())
-						.addToLabels(RUNTIME_LABEL_PROXY_ID, proxy.getId())
-						.addToLabels(RUNTIME_LABEL_PROXIED_APP, "true")
-						.addToLabels(RUNTIME_LABEL_INSTANCE, instanceId)
+                    	.withLabels(serviceLabels)
 					.endMetadata()
 					.withNewSpec()
 						.addToSelector("app", container.getId())

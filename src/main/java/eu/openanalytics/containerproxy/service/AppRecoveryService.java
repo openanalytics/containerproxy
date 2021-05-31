@@ -131,7 +131,7 @@ public class AppRecoveryService {
 	}
 
 	public boolean isReady() {
-		return isReady;
+        return isReady;
 	}
 
 }

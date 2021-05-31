@@ -20,8 +20,9 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import com.google.common.io.ByteStreams;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
-import org.springframework.http.HttpStatus;
+import org.apache.commons.io.IOUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.GenericFilterBean;
 
@@ -33,6 +34,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * While the recovery is happening, the application may not be used.
@@ -61,7 +63,7 @@ public class AppRecoveryFilter extends GenericFilterBean {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String path = httpRequest.getServletPath();
         if (path != null && path.startsWith("/actuator")) {
-            // ... but it is a request to actuator -> let it pass to make the probes work properyl
+            // ... but it is a request to actuator -> let it pass to make the probes work properly
             chain.doFilter(request, response);
             return;
         }
@@ -70,7 +72,8 @@ public class AppRecoveryFilter extends GenericFilterBean {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         httpResponse.setStatus(503);
         httpResponse.setContentType("text/html");
-        httpResponse.getWriter().write("<h1>ShinyProxy is starting up, check back in a few seconds.</h1>");
+        InputStream template = this.getClass().getResourceAsStream("/templates/startup.html");
+        IOUtils.copy(template, httpResponse.getOutputStream());
     }
 
 }

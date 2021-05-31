@@ -225,7 +225,7 @@ public class ContainerProxyApplication {
 		// ====================
 
 		// enable redisSession check for the readiness probe
-		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession");
+		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
 		// disable ldap health endpoint
 		properties.put("management.health.ldap.enabled", false);
 		// disable default redis health endpoint since it's managed by redisSession

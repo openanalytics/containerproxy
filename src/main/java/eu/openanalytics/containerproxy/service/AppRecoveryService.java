@@ -93,6 +93,10 @@ public class AppRecoveryService {
 					proxy.setSpec(proxySpec);
 					proxy.setStatus(ProxyStatus.Stopped);
 					proxy.setCreatedTimestamp(Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getValue()));
+					// we cannot store the startUpTimestamp in the ContainerBackend, therefore when recovering apps
+					// we set the startUpTimestamp to the time the proxy was created. The distinction between created
+					// and started is only important for the events (e.g. Prometheus) not for the whole application.
+					proxy.setStartupTimestamp(proxy.getCreatedTimestamp());
 					proxy.setUserId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
 					proxy.addRuntimeValues(containerInfo.getRuntimeValues());
 

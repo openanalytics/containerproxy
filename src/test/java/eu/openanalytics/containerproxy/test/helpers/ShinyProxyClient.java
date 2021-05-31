@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -91,7 +91,15 @@ public class ShinyProxyClient {
             jsonReader.close();
 
             HashSet<JsonObject> result = new HashSet();
-            array.forEach(v -> result.add(v.asJsonObject()));
+
+            for (JsonValue v: array) {
+                JsonObject x = v.asJsonObject();
+                JsonObjectBuilder builder = Json.createObjectBuilder();
+                x.entrySet().forEach(e -> builder.add(e.getKey(), e.getValue()));
+                // remove startupTimestamp since it is different after app recovery
+                builder.add("startupTimestamp", "null");
+                result.add(builder.build());
+            }
 
             return result;
         } catch (Exception e) {

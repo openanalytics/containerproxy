@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2020 Open Analytics
+ * Copyright (C) 2016-2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,10 +35,14 @@ public class ShinyProxyInstance {
 
     public ShinyProxyInstance(String id, String configFileName, int port, String extraArgs) {
         this.port = port;
+
+        int mgmtPort = port % 1000 + 9000;
+
         processBuilder = new ProcessBuilder("java", "-jar",
                 "target/containerproxy-0.9.0-SNAPSHOT-exec.jar",
                 "--spring.config.location=src/test/resources/" + configFileName,
                 "--server.port=" + port,
+                "--management.server.port=" + mgmtPort,
                 extraArgs)
                 .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", id)))
                 .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", id)));

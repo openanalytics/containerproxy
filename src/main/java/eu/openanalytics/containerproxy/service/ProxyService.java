@@ -259,7 +259,6 @@ public class ProxyService {
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
-		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(spec));
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
@@ -346,6 +345,7 @@ public class ProxyService {
 	 * Setups the Mapping of and logging of the proxy.
 	 */
 	private void setupProxy(Proxy proxy) {
+		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(proxy.getSpec()));
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}

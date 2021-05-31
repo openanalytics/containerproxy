@@ -220,7 +220,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 
 			containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
-					containerSpec.image(),  portBindings, Collections.singletonMap(PARAM_SERVICE_ID, service.id())));
+					containerSpec.image(), portBindings, Collections.singletonMap(PARAM_SERVICE_ID, service.id())));
 
 		}
 

@@ -764,6 +764,84 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     }
 
 
+    /**
+     * This test starts a Proxy with an advanced setup of RuntimeLabels and environment variables + labels.
+     */
+    @Test
+    public void advancedRuntimeLabels() {
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[12].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            assertEquals("Running", pod.getStatus().getPhase());
+            assertEquals(namespace, pod.getMetadata().getNamespace());
+            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            assertEquals(true, container.getReady());
+            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+
+            ServiceList serviceList = client.services().inNamespace(namespace).list();
+            assertEquals(1, serviceList.getItems().size());
+            Service service = serviceList.getItems().get(0);
+            assertEquals(namespace, service.getMetadata().getNamespace());
+            assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+            assertEquals(containerId, service.getSpec().getSelector().get("app"));
+            assertEquals(1, service.getSpec().getPorts().size());
+            assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+
+
+            // assert env
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+
+            assertTrue(env.containsKey("TEST_PROXY_ID"));
+            assertEquals(proxy.getId(), env.get("TEST_PROXY_ID").getValue());
+
+            assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
+            assertEquals("abc_xyz", env.get("SHINYPROXY_USERNAME").getValue());
+
+            assertTrue(env.containsKey("TEST_INSTANCE_ID"));
+            assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), env.get("TEST_INSTANCE_ID").getValue());
+
+            assertTrue(env.containsKey("SHINYPROXY_USERNAME_PATCH"));
+            assertEquals(proxy.getUserId(), env.get("SHINYPROXY_USERNAME_PATCH").getValue());
+
+            // assert labels
+            Map<String, String> labels = pod.getMetadata().getLabels();
+
+            assertTrue(labels.containsKey("custom_username_label"));
+            assertEquals(proxy.getUserId(), labels.get("custom_username_label"));
+
+            assertTrue(labels.containsKey("custom_label_patch_instance"));
+            assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), labels.get("custom_label_patch_instance"));
+
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            assertEquals(0, podList.getItems().size());
+            // all services should be deleted
+            serviceList = client.services().inNamespace(namespace).list();
+            assertEquals(0, serviceList.getItems().size());
+
+            assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
+
+
     public static class TestConfiguration {
         @Bean
         @Primary

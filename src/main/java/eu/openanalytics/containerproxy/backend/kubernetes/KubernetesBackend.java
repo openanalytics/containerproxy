@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -116,7 +115,7 @@ import java.util.stream.Collectors;
 public class KubernetesBackend extends AbstractContainerBackend {
 
 	private static final String PROPERTY_PREFIX = "proxy.kubernetes.";
-	
+
 	private static final String PROPERTY_NAMESPACE = "namespace";
 	private static final String PROPERTY_API_VERSION = "api-version";
 	private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
@@ -124,30 +123,30 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
 	private static final String PROPERTY_NODE_SELECTOR = "node-selector";
 	private static final String PROPERTY_APP_NAMESPACES = "proxy.app-namespaces";
-	
+
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
-	
+
 	private static final String PARAM_POD = "pod";
 	private static final String PARAM_SERVICE = "service";
 	private static final String PARAM_NAMESPACE = "namespace";
-	
+
 	private static final String SECRET_KEY_REF = "secretKeyRef";
 
 	@Inject
 	private PodPatcher podPatcher;
-	
+
 	private KubernetesClient kubeClient;
-	
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
-		
+
 		ConfigBuilder configBuilder = new ConfigBuilder();
-		
+
 		String masterUrl = getProperty(PROPERTY_URL);
 		if (masterUrl != null) configBuilder.withMasterUrl(masterUrl);
-		
+
 		String certPath = getProperty(PROPERTY_CERT_PATH);
 		if (certPath != null && Files.isDirectory(Paths.get(certPath))) {
 			Path certFilePath = Paths.get(certPath, "ca.pem");
@@ -157,7 +156,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			certFilePath = Paths.get(certPath, "key.pem");
 			if (Files.exists(certFilePath)) configBuilder.withClientKeyFile(certFilePath.toString());
 		}
-		
+
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
 	}
 
@@ -171,10 +170,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Container container = new Container();
 		container.setSpec(spec);
 		container.setId(UUID.randomUUID().toString());
-		
+
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
-		
+
 		String[] volumeStrings = Optional.ofNullable(spec.getVolumes()).orElse(new String[] {});
 		List<Volume> volumes = new ArrayList<>();
 		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.length];
@@ -211,21 +210,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				envVars.add(new EnvVar(envVar.getKey(), envVar.getValue(), null));
 			}
 		}
-		
+
 		SecurityContext security = new SecurityContextBuilder()
 				.withPrivileged(isPrivileged() || spec.isPrivileged())
 				.build();
-		
+
 		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
 		resourceRequirementsBuilder.addToRequests("cpu", Optional.ofNullable(spec.getCpuRequest()).map(s -> new Quantity(s)).orElse(null));
 		resourceRequirementsBuilder.addToLimits("cpu", Optional.ofNullable(spec.getCpuLimit()).map(s -> new Quantity(s)).orElse(null));
 		resourceRequirementsBuilder.addToRequests("memory", Optional.ofNullable(spec.getMemoryRequest()).map(s -> new Quantity(s)).orElse(null));
 		resourceRequirementsBuilder.addToLimits("memory", Optional.ofNullable(spec.getMemoryLimit()).map(s -> new Quantity(s)).orElse(null));
-		
+
 		List<ContainerPort> containerPorts = spec.getPortMapping().values().stream()
 				.map(p -> new ContainerPortBuilder().withContainerPort(p).build())
 				.collect(Collectors.toList());
-		
+
 		ContainerBuilder containerBuilder = new ContainerBuilder()
 				.withImage(spec.getImage())
 				.withCommand(spec.getCmd())
@@ -279,24 +278,24 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		podSpec.setVolumes(volumes);
 		podSpec.setImagePullSecrets(Arrays.stream(imagePullSecrets)
 				.map(LocalObjectReference::new).collect(Collectors.toList()));
-		
+
 		String nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
 		if (nodeSelectorString != null) {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
-		
+
 		JsonPatch patch = readPatchFromSpec(spec, proxy);
-		
+
 		Pod startupPod = podBuilder.withSpec(podSpec).build();
 		Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
-		
+
 		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
 		createAdditionalManifests(proxy, effectiveKubeNamespace);
-		
+
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
-		
+
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
 		int maxTries = totalWaitMs / 1000;
 		Retrying.retry(i -> {
@@ -314,7 +313,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			throw new ContainerProxyException("Container did not become ready in time");
 		}
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();
-		
+
 		Service service = null;
 		if (isUseInternalNetwork()) {
 			// If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.
@@ -322,7 +321,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			List<ServicePort> servicePorts = spec.getPortMapping().values().stream()
 					.map(p -> new ServicePortBuilder().withPort(p).build())
 					.collect(Collectors.toList());
-			
+
 			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace).createNew()
 					.withApiVersion(apiVersion)
 					.withKind("Service")
@@ -339,37 +338,37 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 			// Workaround: waitUntilReady appears to be buggy.
 			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
-			
+
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
-		
+
 		container.getParameters().put(PARAM_POD, pod);
 		container.getParameters().put(PARAM_SERVICE, service);
-		
+
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {
 			int containerPort = spec.getPortMapping().get(mappingKey);
-			
+
 			int servicePort = -1;
 			if (service != null) servicePort = service.getSpec().getPorts().stream()
 					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
 					.findAny().orElse(-1);
-			
+
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
 			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
-		
-		
+
+
 		return container;
 	}
-	
+
 	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {
 		String patchAsString = proxy.getSpec().getKubernetesPodPatch();
 		if (patchAsString == null) {
 			return null;
 		}
-		
+
 		// resolve expressions
 		SpecExpressionContext context = SpecExpressionContext.create(containerSpec,
 				proxy,
@@ -377,15 +376,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				userService.getCurrentAuth().getPrincipal(),
 				userService.getCurrentAuth().getCredentials());
 		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
-		
+
 		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
 		yamlReader.registerModule(new JSR353Module());
 		return yamlReader.readValue(expressionAwarePatch, JsonPatch.class);
 	}
-	
+
 	/**
 	 * Creates the extra manifests/resources defined in the ProxySpec.
-	 * 
+	 *
 	 * The resource will only be created if it does not already exist.
 	 */
 	private void createAdditionalManifests(Proxy proxy, String namespace) {
@@ -432,7 +431,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		return result;
 	}
-	
+
 	private boolean isServiceReady(Service service) {
 		if (service == null) {
 			return false;
@@ -443,7 +442,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		if (service.getStatus().getLoadBalancer() == null) {
 			return false;
 		}
-		
+
 		return true;
 	}
 
@@ -454,7 +453,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
 
 		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-		
+
 		if (isUseInternalNetwork()) {
 			targetHostName = pod.getStatus().getPodIP();
 			targetPort = containerPort;
@@ -465,7 +464,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
-	
+
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container: proxy.getContainers()) {
@@ -473,7 +472,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (kubeNamespace == null) {
 				kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 			}
-			
+
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
@@ -485,7 +484,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 		}
 	}
-	
+
 	@Override
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		if (proxy.getContainers().isEmpty()) return null;
@@ -508,7 +507,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
 	}
-	
+
 
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() {
@@ -519,9 +518,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			namespaces.add(appNamespace);
 			i++;
 			appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
-		} 
+		}
 		namespaces.add(getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE));
-		
+
 		log.debug("Looking for existing pods in namespaces {}", namespaces);
 
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
@@ -555,22 +554,22 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					Integer hostPort = portMapping.getHostPort();
 					Integer containerPort = portMapping.getContainerPort();
 					portBindings.put(containerPort, hostPort);
-				}	
-				
+				}
+
 				HashMap<String, Object> parameters = new HashMap();
 				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
 				parameters.put(PARAM_POD, pod);
-				
+
 				if (!isUseInternalNetwork()) {
 						Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
 					parameters.put(PARAM_SERVICE, service);
 				}
-				
+
 				containers.add(new ExistingContainerInfo(containerId, runtimeValues,
 						pod.getSpec().getContainers().get(0).getImage(),  portBindings, parameters));
 			}
 		}
-		
+
 		return containers;
 	}
 
@@ -614,12 +613,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: container.getSpec().getPortMapping().keySet()) {
 			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
-			
+
 			int servicePort = -1;
 			if (service != null) servicePort = service.getSpec().getPorts().stream()
 					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
 					.findAny().orElse(-1);
-			
+
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
 			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);

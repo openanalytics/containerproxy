@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -58,26 +60,26 @@ import java.util.function.BiConsumer;
 
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
-	
+
 	private static final String PROPERTY_PREFIX = "proxy.docker.";
 
 	protected static final String PROPERTY_APP_PORT = "port";
 	protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
 	protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
-	
+
 	protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
-	
+
 	protected PortAllocator portAllocator;
 	protected DockerClient dockerClient;
-	
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
-	
+
 		int startPort = Integer.valueOf(getProperty(PROPERTY_PORT_RANGE_START, "20000"));
 		int maxPort = Integer.valueOf(getProperty(PROPERTY_PORT_RANGE_MAX, "-1"));
 		portAllocator = new PortAllocator(startPort, maxPort);
-		
+
 		DefaultDockerClient.Builder builder = null;
 		try {
 			builder = DefaultDockerClient.fromEnv();
@@ -87,7 +89,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
 		String confCertPath = getProperty(PROPERTY_CERT_PATH);
 		if (confCertPath != null) {
-			try { 
+			try {
 				builder.dockerCertificates(DockerCertificates.builder().dockerCertPath(Paths.get(confCertPath)).build().orNull());
 			} catch (DockerCertificateException e) {
 				throw new ContainerProxyException("Failed to initialize docker client using certificates from " + confCertPath, e);
@@ -99,12 +101,12 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
 		dockerClient = builder.build();
 	}
-	
+
 	@Override
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		Container c = getPrimaryContainer(proxy);
 		if (c == null) return null;
-		
+
 		return (stdOut, stdErr) -> {
 			try {
 				LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
@@ -119,7 +121,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 	protected String getPropertyPrefix() {
 		return PROPERTY_PREFIX;
 	}
-	
+
 	protected Container getPrimaryContainer(Proxy proxy) {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
 	}
@@ -180,6 +182,16 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		}
 
 		return runtimeValues;
+	}
+
+	protected List<String> convertEnv(Map<String, String> env) {
+		List<String> res = new ArrayList<>();
+
+		for (Map.Entry<String, String> envVar : env.entrySet()) {
+			res.add(String.format("%s=%s", envVar.getKey(), envVar.getValue()));
+		}
+
+		return res;
 	}
 
 }

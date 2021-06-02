@@ -184,14 +184,4 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return runtimeValues;
 	}
 
-	protected List<String> convertEnv(Map<String, String> env) {
-		List<String> res = new ArrayList<>();
-
-		for (Map.Entry<String, String> envVar : env.entrySet()) {
-			res.add(String.format("%s=%s", envVar.getKey(), envVar.getValue()));
-		}
-
-		return res;
-	}
-
 }

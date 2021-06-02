@@ -20,31 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
-import javax.json.JsonPatch;
-
-import javax.inject.Inject;
-
-import com.google.common.collect.ImmutableMap;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
-import io.fabric8.kubernetes.api.model.*;
-import org.apache.commons.io.IOUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,7 +31,11 @@ import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;

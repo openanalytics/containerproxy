@@ -92,6 +92,7 @@ public class ContainerProxyApplication {
 		}
 	}
 
+
 	@PostConstruct
 	public void init() {
 		if (environment.getProperty("server.use-forward-headers") != null) {
@@ -183,7 +184,7 @@ public class ContainerProxyApplication {
 		return new HttpSessionEventPublisher();
 	}
 
-	private static void setDefaultProperties(SpringApplication app) {
+	public static Properties getDefaultProperties() {
 		Properties properties = new Properties();
 
 		// use in-memory session storage by default. Can be overwritten in application.yml
@@ -230,7 +231,11 @@ public class ContainerProxyApplication {
 
 		// ====================
 
-		app.setDefaultProperties(properties);
+		return properties;
+	}
+
+	private static void setDefaultProperties(SpringApplication app) {
+		app.setDefaultProperties(getDefaultProperties());
 	}
 
 }

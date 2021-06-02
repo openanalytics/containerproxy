@@ -20,9 +20,6 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.springframework.data.util.Pair;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;

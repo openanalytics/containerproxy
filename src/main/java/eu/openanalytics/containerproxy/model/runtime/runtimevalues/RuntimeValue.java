@@ -22,6 +22,10 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 import java.util.Objects;
 
+/**
+ * POJO containing a `String` value and a `RuntimeValueKey` key. This class is used to effectively store the runtime
+ * values
+ */
 public class RuntimeValue {
 
     private final RuntimeValueKey key;

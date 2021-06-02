@@ -22,6 +22,11 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 import java.util.Objects;
 
+/**
+ * Contains all metadata for a given runtime-value.
+ * Each implementation of this class should have a private constructor and a `public static` field called `inst`
+ * containing the singleton of this key.
+ */
 public abstract class RuntimeValueKey {
 
     private final String keyAsLabel;

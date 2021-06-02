@@ -24,6 +24,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Keeps track of the `RuntimeValueKey` instances so that they can be listed and user in e.g. the App Recovery system.
+ */
 public class RuntimeValueKeyRegistry {
 
     private static final Map<String, RuntimeValueKey> keys = new HashMap<>();

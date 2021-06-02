@@ -52,6 +52,7 @@ public class RuntimeValueKeyRegistry {
 
     static {
         addRuntimeValueKey(CreatedTimestampKey.inst);
+        addRuntimeValueKey(InstanceIdKey.inst);
         addRuntimeValueKey(ProxiedAppKey.inst);
         addRuntimeValueKey(ProxyIdKey.inst);
         addRuntimeValueKey(ProxySpecIdKey.inst);

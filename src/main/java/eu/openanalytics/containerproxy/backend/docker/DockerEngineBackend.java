@@ -88,7 +88,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .labels(labels)
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
-			    .env(buildEnv(spec, proxy))
+			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		

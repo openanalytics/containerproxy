@@ -219,13 +219,13 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		}
 		return mem;
 	}
-	
-	protected List<String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
-		List<String> env = new ArrayList<>();
+
+	protected Map<String, String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
+        Map<String, String> env = new HashMap<>();
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
-				env.add(String.format("%s=%s", runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.getValue()));
+                env.put(runtimeValue.getKey().getKeyAsEnvVar(),  runtimeValue.getValue());
 			}
 		}
 
@@ -234,17 +234,16 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			Properties envProps = new Properties();
 			envProps.load(new FileInputStream(envFile));
 			for (Object key: envProps.keySet()) {
-				env.add(String.format("%s=%s", key, envProps.get(key)));
+				env.put(key.toString(), envProps.get(key).toString());
 			}
 		}
 
 		if (containerSpec.getEnv() != null) {
 			for (Map.Entry<String, String> entry : containerSpec.getEnv().entrySet()) {
-				env.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+                env.put(entry.getKey(), entry.getValue());
 			}
 		}
 		
-		// Allow the authentication backend to add values to the environment, if needed.
 		if (authBackend != null) authBackend.customizeContainerEnv(env);
 		
 		return env;

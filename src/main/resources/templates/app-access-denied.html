@@ -21,14 +21,24 @@
 
 -->
 <!DOCTYPE html>
-<html>
+<html
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+
 <head lang="en">
-	<title>ShinyProxy</title>
+	<title th:text="${title}"></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}" />
+	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
+	<script th:src="@{${jqueryJs}}"></script>
+	<script th:src="@{${bootstrapJs}}"></script>
 </head>
+
 <body>
 	<div class="container">
 		<h2>You do not have access to this application.</h2>
+		<p>Your account does not have the required roles or groups required for accessing this application.</p>
+		<p>Please contact your administrator if you believe this is a mistake.</p>
 	</div>
 
 <style>

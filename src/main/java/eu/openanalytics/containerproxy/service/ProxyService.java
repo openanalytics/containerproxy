@@ -114,7 +114,6 @@ public class ProxyService {
 	@PostConstruct
 	public void init() {
 		defaultWebSocketReconnectionMode = environment.getProperty("proxy.defaultWebSocketReconnectionMode", WebSocketReconnectionMode.class, WebSocketReconnectionMode.None);
-	    stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_APPS_ON_SHUTDOWN));
 	    stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_APPS_ON_SHUTDOWN, "true"));
 	}
 

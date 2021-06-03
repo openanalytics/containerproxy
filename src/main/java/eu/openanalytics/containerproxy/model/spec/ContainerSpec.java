@@ -20,9 +20,6 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.springframework.data.util.Pair;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,17 +43,6 @@ public class ContainerSpec {
 	private String targetPath;
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
-
-	/**
-	 * RuntimeLabels are labels which are calculated at runtime and contain metadata about the proxy.
-	 * These should not be included in API responses.
-	 *
-	 * The boolean in the pair indicates whether the value is "safe". Safe values are calculated by
-	 * ShinyProxy itself and contain no user data.
-	 * In practice, safe labels are saved as Kubernetes labels and non-safe labels are saved as
-	 * Kubernetes annotations.
-	 */
-	private Map<String, Pair<Boolean, String>> runtimeLabels = new HashMap<>();
 
 	public String getImage() {
 		return image;
@@ -151,23 +137,6 @@ public class ContainerSpec {
 		this.labels = labels;
 	}
 
-	@JsonIgnore
-	public Map<String, Pair<Boolean, String>> getRuntimeLabels() {
-		return runtimeLabels;
-	}
-
-	public void setRuntimeLabels(Map<String, Pair<Boolean, String>> runtimeLabels) {
-		this.runtimeLabels = runtimeLabels;
-	}
-
-	public void addRuntimeLabel(String key, Boolean safe, String value) {
-		if (this.runtimeLabels.containsKey(key)) {
-			throw new IllegalStateException("Cannot add duplicate label with key " + key);
-		} else {
-			runtimeLabels.put(key, Pair.of(safe, value));
-		}
-	}
-	
 	public Map<String, String> getSettings() {
 		return settings;
 	}

@@ -41,6 +41,7 @@ import javax.inject.Inject;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -216,16 +217,29 @@ public class ProxyService {
 		}
 		return matches;
 	}
-	
+
 	/**
 	 * Launch a new proxy using the given ProxySpec.
-	 * 
+	 *
 	 * @param spec The ProxySpec to base the new proxy on.
 	 * @param ignoreAccessControl True to allow access to the given ProxySpec, regardless of the current security context.
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
 	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException {
+	    return startProxy(spec, ignoreAccessControl, null);
+    }
+
+	/**
+	 * Launch a new proxy using the given ProxySpec.
+	 * 
+	 * @param spec The ProxySpec to base the new proxy on.
+	 * @param ignoreAccessControl True to allow access to the given ProxySpec, regardless of the current security context.
+     * @param runtimeValues Initial RuntimeValues of the Proxy.
+	 * @return The newly launched proxy.
+	 * @throws ContainerProxyException If the proxy fails to start for any reason.
+	 */
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues) throws ContainerProxyException {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
@@ -235,6 +249,9 @@ public class ProxyService {
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
 		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(spec));
+		if (runtimeValues != null) {
+			proxy.addRuntimeValues(runtimeValues);
+		}
 		activeProxies.add(proxy);
 
 		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);
@@ -266,6 +283,7 @@ public class ProxyService {
 
 		return proxy;
 	}
+
 
 	/**
 	 * Stop a running proxy.

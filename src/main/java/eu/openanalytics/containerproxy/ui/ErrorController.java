@@ -28,6 +28,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import eu.openanalytics.containerproxy.util.BadRequestException;
 import org.keycloak.adapters.OIDCAuthenticationError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -82,7 +83,12 @@ public class ErrorController extends BaseController implements org.springframewo
 		prepareMap(map);
 		map.put("message", msg[0]);
 		map.put("stackTrace", msg[1]);
-		map.put("status", response.getStatus());
+
+		if (exception != null && exception.getCause() instanceof BadRequestException) {
+			map.put("status", 400);
+		} else {
+			map.put("status", response.getStatus());
+		}
 		
 		return "error";
 	}

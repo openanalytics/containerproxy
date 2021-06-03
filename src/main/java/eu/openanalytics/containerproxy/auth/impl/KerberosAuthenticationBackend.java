@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -157,10 +158,10 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void customizeContainerEnv(List<String> env) {
+	public void customizeContainerEnv(Map<String, String> env) {
 		String principal = getCurrentPrincipal();
-		env.add("REMOTE_USER=" + principal);
-		env.add("KRB5CCNAME=FILE:/tmp/kerberos/ccache");
+		env.put("REMOTE_USER", principal);
+		env.put("KRB5CCNAME", "FILE:/tmp/kerberos/ccache");
 	}
 	
 	private String getCurrentPrincipal() {

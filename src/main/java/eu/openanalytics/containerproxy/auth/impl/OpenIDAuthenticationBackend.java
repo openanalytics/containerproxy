@@ -139,7 +139,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void customizeContainerEnv(List<String> env) {
+	public void customizeContainerEnv(Map<String, String> env) {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth == null) return;
 
@@ -147,8 +147,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
 		OAuth2AuthorizedClient client = oAuth2AuthorizedClientRepository.loadAuthorizedClient(REG_ID, auth, request);
 		if (client == null || client.getAccessToken() == null) return;
-		
-		env.add(ENV_TOKEN_NAME + "=" + client.getAccessToken().getTokenValue());
+
+		env.put(ENV_TOKEN_NAME, client.getAccessToken().getTokenValue());
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {

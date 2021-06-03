@@ -228,3 +228,24 @@ proxy:
           resources:
             requests:
               storage: 5Gi
+  - id: 01_hello_advanced_runtime_labels # 12
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+        env:
+          TEST_PROXY_ID: "#{proxy.getRuntimeValue('SHINYPROXY_PROXY_ID')}"
+          SHINYPROXY_USERNAME: "abc_xyz"
+          TEST_INSTANCE_ID: "#{proxy.getRuntimeValue('SHINYPROXY_INSTANCE')}"
+        labels:
+          custom_username_label: "#{proxy.getRuntimeValue('SHINYPROXY_USERNAME')}"
+    kubernetes-pod-patches: |
+     - op: add
+       path: /spec/containers/0/env/-
+       value:
+         name: SHINYPROXY_USERNAME_PATCH
+         value: "#{proxy.getRuntimeValue('SHINYPROXY_USERNAME')}"
+     - op: add
+       path: /metadata/labels/custom_label_patch_instance
+       value: "#{proxy.getRuntimeValue('SHINYPROXY_INSTANCE')}"

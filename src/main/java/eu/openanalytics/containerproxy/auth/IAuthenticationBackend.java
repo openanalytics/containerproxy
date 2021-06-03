@@ -20,11 +20,10 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
@@ -68,7 +67,7 @@ public interface IAuthenticationBackend {
 		// Default: do nothing.
 	}
 
-	public default void customizeContainerEnv(List<String> env) {
+	public default void customizeContainerEnv(Map<String, String> env) {
 		// Default: do nothing.
 	}
 	

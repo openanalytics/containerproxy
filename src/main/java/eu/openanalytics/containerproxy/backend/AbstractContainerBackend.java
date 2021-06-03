@@ -33,6 +33,15 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
@@ -57,7 +66,6 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public abstract class AbstractContainerBackend implements IContainerBackend {
 
@@ -69,20 +77,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
 	
-	//TODO rename vars?
-	protected static final String ENV_VAR_USER_NAME = "SHINYPROXY_USERNAME";
-	protected static final String ENV_VAR_USER_GROUPS = "SHINYPROXY_USERGROUPS";
-	protected static final String ENV_VAR_REALM_ID = "SHINYPROXY_REALM_ID";
-	
-	protected static final String RUNTIME_LABEL_PROXY_ID = "openanalytics.eu/sp-proxy-id";
-	protected static final String RUNTIME_LABEL_USER_ID = "openanalytics.eu/sp-user-id";
-	protected static final String RUNTIME_LABEL_USER_GROUPS = "openanalytics.eu/sp-user-groups";
-	protected static final String RUNTIME_LABEL_REALM_ID = "openanalytics.eu/sp-realm-id";
-	protected static final String RUNTIME_LABEL_PROXY_SPEC_ID = "openanalytics.eu/sp-spec-id";
-	protected static final String RUNTIME_LABEL_CREATED_TIMESTAMP = "openanalytics.eu/sp-proxy-created-timestamp";
-	protected static final String RUNTIME_LABEL_PROXIED_APP = "openanalytics.eu/sp-proxied-app";
-	protected static final String RUNTIME_LABEL_INSTANCE = "openanalytics.eu/sp-instance";
-
 	protected final Logger log = LogManager.getLogger(getClass());
 	
 	private boolean useInternalNetwork;
@@ -131,6 +125,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		proxy.setId(UUID.randomUUID().toString());
 		proxy.setStatus(ProxyStatus.Starting);
 		proxy.setCreatedTimestamp(System.currentTimeMillis());
+		setRuntimeValues(proxy);
 
 		try {
 			doStartProxy(proxy);
@@ -160,20 +155,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
-
-			// add labels need for App Recovery and maintenance
-			spec.addRuntimeLabel(RUNTIME_LABEL_PROXIED_APP, true, "true");
-			spec.addRuntimeLabel(RUNTIME_LABEL_INSTANCE, true, instanceId);
-
-			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_ID, false, proxy.getId());
-			spec.addRuntimeLabel(RUNTIME_LABEL_PROXY_SPEC_ID, false, proxy.getSpec().getId());
-			if (realmId != null) {
-				spec.addRuntimeLabel(RUNTIME_LABEL_REALM_ID, false, realmId);
-			}
-			spec.addRuntimeLabel(RUNTIME_LABEL_USER_ID, false, proxy.getUserId());
-			String[] groups = userService.getGroups(userService.getCurrentAuth());
-			spec.addRuntimeLabel(RUNTIME_LABEL_USER_GROUPS, false, String.join(",", groups));
-			spec.addRuntimeLabel(RUNTIME_LABEL_CREATED_TIMESTAMP, false, String.valueOf(proxy.getCreatedTimestamp()));
 
 			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec,
 					proxy,
@@ -238,17 +219,14 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		}
 		return mem;
 	}
-	
-	protected List<String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
-		List<String> env = new ArrayList<>();
-		env.add(String.format("%s=%s", ENV_VAR_USER_NAME, proxy.getUserId()));
-		
-		String[] groups = userService.getGroups(userService.getCurrentAuth());
-		env.add(String.format("%s=%s", ENV_VAR_USER_GROUPS, Arrays.stream(groups).collect(Collectors.joining(","))));
-		
-		String realmId = environment.getProperty("proxy.realm-id");
-		if (realmId != null) {
-			env.add(String.format("%s=%s", ENV_VAR_REALM_ID, realmId)); 
+
+	protected Map<String, String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
+        Map<String, String> env = new HashMap<>();
+
+        for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
+                env.put(runtimeValue.getKey().getKeyAsEnvVar(),  runtimeValue.getValue());
+			}
 		}
 
 		String envFile = containerSpec.getEnvFile();
@@ -256,17 +234,16 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			Properties envProps = new Properties();
 			envProps.load(new FileInputStream(envFile));
 			for (Object key: envProps.keySet()) {
-				env.add(String.format("%s=%s", key, envProps.get(key)));
+				env.put(key.toString(), envProps.get(key).toString());
 			}
 		}
 
 		if (containerSpec.getEnv() != null) {
 			for (Map.Entry<String, String> entry : containerSpec.getEnv().entrySet()) {
-				env.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+                env.put(entry.getKey(), entry.getValue());
 			}
 		}
 		
-		// Allow the authentication backend to add values to the environment, if needed.
 		if (authBackend != null) authBackend.customizeContainerEnv(env);
 		
 		return env;
@@ -352,4 +329,21 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 		return targetPath;
 	}
+
+	private void setRuntimeValues(Proxy proxy) {
+		proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
+		proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
+		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, instanceId));
+		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxy.getSpec().getId()));
+
+		if (realmId != null) {
+			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, realmId));
+		}
+
+		proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));
+		String[] groups = userService.getGroups(userService.getCurrentAuth());
+		proxy.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)));
+		proxy.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())));
+	}
+
 }

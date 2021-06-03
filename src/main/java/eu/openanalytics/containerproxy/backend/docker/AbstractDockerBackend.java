@@ -23,6 +23,9 @@ package eu.openanalytics.containerproxy.backend.docker;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import com.spotify.docker.client.DefaultDockerClient;
@@ -107,5 +110,15 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
 	}
 
+
+	protected List<String> convertEnv(Map<String, String> env) {
+		List<String> res = new ArrayList<>();
+
+		for (Map.Entry<String, String> envVar : env.entrySet()) {
+			res.add(String.format("%s=%s", envVar.getKey(), envVar.getValue()));
+		}
+
+		return res;
+	}
 
 }

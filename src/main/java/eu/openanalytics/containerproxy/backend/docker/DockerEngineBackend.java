@@ -38,6 +38,7 @@ import com.spotify.docker.client.messages.PortBinding;
 
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
@@ -74,7 +75,12 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 
 		Map<String, String> labels = spec.getLabels();
-		spec.getRuntimeLabels().forEach((key, value) -> labels.put(key, value.getSecond()));
+
+		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+			}
+		}
 
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
@@ -82,7 +88,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .labels(labels)
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
-			    .env(buildEnv(spec, proxy))
+			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		

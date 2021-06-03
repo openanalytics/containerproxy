@@ -20,6 +20,53 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.google.common.base.Splitter;
+import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.util.Retrying;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
+import io.fabric8.kubernetes.api.model.SecurityContext;
+import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.client.ConfigBuilder;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.LogWatch;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.utils.Serialization;
+import org.apache.commons.io.IOUtils;
+
+import javax.inject.Inject;
+import javax.json.JsonPatch;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,37 +74,16 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import javax.json.JsonPatch;
-
-import javax.inject.Inject;
-
-import io.fabric8.kubernetes.api.model.*;
-import org.apache.commons.io.IOUtils;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import com.google.common.base.Splitter;
-
-import eu.openanalytics.containerproxy.ContainerProxyException;
-import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
-import eu.openanalytics.containerproxy.model.runtime.Container;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
-import eu.openanalytics.containerproxy.util.Retrying;
-import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.LogWatch;
-import io.fabric8.kubernetes.client.internal.readiness.Readiness;
-import io.fabric8.kubernetes.client.utils.Serialization;
-import org.springframework.data.util.Pair;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -139,25 +165,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 
 		List<EnvVar> envVars = new ArrayList<>();
-		for (String envString : buildEnv(spec, proxy)) {
-			String[] e = envString.split("=");
-			if (e.length == 1) e = new String[] { e[0], "" };
-			if (e.length > 2) e[1] = envString.substring(envString.indexOf('=') + 1);
-			
-			if (e[1].toLowerCase().startsWith(SECRET_KEY_REF.toLowerCase())) {
-				String[] ref = e[1].split(":");
+		for (Map.Entry<String, String> envVar: buildEnv(spec, proxy).entrySet()) {
+			if (envVar.getValue().toLowerCase().startsWith(SECRET_KEY_REF.toLowerCase())) {
+				String[] ref = envVar.getValue().split(":");
 				if (ref.length != 3) {
-					log.warn(String.format("Invalid secret key reference: %s. Expected format: '%s:<name>:<key>'", envString, SECRET_KEY_REF));
+					log.warn(String.format("Invalid secret key reference: %s=%s. Expected format: '%s:<name>:<key>'", envVar.getKey(), envVar.getValue(), SECRET_KEY_REF));
 					continue;
 				}
-				envVars.add(new EnvVar(e[0], null, new EnvVarSourceBuilder()
+				envVars.add(new EnvVar(envVar.getKey(), null, new EnvVarSourceBuilder()
 						.withSecretKeyRef(new SecretKeySelectorBuilder()
 								.withName(ref[1])
 								.withKey(ref[2])
 								.build())
 						.build()));
 			} else {
-				envVars.add(new EnvVar(e[0], e[1], null));
+				envVars.add(new EnvVar(envVar.getKey(), envVar.getValue(), null));
 			}
 		}
 		
@@ -197,19 +219,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			imagePullSecrets = new String[] { imagePullSecret };
 		}
 
+		Map<String, String> serviceLabels = new HashMap<>();
+		Map<String, String> podLabels = new HashMap<>();
+
 		ObjectMetaBuilder objectMetaBuilder = new ObjectMetaBuilder()
 				.withNamespace(kubeNamespace)
-				.withName("sp-pod-" + container.getId())
-				.addToLabels(spec.getLabels())
-				.addToLabels("app", container.getId());
+				.withName("sp-pod-" + container.getId());
 
-		for (Map.Entry<String, Pair<Boolean, String>> runtimeLabel : spec.getRuntimeLabels().entrySet()) {
-			if (runtimeLabel.getValue().getFirst()) {
-				objectMetaBuilder.addToLabels(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
-			} else {
-				objectMetaBuilder.addToAnnotations(runtimeLabel.getKey(), runtimeLabel.getValue().getSecond());
+		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+            if (runtimeValue.getKey().getIncludeAsLabel()) {
+                podLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+				serviceLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+			}
+			if (runtimeValue.getKey().getIncludeAsAnnotation()) {
+				objectMetaBuilder.addToAnnotations(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 			}
 		}
+
+		podLabels.putAll(spec.getLabels());
+
+		objectMetaBuilder.addToLabels(podLabels);
 
 		PodBuilder podBuilder = new PodBuilder()
 				.withApiVersion(apiVersion)
@@ -270,9 +299,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withKind("Service")
 					.withNewMetadata()
 						.withName("sp-service-" + container.getId())
-						.addToLabels(RUNTIME_LABEL_PROXY_ID, proxy.getId())
-						.addToLabels(RUNTIME_LABEL_PROXIED_APP, "true")
-						.addToLabels(RUNTIME_LABEL_INSTANCE, instanceId)
+                    	.withLabels(serviceLabels)
 					.endMetadata()
 					.withNewSpec()
 						.addToSelector("app", container.getId())

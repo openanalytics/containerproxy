@@ -103,6 +103,7 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	public boolean isPrivileged() {
 		return source.isPrivileged();
 	}
+
 	@Override
 	public Map<String, String> getLabels() {
 		if (source.getLabels() == null) return null;
@@ -110,11 +111,7 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 		source.getLabels().entrySet().stream().forEach(e -> settings.put(e.getKey(), resolve(e.getValue())));
 		return settings;
 	}
-	@Override
-	public Map<String, Pair<Boolean, String>> getRuntimeLabels() {
-		// intentionally no SPeL applied!
-		return source.getRuntimeLabels();
-	}
+
 	public Map<String, String> getSettings() {
 		if (source.getSettings() == null) return null;
 		Map<String, String> settings = new HashMap<>();

@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.security;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
+import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -59,6 +60,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Inject
 	private Environment environment;
 
+	@Inject
+	private AppRecoveryFilter appRecoveryFilter;
+	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
 	
@@ -87,6 +91,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
+		// App Recovery Filter
+		http.addFilterAfter(appRecoveryFilter, BasicAuthenticationFilter.class);
+
 		// Perform CSRF check on the login form
 		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
 		

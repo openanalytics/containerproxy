@@ -20,26 +20,30 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.net.URI;
-import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
+import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
+import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
-
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
@@ -118,7 +122,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		return container;
 	}
-	
+
+	@Override
 	protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception {
 		String targetProtocol;
 		String targetHostName;
@@ -157,5 +162,34 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		portAllocator.release(proxy.getId());
 	}
+
+	@Override
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+		
+		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
+			if (!container.state().equalsIgnoreCase("running")) {
+				continue; // not recovering stopped/broken apps
+			}
+
+			Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(container.id(), container.labels());
+			if (runtimeValues == null) {
+				continue;
+			}
+
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			for (PortMapping portMapping: container.ports()) {
+				int hostPort = portMapping.publicPort();
+				int containerPort = portMapping.privatePort();
+				portBindings.put(containerPort, hostPort);
+			}	
+			
+			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap()));
+
+		}
+		
+		return containers;
+	}
 	
+
 }

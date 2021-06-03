@@ -74,32 +74,31 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_CERT_PATH = "cert-path";
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
 	protected static final String PROPERTY_PRIVILEGED = "privileged";
-	
+
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
-	
 	protected final Logger log = LogManager.getLogger(getClass());
-	
+
 	private boolean useInternalNetwork;
 	private boolean privileged;
-	
+
 	@Inject
 	protected IProxyTargetMappingStrategy mappingStrategy;
 
 	@Inject
 	protected IProxyTestStrategy testStrategy;
-	
+
 	@Inject
 	protected UserService userService;
-	
+
 	@Inject
 	protected Environment environment;
-	
+
 	@Inject
 	protected SpecExpressionResolver expressionResolver;
-	
+
 	@Inject
 	@Lazy
-	// Note: lazy needed to work around early initialization conflict 
+	// Note: lazy needed to work around early initialization conflict
 	protected IAuthenticationBackend authBackend;
 
 	protected String realmId;
@@ -161,15 +160,16 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 					expressionResolver,
 					userService.getCurrentAuth()
 					);
+
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);
 
 			proxy.getContainers().add(c);
 		}
 	}
-	
+
 	protected abstract Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception;
-	
+
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {
 		try {
@@ -182,23 +182,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	protected abstract void doStopProxy(Proxy proxy) throws Exception;
-	
+
 	@Override
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		// Default: do not support output attaching.
 		return null;
 	}
-	
+
 	protected String getProperty(String key) {
 		return getProperty(key, null);
 	}
-	
+
 	protected String getProperty(String key, String defaultValue) {
 		return environment.getProperty(getPropertyPrefix() + key, defaultValue);
 	}
-	
+
 	protected abstract String getPropertyPrefix();
-	
+
 	protected Long memoryToBytes(String memory) {
 		if (memory == null || memory.isEmpty()) return null;
 		Matcher matcher = Pattern.compile("(\\d+)([bkmg]?)").matcher(memory.toLowerCase());
@@ -225,34 +225,35 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
-                env.put(runtimeValue.getKey().getKeyAsEnvVar(),  runtimeValue.getValue());
+				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.getValue());
 			}
+
+			String envFile = containerSpec.getEnvFile();
+			if (envFile != null && Files.isRegularFile(Paths.get(envFile))) {
+				Properties envProps = new Properties();
+				envProps.load(new FileInputStream(envFile));
+				for (Object key : envProps.keySet()) {
+					env.put(key.toString(), envProps.get(key).toString());
+				}
+			}
+
+			if (containerSpec.getEnv() != null) {
+				for (Map.Entry<String, String> entry : containerSpec.getEnv().entrySet()) {
+					env.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			// Allow the authentication backend to add values to the environment, if needed.
+			if (authBackend != null) authBackend.customizeContainerEnv(env);
 		}
 
-		String envFile = containerSpec.getEnvFile();
-		if (envFile != null && Files.isRegularFile(Paths.get(envFile))) {
-			Properties envProps = new Properties();
-			envProps.load(new FileInputStream(envFile));
-			for (Object key: envProps.keySet()) {
-				env.put(key.toString(), envProps.get(key).toString());
-			}
-		}
-
-		if (containerSpec.getEnv() != null) {
-			for (Map.Entry<String, String> entry : containerSpec.getEnv().entrySet()) {
-                env.put(entry.getKey(), entry.getValue());
-			}
-		}
-		
-		if (authBackend != null) authBackend.customizeContainerEnv(env);
-		
 		return env;
 	}
-	
+
 	protected boolean isUseInternalNetwork() {
 		return useInternalNetwork;
 	}
-	
+
 	protected boolean isPrivileged() {
 		return privileged;
 	}

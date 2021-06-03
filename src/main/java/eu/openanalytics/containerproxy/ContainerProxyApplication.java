@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.servlet.api.ServletSessionConfig;
@@ -72,6 +73,9 @@ public class ContainerProxyApplication {
 	private DefaultCookieSerializer defaultCookieSerializer;
 
 	private final Logger log = LogManager.getLogger(getClass());
+
+	@Inject
+	private AppRecoveryService appRecoveryService;
 
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -221,7 +225,7 @@ public class ContainerProxyApplication {
 		// ====================
 
 		// enable redisSession check for the readiness probe
-		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession");
+		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
 		// disable ldap health endpoint
 		properties.put("management.health.ldap.enabled", false);
 		// disable default redis health endpoint since it's managed by redisSession

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+import javax.ws.rs.HEAD;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

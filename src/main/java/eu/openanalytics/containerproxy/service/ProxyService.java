@@ -107,13 +107,21 @@ public class ProxyService {
 
 	private WebSocketReconnectionMode defaultWebSocketReconnectionMode;
 
+	private boolean stopAppsOnShutdown;
+
+	private static final String PROPERTY_STOP_APPS_ON_SHUTDOWN = "proxy.stop_apps_on_shutdown";
+
 	@PostConstruct
 	public void init() {
 		defaultWebSocketReconnectionMode = environment.getProperty("proxy.defaultWebSocketReconnectionMode", WebSocketReconnectionMode.class, WebSocketReconnectionMode.None);
+	    stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_APPS_ON_SHUTDOWN, "true"));
 	}
 
 	@PreDestroy
 	public void shutdown() {
+		if (!stopAppsOnShutdown) {
+			return;
+		}
 		try {
 			containerKiller.shutdown();
 		} finally {
@@ -126,6 +134,8 @@ public class ProxyService {
 			}
 		}
 	}
+
+
 	
 	/**
 	 * Find the ProxySpec that matches the given ID.
@@ -248,7 +258,6 @@ public class ProxyService {
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
-		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(spec));
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
@@ -265,18 +274,7 @@ public class ProxyService {
 			return proxy;
 		}
 
-		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
-		}
-
-		if (logService.isLoggingEnabled()) {
-			BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
-			if (outputAttacher == null) {
-				log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
-			} else {
-				logService.attachToOutput(proxy, outputAttacher);
-			}
-		}
+		setupProxy(proxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
 		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
@@ -326,6 +324,38 @@ public class ProxyService {
 			return defaultWebSocketReconnectionMode;
 		} else {
 			return mode;
+		}
+	}
+
+	/**
+	 * Add existing Proxy to the ProxyService.
+	 * This is used by the AppRecovery feature.
+	 * @param proxy
+	 */
+	public void addExistingProxy(Proxy proxy) {
+		activeProxies.add(proxy);			
+
+		setupProxy(proxy);
+
+		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+	}
+
+	/**
+	 * Setups the Mapping of and logging of the proxy.
+	 */
+	private void setupProxy(Proxy proxy) {
+		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(proxy.getSpec()));
+		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
+			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
+		}
+
+		if (logService.isLoggingEnabled()) {
+			BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
+			if (outputAttacher == null) {
+				log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
+			} else {
+				logService.attachToOutput(proxy, outputAttacher);
+			}
 		}
 	}
 

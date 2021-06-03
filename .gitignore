@@ -4,3 +4,4 @@ logs
 
 .idea
 *.iml
+*.log

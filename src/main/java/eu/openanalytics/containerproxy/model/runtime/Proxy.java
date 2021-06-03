@@ -20,6 +20,14 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
+import net.minidev.json.annotate.JsonIgnore;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -116,6 +124,10 @@ public class Proxy {
 		this.containers = containers;
 	}
 	
+	public void addContainer(Container container) {
+		this.containers.add(container);
+	}
+	
 	public Map<String, URI> getTargets() {
 		return targets;
 	}
@@ -165,6 +177,12 @@ public class Proxy {
 		}
 	}
 
+	public void addRuntimeValues(Map<RuntimeValueKey, RuntimeValue> runtimeValues) {
+		for (RuntimeValue runtimeValue: runtimeValues.values()) {
+			addRuntimeValue(runtimeValue);
+		}
+	}
+
 	/**
 	 * Used in SpEL of application.yml
 	 */
@@ -179,4 +197,5 @@ public class Proxy {
 		Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
 		return runtimeValue.getValue();
 	}
+
 }

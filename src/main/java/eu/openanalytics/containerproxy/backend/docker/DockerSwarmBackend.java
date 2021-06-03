@@ -20,25 +20,35 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.net.URI;
-import java.net.URL;
-import java.util.*;
-
+import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
 import com.spotify.docker.client.messages.swarm.NetworkAttachmentConfig;
 import com.spotify.docker.client.messages.swarm.PortConfig;
+import com.spotify.docker.client.messages.swarm.Service;
 import com.spotify.docker.client.messages.swarm.ServiceSpec;
 import com.spotify.docker.client.messages.swarm.Task;
 import com.spotify.docker.client.messages.swarm.TaskSpec;
-
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
@@ -177,5 +187,45 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		}
 		portAllocator.release(proxy.getId());
 	}
+
+	@Override
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+
+		for (Service service : dockerClient.listServices()) {
+			com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
+
+			if (containerSpec == null) {
+				continue;
+			}
+
+			List<com.spotify.docker.client.messages.Container> containersInService = dockerClient.listContainers(DockerClient.ListContainersParam.withLabel("com.docker.swarm.service.id", service.id()));
+			if (containersInService.size() != 1) {
+				log.warn(String.format("Found not correct amount of containers for service %s, therefore skipping this", service.id()));
+				continue;
+			}
+
+			Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
+			if (runtimeValues == null) {
+				continue;
+			}
+
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			if (service.endpoint() != null && service.endpoint().ports() != null){
+				for (PortConfig portMapping : service.endpoint().ports()) {
+					int hostPort = portMapping.publishedPort();
+					int containerPort = portMapping.targetPort();
+					portBindings.put(containerPort, hostPort);
+				}
+			}
+
+			containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
+					containerSpec.image(), portBindings, Collections.singletonMap(PARAM_SERVICE_ID, service.id())));
+
+		}
+
+		return containers;
+	}
+
 
 }

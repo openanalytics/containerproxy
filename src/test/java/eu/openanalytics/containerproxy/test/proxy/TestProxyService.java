@@ -89,4 +89,10 @@ public class TestProxyService {
 			// No-ops
 		}
 	}
+
+	public static class MockedUserService extends UserService {
+		public String getCurrentUserId() {
+			return "jack";
+		}
+	}
 }

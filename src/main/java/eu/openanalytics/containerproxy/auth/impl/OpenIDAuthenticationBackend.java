@@ -199,44 +199,61 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 						}
 						
 						Object claimValue = idToken.getClaims().get(rolesClaimName);
-						if (claimValue == null) {
-							log.debug("No matching claim found.");
-						} else {
-							log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
-						}
 
-						// Workaround: in some cases, getClaimAsStringList fails to parse??
-						List<String> roles = idToken.getClaimAsStringList(rolesClaimName);
-						if (roles == null && claimValue instanceof String) {
-							List<String> parsedRoles = new ArrayList<>();
-							try {
-								Object value = new JSONParser(JSONParser.MODE_PERMISSIVE).parse((String) claimValue);
-								if (value instanceof List) {
-									List<?> valueList = (List<?>) value;
-									valueList.forEach(o -> parsedRoles.add(o.toString()));
-								}
-							} catch (ParseException e) {
-								// Unable to parse JSON
-							}
-							roles = parsedRoles;
-						}
-						if (roles == null) {
-							if (log.isDebugEnabled()) log.debug("Failed to parse claim value as an array: " + claimValue);
-							continue;
-						}
-						
-						for (String role: roles) {
+						for (String role: parseRolesClaim(log, rolesClaimName, claimValue)) {
 							String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
 							mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
 						}
-						if (log.isDebugEnabled()) log.debug("The following roles were successfully parsed: " + roles);
 					}
 				}
 				return mappedAuthorities;
 			};
 		}
 	}
-	
+
+	/**
+	 * Parses the claim containing the roles to a List of Strings.
+	 * See #25549 and TestOpenIdParseClaimRoles
+	 */
+	public static List<String> parseRolesClaim(Logger log, String rolesClaimName, Object claimValue) {
+		if (claimValue == null) {
+			log.debug(String.format("No roles claim with name %s found", rolesClaimName));
+			return new ArrayList<>();
+		} else {
+			log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
+		}
+
+		if (claimValue instanceof Collection) {
+			List<String> result = new ArrayList<>();
+			for (Object object : ((Collection<?>) claimValue)) {
+				if (object != null) {
+					result.add(object.toString());
+				}
+			}
+			log.debug(String.format("Parsed roles claim as Java Collection: %s -> %s (%s)", rolesClaimName, result, result.getClass()));
+			return result;
+		}
+
+		if (claimValue instanceof String) {
+			List<String> result = new ArrayList<>();
+			try {
+				Object value = new JSONParser(JSONParser.MODE_PERMISSIVE).parse((String) claimValue);
+				if (value instanceof List) {
+					List<?> valueList = (List<?>) value;
+					valueList.forEach(o -> result.add(o.toString()));
+				}
+			} catch (ParseException e) {
+				// Unable to parse JSON
+				log.debug(String.format("Unable to parse claim as JSON: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
+			}
+			log.debug(String.format("Parsed roles claim as JSON: %s -> %s (%s)", rolesClaimName, result, result.getClass()));
+			return result;
+		}
+
+		log.debug(String.format("No parser found for roles claim (unsupported type): %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
+		return new ArrayList<>();
+	}
+
 	protected OidcUserService createOidcUserService() {
 		// Use a custom UserService that supports the 'emails' array attribute.
 		return new OidcUserService() {
@@ -258,7 +275,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 			}
 		};
 	}
-	
+
+
 	public static class CustomNameOidcUser extends DefaultOidcUser {
 
 		private static final long serialVersionUID = 7563253562760236634L;

@@ -12,7 +12,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-                <version>2.3.4.RELEASE</version>
+                <version>2.3.11.RELEASE</version>
 		<relativePath />
 	</parent>
 
@@ -103,7 +103,7 @@
 		<dependency>
 			<groupId>org.springframework.security.oauth.boot</groupId>
 			<artifactId>spring-security-oauth2-autoconfigure</artifactId>
-			<version>2.3.3.RELEASE</version>
+			<version>2.3.11.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
@@ -154,7 +154,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-social-facebook</artifactId>
-			<version>1.5.14.RELEASE</version>
+			<version>1.5.22.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.social</groupId>
@@ -181,7 +181,7 @@
 		<dependency>
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-spring-security-adapter</artifactId>
-			<version>4.7.0.Final</version>
+			<version>13.0.1</version>
 		</dependency>
 
 		<!-- SAML -->
@@ -311,16 +311,41 @@
                     <artifactId>commons-beanutils</artifactId>
                     <version>1.9.4</version>
                 </dependency>
-                <dependency>
+				<dependency>
+					<groupId>commons-io</groupId>
+					<artifactId>commons-io</artifactId>
+					<version>2.7</version>
+				</dependency>
+				<dependency>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+					<version>4.5.13</version>
+				</dependency>
+				<dependency>
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava</artifactId>
                     <version>25.0-jre</version>
                 </dependency>
-                <dependency>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-core</artifactId>
-                    <version>5.2.9.RELEASE</version>
-                </dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcprov-jdk15on</artifactId>
+					<version>1.68</version>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcprov-ext-jdk15on</artifactId>
+					<version>1.68</version>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-jdk15on</artifactId>
+					<version>1.68</version>
+				</dependency>
+				<dependency>
+					<groupId>org.apache.velocity</groupId>
+					<artifactId>velocity-engine-core</artifactId>
+					<version>2.3</version>
+				</dependency>
 	</dependencies>
 
 	<build>
@@ -416,9 +441,9 @@
               <plugins>
                 <plugin>
                   <groupId>org.owasp</groupId>
-                  <artifactId>dependency-check-maven</artifactId>
-                  <version>6.0.2</version>
-                  <executions>
+					<artifactId>dependency-check-maven</artifactId>
+					<version>6.1.6</version>
+					<executions>
                     <execution>
                       <goals>
                         <goal>check</goal>

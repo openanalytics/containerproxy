@@ -228,6 +228,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		Map<String, String> serviceLabels = new HashMap<>();
 		Map<String, String> podLabels = new HashMap<>();
+		podLabels.put("app", container.getId());
 
 		ObjectMetaBuilder objectMetaBuilder = new ObjectMetaBuilder()
 				.withNamespace(kubeNamespace)

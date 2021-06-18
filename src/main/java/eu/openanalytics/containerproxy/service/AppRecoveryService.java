@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.spotify.docker.client.messages.ContainerInfo;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -32,6 +33,8 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -69,6 +72,9 @@ public class AppRecoveryService {
 
 	@Inject
 	private HeartbeatService heartbeatService;
+
+	@Inject
+	private SpecExpressionResolver expressionResolver;
 
 	private boolean isReady = false;
 
@@ -115,7 +121,7 @@ public class AppRecoveryService {
 				proxy.addContainer(container);
 				proxy.setStatus(ProxyStatus.Up);
 
-				containerBackend.setupPortMappingExistingProxy(proxy, container, containerInfo.getPortBindings());
+				setupPortMapping(proxy, container, containerInfo);
 			}
 
 			for (Proxy proxy: proxies.values()) {
@@ -128,6 +134,14 @@ public class AppRecoveryService {
 		}
 
 		isReady = true;
+	}
+
+	private void setupPortMapping(Proxy proxy, Container container, ExistingContainerInfo containerInfo) throws Exception {
+		// interpret SpEL
+		ExpressionAwareContainerSpec eContainerSpec = new ExpressionAwareContainerSpec(container.getSpec(), proxy, expressionResolver);
+		container.setSpec(eContainerSpec);
+		containerBackend.setupPortMappingExistingProxy(proxy, container, containerInfo.getPortBindings());
+		container.setSpec(eContainerSpec);
 	}
 
 	public boolean isReady() {

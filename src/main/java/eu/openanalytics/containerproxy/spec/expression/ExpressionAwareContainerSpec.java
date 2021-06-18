@@ -54,6 +54,15 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 				);
 	}
 
+	public ExpressionAwareContainerSpec(ContainerSpec source, Proxy proxy, SpecExpressionResolver resolver) {
+		this.source = source;
+		this.resolver = resolver;
+		this.context = SpecExpressionContext.create(source,
+				proxy,
+				proxy.getSpec()
+		);
+	}
+
 	public String getImage() {
 		return resolve(source.getImage());
 	}

@@ -20,7 +20,9 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
@@ -88,11 +90,14 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.DELETE, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> stopProxy(@PathVariable String proxyId) {
+	public ResponseEntity<Map<String, String>> stopProxy(@PathVariable String proxyId) {
 		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
 		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		
 		proxyService.stopProxy(proxy, true, false);
-		return new ResponseEntity<>("Proxy stopped", HttpStatus.OK);
+		return ResponseEntity.ok(new HashMap<String, String>() {{
+			put("status", "success");
+			put("message", "proxy_stopped");
+		}});
 	}
 }

@@ -28,23 +28,33 @@ import java.util.Objects;
  */
 public class RuntimeValue {
 
-    private final RuntimeValueKey key;
+    private final RuntimeValueKey<?> key;
 
-    private final String value;
+    private final Object value;
 
-    public RuntimeValue(RuntimeValueKey key, String value) {
+    public RuntimeValue(RuntimeValueKey<?> key, Object value) {
         this.key = Objects.requireNonNull(key, "key may not be null");
         this.value = Objects.requireNonNull(value, "value may not be null for key " + key.getKeyAsEnvVar());
     }
 
-    public RuntimeValueKey getKey() {
+    public RuntimeValueKey<?> getKey() {
         return key;
     }
 
     public String getValue() {
-        return value;
+        return value.toString();
     }
 
+    public <T> T getObject() {
+        return (T) getObject(key.getClazz());
+    }
+
+    private <T> T getObject(Class<T> clazz) {
+        if (!clazz.isInstance(value)) {
+            throw new RuntimeException("Cannot convert RuntimeObject to the desired type!");
+        }
+        return clazz.cast(value);
+    }
 
 }
 

@@ -27,7 +27,7 @@ import java.util.Objects;
  * Each implementation of this class should have a private constructor and a `public static` field called `inst`
  * containing the singleton of this key.
  */
-public abstract class RuntimeValueKey {
+public abstract class RuntimeValueKey<T> {
 
     private final String keyAsLabel;
     private final String keyAsEnvVar;
@@ -40,13 +40,16 @@ public abstract class RuntimeValueKey {
 
     private final Boolean isRequired;
 
-    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean isRequired) {
+    private final Class<T> clazz;
+
+    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean isRequired, Class<T> clazz) {
         this.keyAsLabel = Objects.requireNonNull(keyAsLabel, "keyAsLabel may not be null");
         this.keyAsEnvVar = Objects.requireNonNull(keyAsEnvVar, "keyAsEnvVar may not be null");
         this.includeAsLabel = includeAsLabel;
         this.includeAsAnnotation = includeAsAnnotation;
         this.includeAsEnvironmentVariable = includeAsEnvironmentVariable;
         this.isRequired = isRequired;
+        this.clazz = clazz;
     }
 
     public String getKeyAsLabel() {
@@ -71,5 +74,9 @@ public abstract class RuntimeValueKey {
 
     public Boolean isRequired() {
         return isRequired;
+    }
+
+    public Class<T> getClazz() {
+        return clazz;
     }
 }

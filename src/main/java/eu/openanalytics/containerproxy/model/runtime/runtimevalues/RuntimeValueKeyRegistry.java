@@ -30,9 +30,9 @@ import java.util.Map;
  */
 public class RuntimeValueKeyRegistry {
 
-    private static final Map<String, RuntimeValueKey> keys = new HashMap<>();
+    private static final Map<String, RuntimeValueKey<?>> keys = new HashMap<>();
 
-    public static void addRuntimeValueKey(RuntimeValueKey key) {
+    public static void addRuntimeValueKey(RuntimeValueKey<?> key) {
         if (!keys.containsKey(key.getKeyAsEnvVar())) {
             keys.put(key.getKeyAsEnvVar(), key);
         } else {
@@ -40,11 +40,11 @@ public class RuntimeValueKeyRegistry {
         }
     }
 
-    public static Collection<RuntimeValueKey> getRuntimeValueKeys() {
+    public static Collection<RuntimeValueKey<?>> getRuntimeValueKeys() {
         return keys.values();
     }
 
-    public static RuntimeValueKey getRuntimeValue(String key) {
+    public static RuntimeValueKey<?> getRuntimeValue(String key) {
         if (!keys.containsKey(key)) {
             throw new IllegalArgumentException("Could not find RuntimeValueKey using key " + key);
         }

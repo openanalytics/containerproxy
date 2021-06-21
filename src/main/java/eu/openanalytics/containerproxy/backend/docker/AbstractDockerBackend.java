@@ -155,7 +155,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return res;
 	}
 
-	protected Map<RuntimeValueKey, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
+	protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
 	    if (labels == null) {
 	    	return null;
 		}
@@ -166,9 +166,9 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			return null;
 		}
 
-		Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+		Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
 
-		for (RuntimeValueKey key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+		for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
 			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {

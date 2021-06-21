@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class CreatedTimestampKey extends RuntimeValueKey {
+public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
     private CreatedTimestampKey() {
         super("openanalytics.eu/sp-proxy-created-timestamp",
@@ -28,7 +28,7 @@ public class CreatedTimestampKey extends RuntimeValueKey {
                 false,
                 true,
                 false,
-                true);
+                true, String.class);
     }
 
     public static CreatedTimestampKey inst = new CreatedTimestampKey();

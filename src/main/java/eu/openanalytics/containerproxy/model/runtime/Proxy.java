@@ -25,7 +25,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
 import net.minidev.json.annotate.JsonIgnore;
 
 import java.net.URI;
@@ -34,16 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
-import net.minidev.json.annotate.JsonIgnore;
 
 public class Proxy {
 
@@ -56,12 +45,11 @@ public class Proxy {
 	private long startupTimestamp;
 	private long createdTimestamp;
 	private String userId;
-	private WebSocketReconnectionMode webSocketReconnectionMode;
-	
+
 	private List<Container> containers;
 	private Map<String,URI> targets;
 
-	private Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+	private Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
 
 	public Proxy() {
 		containers = new ArrayList<>();
@@ -136,14 +124,6 @@ public class Proxy {
 		this.targets = targets;
 	}
 
-	public WebSocketReconnectionMode getWebSocketReconnectionMode() {
-		return webSocketReconnectionMode;
-	}
-
-	public void setWebSocketReconnectionMode(WebSocketReconnectionMode webSocketReconnectionMode) {
-	    this.webSocketReconnectionMode = webSocketReconnectionMode;
-	}
-
 	@JsonProperty("runtimeValues")
 	public Map<String, String> getRuntimeValuesJson() {
 	    // only output key<->value in JSON
@@ -155,11 +135,11 @@ public class Proxy {
 	}
 
 	@JsonIgnore
-	public Map<RuntimeValueKey, RuntimeValue> getRuntimeValues() {
+	public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
 		return runtimeValues;
 	}
 
-	public void setRuntimeValues(Map<RuntimeValueKey, RuntimeValue> runtimeValues) {
+	public void setRuntimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
 		this.runtimeValues = runtimeValues;
 	}
 
@@ -177,7 +157,7 @@ public class Proxy {
 		}
 	}
 
-	public void addRuntimeValues(Map<RuntimeValueKey, RuntimeValue> runtimeValues) {
+	public void addRuntimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
 		for (RuntimeValue runtimeValue: runtimeValues.values()) {
 			addRuntimeValue(runtimeValue);
 		}
@@ -191,7 +171,14 @@ public class Proxy {
 		return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
 	}
 
-	public String getRuntimeValue(RuntimeValueKey key) {
+	public <T> T getRuntimeObject(RuntimeValueKey<T> key) {
+		Objects.requireNonNull(key, "key may not be null");
+		RuntimeValue runtimeValue = runtimeValues.get(key);
+		Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
+		return runtimeValue.getObject();
+	}
+
+	public <T> String getRuntimeValue(RuntimeValueKey<T> key) {
 		Objects.requireNonNull(key, "key may not be null");
 		RuntimeValue runtimeValue = runtimeValues.get(key);
 		Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());

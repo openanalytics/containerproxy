@@ -524,7 +524,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue; // this isn't a container created by us
 				}
 
-				Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAndAnnotationsAsRuntimeValues(containerId, labels, annotations);
+				Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAndAnnotationsAsRuntimeValues(containerId, labels, annotations);
 				if (runtimeValues == null) {
 					continue;
 				}
@@ -553,7 +553,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return containers;
 	}
 
-	private Map<RuntimeValueKey, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,
+	private Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,
 																						Map<String, String> labels,
 																						Map<String, String> annotations) {
 
@@ -563,9 +563,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			return null;
 		}
 
-		Map<RuntimeValueKey, RuntimeValue> runtimeValues = new HashMap<>();
+		Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
 
-		for (RuntimeValueKey key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+		for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
 			if (key.getIncludeAsLabel()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {

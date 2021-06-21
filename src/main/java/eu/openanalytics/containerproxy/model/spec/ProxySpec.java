@@ -32,7 +32,6 @@ public class ProxySpec {
 	private String displayName;
 	private String description;
 	private String logoURL;
-	private WebSocketReconnectionMode webSocketReconnectionMode;
 
 	private ProxyAccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
@@ -126,14 +125,6 @@ public class ProxySpec {
 		this.settings = settings;
 	}
 
-	public void setWebSocketReconnectionMode(WebSocketReconnectionMode webSocketReconnectionMode) {
-		this.webSocketReconnectionMode = webSocketReconnectionMode;
-	}
-
-	public WebSocketReconnectionMode getWebSocketReconnectionMode() {
-		return webSocketReconnectionMode;
-	}
-
 	/**
 	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
 	 */
@@ -167,8 +158,7 @@ public class ProxySpec {
 		target.setDisplayName(displayName);
 		target.setDescription(description);
 		target.setLogoURL(logoURL);
-		target.setWebSocketReconnectionMode(webSocketReconnectionMode);
-		
+
 		if (accessControl != null) {
 			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
 			accessControl.copy(target.getAccessControl());

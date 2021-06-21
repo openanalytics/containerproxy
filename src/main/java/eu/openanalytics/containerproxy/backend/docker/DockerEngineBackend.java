@@ -172,7 +172,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				continue; // not recovering stopped/broken apps
 			}
 
-			Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(container.id(), container.labels());
+			Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(container.id(), container.labels());
 			if (runtimeValues == null) {
 				continue;
 			}

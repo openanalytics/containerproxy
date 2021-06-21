@@ -31,7 +31,7 @@ import java.util.Map;
 public class ExistingContainerInfo {
 
     public ExistingContainerInfo(String containerId,
-                                 Map<RuntimeValueKey, RuntimeValue> runtimeValues,
+                                 Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues,
                                  String image,
                                  Map<Integer, Integer> portBindings,
                                  Map<String, Object> parameters
@@ -45,7 +45,7 @@ public class ExistingContainerInfo {
     }
 
     private final String containerId;
-    private final Map<RuntimeValueKey, RuntimeValue> runtimeValues;
+    private final Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
     private final String image;
     private final Map<Integer, Integer> portBindings;
     private final Map<String, Object> parameters;
@@ -54,7 +54,7 @@ public class ExistingContainerInfo {
         return containerId;
     }
 
-    public Map<RuntimeValueKey, RuntimeValue> getRuntimeValues() {
+    public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
         return runtimeValues;
     }
 
@@ -71,7 +71,7 @@ public class ExistingContainerInfo {
         return parameters;
     }
 
-    public RuntimeValue getRuntimeValue(RuntimeValueKey key) {
+    public RuntimeValue getRuntimeValue(RuntimeValueKey<?> key) {
         return runtimeValues.get(key);
     }
 

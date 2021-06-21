@@ -205,7 +205,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				continue;
 			}
 
-			Map<RuntimeValueKey, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
+			Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
 			if (runtimeValues == null) {
 				continue;
 			}

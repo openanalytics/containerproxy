@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class ProxySpecIdKey extends RuntimeValueKey {
+public class ProxySpecIdKey extends RuntimeValueKey<String> {
 
     private ProxySpecIdKey() {
         super("openanalytics.eu/sp-spec-id",
@@ -28,7 +28,7 @@ public class ProxySpecIdKey extends RuntimeValueKey {
                 false,
                 true,
                 false,
-                true);
+                true, String.class);
     }
 
     public static ProxySpecIdKey inst = new ProxySpecIdKey();

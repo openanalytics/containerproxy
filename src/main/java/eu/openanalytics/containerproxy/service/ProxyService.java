@@ -46,7 +46,6 @@ import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
-import eu.openanalytics.containerproxy.model.spec.WebSocketReconnectionMode;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -105,15 +104,12 @@ public class ProxyService {
 	@Inject
 	private Environment environment;
 
-	private WebSocketReconnectionMode defaultWebSocketReconnectionMode;
-
 	private boolean stopAppsOnShutdown;
 
 	private static final String PROPERTY_STOP_APPS_ON_SHUTDOWN = "proxy.stop_apps_on_shutdown";
 
 	@PostConstruct
 	public void init() {
-		defaultWebSocketReconnectionMode = environment.getProperty("proxy.defaultWebSocketReconnectionMode", WebSocketReconnectionMode.class, WebSocketReconnectionMode.None);
 	    stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_APPS_ON_SHUTDOWN, "true"));
 	}
 
@@ -318,15 +314,6 @@ public class ProxyService {
 		}
 	}
 
-	private WebSocketReconnectionMode getWebSocketReconnectionMode(ProxySpec spec) {
-		WebSocketReconnectionMode mode = spec.getWebSocketReconnectionMode();
-		if (mode == null) {
-			return defaultWebSocketReconnectionMode;
-		} else {
-			return mode;
-		}
-	}
-
 	/**
 	 * Add existing Proxy to the ProxyService.
 	 * This is used by the AppRecovery feature.
@@ -344,7 +331,6 @@ public class ProxyService {
 	 * Setups the Mapping of and logging of the proxy.
 	 */
 	private void setupProxy(Proxy proxy) {
-		proxy.setWebSocketReconnectionMode(getWebSocketReconnectionMode(proxy.getSpec()));
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 		}

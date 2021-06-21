@@ -120,6 +120,10 @@ public class HeartbeatService {
 	public long getHeartbeatTimeout() {
 		return Long.parseLong(environment.getProperty(PROP_TIMEOUT, "60000"));
 	}
+
+	public Long getLastHeartBeat(String proxyId) {
+		return proxyHeartbeats.get(proxyId);
+	}
 	
 	private class HeartbeatConnector {
 

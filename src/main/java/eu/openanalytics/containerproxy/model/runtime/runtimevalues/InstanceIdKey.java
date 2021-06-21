@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class InstanceIdKey extends RuntimeValueKey {
+public class InstanceIdKey extends RuntimeValueKey<String> {
 
     private InstanceIdKey() {
         super("openanalytics.eu/sp-instance",
@@ -28,7 +28,7 @@ public class InstanceIdKey extends RuntimeValueKey {
                 true,
                 false,
                 false,
-                true);
+                true, String.class);
     }
 
     public static InstanceIdKey inst = new InstanceIdKey();

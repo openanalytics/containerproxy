@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class UserGroupsKey extends RuntimeValueKey {
+public class UserGroupsKey extends RuntimeValueKey<String> {
 
     private UserGroupsKey() {
         super("openanalytics.eu/sp-user-groups",
@@ -28,7 +28,7 @@ public class UserGroupsKey extends RuntimeValueKey {
                 false,
                 true,
                 true,
-                true);
+                true, String.class);
     }
 
     public static UserGroupsKey inst = new UserGroupsKey();

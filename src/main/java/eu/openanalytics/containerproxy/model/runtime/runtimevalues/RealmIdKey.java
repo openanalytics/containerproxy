@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class RealmIdKey extends RuntimeValueKey {
+public class RealmIdKey extends RuntimeValueKey<String> {
 
     private RealmIdKey() {
         super("openanalytics.eu/sp-realm-id",
@@ -28,7 +28,7 @@ public class RealmIdKey extends RuntimeValueKey {
                 false,
                 true,
                 false,
-                false);
+                false, String.class);
     }
 
     public static RealmIdKey inst = new RealmIdKey();

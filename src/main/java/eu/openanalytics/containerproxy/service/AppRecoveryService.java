@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import com.spotify.docker.client.messages.ContainerInfo;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -56,7 +55,7 @@ public class AppRecoveryService {
 
 	protected static final String PROPERTY_RECOVER_RUNNING_APPS = "proxy.recover_running_apps";
 
-	private Logger log = LogManager.getLogger(AppRecoveryService.class);
+	private final Logger log = LogManager.getLogger(AppRecoveryService.class);
 
 	@Inject
 	private Environment environment;
@@ -122,11 +121,13 @@ public class AppRecoveryService {
 				proxy.setStatus(ProxyStatus.Up);
 
 				setupPortMapping(proxy, container, containerInfo);
+
+				proxySpecProvider.postProcessRecoveredProxy(proxy);
 			}
 
 			for (Proxy proxy: proxies.values()) {
 				proxyService.addExistingProxy(proxy);
-				heartbeatService.heartbeatReceived(proxy.getId());
+				heartbeatService.heartbeatReceived(proxy);
 			}
 
 		} else {

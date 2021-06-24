@@ -271,6 +271,16 @@
 			<artifactId>jquery</artifactId>
 			<version>3.5.0</version>
 		</dependency>
+		<dependency>
+			<groupId>org.webjars.bower</groupId>
+			<artifactId>bootstrap-social</artifactId>
+			<version>5.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars.bower</groupId>
+			<artifactId>fontawesome</artifactId>
+			<version>4.7.0</version>
+		</dependency>
 
 		<!-- Amazon S3 -->
 		<dependency>

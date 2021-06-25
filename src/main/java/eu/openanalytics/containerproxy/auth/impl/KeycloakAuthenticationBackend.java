@@ -239,6 +239,12 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		@Override
 		public String getName() {
 			IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
+			if (token == null) {
+				// when ContainerProxy is accessed directly using the Access Token as Bearer value in the Authorization
+				// header, no ID Token is present. The AccessTokens provided by Keycloak are in fact ID tokens, so we
+				// can safely fall back to them.
+				token = getAccount().getKeycloakSecurityContext().getToken();
+			}
 			switch (nameAttribute) {
 			case IDToken.PREFERRED_USERNAME: return token.getPreferredUsername();
 			case IDToken.NICKNAME: return token.getNickName();

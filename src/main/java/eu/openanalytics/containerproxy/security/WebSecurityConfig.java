@@ -28,6 +28,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -37,11 +39,20 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.InvalidCsrfTokenException;
+import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.List;
 
 @Configuration
@@ -96,7 +107,20 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		// Perform CSRF check on the login form
 		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
-		
+
+		http.exceptionHandling().accessDeniedHandler(new AccessDeniedHandler() {
+		    final AntPathRequestMatcher matcher = new AntPathRequestMatcher("/login", "POST");
+		    final AccessDeniedHandler defaultAccessDeniedHandler = new AccessDeniedHandlerImpl();
+			@Override
+			public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
+				if (matcher.matcher(request).isMatch() && accessDeniedException instanceof MissingCsrfTokenException) {
+					response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/login").queryParam("error", "expired").build().toUriString());
+				} else {
+					defaultAccessDeniedHandler.handle(request, response, accessDeniedException);
+				}
+			}
+		});
+
 		// Always set header: X-Content-Type-Options=nosniff
 		http.headers().contentTypeOptions();
 

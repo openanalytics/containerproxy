@@ -49,7 +49,13 @@ public class AuthController extends BaseController {
 	@RequestMapping(value = "/login", method = RequestMethod.GET)
 	public Object getLoginPage(@RequestParam Optional<String> error, ModelMap map) {
 		prepareMap(map);
-		if (error.isPresent()) map.put("error", "Invalid user name or password");
+		if (error.isPresent()) {
+			if (error.get().equals("expired")) {
+				map.put("error", "You took too long to login, please try again");
+			} else {
+				map.put("error", "Invalid user name or password");
+			}
+		}
 
 		if (auth instanceof OpenIDAuthenticationBackend) {
 			return new RedirectView(((OpenIDAuthenticationBackend) auth).getLoginRedirectURI());

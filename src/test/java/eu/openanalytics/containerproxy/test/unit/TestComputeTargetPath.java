@@ -22,24 +22,12 @@ package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.test.proxy.MockedUserService;
 import eu.openanalytics.containerproxy.test.proxy.TestProxyService.TestConfiguration;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
-import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
-
-import javax.inject.Inject;
-import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
 

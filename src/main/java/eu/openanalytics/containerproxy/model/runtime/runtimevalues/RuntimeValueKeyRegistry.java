@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import javax.ws.rs.HEAD;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,25 +29,25 @@ import java.util.Map;
  */
 public class RuntimeValueKeyRegistry {
 
-    private static final Map<String, RuntimeValueKey<?>> keys = new HashMap<>();
+    private static final Map<String, RuntimeValueKey<?>> KEYS = new HashMap<>();
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {
-        if (!keys.containsKey(key.getKeyAsEnvVar())) {
-            keys.put(key.getKeyAsEnvVar(), key);
+        if (!KEYS.containsKey(key.getKeyAsEnvVar())) {
+            KEYS.put(key.getKeyAsEnvVar(), key);
         } else {
             throw new IllegalStateException("Cannot add duplicate RuntimeValueKey with name " + key.getKeyAsEnvVar());
         }
     }
 
     public static Collection<RuntimeValueKey<?>> getRuntimeValueKeys() {
-        return keys.values();
+        return KEYS.values();
     }
 
     public static RuntimeValueKey<?> getRuntimeValue(String key) {
-        if (!keys.containsKey(key)) {
+        if (!KEYS.containsKey(key)) {
             throw new IllegalArgumentException("Could not find RuntimeValueKey using key " + key);
         }
-        return keys.get(key);
+        return KEYS.get(key);
     }
 
     static {

@@ -20,30 +20,20 @@
  */
 package eu.openanalytics.containerproxy.backend.strategy.impl;
 
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.service.ProxyService;
-
 /**
- * Default logout behaviour: stop all proxies owned by the user.
+ * No-op logout behaviour : do nothing on logout of user
  */
 @Component
-@ConditionalOnProperty(name = "proxy.stop_proxies_on_logout", havingValue = "true", matchIfMissing = true)
-public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
+@ConditionalOnProperty(name = "proxy.stop_proxies_on_logout", havingValue = "false")
+public class NoOpProxyLogoutStrategy implements IProxyLogoutStrategy {
 
-	@Inject
-	private ProxyService proxyService;
-	
 	@Override
 	public void onLogout(String userId) {
-		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
-			proxyService.stopProxy(proxy, true, true);
-		}
+
 	}
 
 }

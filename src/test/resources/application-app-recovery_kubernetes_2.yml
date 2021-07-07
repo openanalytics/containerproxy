@@ -1,7 +1,7 @@
 proxy:
   titlle: Yet Another Instance
-  recover_running_apps: true
-  stop_apps_on_shutdown: false
+  recover_running_proxies: true
+  stop_proxies_on_shutdown: false
 
   authentication: simple
   container-backend: kubernetes

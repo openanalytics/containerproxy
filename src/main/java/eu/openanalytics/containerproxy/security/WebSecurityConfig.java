@@ -122,7 +122,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		// Always set header: X-Content-Type-Options=nosniff
 		http.headers().contentTypeOptions();
 
-		String frameOptions = environment.getProperty("server.frameOptions", "disable");
+		String frameOptions = environment.getProperty("server.frame-options", "disable");
 		switch (frameOptions.toUpperCase()) {
 			case "DISABLE":
 				http.headers().frameOptions().disable();

@@ -118,18 +118,18 @@ public class ContainerProxyApplication {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> {
 			info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
-			if (Boolean.valueOf(environment.getProperty("logging.requestdump", "false"))) {
-				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
+			if (Boolean.parseBoolean(environment.getProperty("logging.requestdump", "false"))) {
+				info.addOuterHandlerChainWrapper(Handlers::requestDump);
 			}
 			info.addInnerHandlerChainWrapper(defaultHandler -> mappingManager.createHttpHandler(defaultHandler));
 
 			String sameSiteCookie = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
 		 	log.debug("Setting sameSiteCookie policy for session cookies to {}" , sameSiteCookie);
-		   	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookie, null, true, true, true));
+		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookie, null, true, true, true));
 
 			ServletSessionConfig sessionConfig = new ServletSessionConfig();
 			sessionConfig.setHttpOnly(true);
-			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
+			sessionConfig.setSecure(Boolean.parseBoolean(environment.getProperty("server.secure-cookies", "false")));
 			info.setServletSessionConfig(sessionConfig);
 			if (sessionManagerFactory != null) {
 				info.setSessionManagerFactory(sessionManagerFactory);

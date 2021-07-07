@@ -20,9 +20,9 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import com.google.common.io.ByteStreams;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import org.apache.commons.io.IOUtils;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.GenericFilterBean;
 
@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * While the recovery is happening, the application may not be used.
@@ -45,6 +46,11 @@ public class AppRecoveryFilter extends GenericFilterBean {
 
     @Inject
     public AppRecoveryService appRecoveryService;
+
+    @Inject
+    public Environment environment;
+
+    private String renderedTemplate;
 
     @Override
     public void doFilter(
@@ -69,11 +75,29 @@ public class AppRecoveryFilter extends GenericFilterBean {
         }
 
         // ... generate a 503
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        renderTemplate((HttpServletResponse) response);
+    }
+
+    private void renderTemplate(HttpServletResponse httpResponse ) throws IOException {
+        if (renderedTemplate == null) {
+            InputStream template = this.getClass().getResourceAsStream("/templates/startup.html");
+            if (template == null) {
+                throw new IllegalStateException("Startup template should be available");
+            }
+
+            String applicationName = environment.getProperty("spring.application.name");
+            if (applicationName == null) {
+                throw new IllegalStateException("Application name should be available"); // we provide a default so this should not happen
+            }
+
+            renderedTemplate = IOUtils.toString(template, StandardCharsets.UTF_8.name());
+            renderedTemplate = renderedTemplate.replace("${application_name}", applicationName);
+        }
+
         httpResponse.setStatus(503);
         httpResponse.setContentType("text/html");
-        InputStream template = this.getClass().getResourceAsStream("/templates/startup.html");
-        IOUtils.copy(template, httpResponse.getOutputStream());
+
+        IOUtils.write(renderedTemplate, httpResponse.getOutputStream(), StandardCharsets.UTF_8.name());
     }
 
 }

@@ -31,6 +31,7 @@ public class ProxySpec {
 	private String id;
 	private String displayName;
 	private String description;
+	private String displayGroup;
 	private String logoURL;
 	
 	private ProxyAccessControl accessControl;
@@ -62,6 +63,14 @@ public class ProxySpec {
 		this.displayName = displayName;
 	}
 
+	public String getDisplayGroup() {
+		return displayGroup;
+	}
+
+	public void setDisplayGroup(String displayGroup) {
+		this.displayGroup = displayGroup;
+	}
+	
 	public String getDescription() {
 		return description;
 	}
@@ -132,6 +141,7 @@ public class ProxySpec {
 	public void copy(ProxySpec target) {
 		target.setId(id);
 		target.setDisplayName(displayName);
+		target.setDisplayGroup(displayGroup);
 		target.setDescription(description);
 		target.setLogoURL(logoURL);
 		

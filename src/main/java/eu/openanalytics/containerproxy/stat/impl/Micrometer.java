@@ -23,15 +23,19 @@ package eu.openanalytics.containerproxy.stat.impl;
 import eu.openanalytics.containerproxy.event.*;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.function.DoubleFunction;
 
 public class Micrometer implements IStatCollector {
 
@@ -40,6 +44,9 @@ public class Micrometer implements IStatCollector {
 
     @Inject
     private ProxyService proxyService;
+
+    @Inject
+    private ISessionService sessionService;
 
     private final Logger logger = LogManager.getLogger(getClass());
 
@@ -51,6 +58,8 @@ public class Micrometer implements IStatCollector {
 
     private Counter userLogouts;
 
+    private Number usersLoggedIn;
+
     @PostConstruct
     public void init() {
 
@@ -58,6 +67,7 @@ public class Micrometer implements IStatCollector {
         userLogouts = registry.counter("userLogouts");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
+        registry.gauge("shinyproxy_absolute_users_logged_in", Tags.empty(), sessionService, ISessionService::getLoggedInUsersCount);
 
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
             registry.counter("appStarts", "spec.id", spec.getId());

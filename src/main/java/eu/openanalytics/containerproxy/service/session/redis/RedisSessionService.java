@@ -20,14 +20,14 @@
  */
 package eu.openanalytics.containerproxy.service.session.redis;
 
+import eu.openanalytics.containerproxy.RedisSessionConfig;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.autoconfigure.session.RedisSessionProperties;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.session.SessionInformation;
-import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.session.Session;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
 import org.springframework.stereotype.Component;
 
@@ -54,10 +54,7 @@ public class RedisSessionService implements ISessionService  {
     private RedisIndexedSessionRepository redisIndexedSessionRepository;
 
     @Inject
-    private SessionRegistry sessionRegistry;
-
-    @Inject
-    private RedisSessionProperties redisSessionProperties;
+    private RedisSessionConfig redisSessionConfig;
 
     private String keyPattern;
     private RedisTemplate<Object, Object> redisTemplate;
@@ -66,12 +63,12 @@ public class RedisSessionService implements ISessionService  {
 
     @PostConstruct
     public void init() {
-        keyPattern = redisSessionProperties.getNamespace() + ":sessions:*";
+        keyPattern = redisSessionConfig.getNamespace() + ":sessions:*";
         redisTemplate = (RedisTemplate<Object, Object>) redisIndexedSessionRepository.getSessionRedisOperations();
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                 updateCachedUsersLoggedInCount();
+                updateCachedUsersLoggedInCount();
             }
         }, 0, CACHE_UPDATE_INTERVAL);
     }
@@ -96,16 +93,21 @@ public class RedisSessionService implements ISessionService  {
             return;
         }
 
-        System.out.println(keys);
-
         Set<String> authenticatedUsers = keys
                 .stream()
                 .map((keyId) -> {
                     String sessionId = extractSessionId(keyId);
                     if (sessionId != null) {
-                        SessionInformation sessionInformation = sessionRegistry.getSessionInformation(sessionId);
-                        if (sessionInformation != null) {
-                            return sessionInformation.getPrincipal().toString();
+                        logger.debug(String.format("Extracted sessionId %s ", sessionId));
+                        Session session = redisIndexedSessionRepository.findById(sessionId);
+                        if (session != null) {
+                            Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
+                            if (object instanceof SecurityContext) {
+                                SecurityContext securityContext = (SecurityContext) object;
+                                if (securityContext.getAuthentication().isAuthenticated()) {
+                                    return securityContext.getAuthentication().getName();
+                                }
+                            }
                         }
                     }
                     return null;

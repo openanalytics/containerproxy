@@ -27,6 +27,8 @@ public interface ISessionService {
 
     public Integer getLoggedInUsersCount();
 
+    public Integer getActiveUsersCount();
+
 //    public void reActivateSession(String sessionId);
 
 }

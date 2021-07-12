@@ -20,13 +20,17 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
-import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import org.apache.logging.log4j.LogManager;
@@ -40,7 +44,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.DoubleFunction;
 
 public class Micrometer implements IStatCollector {
 
@@ -79,6 +82,7 @@ public class Micrometer implements IStatCollector {
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
         registry.gauge("shinyproxy_absolute_users_logged_in", Tags.empty(), sessionService, ISessionService::getLoggedInUsersCount);
+        registry.gauge("shinyproxy_absolute_users_active", Tags.empty(), sessionService, ISessionService::getActiveUsersCount);
 
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
             registry.counter("appStarts", "spec.id", spec.getId());

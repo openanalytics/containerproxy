@@ -26,11 +26,14 @@ import io.undertow.server.session.Session;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
@@ -41,7 +44,7 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "none")
 public class UndertowSessionService implements ISessionService {
 
-    private static final int CACHE_UPDATE_INTERVAL = 60 * 1000; // update cache every minutes
+    private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every minutes
 
     private final Log logger = LogFactory.getLog(UndertowSessionService.class);
 
@@ -50,6 +53,8 @@ public class UndertowSessionService implements ISessionService {
 
     // default value, note we cannot use 0 or -1 here as that would cause a dip when restarting ShinyProxy
     private Integer cachedUsersLoggedInCount = null;
+
+    private Integer cachedActiveUsersCount = null;
 
     @PostConstruct
     public void init() {
@@ -64,6 +69,11 @@ public class UndertowSessionService implements ISessionService {
     @Override
     public Integer getLoggedInUsersCount() {
         return cachedUsersLoggedInCount;
+    }
+
+    @Override
+    public Integer getActiveUsersCount() {
+        return cachedActiveUsersCount;
     }
 
     /**
@@ -82,26 +92,51 @@ public class UndertowSessionService implements ISessionService {
             return;
         }
 
-        Set<String> authenticatedUsers = instance
-                .getAllSessions()
-                .stream()
-                .map((sessionId) -> {
-                    Session sessionImpl = instance.getSession(sessionId);
-                    if (sessionImpl == null) return null;
-                    Object object = sessionImpl.getAttribute("SPRING_SECURITY_CONTEXT");
-                    if (object instanceof SecurityContext) {
-                        SecurityContext securityContext = (SecurityContext) object;
-                        if (securityContext.getAuthentication().isAuthenticated()) {
-                            return securityContext.getAuthentication().getName();
-                        }
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        // users are only counted as active, if they are active after this time.
+        Instant minimumInstantTime = Instant.now().minusSeconds(60);
+
+        Set<String> authenticatedUsers = new HashSet<>();
+        Set<String> activeUsers = new HashSet<>();
+
+        for (String sessionId: instance.getAllSessions()) {
+            Session session = instance.getSession(sessionId);
+            if (session == null) continue;
+
+            Authentication authentication = extractAuthenticationIfAuthenticated(session);
+            if (authentication == null) continue;
+
+            authenticatedUsers.add(authentication.getName());
+
+            if (Instant.ofEpochMilli(session.getLastAccessedTime()).isAfter(minimumInstantTime)) {
+                activeUsers.add(authentication.getName());
+            }
+        }
 
         logger.debug(String.format("Logged in users count %s, all users: %s ", authenticatedUsers.size(), authenticatedUsers));
         cachedUsersLoggedInCount = authenticatedUsers.size();
+        logger.debug(String.format("Active users count %s, %s ", activeUsers.size(), activeUsers));
+        cachedActiveUsersCount = activeUsers.size();
+    }
+
+
+    /**
+     * Extracts the {@link Authentication} object from the given Session, if and only if the user is authenticated.
+     * @param session the session
+     * @return Authentication|null
+     */
+    private Authentication extractAuthenticationIfAuthenticated(Session session) {
+        Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
+
+        if (object instanceof SecurityContext) {
+            SecurityContext securityContext = (SecurityContext) object;
+
+            if (securityContext.getAuthentication().isAuthenticated()) {
+
+                return securityContext.getAuthentication();
+            }
+        }
+
+        return null;
     }
 
 

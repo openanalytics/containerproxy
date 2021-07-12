@@ -26,6 +26,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.session.Session;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
@@ -33,6 +34,8 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
@@ -43,10 +46,10 @@ import java.util.stream.Collectors;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
-public class RedisSessionService implements ISessionService  {
+public class RedisSessionService implements ISessionService {
 
     private static final Pattern SESSION_ID_PATTERN = Pattern.compile("^.*sessions:([a-z0-9-]*)$");
-    private static final int CACHE_UPDATE_INTERVAL = 60 * 1000; // update cache every minutes
+    private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every minutes
 
     private final Log logger = LogFactory.getLog(RedisSessionService.class);
 
@@ -60,6 +63,7 @@ public class RedisSessionService implements ISessionService  {
     private RedisTemplate<Object, Object> redisTemplate;
 
     private Integer cachedUsersLoggedInCount = null; // default value;
+    private Integer cachedActiveUsersCount = null; // default value;
 
     @PostConstruct
     public void init() {
@@ -78,6 +82,11 @@ public class RedisSessionService implements ISessionService  {
         return cachedUsersLoggedInCount;
     }
 
+    @Override
+    public Integer getActiveUsersCount() {
+        return cachedActiveUsersCount;
+    }
+
     /**
      * Updates the cached count of users.
      * We only update this value every CACHE_UPDATE_INTERVAL because this is a relative heavy computation to do.
@@ -93,30 +102,33 @@ public class RedisSessionService implements ISessionService  {
             return;
         }
 
-        Set<String> authenticatedUsers = keys
-                .stream()
-                .map((keyId) -> {
-                    String sessionId = extractSessionId(keyId);
-                    if (sessionId != null) {
-                        logger.debug(String.format("Extracted sessionId %s ", sessionId));
-                        Session session = redisIndexedSessionRepository.findById(sessionId);
-                        if (session != null) {
-                            Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
-                            if (object instanceof SecurityContext) {
-                                SecurityContext securityContext = (SecurityContext) object;
-                                if (securityContext.getAuthentication().isAuthenticated()) {
-                                    return securityContext.getAuthentication().getName();
-                                }
-                            }
-                        }
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        // users are only counted as active, if they are active after this time.
+        Instant minimumInstantTime = Instant.now().minusSeconds(60);
+
+        Set<String> authenticatedUsers = new HashSet<>();
+        Set<String> activeUsers = new HashSet<>();
+
+        for (Object keyId : keys) {
+            String sessionId = extractSessionId(keyId);
+            if (sessionId == null) continue;
+
+            Session session = redisIndexedSessionRepository.findById(sessionId);
+            if (session == null) continue;
+
+            Authentication authentication = extractAuthenticationIfAuthenticated(session);
+            if (authentication == null) continue;
+
+            authenticatedUsers.add(authentication.getName());
+
+            if (session.getLastAccessedTime().isAfter(minimumInstantTime)) {
+                activeUsers.add(authentication.getName());
+            }
+        }
 
         logger.debug(String.format("Logged in users count %s, all users: %s ", authenticatedUsers.size(), authenticatedUsers));
         cachedUsersLoggedInCount = authenticatedUsers.size();
+        logger.debug(String.format("Active users count %s, %s ", activeUsers.size(), activeUsers));
+        cachedActiveUsersCount = activeUsers.size();
     }
 
     /**
@@ -130,6 +142,26 @@ public class RedisSessionService implements ISessionService  {
                 return matcher.group(1);
             }
         }
+        return null;
+    }
+
+    /**
+     * Extracts the {@link Authentication} object from the given Session, if and only if the user is authenticated.
+     * @param session the session
+     * @return Authentication|null
+     */
+    private Authentication extractAuthenticationIfAuthenticated(Session session) {
+        Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
+
+        if (object instanceof SecurityContext) {
+            SecurityContext securityContext = (SecurityContext) object;
+
+            if (securityContext.getAuthentication().isAuthenticated()) {
+
+                return securityContext.getAuthentication();
+            }
+        }
+
         return null;
     }
 

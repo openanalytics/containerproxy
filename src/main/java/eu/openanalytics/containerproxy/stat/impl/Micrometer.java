@@ -35,9 +35,16 @@ import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleFunction;
 
 public class Micrometer implements IStatCollector {
+
+    private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every 20 seconds
 
     @Inject
     private MeterRegistry registry;
@@ -50,6 +57,12 @@ public class Micrometer implements IStatCollector {
 
     private final Logger logger = LogManager.getLogger(getClass());
 
+    // keeps track of the number of proxies per spec id
+    private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
+
+    // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
+    private final List<ProxyCounter> proxyCounters = new ArrayList<>();
+
     private Counter appStartFailedCounter;
 
     private Counter authFailedCounter;
@@ -57,8 +70,6 @@ public class Micrometer implements IStatCollector {
     private Counter userLogins;
 
     private Counter userLogouts;
-
-    private Number usersLoggedIn;
 
     @PostConstruct
     public void init() {
@@ -72,9 +83,19 @@ public class Micrometer implements IStatCollector {
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
+            ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
+            proxyCounters.add(proxyCounter);
+            registry.gauge("shinyproxy_absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, ProxyCounter::getProxyCount);
             registry.timer("startupTime", "spec.id", spec.getId());
             registry.timer("usageTime", "spec.id", spec.getId());
         }
+
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                updateCachedProxyCount();
+            }
+        }, 0, CACHE_UPDATE_INTERVAL);
     }
 
     @EventListener
@@ -113,6 +134,34 @@ public class Micrometer implements IStatCollector {
     public void onAuthFailedEvent(AuthFailedEvent event) {
         logger.debug("AuthFailedEvent [user: {}, sessionId: {}]", event.getUserId(), event.getSessionId());
         authFailedCounter.increment();
+    }
+
+    /**
+     * Updates the cache containing the number of proxies running for each spec id.
+     * We only update this value every CACHE_UPDATE_INTERVAL because this is a relative heavy computation to do.
+     * Therefore we don't want that this calculation is performed every time the guage is updated.
+     * Especially since could be called using an HTTP request.
+     */
+    private void updateCachedProxyCount() {
+        for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
+            Integer count = proxyService.getProxies(p -> p.getSpec().getId().equals(spec.getId()), true).size();
+            proxyCountCache.put(spec.getId(), count);
+            logger.debug(String.format("Running proxies count for spec %s: %s ", spec.getId(), count));
+        }
+    }
+
+    private class ProxyCounter {
+
+        private final String specId;
+
+        public ProxyCounter(String specId) {
+            this.specId = specId;
+        }
+
+        public int getProxyCount() {
+            return proxyCountCache.getOrDefault(specId, null);
+        }
+
     }
 
 }

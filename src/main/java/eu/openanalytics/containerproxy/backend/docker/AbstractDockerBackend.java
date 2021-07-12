@@ -20,16 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiConsumer;
-
 import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerCertificates;
@@ -53,9 +43,9 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 
 

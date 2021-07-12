@@ -81,15 +81,15 @@ public class Micrometer implements IStatCollector {
         userLogouts = registry.counter("userLogouts");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
-        registry.gauge("shinyproxy_absolute_users_logged_in", Tags.empty(), sessionService, ISessionService::getLoggedInUsersCount);
-        registry.gauge("shinyproxy_absolute_users_active", Tags.empty(), sessionService, ISessionService::getActiveUsersCount);
+        registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, ISessionService::getLoggedInUsersCount);
+        registry.gauge("absolute_users_active", Tags.empty(), sessionService, ISessionService::getActiveUsersCount);
 
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
             proxyCounters.add(proxyCounter);
-            registry.gauge("shinyproxy_absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, ProxyCounter::getProxyCount);
+            registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, ProxyCounter::getProxyCount);
             registry.timer("startupTime", "spec.id", spec.getId());
             registry.timer("usageTime", "spec.id", spec.getId());
         }

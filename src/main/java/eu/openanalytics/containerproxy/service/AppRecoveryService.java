@@ -42,6 +42,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import javax.ws.rs.HEAD;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,6 +55,7 @@ import java.util.Map;
 public class AppRecoveryService {
 
 	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover_running_proxies";
+	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG = "proxy.recover_running_proxies_from_different_config";
 
 	private final Logger log = LogManager.getLogger(AppRecoveryService.class);
 
@@ -75,14 +77,25 @@ public class AppRecoveryService {
 	@Inject
 	private SpecExpressionResolver expressionResolver;
 
+	@Inject
+	private IdentifierService identifierService;
+
 	private boolean isReady = false;
+
+	private boolean recoverFromDifferentConfig;
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void recoverRunningApps() throws Exception {
 		if (Boolean.parseBoolean(environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, "false"))) {
-			log.info("Recovery of running apps enabled");
+			recoverFromDifferentConfig = Boolean.parseBoolean(environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, "false"));
 
-			Map<String, Proxy> proxies = new HashMap();
+			if (recoverFromDifferentConfig)  {
+				log.info("Recovery of running apps enabled (even apps started with a different config file)");
+			} else {
+				log.info("Recovery of running apps enabled (but only apps started with the current config file)");
+			}
+
+			Map<String, Proxy> proxies = new HashMap<>();
 
 			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
 			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getValue();
@@ -147,6 +160,24 @@ public class AppRecoveryService {
 
 	public boolean isReady() {
         return isReady;
+	}
+
+	/**
+	 * Checks whether the proxy with the given instanceId may be recovered in this ShinyProxy server.
+	 */
+	public Boolean canRecoverProxy(String containerInstanceId) {
+		if (containerInstanceId == null) {
+			// sanity check
+			return false;
+		}
+
+		if (recoverFromDifferentConfig) {
+			// always allow to recover
+			return true;
+		}
+
+		// only allow if instanceId is equal to the current instanceId
+		return containerInstanceId.equals(identifierService.instanceId);
 	}
 
 }

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy;
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -44,7 +45,7 @@ public class RedisSessionConfig extends RedisHttpSessionConfiguration {
     private String redisNamespace;
 
     @Inject
-    private Environment environment;
+    private IdentifierService identifierService;
 
     @Bean
     @ConditionalOnMissingBean
@@ -70,10 +71,8 @@ public class RedisSessionConfig extends RedisHttpSessionConfiguration {
         setSaveMode(redisSessionProperties.getSaveMode());
         setCleanupCron(redisSessionProperties.getCleanupCron());
 
-        String realmId = environment.getProperty("proxy.realm-id");
-
-        if (realmId != null) {
-            redisNamespace = String.format("shinyproxy__%s__%s", realmId, redisSessionProperties.getNamespace());
+        if (identifierService.realmId != null) {
+            redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, redisSessionProperties.getNamespace());
         } else {
             redisNamespace = String.format("shinyproxy__%s", redisSessionProperties.getNamespace());
         }

@@ -151,7 +151,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		}
 
 		String containerInstanceId = labels.get(InstanceIdKey.inst.getKeyAsLabel());
-		if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
+		if (containerInstanceId == null || !containerInstanceId.equals(identifierService.instanceId)) {
 			log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
 			return null;
 		}

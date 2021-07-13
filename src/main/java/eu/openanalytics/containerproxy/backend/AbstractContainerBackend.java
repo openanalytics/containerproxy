@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -101,22 +102,14 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	// Note: lazy needed to work around early initialization conflict
 	protected IAuthenticationBackend authBackend;
 
-	protected String realmId;
-
-	protected String instanceId = null;
+	@Inject
+	protected IdentifierService identifierService;
 
 	@Override
 	public void initialize() throws ContainerProxyException {
 		// If this application runs as a container itself, things like port publishing can be omitted.
 		useInternalNetwork = Boolean.valueOf(getProperty(PROPERTY_INTERNAL_NETWORKING, "false"));
 		privileged = Boolean.valueOf(getProperty(PROPERTY_PRIVILEGED, "false"));
-		realmId = environment.getProperty("proxy.realm-id");
-		try {
-			instanceId = calculateInstanceId();
-			log.info("Hash of config is: " + instanceId);
-		} catch(Exception e) {
-			throw new RuntimeException("Cannot compute hash of config", e);
-		}
 	}
 
 	@Override
@@ -258,53 +251,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return privileged;
 	}
 
-
-	private File getPathToConfigFile() {
-		String path = environment.getProperty("spring.config.location");
-		if (path != null) {
-			return Paths.get(path).toFile();
-		}
-
-		File file = Paths.get(ContainerProxyApplication.CONFIG_FILENAME).toFile();
-		if (file.exists()) {
-			return file;
-		}
-
-		return null;
-	}
-
-	/**
-	 * Calculates a hash of the config file (i.e. application.yaml).
-	 */
-	private String calculateInstanceId() throws IOException, NoSuchAlgorithmException {
-		/**
-		 * We need a hash of some "canonical" version of the config file.
-		 * The hash should not change when e.g. comments are added to the file.
-		 * Therefore we read the application.yml file into an Object and then
-		 * dump it again into YAML. We also sort the keys of maps and properties so that
-		 * the order does not matter for the resulting hash.
-		 */
-		ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-		objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-		objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-
-		File file = getPathToConfigFile();
-		if (file == null) {
-			// this should only happen in tests
-			instanceId = "unknown-instance-id";
-			return instanceId;
-		}
-
-		Object parsedConfig = objectMapper.readValue(file, Object.class);
-		String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
-
-		MessageDigest digest = MessageDigest.getInstance("SHA-1");
-		digest.reset();
-		digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
-		instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
-		return instanceId;
-	}
-
 	/**
 	 * Computes the correct targetPath to use, to make the configuration of the targetPath easier.
 	 *  - Removes any double slashes (can happen when using SpeL surrounded with static paths)
@@ -334,11 +280,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	private void setRuntimeValues(Proxy proxy) {
 		proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
 		proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
-		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, instanceId));
+		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
 		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxy.getSpec().getId()));
 
-		if (realmId != null) {
-			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, realmId));
+		if (identifierService.realmId != null) {
+			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));
 		}
 
 		proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));

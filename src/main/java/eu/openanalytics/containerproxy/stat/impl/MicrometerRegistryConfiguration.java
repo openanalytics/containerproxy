@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.NonNull;
@@ -39,6 +40,9 @@ public class MicrometerRegistryConfiguration {
 
     @Inject
     private Environment environment;
+
+    @Inject
+    private IdentifierService identifierService;
 
     private String getPrefix() {
         String prefix = environment.getProperty(PROP_METRIC_PREFIX, "").trim();
@@ -65,7 +69,9 @@ public class MicrometerRegistryConfiguration {
                     public String tagKey(@NonNull String key) {
                         return super.tagKey(key);
                     }
-                });
+                })
+                // add a common tag with the instanceId of this server. (it cannot simple be called instance, since that is already a default Prometheus label).
+                .commonTags("shinyproxy_instance", identifierService.instanceId);
     }
 
 

@@ -32,8 +32,10 @@ import com.spotify.docker.client.messages.PortBinding;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 import java.net.URI;
@@ -165,7 +167,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
-		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
 			if (!container.state().equalsIgnoreCase("running")) {
@@ -177,6 +179,17 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				continue;
 			}
 
+			// add ports to PortAllocator (even if we don't recover the proxy)
+			for (PortMapping portMapping: container.ports()) {
+				portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), portMapping.publicPort());
+			}
+
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
+				log.warn("Ignoring container {} because instanceId {} is not correct", container.id(), containerInstanceId);
+				continue;
+			}
+
 			Map<Integer, Integer> portBindings = new HashMap<>();
 			for (PortMapping portMapping: container.ports()) {
 				int hostPort = portMapping.publicPort();
@@ -184,7 +197,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				portBindings.put(containerPort, hostPort);
 			}	
 			
-			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap()));
+			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap<>()));
 
 		}
 		

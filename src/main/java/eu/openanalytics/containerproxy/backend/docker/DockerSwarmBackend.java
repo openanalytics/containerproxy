@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
@@ -190,7 +191,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
-		ArrayList<ExistingContainerInfo> containers = new ArrayList<ExistingContainerInfo>();
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
 		for (Service service : dockerClient.listServices()) {
 			com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
@@ -207,6 +208,12 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 			Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
 			if (runtimeValues == null) {
+				continue;
+			}
+
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
+				log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.get(0).id(), containerInstanceId);
 				continue;
 			}
 

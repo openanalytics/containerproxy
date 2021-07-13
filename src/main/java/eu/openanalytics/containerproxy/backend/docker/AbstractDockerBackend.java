@@ -32,7 +32,6 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -122,15 +121,14 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		for (String mappingKey : container.getSpec().getPortMapping().keySet()) {
 			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
 
-			int servicePort = -1; // in case of internal networking
+			int hostPort = -1; // in case of internal networking
 			if (portBindings.containsKey(containerPort) && portBindings.get(containerPort) != 0) {
 				// in case of non internal networking
-				servicePort = portBindings.get(containerPort);
-				portAllocator.addExistingPort(proxy.getUserId(), servicePort);
+				hostPort = portBindings.get(containerPort);
 			}
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
+			URI target = calculateTarget(container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}
@@ -145,14 +143,9 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return res;
 	}
 
-	protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
-	    if (labels == null) {
-	    	return null;
-		}
 
-		String containerInstanceId = labels.get(InstanceIdKey.inst.getKeyAsLabel());
-		if (containerInstanceId == null || !containerInstanceId.equals(identifierService.instanceId)) {
-			log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
+	protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
+		if (labels == null) {
 			return null;
 		}
 

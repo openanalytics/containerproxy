@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
@@ -104,6 +105,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Inject
 	protected IdentifierService identifierService;
+
+	@Inject
+	@Lazy
+	// Note: lazy to prevent cyclic dependencies
+	protected AppRecoveryService appRecoveryService;
 
 	@Override
 	public void initialize() throws ContainerProxyException {

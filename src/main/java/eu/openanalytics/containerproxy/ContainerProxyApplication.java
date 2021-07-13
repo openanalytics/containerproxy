@@ -21,9 +21,9 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
+import io.undertow.server.handlers.SameSiteCookieHandler;
 import io.undertow.servlet.api.ServletSessionConfig;
 import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
@@ -76,8 +76,8 @@ public class ContainerProxyApplication {
 
 	private final Logger log = LogManager.getLogger(getClass());
 
-	@Inject
-	private AppRecoveryService appRecoveryService;
+	private static final String PROP_PROXY_SAME_SITE_COOKIE = "proxy.same-site-cookie";
+	private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
 
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -105,7 +105,7 @@ public class ContainerProxyApplication {
 			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on how to change your configuration.");
 		}
 
-		String sameSiteCookie = environment.getProperty("proxy.same-site-cookie", "Lax");
+		String sameSiteCookie = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
 		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookie);
 		defaultCookieSerializer.setSameSite(sameSiteCookie);
 	}
@@ -118,15 +118,18 @@ public class ContainerProxyApplication {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> {
 			info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
-			if (Boolean.valueOf(environment.getProperty("logging.requestdump", "false"))) {
-				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
+			if (Boolean.parseBoolean(environment.getProperty("logging.requestdump", "false"))) {
+				info.addOuterHandlerChainWrapper(Handlers::requestDump);
 			}
-			info.addInnerHandlerChainWrapper(defaultHandler -> {
-				return mappingManager.createHttpHandler(defaultHandler);
-			});
+			info.addInnerHandlerChainWrapper(defaultHandler -> mappingManager.createHttpHandler(defaultHandler));
+
+			String sameSiteCookie = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
+		 	log.debug("Setting sameSiteCookie policy for session cookies to {}" , sameSiteCookie);
+		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookie, null, true, true, true));
+
 			ServletSessionConfig sessionConfig = new ServletSessionConfig();
 			sessionConfig.setHttpOnly(true);
-			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
+			sessionConfig.setSecure(Boolean.parseBoolean(environment.getProperty("server.secure-cookies", "false")));
 			info.setServletSessionConfig(sessionConfig);
 			if (sessionManagerFactory != null) {
 				info.setSessionManagerFactory(sessionManagerFactory);

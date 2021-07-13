@@ -53,7 +53,7 @@ import java.util.Map;
 @Service
 public class AppRecoveryService {
 
-	protected static final String PROPERTY_RECOVER_RUNNING_APPS = "proxy.recover_running_apps";
+	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover_running_proxies";
 
 	private final Logger log = LogManager.getLogger(AppRecoveryService.class);
 
@@ -79,7 +79,7 @@ public class AppRecoveryService {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void recoverRunningApps() throws Exception {
-		if (Boolean.parseBoolean(environment.getProperty(PROPERTY_RECOVER_RUNNING_APPS, "false"))) {
+		if (Boolean.parseBoolean(environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, "false"))) {
 			log.info("Recovery of running apps enabled");
 
 			Map<String, Proxy> proxies = new HashMap();

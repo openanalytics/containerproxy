@@ -106,7 +106,7 @@ public class ProxyService {
 
 	private boolean stopAppsOnShutdown;
 
-	private static final String PROPERTY_STOP_PROXIES_ON_SHUTDOWN = "proxy.stop_proxies_on_shutdown";
+	private static final String PROPERTY_STOP_PROXIES_ON_SHUTDOWN = "proxy.stop-proxies-on-shutdown";
 
 	@PostConstruct
 	public void init() {

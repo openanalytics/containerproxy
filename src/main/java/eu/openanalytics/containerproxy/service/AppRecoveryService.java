@@ -42,7 +42,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
-import javax.ws.rs.HEAD;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,8 +53,8 @@ import java.util.Map;
 @Service
 public class AppRecoveryService {
 
-	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover_running_proxies";
-	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG = "proxy.recover_running_proxies_from_different_config";
+	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover-running-proxies";
+	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG = "proxy.recover-running-proxies-from-different-config";
 
 	private final Logger log = LogManager.getLogger(AppRecoveryService.class);
 

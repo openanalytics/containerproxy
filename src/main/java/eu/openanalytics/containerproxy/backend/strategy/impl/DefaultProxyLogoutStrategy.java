@@ -33,7 +33,7 @@ import eu.openanalytics.containerproxy.service.ProxyService;
  * Default logout behaviour: stop all proxies owned by the user.
  */
 @Component
-@ConditionalOnProperty(name = "proxy.stop_proxies_on_logout", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "proxy.stop-proxies-on-logout", havingValue = "true", matchIfMissing = true)
 public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
 	@Inject

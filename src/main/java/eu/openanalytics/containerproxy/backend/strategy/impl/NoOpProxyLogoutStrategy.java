@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
  * No-op logout behaviour : do nothing on logout of user
  */
 @Component
-@ConditionalOnProperty(name = "proxy.stop_proxies_on_logout", havingValue = "false")
+@ConditionalOnProperty(name = "proxy.stop-proxies-on-logout", havingValue = "false")
 public class NoOpProxyLogoutStrategy implements IProxyLogoutStrategy {
 
 	@Override

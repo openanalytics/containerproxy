@@ -508,7 +508,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		for (String namespace : namespaces) {
             List<Pod> pods = kubeClient.pods().inNamespace(namespace)
 					.withLabel(ProxiedAppKey.inst.getKeyAsLabel(), "true")
-					.withLabel(InstanceIdKey.inst.getKeyAsLabel(), instanceId)
+					.withLabel(InstanceIdKey.inst.getKeyAsLabel(), identifierService.instanceId)
 					.list().getItems();
 
 			for (Pod pod : pods) {
@@ -558,7 +558,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 																						Map<String, String> annotations) {
 
 		String containerInstanceId = labels.get(InstanceIdKey.inst.getKeyAsLabel());
-		if (containerInstanceId == null || !containerInstanceId.equals(instanceId)) {
+		if (containerInstanceId == null || !containerInstanceId.equals(identifierService.instanceId)) {
 			log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
 			return null;
 		}

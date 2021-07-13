@@ -25,8 +25,10 @@ import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.servlet.api.ServletSessionConfig;
+import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -108,6 +110,9 @@ public class ContainerProxyApplication {
 		defaultCookieSerializer.setSameSite(sameSiteCookie);
 	}
 
+	@Autowired(required = false)
+	private SessionManagerFactory sessionManagerFactory;
+
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
@@ -123,6 +128,9 @@ public class ContainerProxyApplication {
 			sessionConfig.setHttpOnly(true);
 			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
 			info.setServletSessionConfig(sessionConfig);
+			if (sessionManagerFactory != null) {
+				info.setSessionManagerFactory(sessionManagerFactory);
+			}
 		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));

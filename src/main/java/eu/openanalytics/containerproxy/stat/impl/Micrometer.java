@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
@@ -148,7 +149,7 @@ public class Micrometer implements IStatCollector {
      */
     private void updateCachedProxyCount() {
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
-            Integer count = proxyService.getProxies(p -> p.getSpec().getId().equals(spec.getId()), true).size();
+            Integer count = proxyService.getProxies(p -> p.getSpec().getId().equals(spec.getId()) && p.getStatus() == ProxyStatus.Up, true).size();
             proxyCountCache.put(spec.getId(), count);
             logger.debug(String.format("Running proxies count for spec %s: %s ", spec.getId(), count));
         }

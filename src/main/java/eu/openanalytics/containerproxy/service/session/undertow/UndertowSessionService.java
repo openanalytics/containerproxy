@@ -21,8 +21,10 @@
 package eu.openanalytics.containerproxy.service.session.undertow;
 
 import eu.openanalytics.containerproxy.service.session.ISessionService;
+import io.undertow.server.HttpServerExchange;
 import io.undertow.server.session.InMemorySessionManager;
 import io.undertow.server.session.Session;
+import io.undertow.servlet.handlers.ServletRequestContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -74,6 +76,17 @@ public class UndertowSessionService implements ISessionService {
     @Override
     public Integer getActiveUsersCount() {
         return cachedActiveUsersCount;
+    }
+
+    @Override
+    public void reActivateSession(String sessionId) {
+        customInMemorySessionManagerFactory.getInstance().getSession(sessionId).requestDone(new HttpServerExchange(null));
+    }
+
+    @Override
+    public String extractSessionIdFromExchange(HttpServerExchange exchange) {
+        ServletRequestContext attachment = exchange.getAttachment(ServletRequestContext.ATTACHMENT_KEY);
+        return attachment.getSession().getId();
     }
 
     /**

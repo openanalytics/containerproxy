@@ -139,6 +139,15 @@ public class Proxy {
 		return runtimeValues;
 	}
 
+	@JsonProperty("runtimeValues")
+	public void setRuntimeValuesJson(Map<String, String> runtimeValues) {
+		for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+			RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+			RuntimeValue value = new RuntimeValue(key, runtimeValue.getValue());
+			this.runtimeValues.put(key, value);
+		}
+	}
+
 	public void setRuntimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
 		this.runtimeValues = runtimeValues;
 	}

@@ -53,7 +53,7 @@ public class TestProxyService {
 	private ProxyService proxyService;
 	
 	@Test
-	public void launchProxy() throws Exception {
+	public void launchProxy() {
 		String specId = environment.getProperty("proxy.specs[0].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
@@ -90,9 +90,4 @@ public class TestProxyService {
 		}
 	}
 
-	public static class MockedUserService extends UserService {
-		public String getCurrentUserId() {
-			return "jack";
-		}
-	}
 }

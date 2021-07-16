@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKe
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -139,7 +140,7 @@ public class AppRecoveryService {
 
 			for (Proxy proxy: proxies.values()) {
 				proxyService.addExistingProxy(proxy);
-				heartbeatService.heartbeatReceived(proxy);
+				heartbeatService.heartbeatReceived(HeartbeatService.HeartbeatSource.INTERNAL, proxy.getId(), null);
 			}
 
 		} else {

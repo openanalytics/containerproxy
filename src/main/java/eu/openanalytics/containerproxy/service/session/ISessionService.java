@@ -20,15 +20,37 @@
  */
 package eu.openanalytics.containerproxy.service.session;
 
+import io.undertow.server.HttpServerExchange;
+
 /**
  * Service to manage/query the session of users.
  */
 public interface ISessionService {
 
+    /**
+     * @return the current amount of users logged in. This value may internally be cached and therefore the exact
+     * value can be delayed.
+     */
     public Integer getLoggedInUsersCount();
 
+    /**
+     * @return the current amount of active users. This value may internally be cached and therefore the exact
+     * value can be delayed.
+     */
     public Integer getActiveUsersCount();
 
-//    public void reActivateSession(String sessionId);
+    /**
+     * Re-activates the session of the given sessionId. This means that the last-active time is set to the current time.
+     * @param sessionId the session to update
+     */
+    public void reActivateSession(String sessionId);
+
+    /**
+     * Finds the sessionId of the user in the given exchange. Does not use any context (e.g. RequestContext) and therefore
+     * can be used outside such a context.
+     * @param exchange the exchange to extract the sessionId from
+     * @return the sessionId
+     */
+    public String extractSessionIdFromExchange(HttpServerExchange exchange);
 
 }

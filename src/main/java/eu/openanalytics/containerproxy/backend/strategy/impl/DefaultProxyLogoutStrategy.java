@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.backend.strategy.impl;
 import javax.inject.Inject;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;

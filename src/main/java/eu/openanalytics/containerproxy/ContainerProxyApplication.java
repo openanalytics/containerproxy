@@ -86,6 +86,8 @@ public class ContainerProxyApplication {
 
 	private static final String PROP_PROXY_SAME_SITE_COOKIE = "proxy.same-site-cookie";
 	private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
+	private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
+	private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
 
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -116,6 +118,7 @@ public class ContainerProxyApplication {
 		String sameSiteCookie = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
 		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookie);
 		defaultCookieSerializer.setSameSite(sameSiteCookie);
+		defaultCookieSerializer.setUseSecureCookie(environment.getProperty(PROP_SERVER_SECURE_COOKIES, Boolean.class, SECURE_COOKIES_DEFAULT_VALUE));
 	}
 
 	@Autowired(required = false)
@@ -133,11 +136,11 @@ public class ContainerProxyApplication {
 
 			String sameSiteCookie = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
 		 	log.debug("Setting sameSiteCookie policy for session cookies to {}" , sameSiteCookie);
-		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookie, null, true, true, true));
+		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookie, null, true, true, false));
 
 			ServletSessionConfig sessionConfig = new ServletSessionConfig();
 			sessionConfig.setHttpOnly(true);
-			sessionConfig.setSecure(Boolean.parseBoolean(environment.getProperty("server.secure-cookies", "false")));
+			sessionConfig.setSecure(environment.getProperty(PROP_SERVER_SECURE_COOKIES, Boolean.class, SECURE_COOKIES_DEFAULT_VALUE));
 			info.setServletSessionConfig(sessionConfig);
 			if (sessionManagerFactory != null) {
 				info.setSessionManagerFactory(sessionManagerFactory);

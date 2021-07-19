@@ -25,8 +25,8 @@ public class ProxyIdKey extends RuntimeValueKey<String> {
     private ProxyIdKey() {
         super("openanalytics.eu/sp-proxy-id",
                 "SHINYPROXY_PROXY_ID",
-                true,
                 false,
+                true,
                 false,
                 true, String.class);
     }

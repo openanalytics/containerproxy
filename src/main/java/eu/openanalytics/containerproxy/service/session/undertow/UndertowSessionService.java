@@ -25,6 +25,7 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.server.session.InMemorySessionManager;
 import io.undertow.server.session.Session;
 import io.undertow.servlet.handlers.ServletRequestContext;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,11 +37,9 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.stream.Collectors;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "none")
@@ -80,7 +79,16 @@ public class UndertowSessionService implements ISessionService {
 
     @Override
     public void reActivateSession(String sessionId) {
-        customInMemorySessionManagerFactory.getInstance().getSession(sessionId).requestDone(new HttpServerExchange(null));
+        Session session = customInMemorySessionManagerFactory.getInstance().getSession(sessionId);
+        try {
+            // TODO: this is hack we would prefer not to use, let's discuss with Undertow developers to provide
+            // a method similar to Spring's session setLastAccessedTime() method
+            FieldUtils.writeField(session, "lastAccessed", System.currentTimeMillis(), true);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        // called for the SessionImpl.bumpTimeout() method
+        session.requestDone(new HttpServerExchange(null));
     }
 
     @Override

@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.security.FixedDefaultOAuth2AuthorizationRequestResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
@@ -54,6 +56,7 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -149,6 +152,17 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		if (client == null || client.getAccessToken() == null) return;
 
 		env.put(ENV_TOKEN_NAME, client.getAccessToken().getTokenValue());
+	}
+
+	@Inject
+	private SpecExpressionResolver specExpressionResolver;
+
+	@Override
+	public LogoutSuccessHandler getLogoutSuccessHandler() {
+		return (request, response, authentication) -> {
+			SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
+			response.sendRedirect(specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context));
+		};
 	}
 	
 	protected ClientRegistrationRepository createClientRepo() {

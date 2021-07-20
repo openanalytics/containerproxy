@@ -38,8 +38,11 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
@@ -166,8 +169,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					// important: set the next option after logoutUrl because it would otherwise get overwritten
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
 					.addLogoutHandler(logoutHandler)
-					.logoutSuccessUrl(auth.getLogoutSuccessURL());
-			
+					.logoutSuccessHandler(auth.getLogoutSuccessHandler());
+
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
 			http.addFilter(new BasicAuthenticationFilter(super.authenticationManagerBean()));
 		}

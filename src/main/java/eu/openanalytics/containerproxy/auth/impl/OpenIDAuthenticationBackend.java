@@ -43,6 +43,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -57,6 +58,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -159,9 +161,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
 	@Override
 	public LogoutSuccessHandler getLogoutSuccessHandler() {
-		return (request, response, authentication) -> {
+		return (httpServletRequest, httpServletResponse, authentication) -> {
 			SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
-			response.sendRedirect(specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context));
+			String resolvedLogoutUrl = specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context);
+
+			SimpleUrlLogoutSuccessHandler delegate = new SimpleUrlLogoutSuccessHandler();
+			delegate.setDefaultTargetUrl(resolvedLogoutUrl);
+			delegate.onLogoutSuccess(httpServletRequest, httpServletResponse, authentication);
 		};
 	}
 	

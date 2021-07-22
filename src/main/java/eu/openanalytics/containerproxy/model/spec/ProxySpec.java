@@ -43,6 +43,8 @@ public class ProxySpec {
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
+	private Long maxLifeTime;
+
 	public ProxySpec() {
 		settings = new HashMap<>();
 	}
@@ -152,12 +154,21 @@ public class ProxySpec {
 		return kubernetesAdditionalPersistentManifests;
 	}
 
+	public Long getMaxLifeTime() {
+		return maxLifeTime;
+	}
+
+	public void setMaxLifeTime(Long maxLifeTime) {
+		this.maxLifeTime = maxLifeTime;
+	}
+
 
 	public void copy(ProxySpec target) {
 		target.setId(id);
 		target.setDisplayName(displayName);
 		target.setDescription(description);
 		target.setLogoURL(logoURL);
+		target.setMaxLifeTime(maxLifeTime);
 
 		if (accessControl != null) {
 			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());

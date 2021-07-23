@@ -89,9 +89,13 @@ public class ProxyMaxLifetimeService {
             maxLifeTime = defaultMaxLifetime;
         }
 
-        Instant notBeforeTime = Instant.now().minus(maxLifeTime, ChronoUnit.MINUTES);
+        if (maxLifeTime > 0) {
+            Instant notBeforeTime = Instant.now().minus(maxLifeTime, ChronoUnit.MINUTES);
 
-        return Instant.ofEpochMilli(proxy.getCreatedTimestamp()).isBefore(notBeforeTime);
+            return Instant.ofEpochMilli(proxy.getCreatedTimestamp()).isBefore(notBeforeTime);
+        }
+
+        return false;
     }
 
 }

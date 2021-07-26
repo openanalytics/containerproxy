@@ -64,7 +64,7 @@ public class IdentifierService {
     public String instanceId = null;
 
     /**
-     * String identifying the realm ShinyProxy operatores in.
+     * String identifying the realm ShinyProxy operates in.
      */
     public String realmId = null;
 

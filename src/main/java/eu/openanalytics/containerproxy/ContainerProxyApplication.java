@@ -276,6 +276,8 @@ public class ContainerProxyApplication {
 
 	private static void setDefaultProperties(SpringApplication app) {
 		app.setDefaultProperties(getDefaultProperties());
+		// See: https://github.com/keycloak/keycloak/pull/7053
+		System.setProperty("jdk.serialSetFilterAfterRead", "true");
 	}
 
 }

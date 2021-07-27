@@ -36,7 +36,25 @@
 	</distributionManagement>
 
 	<repositories>
+		<!-- Maven queries repositories in the order that they are defined here.
+		     Usually, the Maven Central repository is the last one in this order, because it's defined in the super POM.
+		     This means that for all dependencies which are downloaded from Maven Central, the custom repositories are
+		     queried first, which slows down the build a lot.
+		     Therefore we add central as the first repository in this list.
+		     This reduces the time to download dependencies on a fresh machine from ~20-30min to 1min
+		     See: https://maven.apache.org/ref/3.6.3/maven-model-builder/super-pom.html for the origin of this configuration
+		     -->
 		<repository>
+			<id>central</id>
+			<name>Central Repository</name>
+			<url>https://repo.maven.apache.org/maven2</url>
+			<layout>default</layout>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<!-- Currently used only for the monetdb dependency -->
 			<id>clojars</id>
 			<url>https://clojars.org/repo/</url>
 		</repository>
@@ -45,11 +63,11 @@
 			<id>alfresco</id>
 			<url>https://artifacts.alfresco.com/nexus/content/repositories/public/</url>
 		</repository>
-                <repository>
-                        <!-- Currently used only for the spring-social-github 1.0.0.M4 dependency -->
-                        <id>spring</id>
-                        <url>https://repo.spring.io/plugins-release/</url>
-                </repository>
+		<repository>
+			<!-- Currently used only for the spring-social-github 1.0.0.M4 dependency -->
+			<id>spring</id>
+			<url>https://repo.spring.io/plugins-release/</url>
+		</repository>
 	</repositories>
 
 	<dependencies>

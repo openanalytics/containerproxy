@@ -293,6 +293,17 @@
 			<groupId>org.webjars.bower</groupId>
 			<artifactId>bootstrap-social</artifactId>
 			<version>5.1.1</version>
+			<exclusions>
+				<!-- These dependencies are already included and would otherwise produce some warnings -->
+				<exclusion>
+					<groupId>org.webjars.bower</groupId>
+					<artifactId>bootstrap</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.webjars.bower</groupId>
+					<artifactId>font-awesome</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars.bower</groupId>

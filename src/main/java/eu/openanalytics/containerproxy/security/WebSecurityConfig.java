@@ -20,9 +20,12 @@
  */
 package eu.openanalytics.containerproxy.security;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -57,6 +60,8 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+	private final Logger logger = LogManager.getLogger(getClass());
 
 	@Inject
 	private UserLogoutHandler logoutHandler;
@@ -99,6 +104,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 	}
 
+	private void checkForIncorrectConfiguration(HttpServletRequest request) {
+		if (request.getScheme().equals("http") && ContainerProxyApplication.secureCookiesEnabled) {
+			logger.warn("WARNING: Invalid configuration detected: ShinyProxy is accessed over HTTP but secure-cookies is enabled. Secure-cookies only work when accessing ShinyProxy over HTTPS. "
+					+ "Ensure that ShinyProxy is accessed over HTTPS or disable secure-cookies");
+		}
+	}
+
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		// App Recovery Filter
@@ -112,6 +124,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		    final AccessDeniedHandler defaultAccessDeniedHandler = new AccessDeniedHandlerImpl();
 			@Override
 			public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
+				checkForIncorrectConfiguration(request);
+
 				if (matcher.matcher(request).isMatch() && accessDeniedException instanceof MissingCsrfTokenException) {
 					response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/login").queryParam("error", "expired").build().toUriString());
 				} else {

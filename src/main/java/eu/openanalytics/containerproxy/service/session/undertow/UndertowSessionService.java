@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.session.undertow;
 
-import eu.openanalytics.containerproxy.service.session.ISessionService;
+import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.session.InMemorySessionManager;
 import io.undertow.server.session.Session;
@@ -43,7 +43,7 @@ import java.util.TimerTask;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "none")
-public class UndertowSessionService implements ISessionService {
+public class UndertowSessionService extends AbstractSessionService {
 
     private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every minutes
 
@@ -119,17 +119,17 @@ public class UndertowSessionService implements ISessionService {
         Set<String> authenticatedUsers = new HashSet<>();
         Set<String> activeUsers = new HashSet<>();
 
-        for (String sessionId: instance.getAllSessions()) {
+        for (String sessionId : instance.getAllSessions()) {
             Session session = instance.getSession(sessionId);
             if (session == null) continue;
 
-            Authentication authentication = extractAuthenticationIfAuthenticated(session);
-            if (authentication == null) continue;
+            String authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session), sessionId);
+            if (authenticationName == null) continue;
 
-            authenticatedUsers.add(authentication.getName());
+            authenticatedUsers.add(authenticationName);
 
             if (Instant.ofEpochMilli(session.getLastAccessedTime()).isAfter(minimumInstantTime)) {
-                activeUsers.add(authentication.getName());
+                activeUsers.add(authenticationName);
             }
         }
 
@@ -142,6 +142,7 @@ public class UndertowSessionService implements ISessionService {
 
     /**
      * Extracts the {@link Authentication} object from the given Session, if and only if the user is authenticated.
+     *
      * @param session the session
      * @return Authentication|null
      */
@@ -149,16 +150,10 @@ public class UndertowSessionService implements ISessionService {
         Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
 
         if (object instanceof SecurityContext) {
-            SecurityContext securityContext = (SecurityContext) object;
-
-            if (securityContext.getAuthentication().isAuthenticated()) {
-
-                return securityContext.getAuthentication();
-            }
+            return ((SecurityContext) object).getAuthentication();
         }
 
         return null;
     }
-
 
 }

@@ -165,7 +165,7 @@ public class UserService {
 		if (auth == null) return null;
 		if (auth instanceof AnonymousAuthenticationToken) {
 			// Anonymous authentication: use the session id instead of the user name.
-			return SessionHelper.getCurrentSessionId(true);
+			return RequestContextHolder.currentRequestAttributes().getSessionId();
 		}
 		return auth.getName();
 	}

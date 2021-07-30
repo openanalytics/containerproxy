@@ -38,6 +38,7 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -181,7 +182,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			auth.configureHttpSecurity(http, anyRequestConfigurer);
 		}
 
-
+		// create session cookie even if there is no Authentication in order to support the None authentication backend
+		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
 	}
 
 	@Bean

@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.service.session.redis;
 
 import eu.openanalytics.containerproxy.RedisSessionConfig;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
+import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
@@ -52,7 +53,7 @@ import java.util.stream.Collectors;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
-public class RedisSessionService implements ISessionService {
+public class RedisSessionService extends AbstractSessionService {
 
     private static final Pattern SESSION_ID_PATTERN = Pattern.compile("^.*sessions:([a-z0-9-]*)$");
     private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every minutes
@@ -134,13 +135,13 @@ public class RedisSessionService implements ISessionService {
             Session session = redisIndexedSessionRepository.findById(sessionId);
             if (session == null) continue;
 
-            Authentication authentication = extractAuthenticationIfAuthenticated(session);
-            if (authentication == null) continue;
+            String authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session), sessionId);
+            if (authenticationName == null) continue;
 
-            authenticatedUsers.add(authentication.getName());
+            authenticatedUsers.add(authenticationName);
 
             if (session.getLastAccessedTime().isAfter(minimumInstantTime)) {
-                activeUsers.add(authentication.getName());
+                activeUsers.add(authenticationName);
             }
         }
 

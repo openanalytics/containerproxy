@@ -27,7 +27,7 @@ public class RealmIdKey extends RuntimeValueKey<String> {
                 "SHINYPROXY_REALM_ID",
                 false,
                 true,
-                false,
+                true,
                 false, String.class);
     }
 

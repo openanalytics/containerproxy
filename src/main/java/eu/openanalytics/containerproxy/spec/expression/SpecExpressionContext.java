@@ -27,12 +27,13 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.UserService;
 import org.keycloak.KeycloakPrincipal;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
 import org.springframework.security.saml.SAMLCredential;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class SpecExpressionContext {
 
@@ -77,6 +78,63 @@ public class SpecExpressionContext {
         return groups;
     }
 
+    /**
+     * Convert a {@see String} to a list of strings, by splitting according to the provided regex and trimming each result
+     */
+    public List<String> toList(String attribute, String regex) {
+        if (attribute == null) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(attribute.split(regex)).map(String::trim).collect(Collectors.toList());
+    }
+
+    /**
+     * Convert a {@see String} to a list of strings, by splitting on `,` and trimming each result
+     */
+    public List<String> toList(String attribute) {
+        return toList(attribute, ",");
+    }
+
+    /**
+     * Convert a {@see String} to a list of strings, by splitting on according to the provided regex.
+     * Each result is trimmed and converted to lowercase.
+     */
+    public List<String> toLowerCaseList(String attribute, String regex) {
+        if (attribute == null) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(attribute.split(regex)).map(it -> it.trim().toLowerCase()).collect(Collectors.toList());
+    }
+
+    /**
+     * Convert a {@see String} to a list of strings, by splitting on `,`. Each result is trimmed and converted to lowercase.
+     */
+    public List<String> toLowerCaseList(String attribute) {
+        return toLowerCaseList(attribute, ",");
+    }
+
+    /**
+     *  Returns true when the provided value is in the list of allowed values.
+     *  Both the attribute and allowed values are trimmed.
+     */
+    public boolean isOneOf(String attribute, String... allowedValues) {
+        if (attribute == null) {
+            return false;
+        }
+        return Arrays.stream(allowedValues).anyMatch(it -> it.trim().equals(attribute.trim()));
+    }
+
+    /**
+     *  Returns true when the provided value is in the list of allowed values.
+     *  Both the attribute and allowed values are trimmed and the comparison ignores casing of the values.
+     */
+    public boolean isOneOfIgnoreCase(String attribute, String... allowedValues) {
+        if (attribute == null) {
+            return false;
+        }
+        return Arrays.stream(allowedValues).anyMatch(it -> it.trim().equalsIgnoreCase(attribute.trim()));
+    }
+
     public static SpecExpressionContext create(Object... objects) {
         SpecExpressionContext ctx = new SpecExpressionContext();
         for (Object o : objects) {
@@ -96,7 +154,7 @@ public class SpecExpressionContext {
                 ctx.ldapUser = (LdapUserDetails) o;
             }
             if (o instanceof Authentication) {
-				ctx.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+                ctx.groups = Arrays.asList(UserService.getGroups((Authentication) o));
             }
         }
         return ctx;

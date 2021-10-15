@@ -75,6 +75,9 @@ public class UserService {
 	@Inject
 	private ApplicationEventPublisher applicationEventPublisher;
 
+	@Inject
+	private AccessControlService accessControlService;
+
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -127,23 +130,9 @@ public class UserService {
 	}
 	
 	public boolean canAccess(ProxySpec spec) {
-		return canAccess(getCurrentAuth(), spec);
+		return accessControlService.canAccess(getCurrentAuth(), spec);
 	}
-	
-	public boolean canAccess(Authentication auth, ProxySpec spec) {
-		if (auth == null || spec == null) return false;
-		if (auth instanceof AnonymousAuthenticationToken) return !authBackend.hasAuthorization();
 
-		if (spec.getAccessControl() == null) return true;
-		
-		String[] groups = spec.getAccessControl().getGroups();
-		if (groups == null || groups.length == 0) return true;
-		for (String group: groups) {
-			if (isMember(auth, group)) return true;
-		}
-		return false;
-	}
-	
 	public boolean isOwner(Proxy proxy) {
 		return isOwner(getCurrentAuth(), proxy);
 	}
@@ -153,7 +142,7 @@ public class UserService {
 		return proxy.getUserId().equals(getUserId(auth));
 	}
 	
-	private boolean isMember(Authentication auth, String groupName) {
+	public boolean isMember(Authentication auth, String groupName) {
 		if (auth == null || auth instanceof AnonymousAuthenticationToken || groupName == null) return false;
 		for (String group: getGroups(auth)) {
 			if (group.equalsIgnoreCase(groupName)) return true;

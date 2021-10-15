@@ -24,10 +24,21 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.spec.ProxyAccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AccessControlService {
@@ -35,11 +46,24 @@ public class AccessControlService {
     private final IAuthenticationBackend authBackend;
     private final UserService userService;
     private final IProxySpecProvider specProvider;
+    private final SpecExpressionResolver specExpressionResolver;
 
-    public AccessControlService(@Lazy IAuthenticationBackend authBackend, UserService userService, IProxySpecProvider specProvider) {
+    /* This map is used to cache whether a user has access to an app or not.
+     * The reason is two-fold:
+     *  - for every request made (including static files of apps etc) the access control is checked
+     *  - when using the `access-expression` feature, checking the access control means evaluating a SpEL expression
+     * I.e. the check can be complex and is performed a lot.
+     * This cache uses the SessionId of the user and not the userId for two reasons:
+     *  - this ensures that the key is unique
+     *  - the roles/properties of a user change when they re-login
+     */
+    private final Map<Pair<String, String>, Boolean> authorizationCache = new ConcurrentHashMap<>();
+
+    public AccessControlService(@Lazy IAuthenticationBackend authBackend, UserService userService, IProxySpecProvider specProvider, SpecExpressionResolver specExpressionResolver) {
         this.authBackend = authBackend;
         this.userService = userService;
         this.specProvider = specProvider;
+        this.specExpressionResolver = specExpressionResolver;
     }
 
     public boolean canAccess(Authentication auth, String specId) {
@@ -140,5 +164,10 @@ public class AccessControlService {
         return specExpressionResolver.evaluateToBoolean(spec.getAccessControl().getExpression(), context);
     }
 
+    @EventListener
+    public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
+        // remove all entries in cache for this sessionId
+        authorizationCache.keySet().removeIf(it -> it.getLeft().equals(event.getId()));
+    }
 
 }

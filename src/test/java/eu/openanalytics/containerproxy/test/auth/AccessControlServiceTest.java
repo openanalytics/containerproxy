@@ -6,8 +6,10 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AccessControlService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -25,7 +27,8 @@ public class AccessControlServiceTest {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         specProvider = mock(IProxySpecProvider.class);
-        accessControlService = new AccessControlService(authBackend, userService, specProvider);
+        SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(mock(ApplicationContext.class));
+        accessControlService = new AccessControlService(authBackend, userService, specProvider, specExpressionResolver);
     }
 
     @Test

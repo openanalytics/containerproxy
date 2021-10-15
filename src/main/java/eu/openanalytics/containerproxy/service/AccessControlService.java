@@ -136,7 +136,9 @@ public class AccessControlService {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        return false;
+        SpecExpressionContext context = SpecExpressionContext.create(auth, auth.getPrincipal(), auth.getCredentials(), spec);
+        return specExpressionResolver.evaluateToBoolean(spec.getAccessControl().getExpression(), context);
     }
+
 
 }

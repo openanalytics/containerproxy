@@ -106,7 +106,7 @@ public class UserService {
 		return getGroups(getCurrentAuth());
 	}
 	
-	public String[] getGroups(Authentication auth) {
+	public static String[] getGroups(Authentication auth) {
 		List<String> groups = new ArrayList<>();
 		if (auth != null) {
 			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {

@@ -24,68 +24,82 @@ import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.UserService;
 import org.keycloak.KeycloakPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
 import org.springframework.security.saml.SAMLCredential;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class SpecExpressionContext {
 
-	private ContainerSpec containerSpec;
-	private ProxySpec proxySpec;
-	private Proxy proxy;
-	private OpenIDAuthenticationBackend.CustomNameOidcUser oicdUser;
-	private KeycloakPrincipal keycloakUser;
-	private SAMLCredential samlCredential;
-	private LdapUserDetails ldapUser;
+    private ContainerSpec containerSpec;
+    private ProxySpec proxySpec;
+    private Proxy proxy;
+    private OpenIDAuthenticationBackend.CustomNameOidcUser oicdUser;
+    private KeycloakPrincipal keycloakUser;
+    private SAMLCredential samlCredential;
+    private LdapUserDetails ldapUser;
+    private List<String> groups;
 
-	public ContainerSpec getContainerSpec() {
-		return containerSpec;
-	}
+    public ContainerSpec getContainerSpec() {
+        return containerSpec;
+    }
 
-	public ProxySpec getProxySpec() {
-		return proxySpec;
-	}
+    public ProxySpec getProxySpec() {
+        return proxySpec;
+    }
 
-	public Proxy getProxy() {
-		return proxy;
-	}
+    public Proxy getProxy() {
+        return proxy;
+    }
 
-	public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
-		return oicdUser;
-	}
+    public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
+        return oicdUser;
+    }
 
-	public KeycloakPrincipal getKeycloakUser() {
-		return keycloakUser;
-	}
+    public KeycloakPrincipal getKeycloakUser() {
+        return keycloakUser;
+    }
 
-	public SAMLCredential getSamlCredential() {
-		return samlCredential;
-	}
+    public SAMLCredential getSamlCredential() {
+        return samlCredential;
+    }
 
-	public LdapUserDetails getLdapUser() {
-		return ldapUser;
-	}
+    public LdapUserDetails getLdapUser() {
+        return ldapUser;
+    }
 
-	public static SpecExpressionContext create(Object...objects) {
-		SpecExpressionContext ctx = new SpecExpressionContext();
-		for (Object o: objects) {
-			if (o instanceof ContainerSpec) {
-				ctx.containerSpec = (ContainerSpec) o;
-			} else if (o instanceof ProxySpec) {
-				ctx.proxySpec = (ProxySpec) o;
-			} else if (o instanceof Proxy) {
-				ctx.proxy = (Proxy) o;
-			} else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-			    ctx.oicdUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
-			} else if (o instanceof KeycloakPrincipal) {
-				ctx.keycloakUser = (KeycloakPrincipal) o;
-			} else if (o instanceof SAMLCredential) {
-				ctx.samlCredential = (SAMLCredential) o;
-			} else if (o instanceof LdapUserDetails) {
-				ctx.ldapUser = (LdapUserDetails) o;
-			}
-		}
-		return ctx;
-	}
+    public List<String> getGroups() {
+        return groups;
+    }
+
+    public static SpecExpressionContext create(Object... objects) {
+        SpecExpressionContext ctx = new SpecExpressionContext();
+        for (Object o : objects) {
+            if (o instanceof ContainerSpec) {
+                ctx.containerSpec = (ContainerSpec) o;
+            } else if (o instanceof ProxySpec) {
+                ctx.proxySpec = (ProxySpec) o;
+            } else if (o instanceof Proxy) {
+                ctx.proxy = (Proxy) o;
+            } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
+                ctx.oicdUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+            } else if (o instanceof KeycloakPrincipal) {
+                ctx.keycloakUser = (KeycloakPrincipal) o;
+            } else if (o instanceof SAMLCredential) {
+                ctx.samlCredential = (SAMLCredential) o;
+            } else if (o instanceof LdapUserDetails) {
+                ctx.ldapUser = (LdapUserDetails) o;
+            }
+            if (o instanceof Authentication) {
+				ctx.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+            }
+        }
+        return ctx;
+    }
+
 }

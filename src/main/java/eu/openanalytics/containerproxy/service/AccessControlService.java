@@ -29,32 +29,51 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import javax.inject.Inject;
-
 @Service
 public class AccessControlService {
 
-    @Lazy
-    @Inject
-    private IAuthenticationBackend authBackend;
+    private final IAuthenticationBackend authBackend;
+    private final UserService userService;
+    private final IProxySpecProvider specProvider;
 
-    @Inject
-    private UserService userService;
-
-    @Inject
-    private IProxySpecProvider specProvider;
+    public AccessControlService(@Lazy IAuthenticationBackend authBackend, UserService userService, IProxySpecProvider specProvider) {
+        this.authBackend = authBackend;
+        this.userService = userService;
+        this.specProvider = specProvider;
+    }
 
     public boolean canAccess(Authentication auth, String specId) {
         return canAccess(auth, specProvider.getSpec(specId));
     }
 
     public boolean canAccess(Authentication auth, ProxySpec spec) {
+        Optional<String> sessionId = getSessionId();
+        if (!sessionId.isPresent()) {
+            return checkAccess(auth, spec);
+        }
+        // we got a sessionId -> use the cache
+        return authorizationCache.computeIfAbsent(
+                Pair.of(sessionId.get(), spec.getId()),
+                (k) -> checkAccess(auth, spec));
+    }
+
+    /**
+     * @return the sessionId if the RequestContext is present
+     */
+    private Optional<String> getSessionId() {
+        return Optional
+                .ofNullable(RequestContextHolder.getRequestAttributes())
+                .map(RequestAttributes::getSessionId);
+    }
+
+    private boolean checkAccess(Authentication auth, ProxySpec spec) {
         if (auth == null || spec == null) {
             return false;
         }
 
-        if (auth instanceof AnonymousAuthenticationToken && !authBackend.hasAuthorization()) {
-            return true;
+        if (auth instanceof AnonymousAuthenticationToken) {
+            // if anonymous -> only allow access if we the backend has no authorization enabled
+            return !authBackend.hasAuthorization();
         }
 
         if (specHasNoAccessControl(spec.getAccessControl())) {

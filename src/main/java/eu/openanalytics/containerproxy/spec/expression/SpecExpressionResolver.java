@@ -23,8 +23,6 @@ package eu.openanalytics.containerproxy.spec.expression;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.inject.Inject;
-
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -50,13 +48,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpecExpressionResolver {
 
-	@Inject
-	private ApplicationContext appContext;
-	
-	private ExpressionParser expressionParser;
-	
+	private final ApplicationContext appContext;
+	private final ExpressionParser expressionParser;
 	private final Map<SpecExpressionContext, StandardEvaluationContext> evaluationCache = new ConcurrentHashMap<>(8);
-	
+
 	private final ParserContext beanExpressionParserContext = new ParserContext() {
 		@Override
 		public boolean isTemplate() {
@@ -72,7 +67,8 @@ public class SpecExpressionResolver {
 		}
 	};
 	
-	public SpecExpressionResolver() {
+	public SpecExpressionResolver(ApplicationContext appContext) {
+		this.appContext = appContext;
 		this.expressionParser = new SpelExpressionParser();
 	}
 	
@@ -104,5 +100,9 @@ public class SpecExpressionResolver {
 	
 	public String evaluateToString(String expression, SpecExpressionContext context) {
 		return String.valueOf(evaluate(expression, context));
+	}
+
+	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
+		return Boolean.valueOf(evaluateToString(expression, context));
 	}
 }

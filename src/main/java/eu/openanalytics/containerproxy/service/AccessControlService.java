@@ -71,6 +71,9 @@ public class AccessControlService {
     }
 
     public boolean canAccess(Authentication auth, ProxySpec spec) {
+        if (auth == null || spec == null) {
+            return false;
+        }
         Optional<String> sessionId = getSessionId();
         if (!sessionId.isPresent()) {
             return checkAccess(auth, spec);
@@ -91,10 +94,6 @@ public class AccessControlService {
     }
 
     private boolean checkAccess(Authentication auth, ProxySpec spec) {
-        if (auth == null || spec == null) {
-            return false;
-        }
-
         if (auth instanceof AnonymousAuthenticationToken) {
             // if anonymous -> only allow access if we the backend has no authorization enabled
             return !authBackend.hasAuthorization();

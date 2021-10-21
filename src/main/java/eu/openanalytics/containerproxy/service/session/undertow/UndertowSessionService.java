@@ -80,6 +80,9 @@ public class UndertowSessionService extends AbstractSessionService {
     @Override
     public void reActivateSession(String sessionId) {
         Session session = customInMemorySessionManagerFactory.getInstance().getSession(sessionId);
+        if (session == null) {
+            return;
+        }
         try {
             // TODO: this is hack we would prefer not to use, let's discuss with Undertow developers to provide
             // a method similar to Spring's session setLastAccessedTime() method

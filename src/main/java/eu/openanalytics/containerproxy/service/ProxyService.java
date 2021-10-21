@@ -298,10 +298,12 @@ public class ProxyService {
 				backend.stopProxy(proxy);
 				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-				applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(),
-						proxy.getSpec().getId(),
-						Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
-
+				if (proxy.getStartupTimestamp() == 0) {
+					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+				} else {
+					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+				}
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}

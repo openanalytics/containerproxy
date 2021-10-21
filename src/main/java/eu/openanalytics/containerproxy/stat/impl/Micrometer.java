@@ -126,7 +126,9 @@ public class Micrometer implements IStatCollector {
     public void onProxyStopEvent(ProxyStopEvent event) {
         logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
         registry.counter("appStops", "spec.id", event.getSpecId()).increment();
-        registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
+        if (event.getUsageTime() != null) {
+            registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
+        }
     }
 
     @EventListener

@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.ToDoubleFunction;
 
 public class Micrometer implements IStatCollector {
 
@@ -82,15 +83,15 @@ public class Micrometer implements IStatCollector {
         userLogouts = registry.counter("userLogouts");
         appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
-        registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, ISessionService::getLoggedInUsersCount);
-        registry.gauge("absolute_users_active", Tags.empty(), sessionService, ISessionService::getActiveUsersCount);
+        registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getLoggedInUsersCount));
+        registry.gauge("absolute_users_active", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getActiveUsersCount));
 
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
             proxyCounters.add(proxyCounter);
-            registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, ProxyCounter::getProxyCount);
+            registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
             registry.timer("startupTime", "spec.id", spec.getId());
             registry.timer("usageTime", "spec.id", spec.getId());
         }
@@ -165,10 +166,31 @@ public class Micrometer implements IStatCollector {
             this.specId = specId;
         }
 
-        public int getProxyCount() {
+        public Integer getProxyCount() {
             return proxyCountCache.getOrDefault(specId, null);
         }
 
+    }
+
+    /**
+     * Wraps a function that returns an Integer into a function that returns a double.
+     * When the provided Integer is null, the resulting function returns Double.NaN.
+     *
+     * We need this function because Micrometer cannot handle null values for Gauges.
+     */
+    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
+        return (state) -> {
+            Integer res = producer.applyAsDouble(state);
+            if (res == null) {
+                return Double.NaN;
+            }
+            return res;
+        };
+    }
+
+    @FunctionalInterface
+    private interface ToIntegerFunction<T> {
+        Integer applyAsDouble(T var1);
     }
 
 }

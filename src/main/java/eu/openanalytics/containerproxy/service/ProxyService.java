@@ -225,6 +225,23 @@ public class ProxyService {
 	}
 
 	/**
+	 * Find all proxies that match an optional filter and that are owned by the current user.
+	 *
+	 * @param filter The filter to match, or null.
+	 * @return A List of matching proxies, may be empty.
+	 */
+	public List<Proxy> getProxiesOfCurrentUser(Predicate<Proxy> filter) {
+		List<Proxy> matches = new ArrayList<>();
+		synchronized (activeProxies) {
+			for (Proxy proxy: activeProxies) {
+				boolean hasAccess = userService.isOwner(proxy);
+				if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
+			}
+		}
+		return matches;
+	}
+
+	/**
 	 * Launch a new proxy using the given ProxySpec.
 	 *
 	 * @param spec The ProxySpec to base the new proxy on.

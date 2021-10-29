@@ -44,6 +44,8 @@ public class ProxySpec {
 	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
 	private Long maxLifeTime;
+	private Boolean stopOnLogout;
+	private Long heartbeatTimeout;
 
 	public ProxySpec() {
 		settings = new HashMap<>();
@@ -162,6 +164,21 @@ public class ProxySpec {
 		this.maxLifeTime = maxLifeTime;
 	}
 
+	public Boolean stopOnLogout() {
+		return stopOnLogout;
+	}
+
+	public void setStopOnLogout(Boolean stopOnLogout) {
+		this.stopOnLogout = stopOnLogout;
+	}
+
+	public Long getHeartbeatTimeout() {
+		return heartbeatTimeout;
+	}
+
+	public void setHeartbeatTimeout(Long heartbeatTimeout) {
+		this.heartbeatTimeout = heartbeatTimeout;
+	}
 
 	public void copy(ProxySpec target) {
 		target.setId(id);
@@ -169,6 +186,8 @@ public class ProxySpec {
 		target.setDescription(description);
 		target.setLogoURL(logoURL);
 		target.setMaxLifeTime(maxLifeTime);
+		target.setStopOnLogout(stopOnLogout);
+		target.setHeartbeatTimeout(heartbeatTimeout);
 
 		if (accessControl != null) {
 			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());

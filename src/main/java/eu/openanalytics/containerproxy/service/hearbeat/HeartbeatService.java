@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimaps;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.util.ChannelActiveListener;
 import eu.openanalytics.containerproxy.util.DelegatingStreamSinkConduit;
@@ -29,8 +32,10 @@ import io.undertow.server.protocol.http.HttpServerConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.xnio.StreamConnection;
 import org.xnio.conduits.ConduitStreamSinkChannel;
 import org.xnio.conduits.ConduitStreamSourceChannel;
@@ -70,7 +75,7 @@ public class HeartbeatService {
          */
         INTERNAL,
         /**
-         * Hearbeat send because of a fallback heartbeat request.
+         * Heartbeat send because of a fallback heartbeat request.
          */
         FALLBACK
     }
@@ -87,6 +92,10 @@ public class HeartbeatService {
 
     private final List<IHeartbeatProcessor> heartbeatProcessors;
 
+    // keep track of the HeartbeatConnector for every SessionId so that the websocket connection can be closed
+    // when the user logs out from that session. This is required for apps that keep running even if when the user signs out.
+    private final ListMultimap<String, HeartbeatConnector> heartbeatConnectors = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
+
     public HeartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
         this.heartbeatProcessors = heartbeatProcessors;
     }
@@ -95,10 +104,11 @@ public class HeartbeatService {
         if (exchange.isUpgrade()) {
             // For websockets, attach a ping-pong listener to the underlying TCP channel.
             String sessionId = sessionService.extractSessionIdFromExchange(exchange);
-            HeartbeatConnector connector = new HeartbeatConnector(proxyId, sessionId);
-            // Delay the wrapping, because Undertow will make changes to the channel while the upgrade is being performed.
             HttpServerConnection httpConn = (HttpServerConnection) exchange.getConnection();
+            HeartbeatConnector connector = new HeartbeatConnector(proxyId, sessionId, httpConn.getChannel());
+            // Delay the wrapping, because Undertow will make changes to the channel while the upgrade is being performed.
             heartbeatExecutor.schedule(() -> connector.wrapChannels(httpConn.getChannel()), 3000, TimeUnit.MILLISECONDS);
+            heartbeatConnectors.put(sessionId, connector);
         } else {
             // For regular HTTP requests, just trigger one heartbeat.
             self.heartbeatReceived(HeartbeatSource.HTTP_REQUEST, proxyId, null);
@@ -125,19 +135,31 @@ public class HeartbeatService {
         return environment.getProperty(ActiveProxiesService.PROP_RATE, Long.class, ActiveProxiesService.DEFAULT_RATE);
     }
 
+    @EventListener
+    public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
+        // stop every websocket connection started by the session
+        heartbeatConnectors.get(event.getId()).forEach(HeartbeatConnector::closeConnection);
+        // remove the session from the map
+        heartbeatConnectors.removeAll(event.getId());
+    }
+
     private class HeartbeatConnector {
 
         private final String proxyId;
 
         private final String sessionId;
 
-        private HeartbeatConnector(String proxyId, String sessionId) {
+        private StreamConnection streamConnection;
+
+        private HeartbeatConnector(String proxyId, String sessionId, StreamConnection streamConnection) {
             this.proxyId = proxyId;
             this.sessionId = sessionId;
+            this.streamConnection = streamConnection;
         }
 
         private void wrapChannels(StreamConnection streamConn) {
             if (!streamConn.isOpen()) return;
+            this.streamConnection = streamConn; // save final streamConnection
 
             ConduitStreamSinkChannel sinkChannel = streamConn.getSinkChannel();
             ChannelActiveListener writeListener = new ChannelActiveListener();
@@ -145,7 +167,7 @@ public class HeartbeatService {
             sinkChannel.setConduit(conduitWrapper);
 
             ConduitStreamSourceChannel sourceChannel = streamConn.getSourceChannel();
-            DelegatingStreamSourceConduit srcConduitWrapper = new DelegatingStreamSourceConduit(sourceChannel.getConduit(), data -> checkPong(data));
+            DelegatingStreamSourceConduit srcConduitWrapper = new DelegatingStreamSourceConduit(sourceChannel.getConduit(), this::checkPong);
             sourceChannel.setConduit(srcConduitWrapper);
 
             heartbeatExecutor.schedule(() -> sendPing(writeListener, streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
@@ -179,6 +201,20 @@ public class HeartbeatService {
                 self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxyId, sessionId);
             }
         }
+
+        /**
+         * Closes the WebSocket connection associated with this connector.
+         */
+        public void closeConnection()  {
+            try {
+                if (streamConnection != null) {
+                    streamConnection.close();
+                }
+            } catch (Throwable e) {
+                // ignore error since we cannot do anything about it anyway
+            }
+        }
+
     }
 
 }

@@ -1,8 +1,8 @@
 appNamespaces:
   - itest-overridden
 proxy:
-  recover_running_proxies: true
-  stop_proxies_on_shutdown: false
+  recover-running-proxies: true
+  stop-proxies-on-shutdown: false
 
   authentication: simple
   container-backend: kubernetes

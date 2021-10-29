@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.Retrying;
 
@@ -223,6 +224,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					int hostPort = portMapping.publishedPort();
 					int containerPort = portMapping.targetPort();
 					portBindings.put(containerPort, hostPort);
+					portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), hostPort);
 				}
 			}
 

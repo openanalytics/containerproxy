@@ -31,6 +31,7 @@ import io.undertow.servlet.api.ServletSessionConfig;
 import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.health.Health;
@@ -61,6 +62,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Security;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
@@ -93,6 +95,7 @@ public class ContainerProxyApplication {
 	public static String sameSiteCookiePolicy;
 
 	public static void main(String[] args) {
+		Security.addProvider(new BouncyCastleProvider());
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));

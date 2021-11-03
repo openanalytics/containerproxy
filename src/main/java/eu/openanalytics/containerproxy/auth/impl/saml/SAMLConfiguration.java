@@ -69,6 +69,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.inject.Inject;
@@ -324,6 +325,7 @@ public class SAMLConfiguration {
 		samlWebSSOProcessingFilter.setAuthenticationManager(authenticationManager);
 		samlWebSSOProcessingFilter.setAuthenticationSuccessHandler(successRedirectHandler());
 		samlWebSSOProcessingFilter.setAuthenticationFailureHandler(authenticationFailureHandler());
+		samlWebSSOProcessingFilter.setSessionAuthenticationStrategy(new ChangeSessionIdAuthenticationStrategy());
 		return samlWebSSOProcessingFilter;
 	}
 

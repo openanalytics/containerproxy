@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +66,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.RegisterSessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -169,7 +172,10 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	@Bean
 	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
 	protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
-		return new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl());
+		return new CompositeSessionAuthenticationStrategy(Arrays.asList(
+			new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
+			new ChangeSessionIdAuthenticationStrategy()
+		));
 	}
 
 	@Bean

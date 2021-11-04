@@ -32,6 +32,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
@@ -44,6 +45,7 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 @SpringBootTest(classes= {TestConfiguration.class, ContainerProxyApplication.class})
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestProxyService {
 
 	@Inject

@@ -41,6 +41,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
@@ -50,6 +51,7 @@ import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 @SpringBootTest(classes = { ContainerProxyApplication.class }, webEnvironment = WebEnvironment.RANDOM_PORT)
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestConcurrentUsers {
 
 	@Inject

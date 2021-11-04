@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
+import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
 import eu.openanalytics.containerproxy.test.proxy.TestProxyService;
 import net.minidev.json.JSONArray;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @SpringBootTest(classes= {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestOpenIdParseClaimRoles {
 
     private final Logger logger = LogManager.getLogger(OpenIDAuthenticationBackend.class);

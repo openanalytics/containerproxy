@@ -29,6 +29,8 @@ jobs:
           kubernetes version:  ${{ matrix.kubernetes }}
       - name: Setup Docker
         run: sudo apt-get -qq -y install conntrack socat ; nohup socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock &
+      - name: Setup Docker Swarm
+        run: docker swarm init
       - name: Pull Image
         run: docker pull openanalytics/shinyproxy-demo:latest
       - name: Build with Maven

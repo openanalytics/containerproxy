@@ -24,32 +24,33 @@ import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
 import eu.openanalytics.containerproxy.test.proxy.TestProxyService.TestConfiguration;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import static org.junit.Assert.assertEquals;
 
 @SpringBootTest(classes= {TestConfiguration.class, ContainerProxyApplication.class})
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestComputeTargetPath {
 
 	@Test
 	public void testComputerTargetPath() {
-	    assertEquals("", AbstractContainerBackend.computeTargetPath(""));
-		assertEquals("", AbstractContainerBackend.computeTargetPath(null));
-		assertEquals("", AbstractContainerBackend.computeTargetPath("/"));
-		assertEquals("", AbstractContainerBackend.computeTargetPath("//"));
-		assertEquals("", AbstractContainerBackend.computeTargetPath("///"));
-		assertEquals("", AbstractContainerBackend.computeTargetPath("////"));
-		assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("//test//abc/test//"));
-		assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("test//abc/test//"));
-		assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("test//abc/test"));
+	    Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath(""));
+		Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath(null));
+		Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath("/"));
+		Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath("//"));
+		Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath("///"));
+		Assertions.assertEquals("", AbstractContainerBackend.computeTargetPath("////"));
+		Assertions.assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("//test//abc/test//"));
+		Assertions.assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("test//abc/test//"));
+		Assertions.assertEquals("/test/abc/test", AbstractContainerBackend.computeTargetPath("test//abc/test"));
 	}
 	
 }

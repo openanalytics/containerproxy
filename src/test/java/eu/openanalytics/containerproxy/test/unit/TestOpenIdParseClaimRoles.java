@@ -27,22 +27,21 @@ import eu.openanalytics.containerproxy.test.proxy.TestProxyService;
 import net.minidev.json.JSONArray;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-
-@SpringBootTest(classes= {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
-@RunWith(SpringRunner.class)
+@SpringBootTest(classes = {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestOpenIdParseClaimRoles {
@@ -59,7 +58,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -72,7 +71,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -81,7 +80,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -90,7 +89,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -99,7 +98,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -108,7 +107,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
     @Test
@@ -117,7 +116,7 @@ public class TestOpenIdParseClaimRoles {
 
         List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
 
-        assertEquals(Arrays.asList("operators","default-roles-master","uma_authorization","offline_access"), result);
+        Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
 
 }

@@ -33,6 +33,8 @@ jobs:
         run: docker pull openanalytics/shinyproxy-demo:latest
       - name: Build with Maven
         run: mvn -U clean install -DskipTests
+      - name: Copy Artifact
+        run: cp target/containerproxy-*-exec.jar target/containerproxy-app-recovery.jar
       - name: Run Tests
         run: mvn test
 

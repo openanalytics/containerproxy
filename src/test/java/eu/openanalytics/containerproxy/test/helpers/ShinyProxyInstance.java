@@ -39,7 +39,7 @@ public class ShinyProxyInstance {
         int mgmtPort = port % 1000 + 9000;
 
         processBuilder = new ProcessBuilder("java", "-jar",
-                "target/containerproxy-0.8.9-SNAPSHOT-exec.jar",
+                "target/containerproxy-app-recovery.jar",
                 "--spring.config.location=src/test/resources/" + configFileName,
                 "--server.port=" + port,
                 "--management.server.port=" + mgmtPort,

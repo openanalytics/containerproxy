@@ -20,9 +20,14 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
+import com.google.common.collect.Iterables;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
+
+import java.util.Arrays;
+import java.util.Objects;
 
 public class TestExecutionListener extends SummaryGeneratingListener {
 
@@ -36,7 +41,7 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         if (testIdentifier == null || reason == null || !testIdentifier.isTest()) return;
 
         System.out.println();
-        System.out.printf("\t\t--> Skipping test \"%s\"%n", testIdentifier.getDisplayName());
+        System.out.printf("\t\t--> Skipping test \"%s\"%n", identifier(testIdentifier));
         System.out.println();
     }
 
@@ -46,7 +51,7 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         if (testIdentifier == null || !testIdentifier.isTest()) return;
 
         System.out.println();
-        System.out.printf("\t\t--> Started test \"%s\"%n", testIdentifier.getDisplayName());
+        System.out.printf("\t\t--> Started test \"%s\"%n", identifier(testIdentifier));
         System.out.println();
     }
 
@@ -56,7 +61,20 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         if (testIdentifier == null || testExecutionResult == null || !testIdentifier.isTest()) return;
 
         System.out.println();
-        System.out.printf("\t\t--> Finished test \"%s\": %s%n", testIdentifier.getDisplayName(), testExecutionResult);
+        System.out.printf("\t\t--> Finished test \"%s\": %s%n", identifier(testIdentifier), testExecutionResult);
         System.out.println();
+    }
+
+    private String identifier(TestIdentifier testIdentifier) {
+        if (!testIdentifier.getSource().isPresent()) {
+            return testIdentifier.getDisplayName();
+        }
+        MethodSource methodSource = (MethodSource) testIdentifier.getSource().get();
+        String className = Iterables.getLast(Arrays.asList(methodSource.getClassName().split("\\.")));
+
+        if (!Objects.equals(methodSource.getMethodParameterTypes(), "")) {
+            return String.format("%s %s %s", className, methodSource.getMethodName(), testIdentifier.getDisplayName());
+        }
+        return String.format("%s %s", className, methodSource.getMethodName());
     }
 }

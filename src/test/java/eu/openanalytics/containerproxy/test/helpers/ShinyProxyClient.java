@@ -72,6 +72,7 @@ public class ShinyProxyClient {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
+            Thread.sleep(2_000);
             return response.code() == 200;
         } catch (Exception e) {
             e.printStackTrace();

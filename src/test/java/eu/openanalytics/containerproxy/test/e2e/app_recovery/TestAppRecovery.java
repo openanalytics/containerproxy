@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import io.fabric8.kubernetes.api.model.Pod;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,6 +50,11 @@ public class TestAppRecovery extends KubernetesTestBase {
                 Arguments.of("kubernetes", ""),
                 Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
         );
+    }
+
+    @AfterEach
+    public void waitForCleanup() throws InterruptedException {
+        Thread.sleep(20_000);
     }
 
     @ParameterizedTest
@@ -89,8 +95,6 @@ public class TestAppRecovery extends KubernetesTestBase {
             // 8. stop the proxy
             Assertions.assertTrue(shinyProxyClient.stopProxy(id));
 
-            Thread.sleep(500); // Give ShinyProxy time to cleanup
-
             // 9. stop the instance
             instance2.stop();
         } finally {
@@ -105,7 +109,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -121,7 +125,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance1.stop();
 
             // 5. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -144,8 +148,6 @@ public class TestAppRecovery extends KubernetesTestBase {
             Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
             Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
 
-            Thread.sleep(1000); // Give ShinyProxy time to cleanup
-
             // 9. stop the instance
             instance2.stop();
         } finally {
@@ -163,7 +165,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("5", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -209,7 +211,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance1.stop();
 
             // 9. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("6", String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -245,8 +247,6 @@ public class TestAppRecovery extends KubernetesTestBase {
             Assertions.assertTrue(shinyProxyClient3.stopProxy(id5));
             Assertions.assertTrue(shinyProxyClient3.stopProxy(id6));
 
-            Thread.sleep(2500); // Give ShinyProxy time to cleanup
-
             // 17. stop the instance
             instance2.stop();
         } finally {
@@ -262,12 +262,12 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the first instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance("7", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
             // 1. create the second instance
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance("8", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -292,11 +292,11 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance2.stop();
 
             // 5. start both instances again
-            ShinyProxyInstance instance3 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
+            ShinyProxyInstance instance3 = new ShinyProxyInstance("9", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance3);
             Assertions.assertTrue(instance3.start());
 
-            ShinyProxyInstance instance4 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
+            ShinyProxyInstance instance4 = new ShinyProxyInstance("10", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance4);
             Assertions.assertTrue(instance4.start());
 
@@ -315,8 +315,6 @@ public class TestAppRecovery extends KubernetesTestBase {
             Assertions.assertTrue(shinyProxyClient1.stopProxy(id1));
             Assertions.assertTrue(shinyProxyClient2.stopProxy(id2));
 
-            Thread.sleep(1000); // Give ShinyProxy time to cleanup
-
             // 9. stop the instance
             instance3.stop();
             instance4.stop();
@@ -332,7 +330,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
                 // 1. create the instance
-                ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_kubernetes_multi_ns.yml");
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("11", "application-app-recovery_kubernetes_multi_ns.yml");
                 instances.add(instance1);
                 Assertions.assertTrue(instance1.start());
 
@@ -351,7 +349,7 @@ public class TestAppRecovery extends KubernetesTestBase {
                 instance1.stop();
 
                 // 5. start the instance again
-                ShinyProxyInstance instance2 = new ShinyProxyInstance("2", "application-app-recovery_kubernetes_multi_ns.yml");
+                ShinyProxyInstance instance2 = new ShinyProxyInstance("12", "application-app-recovery_kubernetes_multi_ns.yml");
                 instances.add(instance2);
                 Assertions.assertTrue(instance2.start());
 
@@ -365,8 +363,6 @@ public class TestAppRecovery extends KubernetesTestBase {
                 // 8. stop the proxy
                 Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
                 Assertions.assertTrue(shinyProxyClient.stopProxy(id2));
-
-                Thread.sleep(1000); // Give ShinyProxy time to cleanup
 
                 // 9. stop the instance
                 instance2.stop();
@@ -384,7 +380,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
                 // 1. create the instance
-                ShinyProxyInstance instance1 = new ShinyProxyInstance("1", "application-app-recovery_kubernetes_normal_shutdown.yml");
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("13", "application-app-recovery_kubernetes_normal_shutdown.yml");
                 instances.add(instance1);
                 Assertions.assertTrue(instance1.start());
 

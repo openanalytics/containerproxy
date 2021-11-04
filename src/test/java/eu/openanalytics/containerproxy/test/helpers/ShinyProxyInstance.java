@@ -44,8 +44,8 @@ public class ShinyProxyInstance {
                 "--server.port=" + port,
                 "--management.server.port=" + mgmtPort,
                 extraArgs)
-                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", id)))
-                .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", id)));
+                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_%s_stdout.log", id, configFileName)))
+                .redirectError(new File(String.format("shinyproxy_recovery_%s_%s_stderr.log", id, configFileName)));
     }
 
     public ShinyProxyInstance(String id, String configFileName, String extraArgs) {
@@ -62,9 +62,15 @@ public class ShinyProxyInstance {
 
     public boolean start() throws IOException, InterruptedException {
         process = processBuilder.start();
-        Thread.sleep(20000);
 
-        return checkAlive();
+        for (int i = 0; i < 20; i++) {
+            Thread.sleep(2_000);
+            if (checkAlive()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public boolean checkAlive() {
@@ -72,7 +78,7 @@ public class ShinyProxyInstance {
 
         Request request = new Request.Builder()
                 .get()
-                .url("http://localhost:7583/")
+                .url("http://localhost:" + this.port)
                 .build();
 
         try (Response response = client.newCall(request).execute()) {

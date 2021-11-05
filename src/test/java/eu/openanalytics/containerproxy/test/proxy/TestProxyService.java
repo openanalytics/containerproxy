@@ -25,13 +25,15 @@ import java.net.URI;
 import javax.inject.Inject;
 
 import eu.openanalytics.containerproxy.service.UserService;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
@@ -42,8 +44,9 @@ import eu.openanalytics.containerproxy.test.proxy.TestProxyService.TestConfigura
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 @SpringBootTest(classes= {TestConfiguration.class, ContainerProxyApplication.class})
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestProxyService {
 
 	@Inject
@@ -53,7 +56,7 @@ public class TestProxyService {
 	private ProxyService proxyService;
 	
 	@Test
-	public void launchProxy() throws Exception {
+	public void launchProxy() {
 		String specId = environment.getProperty("proxy.specs[0].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
@@ -89,4 +92,5 @@ public class TestProxyService {
 			// No-ops
 		}
 	}
+
 }

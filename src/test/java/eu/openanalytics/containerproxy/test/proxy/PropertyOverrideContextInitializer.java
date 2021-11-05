@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 
 public class PropertyOverrideContextInitializer
@@ -31,5 +33,9 @@ public class PropertyOverrideContextInitializer
 	public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
 		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
 				"proxy.kubernetes.namespace=" + TestIntegrationOnKube.namespace);
+
+		PropertiesPropertySource defaultProperties = new PropertiesPropertySource("shinyProxyDefaultProperties", ContainerProxyApplication.getDefaultProperties());
+		configurableApplicationContext.getEnvironment().getPropertySources().addFirst(defaultProperties);
+
 	}
 }

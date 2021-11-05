@@ -27,7 +27,6 @@ import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -75,6 +74,9 @@ public class UserService {
 	@Inject
 	private ApplicationEventPublisher applicationEventPublisher;
 
+	@Inject
+	private AccessControlService accessControlService;
+
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -103,7 +105,7 @@ public class UserService {
 		return getGroups(getCurrentAuth());
 	}
 	
-	public String[] getGroups(Authentication auth) {
+	public static String[] getGroups(Authentication auth) {
 		List<String> groups = new ArrayList<>();
 		if (auth != null) {
 			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {
@@ -127,23 +129,9 @@ public class UserService {
 	}
 	
 	public boolean canAccess(ProxySpec spec) {
-		return canAccess(getCurrentAuth(), spec);
+		return accessControlService.canAccess(getCurrentAuth(), spec);
 	}
-	
-	public boolean canAccess(Authentication auth, ProxySpec spec) {
-		if (auth == null || spec == null) return false;
-		if (auth instanceof AnonymousAuthenticationToken) return !authBackend.hasAuthorization();
 
-		if (spec.getAccessControl() == null) return true;
-		
-		String[] groups = spec.getAccessControl().getGroups();
-		if (groups == null || groups.length == 0) return true;
-		for (String group: groups) {
-			if (isMember(auth, group)) return true;
-		}
-		return false;
-	}
-	
 	public boolean isOwner(Proxy proxy) {
 		return isOwner(getCurrentAuth(), proxy);
 	}
@@ -153,7 +141,7 @@ public class UserService {
 		return proxy.getUserId().equals(getUserId(auth));
 	}
 	
-	private boolean isMember(Authentication auth, String groupName) {
+	public boolean isMember(Authentication auth, String groupName) {
 		if (auth == null || auth instanceof AnonymousAuthenticationToken || groupName == null) return false;
 		for (String group: getGroups(auth)) {
 			if (group.equalsIgnoreCase(groupName)) return true;
@@ -165,7 +153,7 @@ public class UserService {
 		if (auth == null) return null;
 		if (auth instanceof AnonymousAuthenticationToken) {
 			// Anonymous authentication: use the session id instead of the user name.
-			return SessionHelper.getCurrentSessionId(true);
+			return RequestContextHolder.currentRequestAttributes().getSessionId();
 		}
 		return auth.getName();
 	}

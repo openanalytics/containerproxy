@@ -33,7 +33,7 @@ public class UserLogoutEvent extends ApplicationEvent {
      * @param source
      * @param userId
      * @param sessionId
-     * @param wasExpired whether the user is logged autoamtically because the session has expired
+     * @param wasExpired whether the user is logged automatically because the session has expired
      */
     public UserLogoutEvent(Object source, String userId, String sessionId, Boolean wasExpired) {
         super(source);

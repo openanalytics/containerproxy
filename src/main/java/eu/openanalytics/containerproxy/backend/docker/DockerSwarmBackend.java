@@ -20,24 +20,37 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.net.URI;
-import java.net.URL;
-import java.util.*;
-
+import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
 import com.spotify.docker.client.messages.swarm.NetworkAttachmentConfig;
 import com.spotify.docker.client.messages.swarm.PortConfig;
+import com.spotify.docker.client.messages.swarm.Service;
 import com.spotify.docker.client.messages.swarm.ServiceSpec;
 import com.spotify.docker.client.messages.swarm.Task;
 import com.spotify.docker.client.messages.swarm.TaskSpec;
-
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
@@ -52,26 +65,31 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		} catch (Exception e) {}
 		if (swarmId == null) throw new ContainerProxyException("Backend is not a Docker Swarm");
 	}
-	
+
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
 		Container container = new Container();
 		container.setSpec(spec);
-		
+
 		Mount[] mounts = null;
 		if (spec.getVolumes() != null) mounts = Arrays.stream(spec.getVolumes())
 				.map(b -> b.split(":"))
 				.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
 				.toArray(i -> new Mount[i]);
 		Map<String, String> labels = spec.getLabels();
-		spec.getRuntimeLabels().forEach((key, value) -> labels.put(key, value.getSecond()));
 
-		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = 
+		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+			    labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+			}
+		}
+
+		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
 				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
 				.image(spec.getImage())
 				.labels(labels)
 				.command(spec.getCmd())
-				.env(buildEnv(spec, proxy))
+				.env(convertEnv(buildEnv(spec, proxy)))
 				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns()).build())
 				.mounts(mounts)
 				.build();
@@ -85,7 +103,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			networks = Arrays.copyOf(networks, networks.length + 1);
 			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork()).build();
 		}
-		
+
 		String serviceName = "sp-service-" + UUID.randomUUID().toString();
 		ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
 				.networks(networks)
@@ -93,7 +111,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				.taskTemplate(TaskSpec.builder()
 						.containerSpec(containerSpec)
 						.build());
-		
+
 		List<PortConfig> portsToPublish = new ArrayList<>();
 		if (isUseInternalNetwork()) {
 			// In internal networking mode, we can access container ports directly, no need to bind on host.
@@ -105,10 +123,10 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 			serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
 		}
-		
+
 		String serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
-		
+
 		// Give the service some time to start up and launch a container.
 		boolean containerFound = Retrying.retry(i -> {
 			try {
@@ -121,33 +139,34 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 			return (container.getId() != null);
 		}, 30, 2000, true);
-		
+
 		if (!containerFound) {
 			dockerClient.removeService(serviceId);
 			throw new IllegalStateException("Swarm container did not start in time");
 		}
-		
+
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {
 			int containerPort = spec.getPortMapping().get(mappingKey);
-			
+
 			int servicePort = portsToPublish.stream()
 					.filter(pc -> pc.targetPort() == containerPort)
 					.mapToInt(pc -> pc.publishedPort()).findAny().orElse(-1);
-			
+
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
 			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
-		
+
 		return container;
 	}
 
 	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
+		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
 		int targetPort;
-		
+
 		if (isUseInternalNetwork()) {
 			// Access on containerShortId:containerPort
 			targetHostName = container.getId().substring(0, 12);
@@ -158,10 +177,10 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			targetHostName = hostURL.getHost();
 			targetPort = servicePort;
 		}
-		
-		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
+
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
-	
+
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container: proxy.getContainers()) {
@@ -170,5 +189,52 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		}
 		portAllocator.release(proxy.getId());
 	}
+
+	@Override
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
+
+		for (Service service : dockerClient.listServices()) {
+			com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
+
+			if (containerSpec == null) {
+				continue;
+			}
+
+			List<com.spotify.docker.client.messages.Container> containersInService = dockerClient.listContainers(DockerClient.ListContainersParam.withLabel("com.docker.swarm.service.id", service.id()));
+			if (containersInService.size() != 1) {
+				log.warn(String.format("Found not correct amount of containers for service %s, therefore skipping this", service.id()));
+				continue;
+			}
+
+			Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
+			if (runtimeValues == null) {
+				continue;
+			}
+
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
+				log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.get(0).id(), containerInstanceId);
+				continue;
+			}
+
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			if (service.endpoint() != null && service.endpoint().ports() != null){
+				for (PortConfig portMapping : service.endpoint().ports()) {
+					int hostPort = portMapping.publishedPort();
+					int containerPort = portMapping.targetPort();
+					portBindings.put(containerPort, hostPort);
+					portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), hostPort);
+				}
+			}
+
+			containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
+					containerSpec.image(), portBindings, Collections.singletonMap(PARAM_SERVICE_ID, service.id())));
+
+		}
+
+		return containers;
+	}
+
 
 }

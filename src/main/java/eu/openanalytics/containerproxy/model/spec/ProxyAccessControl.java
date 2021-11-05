@@ -25,19 +25,55 @@ import java.util.Arrays;
 public class ProxyAccessControl {
 
 	private String[] groups;
+	private String[] users;
+	private String expression;
 
 	public String[] getGroups() {
 		return groups;
 	}
 
+	public String[] getUsers() {
+		return users;
+	}
+
+	public String getExpression() {
+		return expression;
+	}
+
 	public void setGroups(String[] groups) {
 		this.groups = groups;
 	}
-	
+
+	public void setUsers(String[] users) {
+		this.users = users;
+	}
+
+	public void setExpression(String expression) {
+		this.expression = expression;
+	}
+
 	public void copy(ProxyAccessControl target) {
 		if (groups != null) {
 			target.setGroups(Arrays.copyOf(groups, groups.length));
 		}
+		if (users != null) {
+			target.setUsers(Arrays.copyOf(users, users.length));
+		}
+		if (expression != null) {
+			target.setExpression(expression);
+		}
 	}
-	
+
+	public boolean hasGroupAccess() {
+		return groups != null && groups.length > 0;
+	}
+
+	public boolean hasUserAccess() {
+		return users != null && users.length > 0;
+	}
+
+	public boolean hasExpressionAccess() {
+		return expression != null && expression.length() > 0;
+	}
+
 }

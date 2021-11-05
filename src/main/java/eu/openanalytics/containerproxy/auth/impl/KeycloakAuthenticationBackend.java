@@ -140,8 +140,8 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
 		RequestMatcher requestMatcher =
 				new OrRequestMatcher(
-	                    new AntPathRequestMatcher(KeycloakAuthenticationProcessingFilter.DEFAULT_LOGIN_URL),
-	                    new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
+	                    new AntPathRequestMatcher("/sso/login"),
+						new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
 	            );
 
 		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
@@ -231,7 +231,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		return new KeycloakLogoutHandler(adapterDeploymentContext());
 	}
 	
-	private static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
+	public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
 		
 		private static final long serialVersionUID = -521347733024996150L;
 
@@ -245,6 +245,12 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		@Override
 		public String getName() {
 			IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
+			if (token == null) {
+				// when ContainerProxy is accessed directly using the Access Token as Bearer value in the Authorization
+				// header, no ID Token is present. The AccessTokens provided by Keycloak are in fact ID tokens, so we
+				// can safely fall back to them.
+				token = getAccount().getKeycloakSecurityContext().getToken();
+			}
 			switch (nameAttribute) {
 			case IDToken.PREFERRED_USERNAME: return token.getPreferredUsername();
 			case IDToken.NICKNAME: return token.getNickName();

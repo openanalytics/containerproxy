@@ -1,0 +1,34 @@
+proxy:
+  recover-running-proxies: true
+  stop-proxies-on-shutdown: false
+
+  authentication: simple
+  containerBackend: docker-swarm
+
+  users:
+  - name: demo
+    password: demo
+  - name: demo2
+    password: demo2
+  - name: demo3
+    password: demo3
+
+  specs:
+  - id: 01_hello
+    container-specs:
+    - image: "openanalytics/shinyproxy-demo"
+      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      port-mapping:
+        default: 3838
+  - id: 02_hello
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+        port-mapping:
+          default: 3838
+  - id: 03_hello
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+        port-mapping:
+          default: 3838

@@ -20,28 +20,50 @@
  */
 package eu.openanalytics.containerproxy.backend.strategy.impl;
 
-import javax.inject.Inject;
-
-import org.springframework.stereotype.Component;
-
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 /**
- * Default logout behaviour: stop all proxies owned by the user.
+ * Default logout behaviour.
  */
 @Component
 public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
+	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
+
 	@Inject
 	private ProxyService proxyService;
-	
+
+	@Inject
+	private Environment environment;
+
+	private boolean defaultStopProxyOnLogout;
+
+	@PostConstruct
+	public void init() {
+		defaultStopProxyOnLogout = environment.getProperty(PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT, Boolean.class, true);
+	}
+
 	@Override
 	public void onLogout(String userId) {
 		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
-			proxyService.stopProxy(proxy, true, true);
+			if (shouldBeStopped(proxy)) {
+				proxyService.stopProxy(proxy, true, true);
+			}
 		}
+	}
+
+	public boolean shouldBeStopped(Proxy proxy) {
+		if (proxy.getSpec().stopOnLogout() != null) {
+			return proxy.getSpec().stopOnLogout();
+		}
+		return defaultStopProxyOnLogout;
 	}
 
 }

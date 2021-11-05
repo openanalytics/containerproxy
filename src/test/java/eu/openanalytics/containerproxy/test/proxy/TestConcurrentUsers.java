@@ -20,16 +20,13 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.HashSet;
-import java.util.Set;
-
-import javax.inject.Inject;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -41,15 +38,17 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
+import javax.inject.Inject;
+import java.util.HashSet;
+import java.util.Set;
 
 @SpringBootTest(classes = { ContainerProxyApplication.class }, webEnvironment = WebEnvironment.RANDOM_PORT)
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestConcurrentUsers {
 
 	@Inject
@@ -65,7 +64,7 @@ public class TestConcurrentUsers {
 	private String[] user2;
 	private String[] specIds;
 
-	@Before
+	@BeforeEach
 	public void init() {
 		user1 = new String[] { environment.getProperty("proxy.users[0].name"),
 				environment.getProperty("proxy.users[0].password") };
@@ -122,7 +121,7 @@ public class TestConcurrentUsers {
 
 		ResponseEntity<Proxy> createProxyResponse = this.restTemplate.withBasicAuth(username, password).postForEntity(
 				"http://localhost:" + port + "/api/proxy/{proxySpecId}", createProxyRequest, Proxy.class, specId);
-		assertEquals(201, createProxyResponse.getStatusCodeValue());
+		Assertions.assertEquals(201, createProxyResponse.getStatusCodeValue());
 
 		Proxy createdProxy = createProxyResponse.getBody();
 		Thread.sleep(1000);
@@ -139,8 +138,8 @@ public class TestConcurrentUsers {
 		ResponseEntity<String> deleteProxyResponse = this.restTemplate
 				.withBasicAuth(username, password)
 				.exchange("http://localhost:" + port + "/api/proxy/{proxyId}", HttpMethod.DELETE, null, String.class, proxyId);
-		
-		assertEquals(200, deleteProxyResponse.getStatusCodeValue());
+
+		Assertions.assertEquals(200, deleteProxyResponse.getStatusCodeValue());
 	}
 
 	private byte[] doGetEndpoint(String endpoint, String username, String password) {
@@ -149,7 +148,7 @@ public class TestConcurrentUsers {
 
 		ResponseEntity<String> getEndpointResponse = this.restTemplate.withBasicAuth(username, password)
 				.getForEntity("http://localhost:" + port + "/api/route/" + endpoint, String.class);
-		assertEquals(200, getEndpointResponse.getStatusCodeValue());
+		Assertions.assertEquals(200, getEndpointResponse.getStatusCodeValue());
 
 		return getEndpointResponse.getBody().getBytes();
 	}

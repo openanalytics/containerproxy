@@ -43,7 +43,9 @@ public class BaseController {
 		map.put("title", environment.getProperty("proxy.title", "ShinyProxy"));
 		map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
 		map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
-		map.put("jqueryJs", "/webjars/jquery/3.5.0/jquery.min.js");
+		map.put("jqueryJs", "/webjars/jquery/3.5.1/jquery.min.js");
+		map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
+		map.put("bootstrapSocialCss", "/webjars/bootstrap-social/5.1.1/bootstrap-social.css");
 	}
 
 	public static class NotFoundException extends RuntimeException {

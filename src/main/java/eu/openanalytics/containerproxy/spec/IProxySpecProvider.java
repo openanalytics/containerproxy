@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.spec;
 
 import java.util.List;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 
 /**
@@ -32,5 +33,9 @@ public interface IProxySpecProvider {
 	public List<ProxySpec> getSpecs();
 	
 	public ProxySpec getSpec(String id);
+
+	default public void postProcessRecoveredProxy(Proxy proxy) {
+		// no-op
+	}
 
 }

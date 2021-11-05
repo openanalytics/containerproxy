@@ -36,7 +36,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.service.HeartbeatService;
+import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;

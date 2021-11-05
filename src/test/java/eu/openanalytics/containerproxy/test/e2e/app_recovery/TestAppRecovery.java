@@ -102,6 +102,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         }
     }
 
+    // note: this test only works with minikube running on the same local machine, because it uses the NodePort services
     @ParameterizedTest
     @MethodSource("provideStringsForIsBlank")
     public void new_app_should_work_after_recovery(String backend, String extraArgs) throws IOException, InterruptedException {

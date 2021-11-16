@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ContainerSpec {
@@ -43,6 +45,7 @@ public class ContainerSpec {
 	private String targetPath;
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
+	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
 
 	public String getImage() {
 		return image;
@@ -153,6 +156,14 @@ public class ContainerSpec {
 		this.targetPath = targetPath;
 	}
 
+	public List<DockerSwarmSecret> getDockerSwarmSecrets() {
+		return dockerSwarmSecrets;
+	}
+
+	public void setDockerSwarmSecrets(List<DockerSwarmSecret> dockerSwarmSecrets) {
+		this.dockerSwarmSecrets = dockerSwarmSecrets;
+	}
+
 	public void copy(ContainerSpec target) {
 		target.setImage(image);
 		if (cmd != null) target.setCmd(Arrays.copyOf(cmd, cmd.length));
@@ -181,6 +192,10 @@ public class ContainerSpec {
 		if (settings != null) {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());
 			target.getSettings().putAll(settings);
+		}
+		if (dockerSwarmSecrets != null) {
+			if (target.getDockerSwarmSecrets() == null) target.setDockerSwarmSecrets(new ArrayList<>());
+			target.getDockerSwarmSecrets().addAll(dockerSwarmSecrets);
 		}
 		target.setTargetPath(targetPath);
 	}

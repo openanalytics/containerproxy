@@ -20,13 +20,15 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import org.springframework.data.util.Pair;
+import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
 import org.springframework.security.core.Authentication;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Adds expression support to ContainerSpecs.
@@ -111,6 +113,19 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	}
 	public boolean isPrivileged() {
 		return source.isPrivileged();
+	}
+
+	public List<DockerSwarmSecret> getDockerSwarmSecrets() {
+		if (source.getDockerSwarmSecrets() == null) return null;
+		return source.getDockerSwarmSecrets().stream().map(
+				it -> new DockerSwarmSecret(
+						resolve(it.getName()),
+						resolve(it.getTarget()),
+						resolve(it.getGid()),
+						resolve(it.getUid()),
+						resolve(it.getMode())
+				)
+		).collect(Collectors.toList());
 	}
 
 	@Override

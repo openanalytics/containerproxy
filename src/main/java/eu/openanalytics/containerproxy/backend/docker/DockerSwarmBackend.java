@@ -21,11 +21,15 @@
 package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
 import com.spotify.docker.client.messages.swarm.NetworkAttachmentConfig;
 import com.spotify.docker.client.messages.swarm.PortConfig;
+import com.spotify.docker.client.messages.swarm.Secret;
+import com.spotify.docker.client.messages.swarm.SecretBind;
+import com.spotify.docker.client.messages.swarm.SecretFile;
 import com.spotify.docker.client.messages.swarm.Service;
 import com.spotify.docker.client.messages.swarm.ServiceSpec;
 import com.spotify.docker.client.messages.swarm.Task;
@@ -39,6 +43,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 import java.net.URI;
@@ -84,6 +89,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 		}
 
+        List<SecretBind> secretBinds = new ArrayList<>();
+        for (DockerSwarmSecret secret : spec.getDockerSwarmSecrets()) {
+            secretBinds.add(convertSecret(secret));
+        }
+
 		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
 				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
 				.image(spec.getImage())
@@ -92,6 +102,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				.env(convertEnv(buildEnv(spec, proxy)))
 				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns()).build())
 				.mounts(mounts)
+                .secrets(secretBinds)
 				.build();
 
 		NetworkAttachmentConfig[] networks = Arrays
@@ -181,7 +192,33 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
 
-	@Override
+    private SecretBind convertSecret(DockerSwarmSecret secret) throws DockerException, InterruptedException {
+        if (secret.getName() == null) {
+            throw new IllegalArgumentException("No name for a Docker swarm secret provided");
+        }
+        return SecretBind.builder()
+                .secretName(secret.getName())
+                .secretId(getSecretId(secret.getName()))
+                .file(
+                        SecretFile.builder()
+                                .name(Optional.ofNullable(secret.getTarget()).orElse(secret.getName()))
+                                .gid(Optional.ofNullable(secret.getGid()).orElse("0"))
+                                .uid(Optional.ofNullable(secret.getUid()).orElse("0"))
+                                .mode(Long.parseLong(Optional.ofNullable(secret.getMode()).orElse("444"), 8))
+                                .build()
+                )
+                .build();
+
+    }
+
+    private String getSecretId(String secretName) throws DockerException, InterruptedException {
+        return dockerClient.listSecrets().stream()
+                .filter(it -> it.secretSpec().name().equals(secretName))
+                .findFirst()
+                .map(Secret::id).orElseThrow(() -> new IllegalArgumentException("Secret not found!"));
+    }
+
+    @Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container: proxy.getContainers()) {
 			String serviceId = (String) container.getParameters().get(PARAM_SERVICE_ID);

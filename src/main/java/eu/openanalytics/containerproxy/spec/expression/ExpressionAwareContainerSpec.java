@@ -129,6 +129,21 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	}
 
 	@Override
+	public String getDockerSwarmRegistryDomain() {
+		return source.getDockerSwarmRegistryDomain();
+	}
+
+	@Override
+	public String getDockerSwarmRegistryUsername() {
+		return source.getDockerSwarmRegistryUsername();
+	}
+
+	@Override
+	public String getDockerSwarmRegistryPassword() {
+		return source.getDockerSwarmRegistryPassword();
+	}
+
+	@Override
 	public Map<String, String> getLabels() {
 		if (source.getLabels() == null) return null;
 		Map<String, String> settings = new HashMap<>();

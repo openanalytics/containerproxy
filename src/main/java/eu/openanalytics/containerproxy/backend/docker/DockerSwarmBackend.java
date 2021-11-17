@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.messages.RegistryAuth;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
@@ -135,7 +136,21 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
 		}
 
-		String serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+		String serviceId;
+		if (spec.getDockerSwarmRegistryDomain() != null
+				&& spec.getDockerSwarmRegistryUsername() != null
+				&& spec.getDockerSwarmRegistryPassword() != null) {
+
+			RegistryAuth registryAuth = RegistryAuth.builder()
+					.serverAddress(spec.getDockerSwarmRegistryDomain())
+					.username(spec.getDockerSwarmRegistryUsername())
+					.password(spec.getDockerSwarmRegistryPassword())
+					.build();
+			serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
+		} else {
+			serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+		}
+
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
 
 		// Give the service some time to start up and launch a container.

@@ -46,6 +46,9 @@ public class ContainerSpec {
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
 	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
+	private String dockerSwarmRegistryDomain;
+	private String dockerSwarmRegistryUsername;
+	private String dockerSwarmRegistryPassword;
 
 	public String getImage() {
 		return image;
@@ -164,6 +167,30 @@ public class ContainerSpec {
 		this.dockerSwarmSecrets = dockerSwarmSecrets;
 	}
 
+	public String getDockerSwarmRegistryDomain() {
+		return dockerSwarmRegistryDomain;
+	}
+
+	public void setDockerSwarmRegistryDomain(String dockerSwarmRegistryDomain) {
+		this.dockerSwarmRegistryDomain = dockerSwarmRegistryDomain;
+	}
+
+	public String getDockerSwarmRegistryUsername() {
+		return dockerSwarmRegistryUsername;
+	}
+
+	public void setDockerSwarmRegistryUsername(String dockerSwarmRegistryUsername) {
+		this.dockerSwarmRegistryUsername = dockerSwarmRegistryUsername;
+	}
+
+	public String getDockerSwarmRegistryPassword() {
+		return dockerSwarmRegistryPassword;
+	}
+
+	public void setDockerSwarmRegistryPassword(String dockerSwarmRegistryPassword) {
+		this.dockerSwarmRegistryPassword = dockerSwarmRegistryPassword;
+	}
+
 	public void copy(ContainerSpec target) {
 		target.setImage(image);
 		if (cmd != null) target.setCmd(Arrays.copyOf(cmd, cmd.length));
@@ -197,7 +224,9 @@ public class ContainerSpec {
 			if (target.getDockerSwarmSecrets() == null) target.setDockerSwarmSecrets(new ArrayList<>());
 			target.getDockerSwarmSecrets().addAll(dockerSwarmSecrets);
 		}
+		target.setDockerSwarmRegistryDomain(dockerSwarmRegistryDomain);
+		target.setDockerSwarmRegistryUsername(dockerSwarmRegistryUsername);
+		target.setDockerSwarmRegistryPassword(dockerSwarmRegistryPassword);
 		target.setTargetPath(targetPath);
 	}
-
 }

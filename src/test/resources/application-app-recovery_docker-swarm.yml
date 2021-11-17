@@ -1,6 +1,8 @@
 proxy:
   recover-running-proxies: true
   stop-proxies-on-shutdown: false
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
 
   authentication: simple
   containerBackend: docker-swarm

@@ -1,6 +1,8 @@
 proxy:
   authentication: simple
   container-backend: kubernetes
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
 
   kubernetes:
     namespace: itest-overridden

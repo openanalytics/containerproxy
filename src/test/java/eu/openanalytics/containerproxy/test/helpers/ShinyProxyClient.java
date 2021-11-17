@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.test.helpers;
 import okhttp3.*;
 
 import javax.json.*;
+import java.time.Duration;
 import java.util.HashSet;
 
 public class ShinyProxyClient {
@@ -36,6 +37,8 @@ public class ShinyProxyClient {
         this.baseUrl = "http://localhost:" + port;
         client = new OkHttpClient.Builder()
                 .addInterceptor(new BasicAuthInterceptor(username, password))
+                .callTimeout(Duration.ofSeconds(120))
+                .readTimeout(Duration.ofSeconds(120))
                 .build();
     }
 
@@ -61,6 +64,7 @@ public class ShinyProxyClient {
                 return null;
             }
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }

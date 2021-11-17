@@ -28,6 +28,8 @@ import com.spotify.docker.client.messages.swarm.DnsConfig;
 import com.spotify.docker.client.messages.swarm.EndpointSpec;
 import com.spotify.docker.client.messages.swarm.NetworkAttachmentConfig;
 import com.spotify.docker.client.messages.swarm.PortConfig;
+import com.spotify.docker.client.messages.swarm.ResourceRequirements;
+import com.spotify.docker.client.messages.swarm.Resources;
 import com.spotify.docker.client.messages.swarm.Secret;
 import com.spotify.docker.client.messages.swarm.SecretBind;
 import com.spotify.docker.client.messages.swarm.SecretFile;
@@ -116,12 +118,35 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork()).build();
 		}
 
+		Resources.Builder reservationsBuilder = Resources.builder();
+		// reservations are used by the Docker swarm scheduler
+		if (spec.getCpuRequest() != null) {
+			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
+			reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest()) * 10e8));
+		}
+		if (spec.getMemoryRequest() != null) {
+			reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest()));
+		}
+
+		Resources.Builder limitsBuilder = Resources.builder();
+		if (spec.getCpuLimit() != null) {
+			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
+			limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit()) * 10e8));
+		}
+		if (spec.getMemoryLimit() != null) {
+			limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit()));
+		}
+
 		String serviceName = "sp-service-" + UUID.randomUUID().toString();
 		ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
 				.networks(networks)
 				.name(serviceName)
 				.taskTemplate(TaskSpec.builder()
 						.containerSpec(containerSpec)
+						.resources(ResourceRequirements.builder()
+								.reservations(reservationsBuilder.build())
+								.limits(limitsBuilder.build())
+								.build())
 						.build());
 
 		List<PortConfig> portsToPublish = new ArrayList<>();
@@ -159,7 +184,9 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				Task serviceTask = dockerClient
 						.listTasks(Task.Criteria.builder().serviceName(serviceName).build())
 						.stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
-				container.setId(serviceTask.status().containerStatus().containerId());
+				if (serviceTask.status().containerStatus() != null) {
+					container.setId(serviceTask.status().containerStatus().containerId());
+				}
 			} catch (Exception e) {
 				throw new RuntimeException("Failed to inspect swarm service tasks", e);
 			}

@@ -46,9 +46,9 @@ public class ContainerSpec {
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
 	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
-	private String dockerSwarmRegistryDomain;
-	private String dockerSwarmRegistryUsername;
-	private String dockerSwarmRegistryPassword;
+	private String dockerRegistryDomain;
+	private String dockerRegistryUsername;
+	private String dockerRegistryPassword;
 
 	public String getImage() {
 		return image;
@@ -167,28 +167,28 @@ public class ContainerSpec {
 		this.dockerSwarmSecrets = dockerSwarmSecrets;
 	}
 
-	public String getDockerSwarmRegistryDomain() {
-		return dockerSwarmRegistryDomain;
+	public String getDockerRegistryDomain() {
+		return dockerRegistryDomain;
 	}
 
-	public void setDockerSwarmRegistryDomain(String dockerSwarmRegistryDomain) {
-		this.dockerSwarmRegistryDomain = dockerSwarmRegistryDomain;
+	public void setDockerRegistryDomain(String dockerRegistryDomain) {
+		this.dockerRegistryDomain = dockerRegistryDomain;
 	}
 
-	public String getDockerSwarmRegistryUsername() {
-		return dockerSwarmRegistryUsername;
+	public String getDockerRegistryUsername() {
+		return dockerRegistryUsername;
 	}
 
-	public void setDockerSwarmRegistryUsername(String dockerSwarmRegistryUsername) {
-		this.dockerSwarmRegistryUsername = dockerSwarmRegistryUsername;
+	public void setDockerRegistryUsername(String dockerRegistryUsername) {
+		this.dockerRegistryUsername = dockerRegistryUsername;
 	}
 
-	public String getDockerSwarmRegistryPassword() {
-		return dockerSwarmRegistryPassword;
+	public String getDockerRegistryPassword() {
+		return dockerRegistryPassword;
 	}
 
-	public void setDockerSwarmRegistryPassword(String dockerSwarmRegistryPassword) {
-		this.dockerSwarmRegistryPassword = dockerSwarmRegistryPassword;
+	public void setDockerRegistryPassword(String dockerRegistryPassword) {
+		this.dockerRegistryPassword = dockerRegistryPassword;
 	}
 
 	public void copy(ContainerSpec target) {
@@ -224,9 +224,9 @@ public class ContainerSpec {
 			if (target.getDockerSwarmSecrets() == null) target.setDockerSwarmSecrets(new ArrayList<>());
 			target.getDockerSwarmSecrets().addAll(dockerSwarmSecrets);
 		}
-		target.setDockerSwarmRegistryDomain(dockerSwarmRegistryDomain);
-		target.setDockerSwarmRegistryUsername(dockerSwarmRegistryUsername);
-		target.setDockerSwarmRegistryPassword(dockerSwarmRegistryPassword);
+		target.setDockerRegistryDomain(dockerRegistryDomain);
+		target.setDockerRegistryUsername(dockerRegistryUsername);
+		target.setDockerRegistryPassword(dockerRegistryPassword);
 		target.setTargetPath(targetPath);
 	}
 }

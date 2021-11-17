@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
-import com.spotify.docker.client.ProgressHandler;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.exceptions.NotFoundException;
 import com.spotify.docker.client.messages.Container.PortMapping;
@@ -32,7 +31,6 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
-import com.spotify.docker.client.messages.ProgressMessage;
 import com.spotify.docker.client.messages.RegistryAuth;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -238,14 +236,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	private void pullImage(ContainerSpec spec) throws DockerException, InterruptedException {
-		if (spec.getDockerSwarmRegistryDomain() != null
-				&& spec.getDockerSwarmRegistryUsername() != null
-				&& spec.getDockerSwarmRegistryPassword() != null) {
+		if (spec.getDockerRegistryDomain() != null
+				&& spec.getDockerRegistryUsername() != null
+				&& spec.getDockerRegistryPassword() != null) {
 
 			RegistryAuth registryAuth = RegistryAuth.builder()
-					.serverAddress(spec.getDockerSwarmRegistryDomain())
-					.username(spec.getDockerSwarmRegistryUsername())
-					.password(spec.getDockerSwarmRegistryPassword())
+					.serverAddress(spec.getDockerRegistryDomain())
+					.username(spec.getDockerRegistryUsername())
+					.password(spec.getDockerRegistryPassword())
 					.build();
 			dockerClient.pull(spec.getImage(), registryAuth, message -> {});
 		} else {

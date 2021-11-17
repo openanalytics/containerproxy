@@ -137,14 +137,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		}
 
 		String serviceId;
-		if (spec.getDockerSwarmRegistryDomain() != null
-				&& spec.getDockerSwarmRegistryUsername() != null
-				&& spec.getDockerSwarmRegistryPassword() != null) {
+		if (spec.getDockerRegistryDomain() != null
+				&& spec.getDockerRegistryUsername() != null
+				&& spec.getDockerRegistryPassword() != null) {
 
 			RegistryAuth registryAuth = RegistryAuth.builder()
-					.serverAddress(spec.getDockerSwarmRegistryDomain())
-					.username(spec.getDockerSwarmRegistryUsername())
-					.password(spec.getDockerSwarmRegistryPassword())
+					.serverAddress(spec.getDockerRegistryDomain())
+					.username(spec.getDockerRegistryUsername())
+					.password(spec.getDockerRegistryPassword())
 					.build();
 			serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
 		} else {

@@ -129,18 +129,18 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 	}
 
 	@Override
-	public String getDockerSwarmRegistryDomain() {
-		return source.getDockerSwarmRegistryDomain();
+	public String getDockerRegistryDomain() {
+		return source.getDockerRegistryDomain();
 	}
 
 	@Override
-	public String getDockerSwarmRegistryUsername() {
-		return source.getDockerSwarmRegistryUsername();
+	public String getDockerRegistryUsername() {
+		return source.getDockerRegistryUsername();
 	}
 
 	@Override
-	public String getDockerSwarmRegistryPassword() {
-		return source.getDockerSwarmRegistryPassword();
+	public String getDockerRegistryPassword() {
+		return source.getDockerRegistryPassword();
 	}
 
 	@Override

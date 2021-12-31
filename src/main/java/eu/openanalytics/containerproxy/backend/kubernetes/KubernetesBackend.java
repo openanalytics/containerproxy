@@ -394,7 +394,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * parameter will be used.
 	 */
 	private List<HasMetadata> parseAdditionalManifests(Proxy proxy, String namespace, List<String> manifests) {
-		SpecExpressionContext context = SpecExpressionContext.create(proxy, proxy.getSpec());
+		SpecExpressionContext context = SpecExpressionContext.create(
+				proxy,
+				proxy.getSpec(),
+				userService.getCurrentAuth().getPrincipal(),
+				userService.getCurrentAuth().getCredentials());
 
 		ArrayList<HasMetadata> result = new ArrayList<>();
 		for (String manifest : manifests) {

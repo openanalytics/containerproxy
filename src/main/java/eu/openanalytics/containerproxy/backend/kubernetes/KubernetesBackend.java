@@ -44,11 +44,14 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -66,6 +69,10 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.base.PatchContext;
+import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
@@ -111,6 +118,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PARAM_NAMESPACE = "namespace";
 
 	private static final String SECRET_KEY_REF = "secretKeyRef";
+
+	private static final String ANNOTATION_MANIFEST_POLICY = "openanalytics.eu/sp-additional-manifest-policy";
 
 	@Inject
 	private PodPatcher podPatcher;
@@ -279,14 +288,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
 		int maxTries = totalWaitMs / 1000;
 		Retrying.retry(i -> {
-				if (!Readiness.isReady(kubeClient.resource(startedPod).fromServer().get())) {
+				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
 					if (i > 1 && log != null) log.debug(String.format("Container not ready yet, trying again (%d/%d)", i, maxTries));
 					return false;
 				}
 				return true;
 			}
 		, maxTries, 1000);
-		if (!Readiness.isReady(kubeClient.resource(startedPod).fromServer().get())) {
+		if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
 			Pod pod = kubeClient.resource(startedPod).fromServer().get();
 			container.getParameters().put(PARAM_POD, pod);
 			proxy.getContainers().add(container);
@@ -302,19 +311,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.map(p -> new ServicePortBuilder().withPort(p).build())
 					.collect(Collectors.toList());
 
-			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace).createNew()
-					.withApiVersion(apiVersion)
-					.withKind("Service")
-					.withNewMetadata()
-						.withName("sp-service-" + container.getId())
-                    	.withLabels(serviceLabels)
-					.endMetadata()
-					.withNewSpec()
-						.addToSelector("app", container.getId())
-						.withType("NodePort")
-						.withPorts(servicePorts)
-						.endSpec()
-					.done();
+			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace)
+					.create(new ServiceBuilder()
+						.withApiVersion(apiVersion)
+						.withKind("Service")
+						.withNewMetadata()
+							.withName("sp-service-" + container.getId())
+							.withLabels(serviceLabels)
+						.endMetadata()
+						.withNewSpec()
+							.addToSelector("app", container.getId())
+							.withType("NodePort")
+							.withPorts(servicePorts)
+							.endSpec()
+						.build());
 
 			// Workaround: waitUntilReady appears to be buggy.
 			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
@@ -367,30 +377,63 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 *
 	 * The resource will only be created if it does not already exist.
 	 */
-	private void createAdditionalManifests(Proxy proxy, String namespace) {
-		for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
-			if (kubeClient.resource(fullObject).fromServer().get() == null) {
-				kubeClient.resource(fullObject).createOrReplace();
-			}
+	private void createAdditionalManifests(Proxy proxy, String namespace) throws JsonProcessingException {
+		for (GenericKubernetesResource fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
+			applyAdditionalManifest(fullObject);
 		}
-		for (HasMetadata fullObject: getAdditionPersistentManifestsAsObjects(proxy, namespace)) {
-			if (kubeClient.resource(fullObject).fromServer().get() == null) {
-				kubeClient.resource(fullObject).createOrReplace();
-			}
+		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(proxy, namespace)) {
+			applyAdditionalManifest(fullObject);
 		}
 	}
 
-	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
+	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec());
-		return parseAdditionalManifests(context, proxy, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
+		return parseAdditionalManifests(context, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
 	}
 
-	private List<HasMetadata> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) {
+	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec(),
 				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
-		return parseAdditionalManifests(context, proxy, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+		return parseAdditionalManifests(context, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+	}
+
+	private void applyAdditionalManifest(GenericKubernetesResource resource) {
+		MixedOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client = kubeClient.genericKubernetesResources(resource.getApiVersion(), resource.getKind());
+		String policy;
+		if (resource.getMetadata().getAnnotations() != null) {
+			policy = resource.getMetadata().getAnnotations().getOrDefault(ANNOTATION_MANIFEST_POLICY, "CreateOnce");
+		} else {
+			policy = "CreateOnce";
+		}
+		log.info("Applying persistent manifest (name: {}, policy: {})", resource.getMetadata().getName(), policy);
+		if (policy.equalsIgnoreCase("CreateOnce")) {
+			if (kubeClient.resource(resource).fromServer().get() == null) {
+				client.create(resource);
+			}
+		} else if (policy.equalsIgnoreCase("Patch")) {
+			if (kubeClient.resource(resource).fromServer().get() == null) {
+				client.create(resource);
+			} else {
+				client.patch(PatchContext.of(PatchType.JSON_MERGE), resource);
+			}
+		} else if (policy.equalsIgnoreCase("Delete")) {
+			if (kubeClient.resource(resource).fromServer().get() != null) {
+				client.delete(resource);
+			}
+		} else if (policy.equalsIgnoreCase("Replace")) {
+			if (kubeClient.resource(resource).fromServer().get() != null) {
+				client.delete(resource);
+				log.info("Waiting for deletion to finish");
+				// wait 60 seconds for deletion
+				Retrying.retry((idx) -> kubeClient.resource(resource).fromServer().get() == null, 1000, 60);
+				log.info("Done");
+			}
+			client.create(resource);
+		} else {
+			log.warn("Unknown manifest-policy: {}", policy);
+		}
 	}
 
 	/**
@@ -398,14 +441,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<HasMetadata> parseAdditionalManifests(SpecExpressionContext context, Proxy proxy, String namespace, List<String> manifests) {
-
-		ArrayList<HasMetadata> result = new ArrayList<>();
+	private List<GenericKubernetesResource> parseAdditionalManifests(SpecExpressionContext context, String namespace, List<String> manifests) throws JsonProcessingException {
+		ArrayList<GenericKubernetesResource> result = new ArrayList<>();
 		for (String manifest : manifests) {
 			String expressionManifest = expressionResolver.evaluateToString(manifest, context);
-			HasMetadata object = Serialization.unmarshal(new ByteArrayInputStream(expressionManifest.getBytes())); // used to determine whether the manifest has specified a namespace
+			GenericKubernetesResource object = Serialization.yamlMapper().readValue(expressionManifest, GenericKubernetesResource.class);
 
-			HasMetadata fullObject = kubeClient.load(new ByteArrayInputStream(expressionManifest.getBytes())).get().get(0);
+			GenericKubernetesResource fullObject = kubeClient
+					.genericKubernetesResources(object.getApiVersion(), object.getKind())
+					.load(new ByteArrayInputStream(expressionManifest.getBytes())).get();
+			
 			if (object.getMetadata().getNamespace() == null) {
 				// the load method (in some cases) automatically sets a namespace when no namespace is provided
 				// therefore we overwrite this namespace with the namespace of the pod.

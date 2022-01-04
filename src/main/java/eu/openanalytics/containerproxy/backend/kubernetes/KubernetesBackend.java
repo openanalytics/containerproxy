@@ -381,11 +381,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	private List<HasMetadata> getAdditionManifestsAsObjects(Proxy proxy, String namespace) {
-		return parseAdditionalManifests(proxy, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
+		SpecExpressionContext context = SpecExpressionContext.create(
+				proxy, proxy.getSpec());
+		return parseAdditionalManifests(context, proxy, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
 	}
 
 	private List<HasMetadata> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) {
-		return parseAdditionalManifests(proxy, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+		SpecExpressionContext context = SpecExpressionContext.create(
+				proxy, proxy.getSpec(),
+				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
+		return parseAdditionalManifests(context, proxy, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
 	}
 
 	/**
@@ -393,12 +398,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<HasMetadata> parseAdditionalManifests(Proxy proxy, String namespace, List<String> manifests) {
-		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy,
-				proxy.getSpec(),
-				userService.getCurrentAuth().getPrincipal(),
-				userService.getCurrentAuth().getCredentials());
+	private List<HasMetadata> parseAdditionalManifests(SpecExpressionContext context, Proxy proxy, String namespace, List<String> manifests) {
 
 		ArrayList<HasMetadata> result = new ArrayList<>();
 		for (String manifest : manifests) {

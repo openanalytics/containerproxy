@@ -162,8 +162,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	@Override
 	public LogoutSuccessHandler getLogoutSuccessHandler() {
 		return (httpServletRequest, httpServletResponse, authentication) -> {
-			SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
-			String resolvedLogoutUrl = specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context);
+			String resolvedLogoutUrl;
+			if (authentication != null) {
+				SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
+				resolvedLogoutUrl = specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context);
+			} else {
+				resolvedLogoutUrl = getLogoutSuccessURL();
+			}
 
 			SimpleUrlLogoutSuccessHandler delegate = new SimpleUrlLogoutSuccessHandler();
 			delegate.setDefaultTargetUrl(resolvedLogoutUrl);

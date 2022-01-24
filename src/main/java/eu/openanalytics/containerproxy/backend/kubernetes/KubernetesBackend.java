@@ -69,7 +69,7 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
@@ -400,7 +400,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	private void applyAdditionalManifest(GenericKubernetesResource resource) {
-		MixedOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client = kubeClient.genericKubernetesResources(resource.getApiVersion(), resource.getKind());
+		NonNamespaceOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client
+				= kubeClient.genericKubernetesResources(resource.getApiVersion(), resource.getKind()).inNamespace(resource.getMetadata().getNamespace());
 		String policy;
 		if (resource.getMetadata().getAnnotations() != null) {
 			policy = resource.getMetadata().getAnnotations().getOrDefault(ANNOTATION_MANIFEST_POLICY, "CreateOnce");

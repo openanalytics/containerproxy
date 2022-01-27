@@ -408,7 +408,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		} else {
 			policy = "CreateOnce";
 		}
-		log.info("Applying persistent manifest (name: {}, policy: {})", resource.getMetadata().getName(), policy);
 		if (policy.equalsIgnoreCase("CreateOnce")) {
 			if (kubeClient.resource(resource).fromServer().get() == null) {
 				client.create(resource);
@@ -421,15 +420,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 		} else if (policy.equalsIgnoreCase("Delete")) {
 			if (kubeClient.resource(resource).fromServer().get() != null) {
-				client.delete(resource);
+				kubeClient.resource(resource).withGracePeriod(0).delete();
 			}
 		} else if (policy.equalsIgnoreCase("Replace")) {
 			if (kubeClient.resource(resource).fromServer().get() != null) {
-				client.delete(resource);
-				log.info("Waiting for deletion to finish");
-				// wait 60 seconds for deletion
+				kubeClient.resource(resource).withGracePeriod(0).delete();
+				// wait 60 seconds for deletion to complete
 				Retrying.retry((idx) -> kubeClient.resource(resource).fromServer().get() == null, 1000, 60);
-				log.info("Done");
 			}
 			client.create(resource);
 		} else {
@@ -504,13 +501,18 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 
 			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-			if (pod != null) kubeClient.pods().inNamespace(kubeNamespace).delete(pod);
+			if (pod != null)  {
+				// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
+				kubeClient.resource(pod).withGracePeriod(0).delete();
+			}
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
-			if (service != null) kubeClient.services().inNamespace(kubeNamespace).delete(service);
+			if (service != null) {
+				kubeClient.resource(service).withGracePeriod(0).delete();
+			}
 
 			// delete additional manifests
 			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, kubeNamespace)) {
-				kubeClient.resource(fullObject).delete();
+				kubeClient.resource(fullObject).withGracePeriod(0).delete();
 			}
 		}
 	}

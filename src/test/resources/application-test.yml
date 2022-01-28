@@ -248,3 +248,172 @@ proxy:
      - op: add
        path: /metadata/labels/custom_label_patch_instance
        value: "#{proxy.getRuntimeValue('SHINYPROXY_INSTANCE')}"
+  - id: 01_hello_manifests_policy_create_once # 13
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: CreateOnce
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_patch # 14
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_delete # 15
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Delete
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_replace # 16
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_replace # 17
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: CreateOnce
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_patch # 18
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_patch2 # 19
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: b2xkX3Bhc3N3b3Jk
+  - id: 01_hello_persistent_manifests_policy_delete #20
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Delete
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_replace #21
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+          password: b2xkX3Bhc3N3b3Jk
+  - id: 01_hello_persistent_manifests_policy_replace2 # 22
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          default: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+        data:
+          password: b2xkX3Bhc3N3b3Jk

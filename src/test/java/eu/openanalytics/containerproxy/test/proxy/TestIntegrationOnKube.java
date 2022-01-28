@@ -62,6 +62,7 @@ import org.springframework.test.context.ContextConfiguration;
 import javax.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -536,9 +537,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, sercetList.getItems().size());
-            for (Secret secret : sercetList.getItems()) {
+            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
                 if (secret.getMetadata().getName().startsWith("default-token")) {
                     continue;
                 }
@@ -616,9 +617,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, sercetList.getItems().size());
-            for (Secret secret : sercetList.getItems()) {
+            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
                 if (secret.getMetadata().getName().startsWith("default-token")) {
                     continue;
                 }
@@ -738,9 +739,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, sercetList.getItems().size());
-            for (Secret secret : sercetList.getItems()) {
+            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
                 if (secret.getMetadata().getName().startsWith("default-token")) {
                     continue;
                 }
@@ -765,6 +766,667 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
 
             Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
+
+    @Test
+    public void launchProxyWithManifestPolicyCreateOnce() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[13].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the application.yml
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+        // case 2: secret does already exist, check that it gets overridden
+        setup((client, namespace, overriddenNamespace) -> {
+            // first create secret
+            client.secrets().inNamespace(namespace).create(new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("manifests-secret")
+                    .endMetadata()
+                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                    .build());
+
+            String specId = environment.getProperty("proxy.specs[13].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the secret we created above not from the application.yml
+                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+    }
+
+    @Test
+    public void launchProxyWithManifestPolicyPatch() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[14].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the application.yml
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+
+        // case 2: secret does already exist, check that it gets overridden
+        setup((client, namespace, overriddenNamespace) -> {
+            // first create secret
+            Secret originalSecret = client.secrets().inNamespace(namespace).create(new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("manifests-secret")
+                    .endMetadata()
+                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                    .build());
+
+            String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
+
+            // let the secret live for some seconds, so that the timestamp will be different
+            Thread.sleep(2000);
+
+            String specId = environment.getProperty("proxy.specs[14].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the application.yml not from the secret we created above
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+                // since the secret should not have been replaced, the creation timestamp must be equal
+                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+    }
+
+    @Test
+    public void launchProxyWithManifestPolicyDelete() {
+        // case 1: secret does already exist, check that it gets deleted
+        setup((client, namespace, overriddenNamespace) -> {
+            // first create secret
+            client.secrets().inNamespace(namespace).create(new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("manifests-secret")
+                    .endMetadata()
+                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                    .build());
+
+            String specId = environment.getProperty("proxy.specs[15].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+        });
+    }
+
+    @Test
+    public void launchProxyWithManifestPolicyReplace() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[16].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the application.yml
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+
+        // case 2: secret does already exist, check that it gets overridden
+        setup((client, namespace, overriddenNamespace) -> {
+            // first create secret
+            Secret originalSecret = client.secrets().inNamespace(namespace).create(new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("manifests-secret")
+                    .endMetadata()
+                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                    .build());
+
+            String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
+
+            // let the secret live for some seconds, so that the timestamp will be different
+            Thread.sleep(2000);
+
+            String specId = environment.getProperty("proxy.specs[16].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the application.yml not from the secret we created above
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+                // since the secret was replaced, the creation timestamp must be different
+                Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+        });
+    }
+
+    @Test
+    public void launchProxyWithPersistentManifestPolicyCreateOnce() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[17].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+
+            String originalCreationTimestamp = client.secrets().inNamespace(namespace)
+                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+
+            // step 2: secret does already exist, check that it gets overridden
+            proxy = proxyService.startProxy(spec, true);
+
+            // secret has no namespace defined -> should be created in the default namespace
+            secretList= client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+                // secret should have not been modified -> check timestamp
+                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+        });
+    }
+
+    @Test
+    public void launchProxyWithPersistentManifestPolicyPatch() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[18].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+
+            String originalCreationTimestamp = client.secrets().inNamespace(namespace)
+                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+
+            // same spec, different value
+            String specId2 = environment.getProperty("proxy.specs[19].id");
+            baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
+            spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            proxy = proxyService.startProxy(spec, true);
+
+            // secret has no namespace defined -> should be created in the default namespace
+            secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                // secret should have the value from the second spec
+                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
+                // since the secret should not have been replaced, the creation timestamp must be equal
+                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+        });
+    }
+
+    @Test
+    public void launchProxyWithPersistentManifestPolicyDelete() {
+        // case 1: secret does already exist, check that it gets deleted
+        setup((client, namespace, overriddenNamespace) -> {
+            // first create secret
+            client.secrets().inNamespace(namespace).create(new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("manifests-secret")
+                    .endMetadata()
+                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                    .build());
+
+            String specId = environment.getProperty("proxy.specs[20].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+        });
+    }
+
+    @Test
+    public void launchProxyWithPersistentManifestPolicyReplace() {
+        // case 1: secret does not exist yet
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[21].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            // secret has no namespace defined -> should be created in the default namespace
+            SecretList secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+
+            String originalCreationTimestamp = client.secrets().inNamespace(namespace)
+                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+
+            // same spec, different value
+            String specId2 = environment.getProperty("proxy.specs[22].id");
+            baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
+            spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            proxy = proxyService.startProxy(spec, true);
+
+            // secret has no namespace defined -> should be created in the default namespace
+            secretList = client.secrets().inNamespace(namespace).list();
+            Assertions.assertEquals(2, secretList.getItems().size());
+            for (Secret secret : secretList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
+                // since the secret should have been replaced, the creation timestamp must be different
+                Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should not be deleted
+            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
         });
     }
 

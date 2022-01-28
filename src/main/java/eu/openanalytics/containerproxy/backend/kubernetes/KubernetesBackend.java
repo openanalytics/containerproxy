@@ -425,8 +425,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		} else if (policy.equalsIgnoreCase("Replace")) {
 			if (kubeClient.resource(resource).fromServer().get() != null) {
 				kubeClient.resource(resource).withGracePeriod(0).delete();
-				// wait 60 seconds for deletion to complete
-				Retrying.retry((idx) -> kubeClient.resource(resource).fromServer().get() == null, 1000, 60);
 			}
 			client.create(resource);
 		} else {

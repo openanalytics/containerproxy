@@ -26,9 +26,12 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
@@ -59,6 +62,9 @@ public class Micrometer implements IStatCollector {
 
     @Inject
     private ISessionService sessionService;
+
+    @Inject
+    private ProxyStatusService proxyStatusService;
 
     private final Logger logger = LogManager.getLogger(getClass());
 
@@ -93,6 +99,10 @@ public class Micrometer implements IStatCollector {
             proxyCounters.add(proxyCounter);
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
             registry.timer("startupTime", "spec.id", spec.getId());
+            for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
+                registry.timer("containerStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
+                registry.timer("applicationStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
+            }
             registry.timer("usageTime", "spec.id", spec.getId());
         }
 
@@ -118,9 +128,27 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
-        logger.debug("ProxyStartEvent [user: {}, startupTime: {}]", event.getUserId(), event.getStartupTime());
+        logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
-        registry.timer("startupTime", "spec.id", event.getSpecId()).record(event.getStartupTime());
+
+        ProxyStartupLog startupLog = proxyStatusService.getStartupLog(event.getProxyId());
+
+        startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
+            registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);
+        });
+
+        startupLog.getStartContainer().forEach((idx, step) -> {
+            step.getStepDuration().ifPresent((d) -> {
+                registry.timer("containerStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+            });
+        });
+
+        startupLog.getStartApplication().forEach((idx, step) -> {
+            step.getStepDuration().ifPresent((d) -> {
+                registry.timer("applicationStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+            });
+        });
+
     }
 
     @EventListener

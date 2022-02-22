@@ -131,6 +131,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		Container container = new Container();
 		container.setSpec(spec);
 		container.setId(containerCreation.id());
+		container.setIndex(spec.getIndex());
 		
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {

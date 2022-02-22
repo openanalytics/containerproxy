@@ -39,6 +39,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -101,6 +102,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Inject
 	@Lazy
+	// Note: lazy needed to work around early initialization conflict
+	protected ProxyStatusService proxyStatusService;
+
+	@Inject
+	@Lazy
 	// Note: lazy to prevent cyclic dependencies
 	protected AppRecoveryService appRecoveryService;
 
@@ -128,11 +134,13 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 			if (!testStrategy.testProxy(proxy)) {
 				stopProxy(proxy);
+				proxyStatusService.applicationStartupFailed(proxy);
 				return SuccessOrFailure.createFailure(proxy, "Container did not respond in time");
 			}
 
 			proxy.setStartupTimestamp(System.currentTimeMillis());
 			proxy.setStatus(ProxyStatus.Up);
+			proxyStatusService.proxyStarted(proxy);
 
 			return SuccessOrFailure.createSuccess(proxy);
 		} catch (Throwable t) {

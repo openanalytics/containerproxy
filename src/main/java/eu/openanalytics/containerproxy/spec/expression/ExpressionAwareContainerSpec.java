@@ -65,6 +65,10 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 		);
 	}
 
+	public Integer getIndex() {
+		return source.getIndex();
+	}
+
 	public String getImage() {
 		return resolve(source.getImage());
 	}

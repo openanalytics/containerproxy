@@ -159,6 +159,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Container container = new Container();
 		container.setSpec(spec);
 		container.setId(UUID.randomUUID().toString());
+		container.setIndex(spec.getIndex());
 
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
@@ -281,9 +282,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
 
-		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
+		// create additional manifests -> use the effective f(i.e. patched) namespace if no namespace is provided
 		createAdditionalManifests(proxy, effectiveKubeNamespace);
 
+		// tell the status service we are starting the pod/container
+		proxyStatusService.containerStarting(proxy, container);
+
+		// create and start the pod
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
@@ -300,8 +305,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			Pod pod = kubeClient.resource(startedPod).fromServer().get();
 			container.getParameters().put(PARAM_POD, pod);
 			proxy.getContainers().add(container);
+
+			proxyStatusService.containerStartupFailed(proxy, container);
 			throw new ContainerProxyException("Container did not become ready in time");
 		}
+		proxyStatusService.containerStarted(proxy, container);
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();
 
 		Service service = null;

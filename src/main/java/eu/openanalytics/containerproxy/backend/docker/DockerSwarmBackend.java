@@ -78,6 +78,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
 		Container container = new Container();
 		container.setSpec(spec);
+		container.setIndex(spec.getIndex());
 
 		Mount[] mounts = null;
 		if (spec.getVolumes() != null) mounts = Arrays.stream(spec.getVolumes())

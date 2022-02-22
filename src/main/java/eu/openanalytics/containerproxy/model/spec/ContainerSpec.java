@@ -21,13 +21,16 @@
 package eu.openanalytics.containerproxy.model.spec;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ContainerSpec {
 
+	/**
+	 * Index in the array of ContainerSpecs of the ProxySpec.
+	 */
+	private Integer index;
 	private String image;
 	private String[] cmd;
 	private Map<String, String> env;
@@ -182,4 +185,11 @@ public class ContainerSpec {
 		this.dockerRegistryPassword = dockerRegistryPassword;
 	}
 
+	public Integer getIndex() {
+		return index;
+	}
+
+	public void setIndex(Integer index) {
+		this.index = index;
+	}
 }

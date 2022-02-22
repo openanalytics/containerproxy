@@ -60,7 +60,11 @@ public interface IContainerBackend {
 	 * @throws ContainerProxyException If an error occurs while stopping the proxy.
 	 */
 	public void stopProxy(Proxy proxy) throws ContainerProxyException;
-	
+
+	default public void softStopProxy(Proxy proxy) throws ContainerProxyException {
+		throw new IllegalStateException("SoftStop not supported by backend");
+	}
+
 	/**
 	 * Get a function that will forward the standard output and standard error of
 	 * the given proxy's containers to two output streams.
@@ -93,6 +97,11 @@ public interface IContainerBackend {
 
 	default public String getBackendContainerName(Container container) {
 		return "N/A";
+	}
+
+	// TODO move implementation to abstract class
+	default public Boolean supportsSoftStop() {
+		return false;
 	}
 
 }

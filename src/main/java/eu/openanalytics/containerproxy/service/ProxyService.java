@@ -299,7 +299,19 @@ public class ProxyService {
 		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
-		activeProxies.remove(proxy);
+
+		if (!backend.supportsSoftStop()) {
+			hardStopProxy(proxy, async, ignoreAccessControl);
+		} else {
+			backend.softStopProxy(proxy);
+			log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+		}
+	}
+
+	public void hardStopProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
+		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
+			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
+		}
 
 		Runnable releaser = () -> {
 			try {

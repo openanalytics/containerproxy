@@ -21,6 +21,11 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
+import eu.openanalytics.containerproxy.backend.IContainerBackend;
+import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
+import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
+import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.SessionReActivatorService;
@@ -44,6 +49,7 @@ import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -64,6 +70,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executor;
@@ -96,6 +103,11 @@ public class ContainerProxyApplication {
 
 	public static void main(String[] args) {
 		Security.addProvider(new BouncyCastleProvider());
+
+		ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
+		ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
+		ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
+
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));

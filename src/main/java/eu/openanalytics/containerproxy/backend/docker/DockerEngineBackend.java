@@ -143,8 +143,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			proxyStatusService.containerStartFailed(proxy, container);
 			throw ex;
 		}
-
 		// Calculate proxy routes for all configured ports.
+
 		for (String mappingKey: spec.getPortMapping().keySet()) {
 			int containerPort = spec.getPortMapping().get(mappingKey);
 			

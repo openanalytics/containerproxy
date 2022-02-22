@@ -47,6 +47,14 @@ public class ProxyStartupLog {
         return startApplication;
     }
 
+    public Map<Integer, StartupStep> getPullImage() {
+        return pullImage;
+    }
+
+    public Map<Integer, StartupStep> getScheduleContainer() {
+        return scheduleContainer;
+    }
+
     public static class StartupStep {
 
         private LocalDateTime startTime = null;
@@ -66,6 +74,15 @@ public class ProxyStartupLog {
                 throw new IllegalStateException("Cannot finish (with success) step if it is not yet started or already completed");
             }
             endTime = LocalDateTime.now();
+            state = StartupStepState.SUCCESS;
+        }
+
+        public void stepSucceeded(LocalDateTime startTime, LocalDateTime endTime) {
+            if (state != StartupStepState.NOT_EXECUTED || startTime == null || endTime == null) {
+                throw new IllegalStateException("Cannot start step if it's already started!");
+            }
+            this.startTime = startTime;
+            this.endTime = endTime;
             state = StartupStepState.SUCCESS;
         }
 

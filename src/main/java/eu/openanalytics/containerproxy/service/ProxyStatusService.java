@@ -5,6 +5,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,6 +28,22 @@ public class ProxyStatusService {
      */
     public void containerStarting(Proxy proxy, Container container) {
         startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).stepStarted();
+    }
+
+    /**
+     * Step 2.1: schedule container
+     */
+    public void containerScheduled(Proxy proxy, Container container, LocalDateTime scheduledTime) {
+        startupLog.get(proxy.getId()).getScheduleContainer(container.getIndex()).stepSucceeded(
+                startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).getStartTime(),
+                scheduledTime);
+    }
+
+    /**
+     * Step 2.2: pull image
+     */
+    public void imagePulled(Proxy proxy, Container container, LocalDateTime pullingTime, LocalDateTime pulledTime) {
+        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepSucceeded(pullingTime, pulledTime);
     }
 
     /**

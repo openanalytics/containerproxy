@@ -100,6 +100,8 @@ public class Micrometer implements IStatCollector {
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
             registry.timer("startupTime", "spec.id", spec.getId());
             for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
+                registry.timer("imagePullTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
+                registry.timer("containerScheduleTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
                 registry.timer("containerStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
                 registry.timer("applicationStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
             }
@@ -137,6 +139,18 @@ public class Micrometer implements IStatCollector {
             registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);
         });
 
+        startupLog.getPullImage().forEach((idx, step) -> {
+            step.getStepDuration().ifPresent((d) -> {
+                registry.timer("imagePullTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+            });
+        });
+
+        startupLog.getScheduleContainer().forEach((idx, step) -> {
+            step.getStepDuration().ifPresent((d) -> {
+                registry.timer("containerScheduleTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+            });
+        });
+
         startupLog.getStartContainer().forEach((idx, step) -> {
             step.getStepDuration().ifPresent((d) -> {
                 registry.timer("containerStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
@@ -148,6 +162,7 @@ public class Micrometer implements IStatCollector {
                 registry.timer("applicationStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
             });
         });
+
 
     }
 

@@ -44,11 +44,13 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
@@ -87,6 +89,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -311,6 +316,39 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		proxyStatusService.containerStarted(proxy, container);
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();
+
+		// TODO check k8s compatibility
+		List<Event> events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+				.withKind("Pod")
+				.withName(pod.getMetadata().getName())
+				.withNamespace(pod.getMetadata().getNamespace())
+				.build()).list().getItems();
+
+		LocalDateTime pullingTime = null;
+		LocalDateTime pulledTime = null;
+		LocalDateTime scheduledTime = null;
+
+		for (Event event : events) {
+			if (event.getCount() != null && event.getCount() >  1) {
+				// ignore events which happened multiple time as we are unable to properly process them
+				continue;
+			}
+			if (event.getReason().equalsIgnoreCase("Pulling")) {
+				pullingTime = OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			} else if (event.getReason().equalsIgnoreCase("Pulled")) {
+				pulledTime = OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			} else if (event.getReason().equalsIgnoreCase("Scheduled")) {
+				scheduledTime = OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			}
+		}
+
+		if (pullingTime != null && pulledTime != null) {
+			proxyStatusService.imagePulled(proxy, container, pullingTime, pulledTime);
+		}
+
+		if (scheduledTime != null) {
+			proxyStatusService.containerScheduled(proxy, container,  scheduledTime);
+		}
 
 		Service service = null;
 		if (isUseInternalNetwork()) {

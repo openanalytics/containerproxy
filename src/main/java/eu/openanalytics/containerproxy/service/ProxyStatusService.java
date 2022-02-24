@@ -57,7 +57,7 @@ public class ProxyStatusService {
     /**
      * Step 3 (fail): container could not be started
      */
-    public void containerStartupFailed(Proxy proxy, Container container) {
+    public void containerStartFailed(Proxy proxy, Container container) {
         startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).stepFailed();
         startupLog.get(proxy.getId()).getCreateProxy().stepFailed();
     }

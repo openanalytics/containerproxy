@@ -67,6 +67,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+		Container container = new Container();
+		container.setSpec(spec);
+		container.setIndex(spec.getIndex());
+
 		Builder hostConfigBuilder = HostConfig.builder();
 
 		if (imagePullPolicy == ImagePullPolicy.Always
@@ -118,21 +122,26 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .cmd(spec.getCmd())
 			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
-		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
-		
-		if (spec.getNetworkConnections() != null) {
-			for (String networkConnection: spec.getNetworkConnections()) {
-				dockerClient.connectToNetwork(containerCreation.id(), networkConnection);
+
+		try {
+			// tell the status service we are starting the container
+			proxyStatusService.containerStarting(proxy, container);
+			ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
+			container.setId(containerCreation.id());
+
+			if (spec.getNetworkConnections() != null) {
+				for (String networkConnection: spec.getNetworkConnections()) {
+					dockerClient.connectToNetwork(containerCreation.id(), networkConnection);
+				}
 			}
+
+			dockerClient.startContainer(containerCreation.id());
+			proxyStatusService.containerStarted(proxy, container);
+		} catch (DockerException ex) {
+			proxyStatusService.containerStartFailed(proxy, container);
+			throw ex;
 		}
-		
-		dockerClient.startContainer(containerCreation.id());
-		
-		Container container = new Container();
-		container.setSpec(spec);
-		container.setId(containerCreation.id());
-		container.setIndex(spec.getIndex());
-		
+
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {
 			int containerPort = spec.getPortMapping().get(mappingKey);

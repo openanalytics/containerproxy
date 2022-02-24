@@ -177,6 +177,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
 		}
 
+		// tell the status service we are starting the container
+		proxyStatusService.containerStarting(proxy, container);
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
 
 		// Give the service some time to start up and launch a container.
@@ -196,8 +198,10 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 		if (!containerFound) {
 			dockerClient.removeService(serviceId);
+			proxyStatusService.containerStartFailed(proxy, container);
 			throw new IllegalStateException("Swarm container did not start in time");
 		}
+		proxyStatusService.containerStarted(proxy, container);
 
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {

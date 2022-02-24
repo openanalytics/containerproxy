@@ -311,7 +311,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			container.getParameters().put(PARAM_POD, pod);
 			proxy.getContainers().add(container);
 
-			proxyStatusService.containerStartupFailed(proxy, container);
+			proxyStatusService.containerStartFailed(proxy, container);
 			throw new ContainerProxyException("Container did not become ready in time");
 		}
 		proxyStatusService.containerStarted(proxy, container);

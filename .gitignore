@@ -6,3 +6,4 @@ logs
 *.iml
 .vscode/
 build.sh
+*.log

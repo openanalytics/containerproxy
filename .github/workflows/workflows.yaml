@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         java: [ 8, 11 ]
-        kubernetes: [ 'v1.20.1', 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']
+        kubernetes: [ 'v1.21.6', 'v1.20.12', 'v1.19.16', 'v1.18.20', 'v1.17.17', 'v1.16.15']
 
     steps:
       - uses: actions/checkout@v2
@@ -29,12 +29,16 @@ jobs:
           kubernetes version:  ${{ matrix.kubernetes }}
       - name: Setup Docker
         run: sudo apt-get -qq -y install conntrack socat ; nohup socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock &
+      - name: Setup Docker Swarm
+        run: docker swarm init
       - name: Pull Image
         run: docker pull openanalytics/shinyproxy-demo:latest
       - name: Build with Maven
-        run: mvn -U clean install -DskipTests
+        run: mvn -B -U clean install -DskipTests
+      - name: Copy Artifact
+        run: cp target/containerproxy-*-exec.jar target/containerproxy-app-recovery.jar
       - name: Run Tests
-        run: mvn test
+        run: mvn -B test
 
   dependency:
     runs-on: ubuntu-latest
@@ -42,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run Dependency Check
-        run: mvn -Powasp-dependency-check verify -DskipTests
+        run: mvn -B -Powasp-dependency-check verify -DskipTests
       - name: Archive code coverage results
         uses: actions/upload-artifact@v2
         with:

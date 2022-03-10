@@ -20,7 +20,9 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -59,7 +62,12 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
-	public List<Proxy> listProxies() {
+	public List<Proxy> listProxies(@RequestParam(value = "only_owned_proxies", required = false, defaultValue = "false") boolean onlyOwnedProxies) {
+		if (onlyOwnedProxies) {
+			// even if the user is an admin this will only return proxies that the user owns
+			return proxyService.getProxiesOfCurrentUser(null);
+		}
+		// if the user is an admin this will return all proxies
 		return proxyService.getProxies(null, false);
 	}
 	
@@ -88,11 +96,14 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.DELETE, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> stopProxy(@PathVariable String proxyId) {
+	public ResponseEntity<Map<String, String>> stopProxy(@PathVariable String proxyId) {
 		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
 		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		
 		proxyService.stopProxy(proxy, true, false);
-		return new ResponseEntity<>("Proxy stopped", HttpStatus.OK);
+		return ResponseEntity.ok(new HashMap<String, String>() {{
+			put("status", "success");
+			put("message", "proxy_stopped");
+		}});
 	}
 }

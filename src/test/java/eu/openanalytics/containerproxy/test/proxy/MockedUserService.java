@@ -21,9 +21,55 @@
 package eu.openanalytics.containerproxy.test.proxy;
 
 import eu.openanalytics.containerproxy.service.UserService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+
+import java.util.Collection;
+import java.util.Collections;
 
 public class MockedUserService extends UserService {
+
     public String getCurrentUserId() {
         return "jack";
     }
+
+    public Authentication getCurrentAuth() {
+        return new Authentication() {
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public Object getCredentials() {
+                return "N/A";
+            }
+
+            @Override
+            public Object getDetails() {
+                return "N/A";
+            }
+
+            @Override
+            public Object getPrincipal() {
+                return "N/A";
+            }
+
+            @Override
+            public boolean isAuthenticated() {
+                return true;
+            }
+
+            @Override
+            public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
+                // no-op
+            }
+
+            @Override
+            public String getName() {
+                return "jack";
+            }
+        };
+    }
+
 }

@@ -20,13 +20,18 @@
  */
 package eu.openanalytics.containerproxy.security;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
+import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -36,16 +41,27 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+	private final Logger logger = LogManager.getLogger(getClass());
 
 	@Inject
 	private UserLogoutHandler logoutHandler;
@@ -59,6 +75,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Inject
 	private Environment environment;
 
+	@Inject
+	private AppRecoveryFilter appRecoveryFilter;
+	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
 	
@@ -85,15 +104,40 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 	}
 
+	private void checkForIncorrectConfiguration(HttpServletRequest request) {
+		if (request.getScheme().equals("http") && ContainerProxyApplication.secureCookiesEnabled) {
+			logger.warn("WARNING: Invalid configuration detected: ShinyProxy is accessed over HTTP but secure-cookies is enabled. Secure-cookies only work when accessing ShinyProxy over HTTPS. "
+					+ "Ensure that ShinyProxy is accessed over HTTPS or disable secure-cookies");
+		}
+	}
+
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
+		// App Recovery Filter
+		http.addFilterAfter(appRecoveryFilter, BasicAuthenticationFilter.class);
+
 		// Perform CSRF check on the login form
 		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
-		
+
+		http.exceptionHandling().accessDeniedHandler(new AccessDeniedHandler() {
+		    final AntPathRequestMatcher matcher = new AntPathRequestMatcher("/login", "POST");
+		    final AccessDeniedHandler defaultAccessDeniedHandler = new AccessDeniedHandlerImpl();
+			@Override
+			public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
+				checkForIncorrectConfiguration(request);
+
+				if (matcher.matcher(request).isMatch() && accessDeniedException instanceof MissingCsrfTokenException) {
+					response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/login").queryParam("error", "expired").build().toUriString());
+				} else {
+					defaultAccessDeniedHandler.handle(request, response, accessDeniedException);
+				}
+			}
+		});
+
 		// Always set header: X-Content-Type-Options=nosniff
 		http.headers().contentTypeOptions();
 
-		String frameOptions = environment.getProperty("server.frameOptions", "disable");
+		String frameOptions = environment.getProperty("server.frame-options", "disable");
 		switch (frameOptions.toUpperCase()) {
 			case "DISABLE":
 				http.headers().frameOptions().disable();
@@ -137,8 +181,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					// important: set the next option after logoutUrl because it would otherwise get overwritten
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
 					.addLogoutHandler(logoutHandler)
-					.logoutSuccessUrl(auth.getLogoutSuccessURL());
-			
+					.logoutSuccessHandler(auth.getLogoutSuccessHandler());
+
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
 			http.addFilter(new BasicAuthenticationFilter(super.authenticationManagerBean()));
 		}
@@ -152,7 +196,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			auth.configureHttpSecurity(http, anyRequestConfigurer);
 		}
 
-
+		// create session cookie even if there is no Authentication in order to support the None authentication backend
+		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
 	}
 
 	@Bean

@@ -30,10 +30,24 @@ import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube.TestConfiguration;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import io.fabric8.kubernetes.api.model.*;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimList;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.SecretList;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
+import io.fabric8.kubernetes.api.model.ServiceList;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,8 +58,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 
 import javax.inject.Inject;
 import java.io.ByteArrayInputStream;
@@ -54,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
 
 /**
  * Test which tests various setups against a Kubernetes Backend.
@@ -75,12 +86,6 @@ import static org.junit.Assert.*;
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 @ActiveProfiles("test")
 public class TestIntegrationOnKube extends KubernetesTestBase {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Inject
     private Environment environment;
@@ -103,25 +108,25 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
-            assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             ServiceList serviceList = client.services().inNamespace(namespace).list();
-            assertEquals(1, serviceList.getItems().size());
+            Assertions.assertEquals(1, serviceList.getItems().size());
             Service service = serviceList.getItems().get(0);
-            assertEquals(namespace, service.getMetadata().getNamespace());
-            assertEquals("sp-service-" + containerId, service.getMetadata().getName());
-            assertEquals(containerId, service.getSpec().getSelector().get("app"));
-            assertEquals(1, service.getSpec().getPorts().size());
-            assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+            Assertions.assertEquals(namespace, service.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+            Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
+            Assertions.assertEquals(1, service.getSpec().getPorts().size());
+            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -130,12 +135,12 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
             // all services should be deleted
             serviceList = client.services().inNamespace(namespace).list();
-            assertEquals(0, serviceList.getItems().size());
+            Assertions.assertEquals(0, serviceList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -153,32 +158,32 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             // Check Volumes
-            assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
-            assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(0).getName());
-            assertEquals("/srv/myvolume1", pod.getSpec().getVolumes().get(0).getHostPath().getPath());
-            assertEquals("", pod.getSpec().getVolumes().get(0).getHostPath().getType());
-            assertEquals("shinyproxy-volume-1", pod.getSpec().getVolumes().get(1).getName());
-            assertEquals("/srv/myvolume2", pod.getSpec().getVolumes().get(1).getHostPath().getPath());
-            assertEquals("", pod.getSpec().getVolumes().get(1).getHostPath().getType());
+            Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
+            Assertions.assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(0).getName());
+            Assertions.assertEquals("/srv/myvolume1", pod.getSpec().getVolumes().get(0).getHostPath().getPath());
+            Assertions.assertEquals("", pod.getSpec().getVolumes().get(0).getHostPath().getType());
+            Assertions.assertEquals("shinyproxy-volume-1", pod.getSpec().getVolumes().get(1).getName());
+            Assertions.assertEquals("/srv/myvolume2", pod.getSpec().getVolumes().get(1).getHostPath().getPath());
+            Assertions.assertEquals("", pod.getSpec().getVolumes().get(1).getHostPath().getType());
 
             // Check Volume mounts
             List<VolumeMount> volumeMounts = pod.getSpec().getContainers().get(0).getVolumeMounts();
-            assertTrue(volumeMounts.size() >= 2); // at least two volume mounts should be created
-            assertEquals("shinyproxy-volume-0", volumeMounts.get(0).getName());
-            assertEquals("/srv/myvolume1", volumeMounts.get(0).getMountPath());
-            assertEquals("shinyproxy-volume-1", volumeMounts.get(1).getName());
-            assertEquals("/srv/myvolume2", volumeMounts.get(1).getMountPath());
+            Assertions.assertTrue(volumeMounts.size() >= 2); // at least two volume mounts should be created
+            Assertions.assertEquals("shinyproxy-volume-0", volumeMounts.get(0).getName());
+            Assertions.assertEquals("/srv/myvolume1", volumeMounts.get(0).getMountPath());
+            Assertions.assertEquals("shinyproxy-volume-1", volumeMounts.get(1).getName());
+            Assertions.assertEquals("/srv/myvolume2", volumeMounts.get(1).getMountPath());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -187,9 +192,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -207,29 +212,29 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
-            assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
-            assertEquals("jack", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
-            assertTrue(env.containsKey("SHINYPROXY_USERGROUPS"));
-            assertNull(env.get("SHINYPROXY_USERGROUPS").getValue());
-            assertTrue(env.containsKey("VAR1"));
-            assertNull(env.get("VAR1").getValue());
-            assertTrue(env.containsKey("VAR2"));
-            assertEquals("VALUE2", env.get("VAR2").getValue());
-            assertTrue(env.containsKey("VAR3"));
-            assertEquals("VALUE3", env.get("VAR3").getValue());
+            Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
+            Assertions.assertEquals("jack", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
+            Assertions.assertTrue(env.containsKey("SHINYPROXY_USERGROUPS"));
+            Assertions.assertNull(env.get("SHINYPROXY_USERGROUPS").getValue());
+            Assertions.assertTrue(env.containsKey("VAR1"));
+            Assertions.assertNull(env.get("VAR1").getValue());
+            Assertions.assertTrue(env.containsKey("VAR2"));
+            Assertions.assertEquals("VALUE2", env.get("VAR2").getValue());
+            Assertions.assertTrue(env.containsKey("VAR3"));
+            Assertions.assertEquals("VALUE3", env.get("VAR3").getValue());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -238,9 +243,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -264,22 +269,22 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
-            assertTrue(env.containsKey("MY_SECRET"));
-            assertEquals("username", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getKey());
-            assertEquals("mysecret", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getName());
+            Assertions.assertTrue(env.containsKey("MY_SECRET"));
+            Assertions.assertEquals("username", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getKey());
+            Assertions.assertEquals("mysecret", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getName());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -288,9 +293,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -305,22 +310,22 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             // Check Resource limits/requests
             ResourceRequirements req = pod.getSpec().getContainers().get(0).getResources();
-            assertEquals(new Quantity("1"), req.getRequests().get("cpu"));
-            assertEquals(new Quantity("1Gi"), req.getRequests().get("memory"));
-            assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
-            assertEquals(new Quantity("2Gi"), req.getLimits().get("memory"));
+            Assertions.assertEquals(new Quantity("1"), req.getRequests().get("cpu"));
+            Assertions.assertEquals(new Quantity("1Gi"), req.getRequests().get("memory"));
+            Assertions.assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
+            Assertions.assertEquals(new Quantity("2Gi"), req.getLimits().get("memory"));
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -329,9 +334,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -346,17 +351,17 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
-            assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -365,9 +370,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -394,35 +399,35 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 String containerId = proxy.getContainers().get(0).getId();
 
                 // Check whether the effectively used namepsace is correct
-                assertEquals(overriddenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
+                Assertions.assertEquals(overriddenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
                 // no pods should exists in the default namespace
                 PodList podList = client.pods().inNamespace(namespace).list();
-                assertEquals(0, podList.getItems().size());
+                Assertions.assertEquals(0, podList.getItems().size());
 
                 // no services should exists in the default namespace
                 ServiceList serviceList = client.services().inNamespace(namespace).list();
-                assertEquals(0, serviceList.getItems().size());
+                Assertions.assertEquals(0, serviceList.getItems().size());
 
                 podList = client.pods().inNamespace(overriddenNamespace).list();
-                assertEquals(1, podList.getItems().size());
+                Assertions.assertEquals(1, podList.getItems().size());
                 Pod pod = podList.getItems().get(0);
-                assertEquals("Running", pod.getStatus().getPhase());
-                assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
-                assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-                assertEquals(1, pod.getStatus().getContainerStatuses().size());
-                assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
+                Assertions.assertEquals("Running", pod.getStatus().getPhase());
+                Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+                Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+                Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+                Assertions.assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
                 ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-                assertEquals(true, container.getReady());
-                assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+                Assertions.assertEquals(true, container.getReady());
+                Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
                 serviceList = client.services().inNamespace(overriddenNamespace).list();
-                assertEquals(1, serviceList.getItems().size());
+                Assertions.assertEquals(1, serviceList.getItems().size());
                 Service service = serviceList.getItems().get(0);
-                assertEquals(overriddenNamespace, service.getMetadata().getNamespace());
-                assertEquals("sp-service-" + containerId, service.getMetadata().getName());
-                assertEquals(containerId, service.getSpec().getSelector().get("app"));
-                assertEquals(1, service.getSpec().getPorts().size());
-                assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+                Assertions.assertEquals(overriddenNamespace, service.getMetadata().getNamespace());
+                Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+                Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
+                Assertions.assertEquals(1, service.getSpec().getPorts().size());
+                Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
 
                 proxyService.stopProxy(proxy, false, true);
 
@@ -431,13 +436,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
                 // all pods should be deleted
                 podList = client.pods().inNamespace(overriddenNamespace).list();
-                assertEquals(0, podList.getItems().size());
+                Assertions.assertEquals(0, podList.getItems().size());
 
                 // all services should be deleted
                 serviceList = client.services().inNamespace(overriddenNamespace).list();
-                assertEquals(0, serviceList.getItems().size());
+                Assertions.assertEquals(0, serviceList.getItems().size());
 
-                assertEquals(0, proxyService.getProxies(null, true).size());
+                Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
 
             } finally {
                 client.serviceAccounts().withName(serviceAccountName).delete();
@@ -459,31 +464,31 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             // Check volumes: one HostPath is added using SP and one using patches
-            assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
-            assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(1).getName());
-            assertEquals("/srv/myvolume1", pod.getSpec().getVolumes().get(1).getHostPath().getPath());
-            assertEquals("", pod.getSpec().getVolumes().get(1).getHostPath().getType());
-            assertEquals("cache-volume", pod.getSpec().getVolumes().get(0).getName());
-            assertNotNull(pod.getSpec().getVolumes().get(0).getEmptyDir());
+            Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
+            Assertions.assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(1).getName());
+            Assertions.assertEquals("/srv/myvolume1", pod.getSpec().getVolumes().get(1).getHostPath().getPath());
+            Assertions.assertEquals("", pod.getSpec().getVolumes().get(1).getHostPath().getType());
+            Assertions.assertEquals("cache-volume", pod.getSpec().getVolumes().get(0).getName());
+            Assertions.assertNotNull(pod.getSpec().getVolumes().get(0).getEmptyDir());
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
-            assertTrue(env.containsKey("VAR1"));
-            assertEquals("VALUE1", env.get("VAR1").getValue()); // value is a String "null"
-            assertTrue(env.containsKey("ADDED_VAR"));
-            assertEquals("VALUE", env.get("ADDED_VAR").getValue()); // value is a String "null"
+            Assertions.assertTrue(env.containsKey("VAR1"));
+            Assertions.assertEquals("VALUE1", env.get("VAR1").getValue()); // value is a String "null"
+            Assertions.assertTrue(env.containsKey("ADDED_VAR"));
+            Assertions.assertEquals("VALUE", env.get("ADDED_VAR").getValue()); // value is a String "null"
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -492,9 +497,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -514,31 +519,31 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(overriddenNamespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
-            assertEquals(1, claimList.getItems().size());
+            Assertions.assertEquals(1, claimList.getItems().size());
             PersistentVolumeClaim claim = claimList.getItems().get(0);
-            assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
-            assertEquals("manifests-pvc", claim.getMetadata().getName());
+            Assertions.assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
             SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
-            assertEquals(2, sercetList.getItems().size());
+            Assertions.assertEquals(2, sercetList.getItems().size());
             for (Secret secret : sercetList.getItems()) {
                 if (secret.getMetadata().getName().startsWith("default-token")) {
                     continue;
                 }
-                assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
-                assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
             proxyService.stopProxy(proxy, false, true);
@@ -548,14 +553,14 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
             // all additional manifests should be deleted
-            assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
-            assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
@@ -594,31 +599,31 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(overriddenNamespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
-            assertEquals(1, claimList.getItems().size());
+            Assertions.assertEquals(1, claimList.getItems().size());
             PersistentVolumeClaim claim = claimList.getItems().get(0);
-            assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
-            assertEquals("manifests-pvc", claim.getMetadata().getName());
+            Assertions.assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
             SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
-            assertEquals(2, sercetList.getItems().size());
+            Assertions.assertEquals(2, sercetList.getItems().size());
             for (Secret secret : sercetList.getItems()) {
                 if (secret.getMetadata().getName().startsWith("default-token")) {
                     continue;
                 }
-                assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
-                assertEquals("manifests-secret", secret.getMetadata().getName());
+                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
             proxyService.stopProxy(proxy, false, true);
@@ -628,23 +633,23 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
             // all additional manifests should be deleted
-            assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
-            assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
     }
 
 
-	/**
-	 * Tests the use of Spring Epxression in kubernetes patches and additional manifests.
-	 */
-	@Test
-	public void launchProxyWithExpressionInPatchAndManifests() throws Exception {
+    /**
+     * Tests the use of Spring Expression in kubernetes patches and additional manifests.
+     */
+    @Test
+    public void launchProxyWithExpressionInPatchAndManifests() throws Exception {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[9].id");
 
@@ -654,35 +659,35 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
-            assertEquals(1, podList.getItems().size());
+            Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
-            assertEquals("Running", pod.getStatus().getPhase());
-            assertEquals(namespace, pod.getMetadata().getNamespace());
-            assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
-            assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
-            assertEquals(true, container.getReady());
-            assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
 
 
             // check env variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
-            assertTrue(env.containsKey("CUSTOM_USERNAME"));
-            assertTrue(env.containsKey("PROXY_ID"));
-            assertEquals("jack", env.get("CUSTOM_USERNAME").getValue());
-            assertEquals(proxy.getId(), env.get("PROXY_ID").getValue());
+            Assertions.assertTrue(env.containsKey("CUSTOM_USERNAME"));
+            Assertions.assertTrue(env.containsKey("PROXY_ID"));
+            Assertions.assertEquals("jack", env.get("CUSTOM_USERNAME").getValue());
+            Assertions.assertEquals(proxy.getId(), env.get("PROXY_ID").getValue());
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(namespace).list();
-            assertEquals(1, claimList.getItems().size());
+            Assertions.assertEquals(1, claimList.getItems().size());
             PersistentVolumeClaim claim = claimList.getItems().get(0);
-            assertEquals(namespace, claim.getMetadata().getNamespace());
-            assertEquals("home-dir-pvc-jack", claim.getMetadata().getName());
+            Assertions.assertEquals(namespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("home-dir-pvc-jack", claim.getMetadata().getName());
 
             // check volume mount
             Volume volume = pod.getSpec().getVolumes().get(0);
-            assertEquals("home-dir-pvc-jack", volume.getName());
-            assertEquals("home-dir-pvc-jack", volume.getPersistentVolumeClaim().getClaimName());
+            Assertions.assertEquals("home-dir-pvc-jack", volume.getName());
+            Assertions.assertEquals("home-dir-pvc-jack", volume.getPersistentVolumeClaim().getClaimName());
 
             proxyService.stopProxy(proxy, false, true);
 
@@ -691,13 +696,155 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // all pods should be deleted
             podList = client.pods().inNamespace(namespace).list();
-            assertEquals(0, podList.getItems().size());
+            Assertions.assertEquals(0, podList.getItems().size());
             // all additional manifests should be deleted
-            assertEquals(0, client.persistentVolumeClaims().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(0, client.persistentVolumeClaims().inNamespace(namespace).list().getItems().size());
 
-            assertEquals(0, proxyService.getProxies(null, true).size());
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
         });
-	}
+    }
+
+    /**
+     * Tests the creation and deleting of additional manifests (both persistent and non-persistent).
+     * The first manifest contains a namespace definition and is non-persistent (it is a secret).
+     * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
+     * It is a PVC which should be persistent.
+     */
+    @Test
+    public void launchProxyWithAdditionalPersistentManifests() throws Exception {
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[11].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(1, claimList.getItems().size());
+            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            Assertions.assertEquals(overriddenNamespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
+
+            // secret has no namespace defined -> should be created in the namespace defined by the pod patches
+            SecretList sercetList = client.secrets().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(2, sercetList.getItems().size());
+            for (Secret secret : sercetList.getItems()) {
+                if (secret.getMetadata().getName().startsWith("default-token")) {
+                    continue;
+                }
+                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            }
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // the secret should be deleted
+            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
+            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
+                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+
+            // the PVC should not be deleted
+            Assertions.assertEquals(1, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
+
+
+    /**
+     * This test starts a Proxy with an advanced setup of RuntimeLabels and environment variables + labels.
+     */
+    @Test
+    public void advancedRuntimeLabels() {
+        setup((client, namespace, overriddenNamespace) -> {
+            String specId = environment.getProperty("proxy.specs[12].id");
+
+            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            Proxy proxy = proxyService.startProxy(spec, true);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+
+            ServiceList serviceList = client.services().inNamespace(namespace).list();
+            Assertions.assertEquals(1, serviceList.getItems().size());
+            Service service = serviceList.getItems().get(0);
+            Assertions.assertEquals(namespace, service.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+            Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
+            Assertions.assertEquals(1, service.getSpec().getPorts().size());
+            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+
+
+            // assert env
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+
+            Assertions.assertTrue(env.containsKey("TEST_PROXY_ID"));
+            Assertions.assertEquals(proxy.getId(), env.get("TEST_PROXY_ID").getValue());
+
+            Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
+            Assertions.assertEquals("abc_xyz", env.get("SHINYPROXY_USERNAME").getValue());
+
+            Assertions.assertTrue(env.containsKey("TEST_INSTANCE_ID"));
+            Assertions.assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), env.get("TEST_INSTANCE_ID").getValue());
+
+            Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME_PATCH"));
+            Assertions.assertEquals(proxy.getUserId(), env.get("SHINYPROXY_USERNAME_PATCH").getValue());
+
+            // assert labels
+            Map<String, String> labels = pod.getMetadata().getLabels();
+
+            Assertions.assertTrue(labels.containsKey("custom_username_label"));
+            Assertions.assertEquals(proxy.getUserId(), labels.get("custom_username_label"));
+
+            Assertions.assertTrue(labels.containsKey("custom_label_patch_instance"));
+            Assertions.assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), labels.get("custom_label_patch_instance"));
+
+
+            proxyService.stopProxy(proxy, false, true);
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+            // all services should be deleted
+            serviceList = client.services().inNamespace(namespace).list();
+            Assertions.assertEquals(0, serviceList.getItems().size());
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
 
 
     public static class TestConfiguration {

@@ -31,7 +31,7 @@ import java.util.List;
 public abstract class KubernetesTestBase {
 
     public static interface TestBody {
-        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws InterruptedException;
+        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws Exception;
     }
 
     public static final String namespace = "itest";
@@ -52,7 +52,8 @@ public abstract class KubernetesTestBase {
             NamespacedKubernetesClient namespacedKubernetesClient = client.inNamespace(namespace);
 
             test.run(namespacedKubernetesClient, namespace, overriddenNamespace);
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             deleteNamespaces();
         }

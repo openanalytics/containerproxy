@@ -20,25 +20,32 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import java.net.URI;
-import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
+import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
+import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
-
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
@@ -74,7 +81,12 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 
 		Map<String, String> labels = spec.getLabels();
-		spec.getRuntimeLabels().forEach((key, value) -> labels.put(key, value.getSecond()));
+
+		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+			}
+		}
 
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
@@ -82,7 +94,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .labels(labels)
 			    .exposedPorts(portBindings.keySet())
 			    .cmd(spec.getCmd())
-			    .env(buildEnv(spec, proxy))
+			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
 		ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 		
@@ -112,12 +124,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		return container;
 	}
-	
+
+	@Override
 	protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception {
 		String targetProtocol;
 		String targetHostName;
 		String targetPort;
-		
+		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+
 		if (isUseInternalNetwork()) {
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 			
@@ -125,8 +139,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			// See comments on https://github.com/docker/for-win/issues/1009
 			ContainerInfo info = dockerClient.inspectContainer(container.getId());
 			targetHostName = info.config().hostname();
-//			targetHostName = container.getName();
-			
+
 			targetPort = String.valueOf(containerPort);
 		} else {
 			URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
@@ -135,7 +148,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			targetPort = String.valueOf(hostPort);
 		}
 		
-		return new URI(String.format("%s://%s:%s", targetProtocol, targetHostName, targetPort));
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
 	}
 	
 	@Override
@@ -151,5 +164,45 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		portAllocator.release(proxy.getId());
 	}
+
+	@Override
+	public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
+		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
+		
+		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
+			if (!container.state().equalsIgnoreCase("running")) {
+				continue; // not recovering stopped/broken apps
+			}
+
+			Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(container.id(), container.labels());
+			if (runtimeValues == null) {
+				continue;
+			}
+
+			// add ports to PortAllocator (even if we don't recover the proxy)
+			for (PortMapping portMapping: container.ports()) {
+				portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), portMapping.publicPort());
+			}
+
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
+				log.warn("Ignoring container {} because instanceId {} is not correct", container.id(), containerInstanceId);
+				continue;
+			}
+
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			for (PortMapping portMapping: container.ports()) {
+				int hostPort = portMapping.publicPort();
+				int containerPort = portMapping.privatePort();
+				portBindings.put(containerPort, hostPort);
+			}	
+			
+			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap<>()));
+
+		}
+		
+		return containers;
+	}
 	
+
 }

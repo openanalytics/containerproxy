@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl.saml;
 
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
+import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,6 +70,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.inject.Inject;
@@ -261,15 +263,27 @@ public class SAMLConfiguration {
 	}
 
 	@Bean
-	public ExtendedMetadataDelegate idpMetadata() throws MetadataProviderException, ResourceException {
+	public ExtendedMetadataDelegate idpMetadata() throws MetadataProviderException {
 		String metadataURL = environment.getProperty(PROP_METADATA_URL);
 		
 		Timer backgroundTaskTimer = new Timer(true);
-		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, new HttpClient(), metadataURL);   httpMetadataProvider.setParserPool(parserPool());
+		HTTPMetadataProvider httpMetadataProvider = new HTTPMetadataProvider(backgroundTaskTimer, getHttpClient(), metadataURL);
+		httpMetadataProvider.setParserPool(parserPool());
 		ExtendedMetadataDelegate extendedMetadataDelegate = new ExtendedMetadataDelegate(httpMetadataProvider , extendedMetadata());
 		extendedMetadataDelegate.setMetadataTrustCheck(false);
 		extendedMetadataDelegate.setMetadataRequireSignature(false);
 		return extendedMetadataDelegate;
+	}
+
+	private HttpClient getHttpClient() {
+		HttpClient httpClient = new HttpClient();
+		String proxyHost = System.getProperty("http.proxyHost");
+		if (proxyHost != null) {
+			HostConfiguration hostConfiguration = new HostConfiguration();
+			hostConfiguration.setProxy(proxyHost, Integer.parseInt(System.getProperty("http.proxyPort","80")));
+			httpClient.setHostConfiguration(hostConfiguration);
+		}
+		return httpClient;
 	}
 
 	@Bean
@@ -324,6 +338,7 @@ public class SAMLConfiguration {
 		samlWebSSOProcessingFilter.setAuthenticationManager(authenticationManager);
 		samlWebSSOProcessingFilter.setAuthenticationSuccessHandler(successRedirectHandler());
 		samlWebSSOProcessingFilter.setAuthenticationFailureHandler(authenticationFailureHandler());
+		samlWebSSOProcessingFilter.setSessionAuthenticationStrategy(new ChangeSessionIdAuthenticationStrategy());
 		return samlWebSSOProcessingFilter;
 	}
 

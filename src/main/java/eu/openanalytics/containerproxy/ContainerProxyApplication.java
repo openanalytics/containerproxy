@@ -21,11 +21,18 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
+import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
+import eu.openanalytics.containerproxy.service.hearbeat.SessionReActivatorService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
+import io.undertow.server.handlers.SameSiteCookieHandler;
 import io.undertow.servlet.api.ServletSessionConfig;
+import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -39,6 +46,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
@@ -53,9 +62,13 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Security;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 
+@EnableAsync
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
@@ -73,7 +86,16 @@ public class ContainerProxyApplication {
 
 	private final Logger log = LogManager.getLogger(getClass());
 
+	private static final String PROP_PROXY_SAME_SITE_COOKIE = "proxy.same-site-cookie";
+	private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
+	private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
+	private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
+
+	public static Boolean secureCookiesEnabled;
+	public static String sameSiteCookiePolicy;
+
 	public static void main(String[] args) {
+		Security.addProvider(new BouncyCastleProvider());
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
@@ -92,32 +114,48 @@ public class ContainerProxyApplication {
 		}
 	}
 
+
 	@PostConstruct
 	public void init() {
 		if (environment.getProperty("server.use-forward-headers") != null) {
 			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on how to change your configuration.");
 		}
 
-		String sameSiteCookie = environment.getProperty("proxy.same-site-cookie", "Lax");
-		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookie);
-		defaultCookieSerializer.setSameSite(sameSiteCookie);
+		sameSiteCookiePolicy = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
+		secureCookiesEnabled = environment.getProperty(PROP_SERVER_SECURE_COOKIES, Boolean.class, SECURE_COOKIES_DEFAULT_VALUE);
+
+		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookiePolicy);
+		defaultCookieSerializer.setSameSite(sameSiteCookiePolicy);
+		defaultCookieSerializer.setUseSecureCookie(secureCookiesEnabled);
+
+		if (sameSiteCookiePolicy.equalsIgnoreCase("none") && !secureCookiesEnabled) {
+			log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
+		}
 	}
+
+	@Autowired(required = false)
+	private SessionManagerFactory sessionManagerFactory;
 
 	@Bean
 	public UndertowServletWebServerFactory servletContainer() {
 		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
 		factory.addDeploymentInfoCustomizers(info -> {
 			info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
-			if (Boolean.valueOf(environment.getProperty("logging.requestdump", "false"))) {
-				info.addOuterHandlerChainWrapper(defaultHandler -> Handlers.requestDump(defaultHandler));
+			if (Boolean.parseBoolean(environment.getProperty("logging.requestdump", "false"))) {
+				info.addOuterHandlerChainWrapper(Handlers::requestDump);
 			}
-			info.addInnerHandlerChainWrapper(defaultHandler -> {
-				return mappingManager.createHttpHandler(defaultHandler);
-			});
+			info.addInnerHandlerChainWrapper(defaultHandler -> mappingManager.createHttpHandler(defaultHandler));
+
+		 	log.debug("Setting sameSiteCookie policy for session cookies to {}" , sameSiteCookiePolicy);
+		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookiePolicy, null, true, true, false));
+
 			ServletSessionConfig sessionConfig = new ServletSessionConfig();
 			sessionConfig.setHttpOnly(true);
-			sessionConfig.setSecure(Boolean.valueOf(environment.getProperty("server.secureCookies", "false")));
+			sessionConfig.setSecure(secureCookiesEnabled);
 			info.setServletSessionConfig(sessionConfig);
+			if (sessionManagerFactory != null) {
+				info.setSessionManagerFactory(sessionManagerFactory);
+			}
 		});
 		try {
 			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
@@ -183,7 +221,21 @@ public class ContainerProxyApplication {
 		return new HttpSessionEventPublisher();
 	}
 
-	private static void setDefaultProperties(SpringApplication app) {
+	@Bean
+	public Executor taskExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(2);
+		executor.setMaxPoolSize(4);
+		executor.initialize();
+		return executor;
+	}
+
+	@Bean
+	public HeartbeatService heartbeatService(ActiveProxiesService activeProxiesService, SessionReActivatorService sessionReActivatorService) {
+		return new HeartbeatService(Arrays.asList(activeProxiesService, sessionReActivatorService));
+	}
+
+	public static Properties getDefaultProperties() {
 		Properties properties = new Properties();
 
 		// use in-memory session storage by default. Can be overwritten in application.yml
@@ -220,7 +272,7 @@ public class ContainerProxyApplication {
 		// ====================
 
 		// enable redisSession check for the readiness probe
-		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession");
+		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
 		// disable ldap health endpoint
 		properties.put("management.health.ldap.enabled", false);
 		// disable default redis health endpoint since it's managed by redisSession
@@ -230,7 +282,13 @@ public class ContainerProxyApplication {
 
 		// ====================
 
-		app.setDefaultProperties(properties);
+		return properties;
+	}
+
+	private static void setDefaultProperties(SpringApplication app) {
+		app.setDefaultProperties(getDefaultProperties());
+		// See: https://github.com/keycloak/keycloak/pull/7053
+		System.setProperty("jdk.serialSetFilterAfterRead", "true");
 	}
 
 }

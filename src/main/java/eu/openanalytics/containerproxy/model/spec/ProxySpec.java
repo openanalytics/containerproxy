@@ -32,7 +32,7 @@ public class ProxySpec {
 	private String displayName;
 	private String description;
 	private String logoURL;
-	
+
 	private ProxyAccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
 	private List<RuntimeSettingSpec> runtimeSettingSpecs;
@@ -41,6 +41,11 @@ public class ProxySpec {
 	
 	private String kubernetesPodPatches;
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
+	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
+
+	private Long maxLifeTime;
+	private Boolean stopOnLogout;
+	private Long heartbeatTimeout;
 
 	public ProxySpec() {
 		settings = new HashMap<>();
@@ -90,6 +95,20 @@ public class ProxySpec {
 		return containerSpecs;
 	}
 	
+	public ContainerSpec getContainerSpec(String image) {
+		if (image == null || image.isEmpty()) return null;
+		return containerSpecs.stream().filter(s -> {
+			if (image.endsWith(":latest") && !s.getImage().contains(":")) {
+				// if we query for the latest image and the spec does not contain a tag -> then add :latest to the
+                // image name of the spec.
+				// e.g. querying for "debian:latest" while "debian" is specified in the spec
+				return image.equals(s.getImage() + ":latest");
+			} else {
+				return image.equals(s.getImage());
+			}
+		}).findAny().orElse(null);
+	}
+	
 	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
 		this.containerSpecs = containerSpecs;
 	}
@@ -128,13 +147,48 @@ public class ProxySpec {
 	public List<String> getKubernetesAdditionalManifests() {
 		return kubernetesAdditionalManifests;
 	}
-	
+
+	public void setKubernetesAdditionalPersistentManifests(List<String> manifests) {
+		this.kubernetesAdditionalPersistentManifests = manifests;
+	}
+
+	public List<String> getKubernetesAdditionalPersistentManifests() {
+		return kubernetesAdditionalPersistentManifests;
+	}
+
+	public Long getMaxLifeTime() {
+		return maxLifeTime;
+	}
+
+	public void setMaxLifeTime(Long maxLifeTime) {
+		this.maxLifeTime = maxLifeTime;
+	}
+
+	public Boolean stopOnLogout() {
+		return stopOnLogout;
+	}
+
+	public void setStopOnLogout(Boolean stopOnLogout) {
+		this.stopOnLogout = stopOnLogout;
+	}
+
+	public Long getHeartbeatTimeout() {
+		return heartbeatTimeout;
+	}
+
+	public void setHeartbeatTimeout(Long heartbeatTimeout) {
+		this.heartbeatTimeout = heartbeatTimeout;
+	}
+
 	public void copy(ProxySpec target) {
 		target.setId(id);
 		target.setDisplayName(displayName);
 		target.setDescription(description);
 		target.setLogoURL(logoURL);
-		
+		target.setMaxLifeTime(maxLifeTime);
+		target.setStopOnLogout(stopOnLogout);
+		target.setHeartbeatTimeout(heartbeatTimeout);
+
 		if (accessControl != null) {
 			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
 			accessControl.copy(target.getAccessControl());
@@ -169,9 +223,13 @@ public class ProxySpec {
 		}
 		
 		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().collect(Collectors.toList()));
+			target.setKubernetesAdditionalManifests(new ArrayList<>(kubernetesAdditionalManifests));
 		}
-		
+
+		if (kubernetesAdditionalPersistentManifests != null) {
+			target.setKubernetesAdditionalPersistentManifests(new ArrayList<>(kubernetesAdditionalPersistentManifests));
+		}
+
 	}
 
 }

@@ -23,19 +23,34 @@ package eu.openanalytics.containerproxy.test.proxy;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertiesPropertySource;
+import org.springframework.core.env.PropertySource;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 
+import javax.annotation.Nonnull;
+import java.util.stream.Collectors;
+
 public class PropertyOverrideContextInitializer
-		implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+        implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
-	@Override
-	public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
-		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
-				"proxy.kubernetes.namespace=" + TestIntegrationOnKube.namespace);
+    @Override
+    public void initialize(@Nonnull ConfigurableApplicationContext configurableApplicationContext) {
+        TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
+                "proxy.kubernetes.namespace=" + TestIntegrationOnKube.namespace);
 
-		PropertiesPropertySource defaultProperties = new PropertiesPropertySource("shinyProxyDefaultProperties", ContainerProxyApplication.getDefaultProperties());
-		configurableApplicationContext.getEnvironment().getPropertySources().addFirst(defaultProperties);
+        MutablePropertySources propertySources = configurableApplicationContext.getEnvironment().getPropertySources();
+        PropertiesPropertySource defaultProperties = new PropertiesPropertySource("shinyProxyDefaultProperties", ContainerProxyApplication.getDefaultProperties());
+        propertySources.addFirst(defaultProperties);
 
-	}
+		// remove any external, file-based property source
+		// we don't want any application.yml or application.properties to be loaded during the tests
+        propertySources
+                .stream()
+                .map(PropertySource::getName)
+                .filter(p -> p.contains("Config resource 'file ") && p.contains("via location 'optional:file:./'"))
+                .collect(Collectors.toList())
+                .forEach(propertySources::remove);
+
+    }
 }

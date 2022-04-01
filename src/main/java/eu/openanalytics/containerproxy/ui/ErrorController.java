@@ -106,11 +106,6 @@ public class ErrorController extends BaseController implements org.springframewo
 		return new ResponseEntity<>(map, HttpStatus.valueOf(response.getStatus()));
 	}
 
-	@Override
-	public String getErrorPath() {
-		return "/error";
-	}
-
 	private String[] createMsgStack(Throwable exception) {
 		String message = "";
 		String stackTrace = "";

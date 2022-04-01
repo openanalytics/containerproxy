@@ -320,6 +320,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				Object emails = getAttributes().get(ID_ATTR_EMAILS);
 				if (emails instanceof String[]) return ((String[]) emails)[0];
 				else if (emails instanceof JSONArray) return ((JSONArray) emails).get(0).toString();
+				else if (emails instanceof Collection) return ((Collection<?>) emails).stream().findFirst().get().toString();
 				else return emails.toString();
 			}
 			else return super.getName();

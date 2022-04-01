@@ -282,6 +282,8 @@ public class ContainerProxyApplication {
 
 		// ====================
 
+		properties.put("spring.config.use-legacy-processing", true);
+
 		return properties;
 	}
 

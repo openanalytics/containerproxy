@@ -54,16 +54,24 @@ public class ProxyStatusService {
      * Step 2.1: schedule container
      */
     public void containerScheduled(Proxy proxy, Container container, LocalDateTime scheduledTime) {
-        startupLog.get(proxy.getId()).getScheduleContainer(container.getIndex()).stepSucceeded(
-                startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).getStartTime(),
-                scheduledTime);
+        startupLog.get(proxy.getId())
+                .getScheduleContainer(container.getIndex())
+                .stepSucceeded(
+                    startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).getStartTime(),
+                    scheduledTime
+                );
     }
 
     /**
      * Step 2.2: pull image
      */
     public void imagePulled(Proxy proxy, Container container, LocalDateTime pullingTime, LocalDateTime pulledTime) {
-        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepSucceeded(pullingTime, pulledTime);
+        startupLog.get(proxy.getId())
+                .getPullImage(container.getIndex())
+                .stepSucceeded(
+                        pullingTime,
+                        pulledTime
+                );
     }
 
     /**

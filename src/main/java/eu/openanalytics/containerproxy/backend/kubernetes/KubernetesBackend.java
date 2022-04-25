@@ -300,7 +300,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
 		boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
 			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-				if (currentAttempt > 0 && log != null) log.debug(String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+				if (currentAttempt > 10 && log != null) log.info(String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
 				return false;
 			}
 			return true;
@@ -347,7 +347,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.build());
 
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry((currentAttempts, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
+			Retrying.retry((currentAttempt, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
 
 			service = kubeClient.resource(startupService).fromServer().get();
 		}

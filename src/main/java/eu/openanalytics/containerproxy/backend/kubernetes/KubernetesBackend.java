@@ -70,6 +70,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -389,11 +390,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	private void parseKubernetesEvents(Proxy proxy, Container container, Pod pod) {
-		List<Event> events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
-				.withKind("Pod")
-				.withName(pod.getMetadata().getName())
-				.withNamespace(pod.getMetadata().getNamespace())
-				.build()).list().getItems();
+		List<Event> events;
+		try {
+			 events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+					.withKind("Pod")
+					.withName(pod.getMetadata().getName())
+					.withNamespace(pod.getMetadata().getNamespace())
+					.build()).list().getItems();
+		} catch (KubernetesClientException ex) {
+			if (ex.getCode() == 403) {
+				log.warn("Cannot parse events of pod because of insufficient permissions. If fine-grained statistics are desired, give the ShinyProxy ServiceAccount permission to events of pods.");
+				return;
+			}
+			throw ex;
+		}
 
 		LocalDateTime pullingTime = null;
 		LocalDateTime pulledTime = null;
@@ -418,7 +428,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 
 		if (scheduledTime != null) {
-			proxyStatusService.containerScheduled(proxy, container,  scheduledTime);
+			proxyStatusService.containerScheduled(proxy, container, scheduledTime);
 		}
 	}
 

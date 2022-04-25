@@ -123,8 +123,6 @@ public class AppRecoveryService {
 				Proxy proxy = proxies.get(proxyId);
 				Container container = new Container();
 				container.setId(containerInfo.getContainerId());
-				// TODO
-//				container.setIndex(spec.getIndex());
 				container.setParameters(containerInfo.getParameters());
 				ContainerSpec containerSpec = proxy.getSpec().getContainerSpec(containerInfo.getImage());
 				if (containerSpec == null) {
@@ -132,6 +130,7 @@ public class AppRecoveryService {
 					continue;
 				}
 				container.setSpec(containerSpec);
+				container.setIndex(containerSpec.getIndex());
 				proxy.addContainer(container);
 				proxy.setStatus(ProxyStatus.Up);
 

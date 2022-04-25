@@ -297,58 +297,30 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
-		int maxTries = totalWaitMs / 1000;
-		Retrying.retry(i -> {
-				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-					if (i > 1 && log != null) log.debug(String.format("Container not ready yet, trying again (%d/%d)", i, maxTries));
-					return false;
-				}
-				return true;
+		boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
+			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
+				if (currentAttempt > 0 && log != null) log.debug(String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+				return false;
 			}
-		, maxTries, 1000);
-		if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-			Pod pod = kubeClient.resource(startedPod).fromServer().get();
-			container.getParameters().put(PARAM_POD, pod);
-			proxy.getContainers().add(container);
+			return true;
+		}, totalWaitMs);
 
-			proxyStatusService.containerStartFailed(proxy, container);
-			throw new ContainerProxyException("Container did not become ready in time");
+		if (!podReady) {
+			// check a final time whether the pod is ready
+			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
+				Pod pod = kubeClient.resource(startedPod).fromServer().get();
+				container.getParameters().put(PARAM_POD, pod);
+				proxy.getContainers().add(container);
+
+				proxyStatusService.containerStartFailed(proxy, container);
+				throw new ContainerProxyException("Container did not become ready in time");
+			}
 		}
+
 		proxyStatusService.containerStarted(proxy, container);
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();
 
-		// TODO check k8s compatibility
-		List<Event> events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
-				.withKind("Pod")
-				.withName(pod.getMetadata().getName())
-				.withNamespace(pod.getMetadata().getNamespace())
-				.build()).list().getItems();
-
-		LocalDateTime pullingTime = null;
-		LocalDateTime pulledTime = null;
-		LocalDateTime scheduledTime = null;
-
-		for (Event event : events) {
-			if (event.getCount() != null && event.getCount() >  1) {
-				// ignore events which happened multiple time as we are unable to properly process them
-				continue;
-			}
-			if (event.getReason().equalsIgnoreCase("Pulling")) {
-				pullingTime = OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-			} else if (event.getReason().equalsIgnoreCase("Pulled")) {
-				pulledTime = OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-			} else if (event.getReason().equalsIgnoreCase("Scheduled")) {
-				scheduledTime = OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-			}
-		}
-
-		if (pullingTime != null && pulledTime != null) {
-			proxyStatusService.imagePulled(proxy, container, pullingTime, pulledTime);
-		}
-
-		if (scheduledTime != null) {
-			proxyStatusService.containerScheduled(proxy, container,  scheduledTime);
-		}
+		parseKubernetesEvents(proxy, container, pod);
 
 		Service service = null;
 		if (isUseInternalNetwork()) {
@@ -374,7 +346,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.build());
 
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			Retrying.retry((currentAttempts, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
 
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
@@ -398,6 +370,56 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 
 		return container;
+	}
+
+	private LocalDateTime getEventTime(Event event) {
+		if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
+			return OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		if (event.getFirstTimestamp() != null) {
+			return OffsetDateTime.parse(event.getFirstTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		if (event.getLastTimestamp() != null) {
+			return OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		return null;
+	}
+
+	private void parseKubernetesEvents(Proxy proxy, Container container, Pod pod) {
+		List<Event> events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+				.withKind("Pod")
+				.withName(pod.getMetadata().getName())
+				.withNamespace(pod.getMetadata().getNamespace())
+				.build()).list().getItems();
+
+		LocalDateTime pullingTime = null;
+		LocalDateTime pulledTime = null;
+		LocalDateTime scheduledTime = null;
+
+		for (Event event : events) {
+			if (event.getCount() != null && event.getCount() >  1) {
+				// ignore events which happened multiple time as we are unable to properly process them
+				continue;
+			}
+			if (event.getReason().equalsIgnoreCase("Pulling")) {
+				pullingTime = getEventTime(event);
+			} else if (event.getReason().equalsIgnoreCase("Pulled")) {
+				pulledTime = getEventTime(event);
+			} else if (event.getReason().equalsIgnoreCase("Scheduled")) {
+				scheduledTime = getEventTime(event);
+			}
+		}
+
+		if (pullingTime != null && pulledTime != null) {
+			proxyStatusService.imagePulled(proxy, container, pullingTime, pulledTime);
+		}
+
+		if (scheduledTime != null) {
+			proxyStatusService.containerScheduled(proxy, container,  scheduledTime);
+		}
 	}
 
 	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {

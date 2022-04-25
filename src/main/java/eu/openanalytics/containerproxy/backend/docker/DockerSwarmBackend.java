@@ -182,7 +182,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
 
 		// Give the service some time to start up and launch a container.
-		boolean containerFound = Retrying.retry(i -> {
+		boolean containerFound = Retrying.retry((i, maxAttempts) -> {
 			try {
 				Task serviceTask = dockerClient
 						.listTasks(Task.Criteria.builder().serviceName(serviceName).build())
@@ -194,7 +194,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				throw new RuntimeException("Failed to inspect swarm service tasks", e);
 			}
 			return (container.getId() != null);
-		}, 30, 2000, true);
+		}, 60_000, true);
 
 		if (!containerFound) {
 			dockerClient.removeService(serviceId);

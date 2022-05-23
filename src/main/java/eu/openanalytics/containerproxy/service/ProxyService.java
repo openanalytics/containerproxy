@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -250,7 +251,7 @@ public class ProxyService {
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
 	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException {
-	    return startProxy(spec, ignoreAccessControl, null);
+	    return startProxy(spec, ignoreAccessControl, null, UUID.randomUUID().toString());
     }
 
 	/**
@@ -262,12 +263,13 @@ public class ProxyService {
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues) throws ContainerProxyException {
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId) throws ContainerProxyException {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
 
 		Proxy proxy = new Proxy();
+		proxy.setId(proxyId);
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);

@@ -120,7 +120,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Override
 	public SuccessOrFailure<Proxy> startProxy(Proxy proxy) throws ContainerProxyException {
-		proxy.setId(UUID.randomUUID().toString());
 		proxy.setStatus(ProxyStatus.Starting);
 		proxy.setCreatedTimestamp(System.currentTimeMillis());
 		setRuntimeValues(proxy);

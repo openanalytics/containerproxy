@@ -503,6 +503,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
 				kubeClient.resource(pod).withGracePeriod(0).delete();
 			}
+			
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
 			if (service != null) {
 				kubeClient.resource(service).withGracePeriod(0).delete();

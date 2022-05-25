@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
+import eu.openanalytics.containerproxy.util.IdFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,7 +78,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Inject
 	private AppRecoveryFilter appRecoveryFilter;
-	
+
+	@Inject
+	private IdFilter idFilter;
+
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
 	
@@ -115,6 +119,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 		// App Recovery Filter
 		http.addFilterAfter(appRecoveryFilter, BasicAuthenticationFilter.class);
+		http.addFilterAfter(idFilter, BasicAuthenticationFilter.class);
 
 		// Perform CSRF check on the login form
 		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));

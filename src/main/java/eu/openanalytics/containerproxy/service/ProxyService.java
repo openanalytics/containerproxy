@@ -309,9 +309,8 @@ public class ProxyService {
 		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
-		
-		activeProxies.remove(proxy);
-		
+
+
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
@@ -323,6 +322,12 @@ public class ProxyService {
 					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
 							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 				}
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+				activeProxies.remove(proxy);
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}

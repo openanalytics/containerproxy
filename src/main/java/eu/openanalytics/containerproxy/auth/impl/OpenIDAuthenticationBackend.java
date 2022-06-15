@@ -21,7 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.security.FixedDefaultOAuth2AuthorizationRequestResolver;
+import eu.openanalytics.containerproxy.security.DelegatedOAuth2AuthorizationRequestResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SessionHelper;
@@ -43,7 +43,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -99,6 +98,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
 		oAuth2AuthorizedClientRepository = new HttpSessionOAuth2AuthorizedClientRepository();
+		boolean PKCEAlways = Boolean.parseBoolean(environment.getProperty("proxy.openid.pkce-always"));
+		log.info("\"PKCE always\" configuration is {}.", PKCEAlways ? "enabled" : "disabled (default)");
 
 		anyRequestConfigurer.authenticated();
 		
@@ -108,7 +109,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientRepository(oAuth2AuthorizedClientRepository)
 				.authorizationEndpoint()
-					.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI))
+				.authorizationRequestResolver(new DelegatedOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI, PKCEAlways))
 				.and()
 				.failureHandler(new AuthenticationFailureHandler() {
 

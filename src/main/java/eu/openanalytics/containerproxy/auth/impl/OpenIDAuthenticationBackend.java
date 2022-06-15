@@ -193,6 +193,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.jwkSetUri(environment.getProperty("proxy.openid.jwks-url"))
 				.clientId(environment.getProperty("proxy.openid.client-id"))
 				.clientSecret(environment.getProperty("proxy.openid.client-secret"))
+				.userInfoUri(environment.getProperty("proxy.openid.userinfo-endpoint"))
 				.build();
 		
 		return new InMemoryClientRegistrationRepository(Collections.singletonList(client));

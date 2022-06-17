@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
@@ -34,15 +35,18 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
  * Without this, the Filter will eat the body of the (POST) request. As a result Undertow will not be able
  * to proxy the request to the container.
  */
-public class DelegatedOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
+public class FixedDefaultOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 	
-	private final OAuth2AuthorizationRequestResolver delegate;
+	private final DefaultOAuth2AuthorizationRequestResolver delegate;
+	
+	public FixedDefaultOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, String authorizationRequestBaseUri) {
+		this.delegate = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, authorizationRequestBaseUri);
+	}
 
-	public DelegatedOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, String authorizationRequestBaseUri, boolean pkceAlways) {
-		if (pkceAlways) {
-			delegate = new AlwaysPkceAuthorizationRequestResolver(clientRegistrationRepository, authorizationRequestBaseUri);
-		} else {
-			delegate = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, authorizationRequestBaseUri);
+	public FixedDefaultOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, String authorizationRequestBaseUri, boolean enablePKCEConfidentialClients) {
+		this(clientRegistrationRepository, authorizationRequestBaseUri);
+		if (enablePKCEConfidentialClients) {
+			this.delegate.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
 		}
 	}
 

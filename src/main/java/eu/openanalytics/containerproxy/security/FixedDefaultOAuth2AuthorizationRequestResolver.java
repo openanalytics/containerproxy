@@ -43,9 +43,9 @@ public class FixedDefaultOAuth2AuthorizationRequestResolver implements OAuth2Aut
 		this.delegate = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, authorizationRequestBaseUri);
 	}
 
-	public FixedDefaultOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, String authorizationRequestBaseUri, boolean enablePKCEConfidentialClients) {
+	public FixedDefaultOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, String authorizationRequestBaseUri, boolean withPKCE) {
 		this(clientRegistrationRepository, authorizationRequestBaseUri);
-		if (enablePKCEConfidentialClients) {
+		if (withPKCE) {
 			this.delegate.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
 		}
 	}

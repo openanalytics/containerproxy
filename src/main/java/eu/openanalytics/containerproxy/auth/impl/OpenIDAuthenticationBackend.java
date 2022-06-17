@@ -98,8 +98,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		ClientRegistrationRepository clientRegistrationRepo = createClientRepo();
 		oAuth2AuthorizedClientRepository = new HttpSessionOAuth2AuthorizedClientRepository();
-		boolean enablePKCEConfidentialClients = Boolean.parseBoolean(environment.getProperty("proxy.openid.pkce-confidential-clients"));
-		log.info("\"pkce-confidential-clients\" configuration is {}.", enablePKCEConfidentialClients ? "enabled" : "disabled (default)");
+		boolean withPKCE = Boolean.parseBoolean(environment.getProperty("proxy.openid.with-pkce"));
+		log.info("\"with-pkce\" configuration is {}.", withPKCE ? "enabled" : "disabled (default)");
 
 		anyRequestConfigurer.authenticated();
 		
@@ -109,7 +109,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientRepository(oAuth2AuthorizedClientRepository)
 				.authorizationEndpoint()
-				.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI, enablePKCEConfidentialClients))
+				.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI, withPKCE))
 				.and()
 				.failureHandler(new AuthenticationFailureHandler() {
 

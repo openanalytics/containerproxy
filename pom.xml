@@ -282,7 +282,7 @@
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
-			<version>4.2.2</version>
+			<version>4.7.2</version>
 		</dependency>
 
 		<!-- UI frameworks -->

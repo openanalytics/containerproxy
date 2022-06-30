@@ -40,6 +40,8 @@ public class ProxySpec {
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
+    private Parameters parameters;
+
 	private Long maxLifeTime;
 	private Boolean stopOnLogout;
 	private Long heartbeatTimeout;
@@ -157,4 +159,11 @@ public class ProxySpec {
 		this.heartbeatTimeout = heartbeatTimeout;
 	}
 
+    public Parameters getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(Parameters parameters) {
+        this.parameters = parameters;
+    }
 }

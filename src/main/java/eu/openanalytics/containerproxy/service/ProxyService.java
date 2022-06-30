@@ -42,6 +42,8 @@ import javax.inject.Inject;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParametersKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
@@ -98,6 +100,9 @@ public class ProxyService {
 
 	@Inject
 	private Environment environment;
+
+    @Inject
+    private ParametersService parametersService;
 
 	private boolean stopAppsOnShutdown;
 
@@ -230,7 +235,7 @@ public class ProxyService {
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
 	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException {
-	    return startProxy(spec, ignoreAccessControl, null, UUID.randomUUID().toString());
+	    return startProxy(spec, ignoreAccessControl, null, UUID.randomUUID().toString(), null);
     }
 
 	/**
@@ -242,7 +247,7 @@ public class ProxyService {
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId) throws ContainerProxyException {
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId, ProvidedParameters parameters) throws ContainerProxyException {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
@@ -255,6 +260,10 @@ public class ProxyService {
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
+        if (parameters != null) {
+            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parametersService.parseAndValidateRequest(spec, parameters)));
+        }
+
 		activeProxies.add(proxy);
 
 		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);

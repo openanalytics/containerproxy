@@ -59,6 +59,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(RealmIdKey.inst);
         addRuntimeValueKey(UserGroupsKey.inst);
         addRuntimeValueKey(UserIdKey.inst);
+        addRuntimeValueKey(ParametersKey.inst);
     }
 
 }

@@ -180,6 +180,11 @@ public class Proxy {
 		return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
 	}
 
+    public Object getRuntimeObject(String keyAsEnvVar) {
+        Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+        return getRuntimeObject(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+    }
+
 	public <T> T getRuntimeObject(RuntimeValueKey<T> key) {
 		Objects.requireNonNull(key, "key may not be null");
 		RuntimeValue runtimeValue = runtimeValues.get(key);

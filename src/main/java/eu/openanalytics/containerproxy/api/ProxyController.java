@@ -31,14 +31,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 
@@ -79,21 +77,20 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId, @RequestBody(required=false) Set<RuntimeSetting> runtimeSettings) {
+	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId) {
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
 		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		
-		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, runtimeSettings);
-		Proxy proxy = proxyService.startProxy(spec, false);
+		Proxy proxy = proxyService.startProxy(baseSpec, false);
 		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
 	}
-	
-	@RequestMapping(value="/api/proxy", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> startProxy(@RequestBody ProxySpec proxySpec) {
-		ProxySpec spec = proxyService.resolveProxySpec(null, proxySpec, null);
-		Proxy proxy = proxyService.startProxy(spec, false);
-		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
-	}
+
+    // TODO disable this by default
+//	@RequestMapping(value="/api/proxy", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
+//	public ResponseEntity<Proxy> startProxy(@RequestBody ProxySpec proxySpec) {
+//		Proxy proxy = proxyService.startProxy(proxySpec, false);
+//		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
+//	}
 	
 	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.DELETE, produces=MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, String>> stopProxy(@PathVariable String proxyId) {

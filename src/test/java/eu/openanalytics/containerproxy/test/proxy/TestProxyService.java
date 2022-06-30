@@ -60,9 +60,8 @@ public class TestProxyService {
 		String specId = environment.getProperty("proxy.specs[0].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
 
-		Proxy proxy = proxyService.startProxy(spec, true);
+		Proxy proxy = proxyService.startProxy(baseSpec, true);
 		proxyService.stopProxy(proxy, false, true);
 	}
 	

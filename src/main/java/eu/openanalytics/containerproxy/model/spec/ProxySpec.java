@@ -35,10 +35,7 @@ public class ProxySpec {
 
 	private ProxyAccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
-	private List<RuntimeSettingSpec> runtimeSettingSpecs;
 
-	private Map<String, String> settings = new HashMap<>();
-	
 	private String kubernetesPodPatches;
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
@@ -47,10 +44,6 @@ public class ProxySpec {
 	private Boolean stopOnLogout;
 	private Long heartbeatTimeout;
 
-	public ProxySpec() {
-		settings = new HashMap<>();
-	}
-	
 	public String getId() {
 		return id;
 	}
@@ -113,22 +106,6 @@ public class ProxySpec {
 		this.containerSpecs = containerSpecs;
 	}
 	
-	public List<RuntimeSettingSpec> getRuntimeSettingSpecs() {
-		return runtimeSettingSpecs;
-	}
-	
-	public void setRuntimeSettingSpecs(List<RuntimeSettingSpec> runtimeSettingSpecs) {
-		this.runtimeSettingSpecs = runtimeSettingSpecs;
-	}
-	
-	public Map<String, String> getSettings() {
-		return settings;
-	}
-
-	public void setSettings(Map<String, String> settings) {
-		this.settings = settings;
-	}
-
 	/**
 	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
 	 */
@@ -178,58 +155,6 @@ public class ProxySpec {
 
 	public void setHeartbeatTimeout(Long heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
-	}
-
-	public void copy(ProxySpec target) {
-		target.setId(id);
-		target.setDisplayName(displayName);
-		target.setDescription(description);
-		target.setLogoURL(logoURL);
-		target.setMaxLifeTime(maxLifeTime);
-		target.setStopOnLogout(stopOnLogout);
-		target.setHeartbeatTimeout(heartbeatTimeout);
-
-		if (accessControl != null) {
-			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
-			accessControl.copy(target.getAccessControl());
-		}
-		
-		if (containerSpecs != null) {
-			if (target.getContainerSpecs() == null) target.setContainerSpecs(new ArrayList<>());
-			for (ContainerSpec spec: containerSpecs) {
-				ContainerSpec copy = new ContainerSpec();
-				spec.copy(copy);
-				target.getContainerSpecs().add(copy);
-			}
-		}
-		
-		if (runtimeSettingSpecs != null) {
-			if (target.getRuntimeSettingSpecs() == null) target.setRuntimeSettingSpecs(new ArrayList<>());
-			for (RuntimeSettingSpec spec: runtimeSettingSpecs) {
-				RuntimeSettingSpec copy = new RuntimeSettingSpec();
-				spec.copy(copy);
-				target.getRuntimeSettingSpecs().add(copy);
-			}
-		}
-		
-		if (settings != null) {
-			if (target.getSettings() == null) target.setSettings(new HashMap<>());
-			target.getSettings().putAll(settings);
-		}
-		
-		
-		if (kubernetesPodPatches != null) {
-			target.setKubernetesPodPatches(kubernetesPodPatches);
-		}
-		
-		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(new ArrayList<>(kubernetesAdditionalManifests));
-		}
-
-		if (kubernetesAdditionalPersistentManifests != null) {
-			target.setKubernetesAdditionalPersistentManifests(new ArrayList<>(kubernetesAdditionalPersistentManifests));
-		}
-
 	}
 
 }

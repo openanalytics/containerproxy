@@ -151,13 +151,6 @@ public class ExpressionAwareContainerSpec extends ContainerSpec {
 		return settings;
 	}
 
-	public Map<String, String> getSettings() {
-		if (source.getSettings() == null) return null;
-		Map<String, String> settings = new HashMap<>();
-		source.getSettings().entrySet().stream().forEach(e -> settings.put(e.getKey(), resolve(e.getValue())));
-		return settings;
-	}
-
 	protected String resolve(String expression) {
 		if (expression == null) return null;
 		return resolver.evaluateToString(expression, context);

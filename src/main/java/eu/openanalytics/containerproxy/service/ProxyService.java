@@ -55,11 +55,8 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import eu.openanalytics.containerproxy.spec.ProxySpecException;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 /**
@@ -83,9 +80,6 @@ public class ProxyService {
 	
 	@Inject
 	private IProxySpecProvider baseSpecProvider;
-	
-	@Inject
-	private IProxySpecMergeStrategy specMergeStrategy;
 	
 	@Inject
 	private IContainerBackend backend;
@@ -168,21 +162,6 @@ public class ProxyService {
 				.filter(spec -> ignoreAccessControl || userService.canAccess(spec))
 				.filter(spec -> filter == null || filter.test(spec))
 				.collect(Collectors.toList());
-	}
-	
-	/**
-	 * Resolve a ProxySpec. A base spec will be merged with a runtime spec (one of them is optional),
-	 * and an optional set of runtime settings will be applied to the resulting spec.
-	 * 
-	 * @param baseSpec The base spec, provided by the configured {@link IProxySpecProvider}.
-	 * @param runtimeSpec The runtime spec, may be null if <b>baseSpec</b> is not null.
-	 * @param runtimeSettings Optional runtime settings.
-	 * @return A merged ProxySpec that can be used to launch new proxies.
-	 * @throws ProxySpecException If the merge fails for any reason.
-	 * @see IProxySpecMergeStrategy
-	 */
-	public ProxySpec resolveProxySpec(ProxySpec baseSpec, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
-		return specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
 	}
 	
 	/**

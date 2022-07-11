@@ -21,19 +21,15 @@
 package eu.openanalytics.containerproxy.service.session.redis;
 
 import eu.openanalytics.containerproxy.RedisSessionConfig;
-import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
-import eu.openanalytics.containerproxy.service.session.ISessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.session.Session;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
 import org.springframework.stereotype.Component;
@@ -43,13 +39,11 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpSession;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")

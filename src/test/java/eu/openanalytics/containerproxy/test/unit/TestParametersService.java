@@ -120,9 +120,4 @@ public class TestParametersService {
                 allowedParametersForUser.getValues().get("parameter4"));
     }
 
-    // TODO test duplicate values
-    // TODO test duplicate parameters
-    // TODO test missing parameters
-
-
 }

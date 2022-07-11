@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.util.Strings;
+
 public class ParameterDefinition {
 
     private String id;

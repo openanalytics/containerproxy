@@ -22,21 +22,81 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
 import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.spec.ParameterDefinition;
 import eu.openanalytics.containerproxy.model.spec.Parameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class ParametersService {
+
+    @Inject
+    private IProxySpecProvider baseSpecProvider;
+
+    @PostConstruct
+    public void init() {
+        for (ProxySpec spec : baseSpecProvider.getSpecs()) {
+            validateSpec(spec);
+        }
+    }
+
+    private void validateSpec(ProxySpec spec) {
+        if (spec.getParameters() == null) {
+            return;
+        }
+
+        // Validate Parameter Definitions
+        HashSet<String> parameterIds = new HashSet<>();
+        for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
+            if (definition.getId() == null) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: id of parameter may not be null", spec.getId()));
+            }
+            if (parameterIds.contains(definition.getId())) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: duplicate parameter id '%s'", spec.getId(), definition.getId()));
+            }
+            parameterIds.add(definition.getId());
+            if (definition.getDisplayName() != null && StringUtils.isBlank(definition.getDisplayName())) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: displayName may not be blank of parameter with id '%s'", spec.getId(), definition.getId()));
+            }
+            if (definition.getDescription() != null && StringUtils.isBlank(definition.getDescription())) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: description may not be blank of parameter with id '%s'", spec.getId(), definition.getId()));
+            }
+        }
+
+        // Validate Parameter Value Sets
+        int valueSetIdx = 0;
+        for (Map<String, List<String>> valueSet : spec.getParameters().getValues()) {
+            for (String parameterId : spec.getParameters().getIds()) {
+                if (!valueSet.containsKey(parameterId) || valueSet.get(parameterId).isEmpty()) {
+                    throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s is missing values for parameter with id '%s'", spec.getId(), valueSetIdx, parameterId));
+                }
+                List<String> values = valueSet.get(parameterId);
+                Set<String> valuesAsSet = new HashSet<>(valueSet.get(parameterId));
+                if (values.size() != valuesAsSet.size()) {
+                    throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s contains some duplicate values for parameter %s", spec.getId(), valueSetIdx, parameterId));
+                }
+            }
+            if (valueSet.size() != spec.getParameters().getIds().size()) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s contains values for more parameters than there are defined", spec.getId(), valueSetIdx));
+            }
+            valueSetIdx++;
+        }
+
+    }
 
     public ProvidedParameters parseAndValidateRequest(ProxySpec resolvedSpec, ProvidedParameters providedParameters) {
         Parameters parameters = resolvedSpec.getParameters();

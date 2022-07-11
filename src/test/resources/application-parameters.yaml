@@ -1,0 +1,151 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  container-backend: docker
+
+
+  users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
+
+  docker:
+    url: http://localhost:2375
+
+  specs:
+    - id: big-parameters
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            default: 3838
+      parameters:
+        definitions:
+          - id: parameter1
+          - id: parameter2
+          - id: parameter3
+          - id: parameter4
+        values:
+          - parameter1:
+              - A
+              - B
+              - C
+              - D
+              - E
+              - F
+              - G
+              - H
+              - I
+              - J
+            parameter2:
+              - 1
+              - 2
+              - 3
+              - 4
+              - 5
+              - 6
+              - 7
+              - 8
+              - 9
+              - 10
+              - 11
+              - 12
+              - 13
+              - 14
+              - 15
+              - 16
+              - 17
+              - 18
+              - 19
+              - 20
+            parameter3:
+              - foo
+              - bar
+              - foobar
+              - barfoo
+              - bazz
+              - fozz
+            parameter4:
+              - "yes"
+              - "no"
+              - maybe
+              - well
+          - parameter1:
+              - A
+              - B
+              - C
+              - D
+              - E
+              - F
+              - G
+              - H
+              - I
+              - J
+            parameter2:
+              - 1
+              - 2
+              - 3
+              - 4
+              - 5
+              - 6
+              - 7
+              - 8
+              - 9
+              - 10
+              - 11
+              - 12
+              - 13
+              - 14
+              - 15
+              - 16
+              - 17
+              - 18
+              - 19
+              - 20
+            parameter3:
+              - foobarfoo
+            parameter4:
+              - "no"
+          - parameter1:
+              - A
+              - B
+              - C
+              - D
+              - E
+              - F
+              - G
+              - H
+              - I
+              - J
+            parameter2:
+              - 1
+              - 2
+              - 3
+              - 4
+              - 5
+              - 6
+              - 7
+              - 8
+              - 9
+              - 10
+              - 11
+              - 12
+              - 13
+              - 14
+              - 15
+              - 16
+              - 17
+              - 19
+              - 19
+              - 20
+            parameter3:
+              - barfoobar
+            parameter4:
+              - "yes"

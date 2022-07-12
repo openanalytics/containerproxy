@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +47,8 @@ public class ParametersService {
 
     @Inject
     private IProxySpecProvider baseSpecProvider;
+
+    private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
 
     @PostConstruct
     public void init() {
@@ -59,8 +62,6 @@ public class ParametersService {
             return;
         }
 
-        // TODO validate parameter id
-
         // Validate Parameter Definitions
         HashSet<String> parameterIds = new HashSet<>();
         for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
@@ -69,6 +70,9 @@ public class ParametersService {
             }
             if (parameterIds.contains(definition.getId())) {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: duplicate parameter id '%s'", spec.getId(), definition.getId()));
+            }
+            if (!PARAMETER_ID_PATTERN.matcher(definition.getId()).matches()) {
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: parameter id '%s' is invalid, id may only exists out of Latin letters, numbers, dash and underscore", spec.getId(), definition.getId()));
             }
             parameterIds.add(definition.getId());
             if (definition.getDisplayName() != null && StringUtils.isBlank(definition.getDisplayName())) {

@@ -60,6 +60,7 @@ public class TestParameterValidationService {
         test("classpath:application-parameters-validation-2.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: duplicate parameter id 'parameter1'");
         test("classpath:application-parameters-validation-3.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: displayName may not be blank of parameter with id 'parameter1'");
         test("classpath:application-parameters-validation-4.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: description may not be blank of parameter with id 'parameter1'");
+        test("classpath:application-parameters-validation-8.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: parameter id 'parameter1$#>>>.;;' is invalid, id may only exists out of Latin letters, numbers, dash and underscore");
     }
 
     @Test

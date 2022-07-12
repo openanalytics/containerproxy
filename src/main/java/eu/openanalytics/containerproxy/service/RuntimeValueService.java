@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.service;
 import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParametersKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -41,9 +42,14 @@ public class RuntimeValueService {
 
     private static final String PROP_TIMEOUT = "proxy.heartbeat-timeout";
 
+    private static final String PROP_DEFAULT_PROXY_MAX_LIFETIME = "proxy.default-proxy-max-lifetime";
+
     private static final Long DEFAULT_TIMEOUT = 60000L;
 
     private long defaultHeartbeatTimeout;
+
+    private long defaultMaxLifetime;
+
     @Inject
     private ParametersService parametersService;
 
@@ -58,6 +64,7 @@ public class RuntimeValueService {
 
     public void init() {
         defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
+        defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
     public void createRuntimeValues(ProxySpec spec, ProvidedParameters parameters, Proxy proxy) throws InvalidParametersException {
@@ -75,6 +82,13 @@ public class RuntimeValueService {
             proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, timeout));
         } else {
             proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, defaultHeartbeatTimeout));
+        }
+
+        if (spec.getMaxLifeTime() != null) {
+            Long maxLifetime = expressionResolver.evaluateToLong(spec.getMaxLifeTime(), context);
+            proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, maxLifetime));
+        } else {
+            proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, defaultMaxLifetime));
         }
     }
 

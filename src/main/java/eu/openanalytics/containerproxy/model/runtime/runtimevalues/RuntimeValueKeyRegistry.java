@@ -60,6 +60,8 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(UserGroupsKey.inst);
         addRuntimeValueKey(UserIdKey.inst);
         addRuntimeValueKey(ParametersKey.inst);
+        addRuntimeValueKey(HeartbeatTimeoutKey.inst);
+        addRuntimeValueKey(MaxLifetimeKey.inst);
     }
 
 }

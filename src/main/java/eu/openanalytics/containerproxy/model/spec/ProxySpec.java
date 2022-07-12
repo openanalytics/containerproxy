@@ -39,7 +39,7 @@ public class ProxySpec {
 
     private Parameters parameters;
 
-	private Long maxLifeTime;
+	private String maxLifeTime;
 	private Boolean stopOnLogout;
 	private String heartbeatTimeout;
 
@@ -132,11 +132,11 @@ public class ProxySpec {
 		return kubernetesAdditionalPersistentManifests;
 	}
 
-	public Long getMaxLifeTime() {
+	public String getMaxLifeTime() {
 		return maxLifeTime;
 	}
 
-	public void setMaxLifeTime(Long maxLifeTime) {
+	public void setMaxLifeTime(String maxLifeTime) {
 		this.maxLifeTime = maxLifeTime;
 	}
 

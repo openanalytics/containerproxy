@@ -29,8 +29,10 @@ proxy:
       parameters:
         definitions:
           - id: parameter1
-        values:
-          - parameter1:
-              - a
-              - b
-          - parameter1:
+        value-sets:
+          - values:
+              parameter1:
+                - a
+                - b
+          - values:
+              parameter1:

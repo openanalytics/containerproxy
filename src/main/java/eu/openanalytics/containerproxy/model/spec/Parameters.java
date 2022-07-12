@@ -22,12 +22,13 @@ package eu.openanalytics.containerproxy.model.spec;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Parameters {
 
     private List<ParameterDefinition> definitions;
-    private List<Map<String, List<String>>> values;
+    private List<ValueSet> valueSets;
 
     public List<ParameterDefinition> getDefinitions() {
         return definitions;
@@ -41,11 +42,41 @@ public class Parameters {
         this.definitions = definitions;
     }
 
-    public List<Map<String, List<String>>> getValues() {
-        return values;
+    public List<ValueSet> getValueSets() {
+        return valueSets;
     }
 
-    public void setValues(List<Map<String, List<String>>> values) {
-        this.values = values;
+    public void setValueSets(List<ValueSet> valueSets) {
+        this.valueSets = valueSets;
+    }
+
+    public static class ValueSet {
+
+        private AccessControl accessControl;
+        private Map<String, List<String>> values;
+
+        public void setValues(Map<String, List<String>> values) {
+            this.values = values;
+        }
+
+        public AccessControl getAccessControl() {
+            return accessControl;
+        }
+
+        public void setAccessControl(AccessControl accessControl) {
+            this.accessControl = accessControl;
+        }
+
+        public boolean containsParameter(String parameterId) {
+            return values.containsKey(parameterId) && !values.get(parameterId).isEmpty();
+        }
+
+        public List<String> getParameterValues(String parameterId) {
+            return values.get(parameterId);
+        }
+
+        public Set<String> getParameterIds() {
+            return values.keySet();
+        }
     }
 }

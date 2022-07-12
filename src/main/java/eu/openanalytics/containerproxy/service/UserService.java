@@ -75,7 +75,7 @@ public class UserService {
 	private ApplicationEventPublisher applicationEventPublisher;
 
 	@Inject
-	private AccessControlService accessControlService;
+	private ProxyAccessControlService accessControlService;
 
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();

@@ -28,6 +28,8 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -48,6 +50,9 @@ public class ParametersService {
     @Inject
     private IProxySpecProvider baseSpecProvider;
 
+    @Inject
+    private AccessControlEvaluationService accessControlEvaluationService;
+
     private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
 
     @PostConstruct
@@ -60,6 +65,14 @@ public class ParametersService {
     private void validateSpec(ProxySpec spec) {
         if (spec.getParameters() == null) {
             return;
+        }
+
+        if (spec.getParameters().getDefinitions() == null || spec.getParameters().getDefinitions().size() == 0) {
+            throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', no definitions found", spec.getId()));
+        }
+
+        if (spec.getParameters().getValueSets() == null || spec.getParameters().getValueSets().size() == 0) {
+            throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', no value sets found", spec.getId()));
         }
 
         // Validate Parameter Definitions
@@ -85,18 +98,18 @@ public class ParametersService {
 
         // Validate Parameter Value Sets
         int valueSetIdx = 0;
-        for (Map<String, List<String>> valueSet : spec.getParameters().getValues()) {
+        for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
             for (String parameterId : spec.getParameters().getIds()) {
-                if (!valueSet.containsKey(parameterId) || valueSet.get(parameterId).isEmpty()) {
+                if (!valueSet.containsParameter(parameterId)) {
                     throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s is missing values for parameter with id '%s'", spec.getId(), valueSetIdx, parameterId));
                 }
-                List<String> values = valueSet.get(parameterId);
-                Set<String> valuesAsSet = new HashSet<>(valueSet.get(parameterId));
+                List<String> values = valueSet.getParameterValues(parameterId);
+                Set<String> valuesAsSet = new HashSet<>(valueSet.getParameterValues(parameterId));
                 if (values.size() != valuesAsSet.size()) {
                     throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s contains some duplicate values for parameter %s", spec.getId(), valueSetIdx, parameterId));
                 }
             }
-            if (valueSet.size() != spec.getParameters().getIds().size()) {
+            if (valueSet.getParameterIds().size() != spec.getParameters().getIds().size()) {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s contains values for more parameters than there are defined", spec.getId(), valueSetIdx));
             }
             valueSetIdx++;
@@ -122,9 +135,14 @@ public class ParametersService {
             }
         }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
         // check if the combination of values is allowed
-        for (Map<String, List<String>> valueSet : parameters.getValues()) {
-            if (areParametersAllowedByValueSet(valueSet, providedParameters)) {
+        for (Parameters.ValueSet valueSet : parameters.getValueSets()) {
+            if (!accessControlEvaluationService.checkAccess(auth, resolvedSpec, valueSet.getAccessControl())) {
+                continue;
+            }
+            if (areParametersAllowedByValueSet(parameters.getIds(), valueSet, providedParameters)) {
                 return true; // parameters are allowed
             }
         }
@@ -132,13 +150,13 @@ public class ParametersService {
         throw new InvalidParametersException("Provided parameter values are not allowed");
     }
 
-    private boolean areParametersAllowedByValueSet(Map<String, List<String>> valueSet, ProvidedParameters providedParameters) {
-        for (Map.Entry<String, List<String>> keyWithValues : valueSet.entrySet()) {
-            if (!providedParameters.containsParameter(keyWithValues.getKey())) {
-                throw new IllegalStateException("Could not find value for key " + keyWithValues.getKey());
+    private boolean areParametersAllowedByValueSet(List<String> parameterIds, Parameters.ValueSet valueSet, ProvidedParameters providedParameters) {
+        for (String parameterId : parameterIds) {
+            if (!providedParameters.containsParameter(parameterId)) {
+                throw new IllegalStateException("Could not find value for parameter with id" + parameterId);
             }
-            String providedValue = providedParameters.getValue(keyWithValues.getKey());
-            if (!keyWithValues.getValue().contains(providedValue)) {
+            String providedValue = providedParameters.getValue(parameterId);
+            if (!valueSet.getParameterValues(parameterId).contains(providedValue)) {
                 return false;
             }
         }
@@ -151,26 +169,31 @@ public class ParametersService {
         if (parameters == null) {
             return new AllowedParametersForUser(new HashMap<>(), new HashSet<>());
         }
-        List<String> parameterNames = parameters.getIds();
+        List<String> parameterIds = parameters.getIds();
 
-        // 1. compute a unique (per ParameterName) index for every value
-        // mapping of ParameterName to a mapping of an allowed value and its index
+        // 1. check which ValueSets are allowed for this
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        List< Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
+                .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
+                .collect(Collectors.toList());
+
+        // 2. compute a unique (per parameter id) index for every value
+        // mapping of parameter id to a mapping of an allowed value and its index
         Map<String, Map<String, Integer>> valuesToIndex = new HashMap<>();
         Map<String, List<Pair<Integer, String>>> values = new HashMap<>();
         // for every set of allowed values
-        for (Map<String, List<String>> parameterValues : parameters.getValues()) {
+        for (Parameters.ValueSet valueSet : allowedValueSets) {
             // for every parameter in this set
-            for (Map.Entry<String, List<String>> parameterNameToValues : parameterValues.entrySet()) {
-                String parameterName = parameterNameToValues.getKey();
-                valuesToIndex.computeIfAbsent(parameterName, (k) -> new HashMap<>());
-                values.computeIfAbsent(parameterName, (k) -> new ArrayList<>());
+            for (String parameterId : parameterIds) {
+                valuesToIndex.computeIfAbsent(parameterId, (k) -> new HashMap<>());
+                values.computeIfAbsent(parameterId, (k) -> new ArrayList<>());
                 // for every value of this parameter
-                for (String value : parameterNameToValues.getValue()) {
-                    if (!valuesToIndex.get(parameterName).containsKey(value)) {
+                for (String value : valueSet.getParameterValues(parameterId)) {
+                    if (!valuesToIndex.get(parameterId).containsKey(value)) {
                         // add it to allValues if it does not yet exist
-                        Integer newIndex = valuesToIndex.get(parameterName).size() + 1;
-                        valuesToIndex.get(parameterName).put(value, newIndex);
-                        values.get(parameterName).add(Pair.of(newIndex, value));
+                        Integer newIndex = valuesToIndex.get(parameterId).size() + 1;
+                        valuesToIndex.get(parameterId).put(value, newIndex);
+                        values.get(parameterId).add(Pair.of(newIndex, value));
                     }
                 }
             }
@@ -184,21 +207,20 @@ public class ParametersService {
                                 .stream().sorted(Comparator.comparingInt(Pair::getKey))
                                 .collect(Collectors.toList())));
 
-        // 2. compute the set of allowed values
+        // 3. compute the set of allowed values
         HashSet<List<Integer>> allowedCombinations = new HashSet<>();
 
         // for every value-set
-        for (Map<String, List<String>> parameterValues : parameters.getValues()) {
-            allowedCombinations.addAll(getAllowedCombinationsForSingleValueSet(parameterNames,
-                    parameterValues, valuesToIndex));
+        for (Parameters.ValueSet valueSet : allowedValueSets) {
+            allowedCombinations.addAll(getAllowedCombinationsForSingleValueSet(parameterIds, valueSet, valuesToIndex));
         }
 
         return new AllowedParametersForUser(values, allowedCombinations);
 
     }
 
-    private List<List<Integer>> getAllowedCombinationsForSingleValueSet(List<String> parameterNames,
-                                                                        Map<String, List<String>> parameterValues,
+    private List<List<Integer>> getAllowedCombinationsForSingleValueSet(List<String> parameterIds,
+                                                                        Parameters.ValueSet valueSet,
                                                                         Map<String, Map<String, Integer>> valuesToIndex
     ) {
         // start with an empty combination
@@ -206,17 +228,17 @@ public class ParametersService {
         newAllowedCombinations.add(new ArrayList<>());
 
         // for each parameter
-        for (String parameterName : parameterNames) {
+        for (String parameterId : parameterIds) {
             // copy the combinations calculated during the previous iteration
             List<List<Integer>> previousAllowedCombinations = new ArrayList<>(newAllowedCombinations);
             newAllowedCombinations = new ArrayList<>();
             // for every allowed value of this parameter
-            for (String allowedValue : parameterValues.get(parameterName)) {
+            for (String allowedValue : valueSet.getParameterValues(parameterId)) {
                 // and for every combination of the previous iteration
                 for (List<Integer> combination : previousAllowedCombinations) {
                     // create a new combination with the additional value
                     combination = new ArrayList<>(combination); // copy the previous combination so that we can extend it
-                    Integer index = valuesToIndex.get(parameterName).get(allowedValue);
+                    Integer index = valuesToIndex.get(parameterId).get(allowedValue);
                     combination.add(index);
                     newAllowedCombinations.add(combination);
                 }

@@ -21,10 +21,7 @@
 package eu.openanalytics.containerproxy.model.spec;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ProxySpec {
 
@@ -33,7 +30,7 @@ public class ProxySpec {
 	private String description;
 	private String logoURL;
 
-	private ProxyAccessControl accessControl;
+	private AccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
 
 	private String kubernetesPodPatches;
@@ -78,11 +75,11 @@ public class ProxySpec {
 		this.logoURL = logoURL;
 	}
 
-	public ProxyAccessControl getAccessControl() {
+	public AccessControl getAccessControl() {
 		return accessControl;
 	}
 
-	public void setAccessControl(ProxyAccessControl accessControl) {
+	public void setAccessControl(AccessControl accessControl) {
 		this.accessControl = accessControl;
 	}
 

@@ -20,9 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import java.util.Arrays;
-
-public class ProxyAccessControl {
+public class AccessControl {
 
 	private String[] groups;
 	private String[] users;
@@ -50,18 +48,6 @@ public class ProxyAccessControl {
 
 	public void setExpression(String expression) {
 		this.expression = expression;
-	}
-
-	public void copy(ProxyAccessControl target) {
-		if (groups != null) {
-			target.setGroups(Arrays.copyOf(groups, groups.length));
-		}
-		if (users != null) {
-			target.setUsers(Arrays.copyOf(users, users.length));
-		}
-		if (expression != null) {
-			target.setExpression(expression);
-		}
 	}
 
 	public boolean hasGroupAccess() {

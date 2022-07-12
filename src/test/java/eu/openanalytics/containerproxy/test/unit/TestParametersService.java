@@ -1,8 +1,30 @@
+/**
+ * ContainerProxy
+ *
+ * Copyright (C) 2016-2021 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
+import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
@@ -16,6 +38,7 @@ import org.springframework.test.context.ContextConfiguration;
 
 import javax.inject.Inject;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 
 @SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
@@ -34,7 +57,7 @@ public class TestParametersService {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
         AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(spec);
 
-        Assertions.assertEquals(5190, allowedParametersForUser.getAllowedCombinations().size());
+        Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1, 1)));
 
@@ -118,6 +141,123 @@ public class TestParametersService {
                         Pair.of(4, "well")
                 ),
                 allowedParametersForUser.getValues().get("parameter4"));
+    }
+
+    private void testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
+        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameter1", parameter1);
+            put("parameter2", parameter2);
+            put("parameter3", parameter3);
+            put("parameter4", parameter4);
+        }});
+
+        Assertions.assertTrue(parametersService.validateRequest(spec, providedParameters));
+    }
+
+    private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
+        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameter1", parameter1);
+            put("parameter2", parameter2);
+            put("parameter3", parameter3);
+            put("parameter4", parameter4);
+        }});
+
+        Assertions.assertThrows(InvalidParametersException.class,
+                () -> parametersService.validateRequest(spec, providedParameters),
+                "Provided parameter values are not allowed");
+    }
+
+    @Test
+    public void testParseAndValidateRequest() throws InvalidParametersException {
+        // test that all allowed values are allowed by the parseAndValidateRequest function
+        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+
+        testAllowedValue(spec, "A", "1", "foo", "yes");
+        testAllowedValue(spec, "A", "2", "foo", "yes");
+        testAllowedValue(spec, "A", "1", "foobarfoo", "no");
+        testAllowedValue(spec, "A", "1", "barfoobar", "yes");
+
+        // test that allowed values but invalid combinations are not allowed
+        testNotAllowedValue(spec, "A", "1", "foobarfoo", "yes");
+        testNotAllowedValue(spec, "A", "1", "foobarfoo", "maybe");
+        testNotAllowedValue(spec, "A", "1", "foobarfoo", "well");
+        testNotAllowedValue(spec, "B", "2", "foobarfoo", "yes");
+        testNotAllowedValue(spec, "F", "6", "foobarfoo", "maybe");
+        testNotAllowedValue(spec, "G", "3", "foobarfoo", "well");
+        testNotAllowedValue(spec, "A", "1", "barfoobar", "no");
+        testNotAllowedValue(spec, "A", "1", "barfoobar", "maybe");
+        testNotAllowedValue(spec, "A", "1", "barfoobar", "well");
+        testNotAllowedValue(spec, "B", "2", "barfoobar", "no");
+        testNotAllowedValue(spec, "F", "6", "barfoobar", "maybe");
+        testNotAllowedValue(spec, "G", "3", "barfoobar", "well");
+
+        // test that invalid values are not allowed
+        testNotAllowedValue(spec, "ABC", "BLUB", "LBAB", "...");
+        testNotAllowedValue(spec, "123", "ABC", "W434$:", "@@");
+    }
+
+    @Test
+    public void testParseAndValidateRequestNoParameters() throws InvalidParametersException {
+        ProxySpec spec = proxyService.getProxySpec("no-parameters");
+
+        ProvidedParameters providedParameters = new ProvidedParameters();
+        Assertions.assertFalse(parametersService.validateRequest(spec, providedParameters));
+    }
+
+    @Test
+    public void testInvalidNumberOfParameters() {
+        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+
+        // too many parameters
+        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameter1", "A");
+            put("parameter2", "1");
+            put("parameter3", "foo");
+            put("parameter4", "no");
+            put("parameter5", "no");
+        }});
+
+        Assertions.assertThrows(InvalidParametersException.class,
+                () -> parametersService.validateRequest(spec, providedParameters),
+                "Invalid number of parameters provided");
+
+        // too few parameters
+        ProvidedParameters providedParameters2 = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameter1", "A");
+            put("parameter2", "1");
+            put("parameter3", "foo");
+        }});
+
+        Assertions.assertThrows(InvalidParametersException.class,
+                () -> parametersService.validateRequest(spec, providedParameters2),
+                "Invalid number of parameters provided");
+    }
+
+    @Test
+    public void testInvalidParameterIds() {
+        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+
+        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameter1", "A");
+            put("parameter2", "1");
+            put("parameter3", "foo");
+            put("parameterXXXX", "no");
+        }});
+
+        Assertions.assertThrows(InvalidParametersException.class,
+                () -> parametersService.validateRequest(spec, providedParameters),
+                "Missing value for parameter parameter4");
+
+        ProvidedParameters providedParameters2 = new ProvidedParameters(new HashMap<String, String>() {{
+            put("parameterABC", "A");
+            put("parameter#$#$", "1");
+            put("parameter3343434", "foo");
+            put("parameterXXXX", "no");
+        }});
+
+        Assertions.assertThrows(InvalidParametersException.class,
+                () -> parametersService.validateRequest(spec, providedParameters2),
+                "Missing value for parameter parameter1");
     }
 
 }

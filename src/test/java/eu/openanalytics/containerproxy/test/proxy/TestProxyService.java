@@ -24,6 +24,7 @@ import java.net.URI;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,7 +57,7 @@ public class TestProxyService {
 	private ProxyService proxyService;
 	
 	@Test
-	public void launchProxy() {
+	public void launchProxy() throws InvalidParametersException {
 		String specId = environment.getProperty("proxy.specs[0].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);

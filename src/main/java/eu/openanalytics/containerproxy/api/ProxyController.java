@@ -27,6 +27,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -77,7 +78,7 @@ public class ProxyController extends BaseController {
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId) {
+	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId) throws InvalidParametersException {
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
 		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		

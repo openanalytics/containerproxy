@@ -18,35 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime;
+package eu.openanalytics.containerproxy.service;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+public class InvalidParametersException extends Exception {
 
-import java.util.HashMap;
-import java.util.Map;
+    private final String error;
 
-public class ProvidedParameters {
-
-    private final Map<String, String> map;
-
-    @JsonCreator
-    public ProvidedParameters(Map<String, String> map) {
-        this.map = map;
+    public InvalidParametersException(String error) {
+        super(error);
+        this.error = error;
     }
 
-    public ProvidedParameters() {
-        this.map = new HashMap<>();
-    }
-
-    public int size() {
-        return map.size();
-    }
-
-    public boolean containsParameter(String parameterId) {
-        return map.containsKey(parameterId);
-    }
-
-    public String getValue(String parameterId) {
-        return map.get(parameterId);
+    public String getError() {
+        return error;
     }
 }

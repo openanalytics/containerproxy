@@ -59,6 +59,8 @@ public class ParametersService {
             return;
         }
 
+        // TODO validate parameter id
+
         // Validate Parameter Definitions
         HashSet<String> parameterIds = new HashSet<>();
         for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
@@ -98,41 +100,45 @@ public class ParametersService {
 
     }
 
-    public ProvidedParameters parseAndValidateRequest(ProxySpec resolvedSpec, ProvidedParameters providedParameters) {
+    public boolean validateRequest(ProxySpec resolvedSpec, ProvidedParameters providedParameters) throws InvalidParametersException {
         Parameters parameters = resolvedSpec.getParameters();
         if (parameters == null) {
-            return new ProvidedParameters();
+            return false;
         }
 
-        // check if all keys are provided
-        // TODO check if no other keys are provided
-        for (String key : parameters.getIds()) {
-            if (!providedParameters.containsKey(key)) {
-                throw new IllegalArgumentException("Provided User Parameters does not contain key " + key);
+        // check if correct number of parameters is provided
+        if (providedParameters.size() != parameters.getIds().size()) {
+            throw new InvalidParametersException("Invalid number of parameters provided");
+        }
+
+        // check if all parameter ids are provided
+        for (String parameterId : parameters.getIds()) {
+            if (!providedParameters.containsParameter(parameterId)) {
+                throw new InvalidParametersException("Missing value for parameter " + parameterId);
             }
         }
 
-        // TODO
-        for (Map<String, List<String>> values : parameters.getValues()) {
-            if (isAllowedValue(values, providedParameters)) {
-                return providedParameters;
+        // check if the combination of values is allowed
+        for (Map<String, List<String>> valueSet : parameters.getValues()) {
+            if (areParametersAllowedByValueSet(valueSet, providedParameters)) {
+                return true; // parameters are allowed
             }
         }
 
-        throw new IllegalArgumentException("Provided User Parameters is not allowed");
-
+        throw new InvalidParametersException("Provided parameter values are not allowed");
     }
 
-    public boolean isAllowedValue(Map<String, List<String>> values, ProvidedParameters providedParameters) {
-        for (Map.Entry<String, List<String>> keyWithValue : values.entrySet()) {
-            if (!providedParameters.containsKey(keyWithValue.getKey())) {
-                return false; // TODO check above that all keys present and no other additional keys
+    private boolean areParametersAllowedByValueSet(Map<String, List<String>> valueSet, ProvidedParameters providedParameters) {
+        for (Map.Entry<String, List<String>> keyWithValues : valueSet.entrySet()) {
+            if (!providedParameters.containsParameter(keyWithValues.getKey())) {
+                throw new IllegalStateException("Could not find value for key " + keyWithValues.getKey());
             }
-            String providedValue = providedParameters.get(keyWithValue.getKey());
-            if (!keyWithValue.getValue().contains(providedValue)) {
+            String providedValue = providedParameters.getValue(keyWithValues.getKey());
+            if (!keyWithValues.getValue().contains(providedValue)) {
                 return false;
             }
         }
+        // providedParameters contains an allowed value for every parameter
         return true;
     }
 

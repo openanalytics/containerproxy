@@ -42,8 +42,11 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParametersKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -259,9 +262,8 @@ public class ProxyService {
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
-        if (parametersService.validateRequest(userService.getCurrentAuth(), spec, parameters)) {
-            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parameters));
-        }
+
+		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
 
 		activeProxies.add(proxy);
 

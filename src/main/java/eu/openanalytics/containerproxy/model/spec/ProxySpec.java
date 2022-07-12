@@ -41,7 +41,7 @@ public class ProxySpec {
 
 	private Long maxLifeTime;
 	private Boolean stopOnLogout;
-	private Long heartbeatTimeout;
+	private String heartbeatTimeout;
 
 	public String getId() {
 		return id;
@@ -148,11 +148,11 @@ public class ProxySpec {
 		this.stopOnLogout = stopOnLogout;
 	}
 
-	public Long getHeartbeatTimeout() {
+	public String getHeartbeatTimeout() {
 		return heartbeatTimeout;
 	}
 
-	public void setHeartbeatTimeout(Long heartbeatTimeout) {
+	public void setHeartbeatTimeout(String heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
 	}
 

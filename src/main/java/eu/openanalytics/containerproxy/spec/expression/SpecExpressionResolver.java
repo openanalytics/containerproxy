@@ -102,6 +102,10 @@ public class SpecExpressionResolver {
 		return String.valueOf(evaluate(expression, context));
 	}
 
+	public Long evaluateToLong(String expression, SpecExpressionContext context) {
+		return Long.valueOf(evaluateToString(expression, context));
+	}
+
 	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
 		return Boolean.valueOf(evaluateToString(expression, context));
 	}

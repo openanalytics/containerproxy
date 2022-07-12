@@ -123,6 +123,10 @@ public class ParametersService {
             return false;
         }
 
+        if (providedParameters == null) {
+            throw new InvalidParametersException("No parameters provided, but proxy spec expects parameters");
+        }
+
         // check if correct number of parameters is provided
         if (providedParameters.size() != parameters.getIds().size()) {
             throw new InvalidParametersException("Invalid number of parameters provided");

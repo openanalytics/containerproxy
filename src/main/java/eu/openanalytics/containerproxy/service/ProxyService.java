@@ -259,10 +259,8 @@ public class ProxyService {
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
-        if (parameters != null) {
-            if (parametersService.validateRequest(spec, parameters)) {
-                proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parameters));
-            }
+        if (parametersService.validateRequest(spec, parameters)) {
+            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parameters));
         }
 
 		activeProxies.add(proxy);

@@ -259,7 +259,7 @@ public class ProxyService {
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
-        if (parametersService.validateRequest(spec, parameters)) {
+        if (parametersService.validateRequest(userService.getCurrentAuth(), spec, parameters)) {
             proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parameters));
         }
 

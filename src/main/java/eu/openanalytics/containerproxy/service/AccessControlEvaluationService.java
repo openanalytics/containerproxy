@@ -46,7 +46,6 @@ public class AccessControlEvaluationService {
 
     public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl) {
         if (auth instanceof AnonymousAuthenticationToken) {
-            // TODO test with parameters
             // if anonymous -> only allow access if the backend has no authorization enabled
             return !authBackend.hasAuthorization();
         }

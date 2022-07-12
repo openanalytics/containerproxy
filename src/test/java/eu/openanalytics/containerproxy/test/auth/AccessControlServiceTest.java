@@ -30,9 +30,13 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.Collection;
+import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -48,7 +52,7 @@ public class AccessControlServiceTest {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         specProvider = mock(IProxySpecProvider.class);
-        SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(mock(ApplicationContext.class));
+        SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(new GenericApplicationContext());
         accessControlService = new ProxyAccessControlService(specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver));
     }
 
@@ -180,6 +184,23 @@ public class AccessControlServiceTest {
         when(userService.isMember(auth4, "myGroupAbc")).thenReturn(true);
         when(userService.isMember(auth4, "xxy")).thenReturn(false);
         Assertions.assertTrue(accessControlService.canAccess(auth4, createProxySpec(proxyAccessControl)));
+    }
+
+    @Test
+    public void expressionTest() {
+        when(authBackend.hasAuthorization()).thenReturn(true);
+        AccessControl proxyAccessControl = new AccessControl();
+        proxyAccessControl.setExpression("#{groups.contains('DEV')}");
+
+        // user is not part of the DEV group-> no access
+        Authentication auth1 = mock(Authentication.class);
+        when(auth1.getAuthorities()).thenReturn((Collection) Collections.singletonList(new SimpleGrantedAuthority("ROLE_PROD")));
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // user is part of the DEV group -> has access
+        Authentication auth2 = mock(Authentication.class);
+        when(auth2.getAuthorities()).thenReturn((Collection) Collections.singletonList(new SimpleGrantedAuthority("ROLE_DEV")));
+        Assertions.assertTrue(accessControlService.canAccess(auth2, createProxySpec(proxyAccessControl)));
     }
 
     private ProxySpec createProxySpec(AccessControl proxyAccessControl) {

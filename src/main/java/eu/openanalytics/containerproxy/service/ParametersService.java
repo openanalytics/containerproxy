@@ -29,11 +29,9 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -47,13 +45,16 @@ import java.util.stream.Collectors;
 @Service
 public class ParametersService {
 
-    @Inject
-    private IProxySpecProvider baseSpecProvider;
+    private final IProxySpecProvider baseSpecProvider;
 
-    @Inject
-    private AccessControlEvaluationService accessControlEvaluationService;
+    private final AccessControlEvaluationService accessControlEvaluationService;
 
     private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
+
+    public ParametersService(IProxySpecProvider baseSpecProvider, AccessControlEvaluationService accessControlEvaluationService) {
+        this.baseSpecProvider = baseSpecProvider;
+        this.accessControlEvaluationService = accessControlEvaluationService;
+    }
 
     @PostConstruct
     public void init() {
@@ -117,7 +118,7 @@ public class ParametersService {
 
     }
 
-    public boolean validateRequest(ProxySpec resolvedSpec, ProvidedParameters providedParameters) throws InvalidParametersException {
+    public boolean validateRequest(Authentication auth, ProxySpec resolvedSpec, ProvidedParameters providedParameters) throws InvalidParametersException {
         Parameters parameters = resolvedSpec.getParameters();
         if (parameters == null) {
             return false;
@@ -138,8 +139,6 @@ public class ParametersService {
                 throw new InvalidParametersException("Missing value for parameter " + parameterId);
             }
         }
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         // check if the combination of values is allowed
         for (Parameters.ValueSet valueSet : parameters.getValueSets()) {
@@ -168,7 +167,7 @@ public class ParametersService {
         return true;
     }
 
-    public AllowedParametersForUser calculateAllowedParametersForUser(ProxySpec proxySpec) {
+    public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {
         Parameters parameters = proxySpec.getParameters();
         if (parameters == null) {
             return new AllowedParametersForUser(new HashMap<>(), new HashSet<>());
@@ -176,8 +175,7 @@ public class ParametersService {
         List<String> parameterIds = parameters.getIds();
 
         // 1. check which ValueSets are allowed for this
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        List< Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
+        List<Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
                 .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
                 .collect(Collectors.toList());
 

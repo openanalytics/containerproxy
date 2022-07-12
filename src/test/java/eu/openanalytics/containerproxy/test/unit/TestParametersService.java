@@ -33,6 +33,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
@@ -40,6 +41,8 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import static org.mockito.Mockito.mock;
 
 @SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
@@ -52,10 +55,12 @@ public class TestParametersService {
     @Inject
     private ParametersService parametersService;
 
+    private Authentication auth = mock(Authentication.class);
+
     @Test
     public void testBigParameters() {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
 
         Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
 
@@ -151,7 +156,7 @@ public class TestParametersService {
             put("parameter4", parameter4);
         }});
 
-        Assertions.assertTrue(parametersService.validateRequest(spec, providedParameters));
+        Assertions.assertTrue(parametersService.validateRequest(auth, spec, providedParameters));
     }
 
     private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
@@ -163,7 +168,7 @@ public class TestParametersService {
         }});
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.validateRequest(spec, providedParameters),
+                () -> parametersService.validateRequest(auth, spec, providedParameters),
                 "Provided parameter values are not allowed");
     }
 
@@ -201,7 +206,7 @@ public class TestParametersService {
         ProxySpec spec = proxyService.getProxySpec("no-parameters");
 
         ProvidedParameters providedParameters = new ProvidedParameters();
-        Assertions.assertFalse(parametersService.validateRequest(spec, providedParameters));
+        Assertions.assertFalse(parametersService.validateRequest(auth, spec, providedParameters));
     }
 
     @Test
@@ -218,7 +223,7 @@ public class TestParametersService {
         }});
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.validateRequest(spec, providedParameters),
+                () -> parametersService.validateRequest(auth, spec, providedParameters),
                 "Invalid number of parameters provided");
 
         // too few parameters
@@ -229,7 +234,7 @@ public class TestParametersService {
         }});
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.validateRequest(spec, providedParameters2),
+                () -> parametersService.validateRequest(auth, spec, providedParameters2),
                 "Invalid number of parameters provided");
     }
 
@@ -245,7 +250,7 @@ public class TestParametersService {
         }});
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.validateRequest(spec, providedParameters),
+                () -> parametersService.validateRequest(auth, spec, providedParameters),
                 "Missing value for parameter parameter4");
 
         ProvidedParameters providedParameters2 = new ProvidedParameters(new HashMap<String, String>() {{
@@ -256,7 +261,7 @@ public class TestParametersService {
         }});
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.validateRequest(spec, providedParameters2),
+                () -> parametersService.validateRequest(auth, spec, providedParameters2),
                 "Missing value for parameter parameter1");
     }
 

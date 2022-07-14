@@ -103,8 +103,8 @@ public class ProxyService {
 	@Inject
 	private Environment environment;
 
-    @Inject
-    private ParametersService parametersService;
+	@Inject
+	private RuntimeValueService runtimeValueService;
 
 	private boolean stopAppsOnShutdown;
 

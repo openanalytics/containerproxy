@@ -182,7 +182,7 @@ public class ParametersService {
         // 2. compute a unique (per parameter id) index for every value
         // mapping of parameter id to a mapping of an allowed value and its index
         Map<String, Map<String, Integer>> valuesToIndex = new HashMap<>();
-        Map<String, List<Pair<Integer, String>>> values = new HashMap<>();
+        Map<String, List<String>> values = new HashMap<>();
         // for every set of allowed values
         for (Parameters.ValueSet valueSet : allowedValueSets) {
             // for every parameter in this set
@@ -193,21 +193,13 @@ public class ParametersService {
                 for (String value : valueSet.getParameterValues(parameterId)) {
                     if (!valuesToIndex.get(parameterId).containsKey(value)) {
                         // add it to allValues if it does not yet exist
-                        Integer newIndex = valuesToIndex.get(parameterId).size() + 1;
+                        Integer newIndex = values.get(parameterId).size() + 1;
                         valuesToIndex.get(parameterId).put(value, newIndex);
-                        values.get(parameterId).add(Pair.of(newIndex, value));
+                        values.get(parameterId).add(value);
                     }
                 }
             }
         }
-        // sort values
-        values = values.entrySet()
-                .stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        (v) -> v.getValue()
-                                .stream().sorted(Comparator.comparingInt(Pair::getKey))
-                                .collect(Collectors.toList())));
 
         // 3. compute the set of allowed values
         HashSet<List<Integer>> allowedCombinations = new HashSet<>();

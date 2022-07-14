@@ -33,7 +33,7 @@ public class AllowedParametersForUser {
      * The integer represents the index of the parameter.
      * The list is sorted by the index.
      */
-    private final Map<String, List<Pair<Integer, String>>> values;
+    private final Map<String, List<String>> values;
 
     /**
      * List of all allowed combinations of the parameters for this specific user.
@@ -41,7 +41,7 @@ public class AllowedParametersForUser {
     private final HashSet<List<Integer>> allowedCombinations;
 
 
-    public AllowedParametersForUser(Map<String, List<Pair<Integer, String>>> values, HashSet<List<Integer>> allowedCombinations) {
+    public AllowedParametersForUser(Map<String, List<String>> values, HashSet<List<Integer>> allowedCombinations) {
         this.values = values;
         this.allowedCombinations = allowedCombinations;
     }
@@ -50,7 +50,7 @@ public class AllowedParametersForUser {
         return allowedCombinations;
     }
 
-    public Map<String, List<Pair<Integer, String>>> getValues() {
+    public Map<String, List<String>> getValues() {
         return values;
     }
 }

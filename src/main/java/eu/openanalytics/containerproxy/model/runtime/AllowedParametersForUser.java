@@ -29,9 +29,7 @@ import java.util.Map;
 public class AllowedParametersForUser {
 
     /**
-     * Mapping of ParameterName to a list of allowed values.
-     * The integer represents the index of the parameter.
-     * The list is sorted by the index.
+     * Mapping of the id of the parameter to the (human friendly) names.
      */
     private final Map<String, List<String>> values;
 

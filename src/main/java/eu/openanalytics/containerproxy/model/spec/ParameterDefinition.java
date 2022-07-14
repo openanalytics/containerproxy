@@ -20,19 +20,46 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+import org.springframework.boot.context.properties.ConstructorBinding;
 
+import java.util.List;
+
+@ConstructorBinding
 public class ParameterDefinition {
 
-    private String id;
-    private String displayName;
-    private String description;
+    private final String id;
+    private final String displayName;
+    private final String description;
+
+    // a mapping of the raw value (used in the backend) to a human friendly name used in the front-end
+    private final BidiMap<String, String> valueNames;
+
+    public ParameterDefinition(String id, String displayName, String description, List<ValueName> valueNames) {
+        this.id = id;
+        this.displayName = displayName;
+        this.description = description;
+        this.valueNames = new DualHashBidiMap<>();
+        if (valueNames != null) {
+            for (ValueName valueName : valueNames) {
+                if (this.valueNames.containsKey(valueName.value)) {
+                    throw new IllegalStateException(String.format("A ValueName mapping already contains a mapping for value \"%s\"", valueName.value));
+                }
+                if (this.valueNames.containsValue(valueName.name)) {
+                    throw new IllegalStateException(String.format("A ValueName mapping already contains a mapping with the name \"%s\"", valueName.name));
+                }
+                this.valueNames.put(valueName.value, valueName.name);
+            }
+        }
+    }
 
     public String getDisplayName() {
         return displayName;
     }
 
+    // used in Thymeleaf template!
+    @SuppressWarnings("unused")
     public String getDisplayNameOrId() {
         if (displayName != null) {
             return displayName;
@@ -40,23 +67,46 @@ public class ParameterDefinition {
         return id;
     }
 
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-    }
-
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    /**
+     * Given the (backend) value, return the human friendly name for the value.
+     * @param value the backend-value
+     * @return the human friendly name of the value
+     */
+    public String getNameOfValue(String value) {
+        return valueNames.getOrDefault(value, value);
     }
+
+    public boolean hasNameForValue(String value) {
+        return valueNames.containsKey(value);
+    }
+
+    /**
+     * Given the (human friendly name), return the backend value
+     * @param name the human-friendly name
+     * @return the backend value
+     */
+    public String getValueForName(String name) {
+        return valueNames.getKey(name);
+    }
+
+    @ConstructorBinding
+    public static class ValueName {
+
+        private final String name;
+        private final String value;
+
+        public ValueName(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+    }
+
 }

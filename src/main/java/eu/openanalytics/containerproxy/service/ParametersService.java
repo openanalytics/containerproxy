@@ -27,17 +27,16 @@ import eu.openanalytics.containerproxy.model.spec.Parameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -118,10 +117,21 @@ public class ParametersService {
 
     }
 
-    public boolean validateRequest(Authentication auth, ProxySpec resolvedSpec, ProvidedParameters providedParameters) throws InvalidParametersException {
-        Parameters parameters = resolvedSpec.getParameters();
+    /**
+     * Parses and validates the parameters provided by a user.
+     * - checks that a value is included for every parameter
+     * - checks that the user is allowed to use these values
+     * - converts the (human friendly) name to the backend value
+     * @param auth the user
+     * @param spec the Proxy spec to which this requests belong
+     * @param providedParameters the parameters as provided by the user (using human friendly names)
+     * @return the parsed parameters (using backend values)
+     * @throws InvalidParametersException
+     */
+    public Optional<ProvidedParameters> parseAndValidateRequest(Authentication auth, ProxySpec spec, ProvidedParameters providedParameters) throws InvalidParametersException {
+        Parameters parameters = spec.getParameters();
         if (parameters == null) {
-            return false;
+            return Optional.empty();
         }
 
         if (providedParameters == null) {
@@ -142,29 +152,54 @@ public class ParametersService {
 
         // check if the combination of values is allowed
         for (Parameters.ValueSet valueSet : parameters.getValueSets()) {
-            if (!accessControlEvaluationService.checkAccess(auth, resolvedSpec, valueSet.getAccessControl())) {
+            if (!accessControlEvaluationService.checkAccess(auth, spec, valueSet.getAccessControl())) {
                 continue;
             }
-            if (areParametersAllowedByValueSet(parameters.getIds(), valueSet, providedParameters)) {
-                return true; // parameters are allowed
+            Optional<ProvidedParameters> res = convertParametersIfAllowed(parameters.getDefinitions(), valueSet, providedParameters);
+            if (res.isPresent()) {
+                return res; // parameters are allowed, return the converted values
             }
         }
 
         throw new InvalidParametersException("Provided parameter values are not allowed");
     }
 
-    private boolean areParametersAllowedByValueSet(List<String> parameterIds, Parameters.ValueSet valueSet, ProvidedParameters providedParameters) {
-        for (String parameterId : parameterIds) {
-            if (!providedParameters.containsParameter(parameterId)) {
-                throw new IllegalStateException("Could not find value for parameter with id" + parameterId);
+    /**
+     * Checks whether the provided parameters are allowed by the given valueSet.
+     * Returns the converted backend values if (and only if) the provided human-friendly values are allowed by this
+     * valueSet.
+     * @param parameters the parameter defintiions
+     * @param valueSet the valueSet to check
+     * @param providedParameters the parameters as provided by the user (using human friendly names)
+     * @return the converted values (i.e. using backend values) if allowed otherwise nothing
+     */
+    private Optional<ProvidedParameters> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, ProvidedParameters providedParameters) {
+        Map<String, String> res = new HashMap<>();
+        for (ParameterDefinition parameter: parameters) {
+            if (!providedParameters.containsParameter(parameter.getId())) {
+                throw new IllegalStateException("Could not find value for parameter with id" + parameter.getId());
             }
-            String providedValue = providedParameters.getValue(parameterId);
-            if (!valueSet.getParameterValues(parameterId).contains(providedValue)) {
-                return false;
+            String providedValue = providedParameters.getValue(parameter.getId());
+            String backendValue = parameter.getValueForName(providedValue);
+            if (backendValue == null) {
+                // if we did not find a backend value for the provided value (i.e. the user already provided a backend value),
+                // check that no mapping exists for this backend value.
+                // The backend value can only be used if a mapping does not exist.
+                if (parameter.hasNameForValue(providedValue)) {
+                    return Optional.empty();
+                } else {
+                    backendValue = providedValue;
+                }
             }
+            // check whether the backendValue is in the list of allowed values of this valueSet
+            if (!valueSet.getParameterValues(parameter.getId()).contains(backendValue)) {
+                return Optional.empty();
+            }
+            res.put(parameter.getId(), backendValue);
         }
         // providedParameters contains an allowed value for every parameter
-        return true;
+        // return the backend values (instead of the names provided by the user)
+        return Optional.of(new ProvidedParameters(res));
     }
 
     public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {
@@ -174,7 +209,7 @@ public class ParametersService {
         }
         List<String> parameterIds = parameters.getIds();
 
-        // 1. check which ValueSets are allowed for this
+        // 1. check which ValueSets are allowed for this user
         List<Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
                 .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
                 .collect(Collectors.toList());
@@ -186,25 +221,24 @@ public class ParametersService {
         // for every set of allowed values
         for (Parameters.ValueSet valueSet : allowedValueSets) {
             // for every parameter in this set
-            for (String parameterId : parameterIds) {
-                valuesToIndex.computeIfAbsent(parameterId, (k) -> new HashMap<>());
-                values.computeIfAbsent(parameterId, (k) -> new ArrayList<>());
+            for (ParameterDefinition parameter : parameters.getDefinitions()) {
+                valuesToIndex.computeIfAbsent(parameter.getId(), (k) -> new HashMap<>());
+                values.computeIfAbsent(parameter.getId(), (k) -> new ArrayList<>());
                 // for every value of this parameter
-                for (String value : valueSet.getParameterValues(parameterId)) {
-                    if (!valuesToIndex.get(parameterId).containsKey(value)) {
+                for (String value : valueSet.getParameterValues(parameter.getId())) {
+                    if (!valuesToIndex.get(parameter.getId()).containsKey(value)) {
                         // add it to allValues if it does not yet exist
-                        Integer newIndex = values.get(parameterId).size() + 1;
-                        valuesToIndex.get(parameterId).put(value, newIndex);
-                        values.get(parameterId).add(value);
+                        Integer newIndex = values.get(parameter.getId()).size() + 1;
+                        valuesToIndex.get(parameter.getId()).put(value, newIndex);
+                        values.get(parameter.getId()).add(parameter.getNameOfValue(value));
                     }
                 }
             }
         }
 
-        // 3. compute the set of allowed values
+        // 3. compute the set of allowed values for every value-set
         HashSet<List<Integer>> allowedCombinations = new HashSet<>();
 
-        // for every value-set
         for (Parameters.ValueSet valueSet : allowedValueSets) {
             allowedCombinations.addAll(getAllowedCombinationsForSingleValueSet(parameterIds, valueSet, valuesToIndex));
         }

@@ -29,9 +29,29 @@ proxy:
       parameters:
         definitions:
           - id: parameter1
+            value-names:
+              - value: A
+                name: "The letter A"
+              - value: Z
+                name: "The letter Z"
           - id: parameter2
+            value-names:
+              - value: 1
+                name: "The number 1"
+              - value: 20
+                name: "The number 20"
           - id: parameter3
+            value-names:
+              - value: foo
+                name: "Foo"
+              - value: bar
+                name: "Bar"
           - id: parameter4
+            value-names:
+              - value: "yes"
+                name: "YES"
+              - value: "no"
+                name: "NO"
         value-sets:
           - values:
               parameter1:

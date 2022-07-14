@@ -33,6 +33,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.util.Optional;
 
 /**
  * Determines the RuntimeValue when a proxy gets started.
@@ -68,8 +69,9 @@ public class RuntimeValueService {
     }
 
     public void createRuntimeValues(ProxySpec spec, ProvidedParameters parameters, Proxy proxy) throws InvalidParametersException {
-        if (parametersService.validateRequest(userService.getCurrentAuth(), spec, parameters)) {
-            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, parameters));
+        Optional<ProvidedParameters> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
+        if (providedParametersOptional.isPresent()) {
+            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, providedParametersOptional.get()));
         }
         SpecExpressionContext context = SpecExpressionContext.create(
                 proxy,

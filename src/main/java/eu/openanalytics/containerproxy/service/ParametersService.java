@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
 import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
 import eu.openanalytics.containerproxy.model.spec.ParameterDefinition;
@@ -50,9 +52,12 @@ public class ParametersService {
 
     private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
 
-    public ParametersService(IProxySpecProvider baseSpecProvider, AccessControlEvaluationService accessControlEvaluationService) {
+    private final ObjectMapper objectMapper;
+
+    public ParametersService(IProxySpecProvider baseSpecProvider, AccessControlEvaluationService accessControlEvaluationService, ObjectMapper objectMapper) {
         this.baseSpecProvider = baseSpecProvider;
         this.accessControlEvaluationService = accessControlEvaluationService;
+        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -128,7 +133,7 @@ public class ParametersService {
      * @return the parsed parameters (using backend values)
      * @throws InvalidParametersException
      */
-    public Optional<ProvidedParameters> parseAndValidateRequest(Authentication auth, ProxySpec spec, ProvidedParameters providedParameters) throws InvalidParametersException {
+    public Optional<ProvidedParameters> parseAndValidateRequest(Authentication auth, ProxySpec spec, Map<String, String> providedParameters) throws InvalidParametersException {
         Parameters parameters = spec.getParameters();
         if (parameters == null) {
             return Optional.empty();
@@ -145,7 +150,7 @@ public class ParametersService {
 
         // check if all parameter ids are provided
         for (String parameterId : parameters.getIds()) {
-            if (!providedParameters.containsParameter(parameterId)) {
+            if (!providedParameters.containsKey(parameterId)) {
                 throw new InvalidParametersException("Missing value for parameter " + parameterId);
             }
         }
@@ -173,13 +178,14 @@ public class ParametersService {
      * @param providedParameters the parameters as provided by the user (using human friendly names)
      * @return the converted values (i.e. using backend values) if allowed otherwise nothing
      */
-    private Optional<ProvidedParameters> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, ProvidedParameters providedParameters) {
-        Map<String, String> res = new HashMap<>();
+    private Optional<ProvidedParameters> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, Map<String, String> providedParameters) {
+        Map<String, String> backendValues = new HashMap<>();
+        Map<String, String> names = new HashMap<>();
         for (ParameterDefinition parameter: parameters) {
-            if (!providedParameters.containsParameter(parameter.getId())) {
+            if (!providedParameters.containsKey(parameter.getId())) {
                 throw new IllegalStateException("Could not find value for parameter with id" + parameter.getId());
             }
-            String providedValue = providedParameters.getValue(parameter.getId());
+            String providedValue = providedParameters.get(parameter.getId());
             String backendValue = parameter.getValueForName(providedValue);
             if (backendValue == null) {
                 // if we did not find a backend value for the provided value (i.e. the user already provided a backend value),
@@ -195,11 +201,29 @@ public class ParametersService {
             if (!valueSet.getParameterValues(parameter.getId()).contains(backendValue)) {
                 return Optional.empty();
             }
-            res.put(parameter.getId(), backendValue);
+            backendValues.put(parameter.getId(), backendValue);
+            names.put(parameter.getDisplayNameOrId(), providedValue); // TODO description?
         }
         // providedParameters contains an allowed value for every parameter
         // return the backend values (instead of the names provided by the user)
-        return Optional.of(new ProvidedParameters(res));
+        return Optional.of(new ProvidedParameters(backendValues, getStringRepresentation(parameters, providedParameters)));
+    }
+
+    public String getStringRepresentation(List<ParameterDefinition> parameters, Map<String, String> providedParameters) {
+        List<Map<String, String>> res = new ArrayList<>();
+        for (ParameterDefinition parameter : parameters) {
+            res.add(new HashMap<String, String>() {{
+                put("displayName", parameter.getDisplayNameOrId());
+                put("description", parameter.getDescription());
+                put("value", providedParameters.get(parameter.getId())); // important: this is the human-friendly/frontend value
+            }});
+        }
+
+        try {
+            return objectMapper.writeValueAsString(res);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {

@@ -40,6 +40,7 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
@@ -149,12 +150,12 @@ public class TestParametersService {
     }
 
     private ProvidedParameters testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
-        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<String, String>() {{
             put("parameter1", parameter1);
             put("parameter2", parameter2);
             put("parameter3", parameter3);
             put("parameter4", parameter4);
-        }});
+        }};
 
         Optional<ProvidedParameters> res = parametersService.parseAndValidateRequest(auth, spec, providedParameters);
         Assertions.assertTrue(res.isPresent());
@@ -162,12 +163,12 @@ public class TestParametersService {
     }
 
     private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
-        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<String, String>() {{
             put("parameter1", parameter1);
             put("parameter2", parameter2);
             put("parameter3", parameter3);
             put("parameter4", parameter4);
-        }});
+        }};
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
@@ -232,8 +233,7 @@ public class TestParametersService {
     public void testParseAndValidateRequestNoParameters() throws InvalidParametersException {
         ProxySpec spec = proxyService.getProxySpec("no-parameters");
 
-        ProvidedParameters providedParameters = new ProvidedParameters();
-        Assertions.assertFalse(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
+        Assertions.assertFalse(parametersService.parseAndValidateRequest(auth, spec, new HashMap<>()).isPresent());
     }
 
     @Test
@@ -241,24 +241,24 @@ public class TestParametersService {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
 
         // too many parameters
-        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<String, String>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
             put("parameter4", "NO");
             put("parameter5", "NO");
-        }});
+        }};
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
                 "Invalid number of parameters provided");
 
         // too few parameters
-        ProvidedParameters providedParameters2 = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
-        }});
+        }};
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
@@ -269,23 +269,23 @@ public class TestParametersService {
     public void testInvalidParameterIds() {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
 
-        ProvidedParameters providedParameters = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<String, String>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
             put("parameterXXXX", "NO");
-        }});
+        }};
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
                 "Missing value for parameter parameter4");
 
-        ProvidedParameters providedParameters2 = new ProvidedParameters(new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
             put("parameterABC", "The letter A");
             put("parameter#$#$", "The number 1");
             put("parameter3343434", "Foo");
             put("parameterXXXX", "NO");
-        }});
+        }};
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),

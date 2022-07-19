@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -249,7 +250,7 @@ public class ProxyService {
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId, ProvidedParameters parameters) throws ContainerProxyException, InvalidParametersException {
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) throws ContainerProxyException, InvalidParametersException {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}

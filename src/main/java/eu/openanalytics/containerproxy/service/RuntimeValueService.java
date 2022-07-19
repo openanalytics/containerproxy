@@ -32,7 +32,9 @@ import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -63,12 +65,13 @@ public class RuntimeValueService {
     @Inject
     private UserService userService;
 
+    @PostConstruct
     public void init() {
         defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
-    public void createRuntimeValues(ProxySpec spec, ProvidedParameters parameters, Proxy proxy) throws InvalidParametersException {
+    public void createRuntimeValues(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
         Optional<ProvidedParameters> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
         if (providedParametersOptional.isPresent()) {
             proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, providedParametersOptional.get()));

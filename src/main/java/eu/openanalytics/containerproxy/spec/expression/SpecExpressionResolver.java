@@ -20,8 +20,12 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
@@ -72,9 +76,9 @@ public class SpecExpressionResolver {
 		this.expressionParser = new SpelExpressionParser();
 	}
 	
-	public Object evaluate(String expression, SpecExpressionContext context) {
+	public <T> T evaluate(String expression, SpecExpressionContext context, Class<T> resType) {
 		if (expression == null) return null;
-		if (expression.isEmpty()) return "";
+		if (expression.isEmpty()) return null;
 		
 		Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
 		
@@ -95,18 +99,27 @@ public class SpecExpressionResolver {
 			evaluationCache.put(context, sec);
 		}
 		
-		return expr.getValue(sec);
+		return expr.getValue(sec, resType);
 	}
 	
 	public String evaluateToString(String expression, SpecExpressionContext context) {
-		return String.valueOf(evaluate(expression, context));
+		String res = evaluate(expression, context, String.class);
+		if (res == null) {
+			return "";
+		}
+		return res;
 	}
 
 	public Long evaluateToLong(String expression, SpecExpressionContext context) {
-		return Long.valueOf(evaluateToString(expression, context));
+		return evaluate(expression, context, Long.class);
 	}
 
 	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
-		return Boolean.valueOf(evaluateToString(expression, context));
+		return evaluate(expression, context, Boolean.class);
 	}
+
+    public List<String> evaluateToList(String[] expressions, SpecExpressionContext context) {
+		return Arrays.stream(expressions).flatMap(	 (el) ->
+				((List<String>) evaluate(el, context, List.class)).stream()).collect(Collectors.toList());
+    }
 }

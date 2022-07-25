@@ -31,11 +31,13 @@ public class ProvidedParameters {
 
     private final Map<String, String> backendValues;
     private final String stringRepresentation;
+    private final String valueSetName;
 
     @JsonCreator
-    public ProvidedParameters(Map<String, String> backendValues, String stringRepresentation) {
+    public ProvidedParameters(Map<String, String> backendValues, String stringRepresentation, String valueSetName) {
         this.backendValues = backendValues;
         this.stringRepresentation = stringRepresentation;
+        this.valueSetName = valueSetName;
     }
 
     public int size() {
@@ -49,5 +51,9 @@ public class ProvidedParameters {
     @Override
     public String toString() {
         return stringRepresentation;
+    }
+
+    public String getValueSetName() {
+        return valueSetName;
     }
 }

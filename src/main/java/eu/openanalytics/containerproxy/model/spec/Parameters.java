@@ -55,6 +55,8 @@ public class Parameters {
         private AccessControl accessControl;
         private Map<String, List<String>> values;
 
+        private String name = null;
+
         public void setValues(Map<String, List<String>> values) {
             this.values = values;
         }
@@ -77,6 +79,14 @@ public class Parameters {
 
         public Set<String> getParameterIds() {
             return values.keySet();
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
         }
     }
 }

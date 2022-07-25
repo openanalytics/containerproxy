@@ -206,7 +206,11 @@ public class ParametersService {
         }
         // providedParameters contains an allowed value for every parameter
         // return the backend values (instead of the names provided by the user)
-        return Optional.of(new ProvidedParameters(backendValues, getStringRepresentation(parameters, providedParameters)));
+        return Optional.of(new ProvidedParameters(
+                backendValues,
+                getStringRepresentation(parameters, providedParameters),
+                valueSet.getName()
+                ));
     }
 
     public String getStringRepresentation(List<ParameterDefinition> parameters, Map<String, String> providedParameters) {

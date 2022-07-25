@@ -45,6 +45,9 @@ public class ProvidedParameters {
     }
 
     public String getValue(String parameterId) {
+        if (!backendValues.containsKey(parameterId)) {
+            throw new IllegalArgumentException(String.format("The parameter with id \"%s\" does not exist!", parameterId));
+        }
         return backendValues.get(parameterId);
     }
 

@@ -53,7 +53,8 @@ proxy:
               - value: "no"
                 name: "NO"
         value-sets:
-          - values:
+          - name: the-first-value-set
+            values:
               parameter1:
                 - A
                 - B
@@ -135,7 +136,8 @@ proxy:
                 - foobarfoo
               parameter4:
                 - "no"
-          - values:
+          - name: the-last-value-set
+            values:
               parameter1:
                 - A
                 - B

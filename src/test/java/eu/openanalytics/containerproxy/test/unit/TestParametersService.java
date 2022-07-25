@@ -191,24 +191,28 @@ public class TestParametersService {
         Assertions.assertEquals("1", res1.getValue("parameter2"));
         Assertions.assertEquals("foo", res1.getValue("parameter3"));
         Assertions.assertEquals("yes", res1.getValue("parameter4"));
+        Assertions.assertEquals("the-first-value-set", res1.getValueSetName());
 
         ProvidedParameters res2 = testAllowedValue(spec, "The letter A", "2", "Foo", "YES");
         Assertions.assertEquals("A", res2.getValue("parameter1"));
         Assertions.assertEquals("2", res2.getValue("parameter2"));
         Assertions.assertEquals("foo", res2.getValue("parameter3"));
         Assertions.assertEquals("yes", res2.getValue("parameter4"));
+        Assertions.assertEquals("the-first-value-set", res2.getValueSetName());
 
         ProvidedParameters res3 = testAllowedValue(spec, "The letter A", "The number 1", "foobarfoo", "NO");
         Assertions.assertEquals("A", res3.getValue("parameter1"));
         Assertions.assertEquals("1", res3.getValue("parameter2"));
         Assertions.assertEquals("foobarfoo", res3.getValue("parameter3"));
         Assertions.assertEquals("no", res3.getValue("parameter4"));
+        Assertions.assertNull(res3.getValueSetName());
 
         ProvidedParameters res4 = testAllowedValue(spec, "The letter A", "The number 1", "barfoobar", "YES");
         Assertions.assertEquals("A", res4.getValue("parameter1"));
         Assertions.assertEquals("1", res4.getValue("parameter2"));
         Assertions.assertEquals("barfoobar", res4.getValue("parameter3"));
         Assertions.assertEquals("yes", res4.getValue("parameter4"));
+        Assertions.assertEquals("the-last-value-set", res4.getValueSetName());
 
         // test that allowed values but invalid combinations are not allowed
         testNotAllowedValue(spec, "The letter A", "The number 1", "foobarfoo", "YES");

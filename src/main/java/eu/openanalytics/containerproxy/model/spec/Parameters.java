@@ -29,6 +29,7 @@ public class Parameters {
 
     private List<ParameterDefinition> definitions;
     private List<ValueSet> valueSets;
+    private String template;
 
     public List<ParameterDefinition> getDefinitions() {
         return definitions;
@@ -48,6 +49,14 @@ public class Parameters {
 
     public void setValueSets(List<ValueSet> valueSets) {
         this.valueSets = valueSets;
+    }
+
+    public String getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(String template) {
+        this.template = template;
     }
 
     public static class ValueSet {

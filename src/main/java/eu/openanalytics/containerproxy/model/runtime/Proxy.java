@@ -194,6 +194,15 @@ public class Proxy {
 		return runtimeValue.getObject();
 	}
 
+	public <T> T getRuntimeObjectOrNull(RuntimeValueKey<T> key) {
+		Objects.requireNonNull(key, "key may not be null");
+		RuntimeValue runtimeValue = runtimeValues.get(key);
+		if (runtimeValue == null) {
+			return null;
+		}
+		return runtimeValue.getObject();
+	}
+
 	public <T> String getRuntimeValue(RuntimeValueKey<T> key) {
 		Objects.requireNonNull(key, "key may not be null");
 		RuntimeValue runtimeValue = runtimeValues.get(key);

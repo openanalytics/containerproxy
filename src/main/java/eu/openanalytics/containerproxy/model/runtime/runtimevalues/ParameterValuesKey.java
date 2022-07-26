@@ -20,20 +20,20 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 
-public class ParametersKey extends RuntimeValueKey<ProvidedParameters> {
+public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
-    public ParametersKey() {
+    public ParameterValuesKey() {
         super("openanalytics.eu/sp-parameters",
                 "SHINYPROXY_PARAMETERS",
                 false,
+                false, // TODO
                 false,
-                false,
-                false, ProvidedParameters.class);
+                false, ParameterValues.class);
     }
 
-    public static ParametersKey inst = new ParametersKey();
+    public static ParameterValuesKey inst = new ParameterValuesKey();
 
 
 }

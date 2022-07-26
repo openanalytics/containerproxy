@@ -79,4 +79,8 @@ public abstract class RuntimeValueKey<T> {
     public Class<T> getClazz() {
         return clazz;
     }
+
+    public boolean isInstance(Object object) {
+        return clazz.isInstance(object);
+    }
 }

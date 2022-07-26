@@ -59,7 +59,8 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(RealmIdKey.inst);
         addRuntimeValueKey(UserGroupsKey.inst);
         addRuntimeValueKey(UserIdKey.inst);
-        addRuntimeValueKey(ParametersKey.inst);
+        addRuntimeValueKey(ParameterNamesKey.inst);
+        addRuntimeValueKey(ParameterValuesKey.inst);
         addRuntimeValueKey(HeartbeatTimeoutKey.inst);
         addRuntimeValueKey(MaxLifetimeKey.inst);
     }

@@ -20,23 +20,21 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.HashMap;
 import java.util.Map;
 
-public class ProvidedParameters {
+public class ParameterValues {
 
     private final Map<String, String> backendValues;
-    private final String stringRepresentation;
     private final String valueSetName;
 
     @JsonCreator
-    public ProvidedParameters(Map<String, String> backendValues, String stringRepresentation, String valueSetName) {
+    public ParameterValues(Map<String, String> backendValues, String valueSetName) {
         this.backendValues = backendValues;
-        this.stringRepresentation = stringRepresentation;
         this.valueSetName = valueSetName;
     }
 
@@ -53,7 +51,12 @@ public class ProvidedParameters {
 
     @Override
     public String toString() {
-        return stringRepresentation;
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(backendValues);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String getValueSetName() {

@@ -22,13 +22,15 @@ package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
-import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -149,7 +151,7 @@ public class TestParametersService {
                 allowedParametersForUser.getValues().get("parameter4"));
     }
 
-    private ProvidedParameters testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
+    private Pair<ParameterNames, ParameterValues> testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
         Map<String, String> providedParameters = new HashMap<String, String>() {{
             put("parameter1", parameter1);
             put("parameter2", parameter2);
@@ -157,7 +159,7 @@ public class TestParametersService {
             put("parameter4", parameter4);
         }};
 
-        Optional<ProvidedParameters> res = parametersService.parseAndValidateRequest(auth, spec, providedParameters);
+        Optional<Pair<ParameterNames, ParameterValues>> res = parametersService.parseAndValidateRequest(auth, spec, providedParameters);
         Assertions.assertTrue(res.isPresent());
         return res.get();
     }
@@ -186,33 +188,33 @@ public class TestParametersService {
         testNotAllowedValue(spec, "A", "1", "foobarfoo", "no");
         testNotAllowedValue(spec, "A", "1", "barfoobar", "yes");
 
-        ProvidedParameters res1 = testAllowedValue(spec, "The letter A", "The number 1", "Foo", "YES");
-        Assertions.assertEquals("A", res1.getValue("parameter1"));
-        Assertions.assertEquals("1", res1.getValue("parameter2"));
-        Assertions.assertEquals("foo", res1.getValue("parameter3"));
-        Assertions.assertEquals("yes", res1.getValue("parameter4"));
-        Assertions.assertEquals("the-first-value-set", res1.getValueSetName());
+        Pair<ParameterNames, ParameterValues> res1 = testAllowedValue(spec, "The letter A", "The number 1", "Foo", "YES");
+        Assertions.assertEquals("A", res1.getValue().getValue("parameter1"));
+        Assertions.assertEquals("1", res1.getValue().getValue("parameter2"));
+        Assertions.assertEquals("foo", res1.getValue().getValue("parameter3"));
+        Assertions.assertEquals("yes", res1.getValue().getValue("parameter4"));
+        Assertions.assertEquals("the-first-value-set", res1.getValue().getValueSetName());
 
-        ProvidedParameters res2 = testAllowedValue(spec, "The letter A", "2", "Foo", "YES");
-        Assertions.assertEquals("A", res2.getValue("parameter1"));
-        Assertions.assertEquals("2", res2.getValue("parameter2"));
-        Assertions.assertEquals("foo", res2.getValue("parameter3"));
-        Assertions.assertEquals("yes", res2.getValue("parameter4"));
-        Assertions.assertEquals("the-first-value-set", res2.getValueSetName());
+        Pair<ParameterNames, ParameterValues> res2 = testAllowedValue(spec, "The letter A", "2", "Foo", "YES");
+        Assertions.assertEquals("A", res2.getValue().getValue("parameter1"));
+        Assertions.assertEquals("2", res2.getValue().getValue("parameter2"));
+        Assertions.assertEquals("foo", res2.getValue().getValue("parameter3"));
+        Assertions.assertEquals("yes", res2.getValue().getValue("parameter4"));
+        Assertions.assertEquals("the-first-value-set", res2.getValue().getValueSetName());
 
-        ProvidedParameters res3 = testAllowedValue(spec, "The letter A", "The number 1", "foobarfoo", "NO");
-        Assertions.assertEquals("A", res3.getValue("parameter1"));
-        Assertions.assertEquals("1", res3.getValue("parameter2"));
-        Assertions.assertEquals("foobarfoo", res3.getValue("parameter3"));
-        Assertions.assertEquals("no", res3.getValue("parameter4"));
-        Assertions.assertNull(res3.getValueSetName());
+        Pair<ParameterNames, ParameterValues> res3 = testAllowedValue(spec, "The letter A", "The number 1", "foobarfoo", "NO");
+        Assertions.assertEquals("A", res3.getValue().getValue("parameter1"));
+        Assertions.assertEquals("1", res3.getValue().getValue("parameter2"));
+        Assertions.assertEquals("foobarfoo", res3.getValue().getValue("parameter3"));
+        Assertions.assertEquals("no", res3.getValue().getValue("parameter4"));
+        Assertions.assertNull(res3.getValue().getValueSetName());
 
-        ProvidedParameters res4 = testAllowedValue(spec, "The letter A", "The number 1", "barfoobar", "YES");
-        Assertions.assertEquals("A", res4.getValue("parameter1"));
-        Assertions.assertEquals("1", res4.getValue("parameter2"));
-        Assertions.assertEquals("barfoobar", res4.getValue("parameter3"));
-        Assertions.assertEquals("yes", res4.getValue("parameter4"));
-        Assertions.assertEquals("the-last-value-set", res4.getValueSetName());
+        Pair<ParameterNames, ParameterValues> res4 = testAllowedValue(spec, "The letter A", "The number 1", "barfoobar", "YES");
+        Assertions.assertEquals("A", res4.getValue().getValue("parameter1"));
+        Assertions.assertEquals("1", res4.getValue().getValue("parameter2"));
+        Assertions.assertEquals("barfoobar", res4.getValue().getValue("parameter3"));
+        Assertions.assertEquals("yes", res4.getValue().getValue("parameter4"));
+        Assertions.assertEquals("the-last-value-set", res4.getValue().getValueSetName());
 
         // test that allowed values but invalid combinations are not allowed
         testNotAllowedValue(spec, "The letter A", "The number 1", "foobarfoo", "YES");

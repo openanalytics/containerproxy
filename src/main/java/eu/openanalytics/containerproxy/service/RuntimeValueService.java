@@ -20,15 +20,18 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
+import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParametersKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -72,10 +75,13 @@ public class RuntimeValueService {
     }
 
     public void createRuntimeValues(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
-        Optional<ProvidedParameters> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
+        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
+
         if (providedParametersOptional.isPresent()) {
-            proxy.addRuntimeValue(new RuntimeValue(ParametersKey.inst, providedParametersOptional.get()));
+            proxy.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()));
+            proxy.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()));
         }
+
         SpecExpressionContext context = SpecExpressionContext.create(
                 proxy,
                 proxy.getSpec(),

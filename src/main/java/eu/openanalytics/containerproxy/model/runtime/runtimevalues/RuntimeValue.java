@@ -33,6 +33,9 @@ public class RuntimeValue {
     private final Object value;
 
     public RuntimeValue(RuntimeValueKey<?> key, Object value) {
+        if (!key.isInstance(value)) {
+            throw new IllegalArgumentException("Provided value is not of the correct type!");
+        }
         this.key = Objects.requireNonNull(key, "key may not be null");
         this.value = Objects.requireNonNull(value, "value may not be null for key " + key.getKeyAsEnvVar());
     }
@@ -57,4 +60,3 @@ public class RuntimeValue {
     }
 
 }
-

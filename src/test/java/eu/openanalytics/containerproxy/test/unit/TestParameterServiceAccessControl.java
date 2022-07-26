@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
-import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;

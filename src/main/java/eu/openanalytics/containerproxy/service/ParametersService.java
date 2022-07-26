@@ -20,15 +20,16 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
-import eu.openanalytics.containerproxy.model.runtime.ProvidedParameters;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
+import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.spec.ParameterDefinition;
 import eu.openanalytics.containerproxy.model.spec.Parameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -127,13 +128,14 @@ public class ParametersService {
      * - checks that a value is included for every parameter
      * - checks that the user is allowed to use these values
      * - converts the (human friendly) name to the backend value
-     * @param auth the user
-     * @param spec the Proxy spec to which this requests belong
+     *
+     * @param auth               the user
+     * @param spec               the Proxy spec to which this requests belong
      * @param providedParameters the parameters as provided by the user (using human friendly names)
      * @return the parsed parameters (using backend values)
      * @throws InvalidParametersException
      */
-    public Optional<ProvidedParameters> parseAndValidateRequest(Authentication auth, ProxySpec spec, Map<String, String> providedParameters) throws InvalidParametersException {
+    public Optional<Pair<ParameterNames, ParameterValues>> parseAndValidateRequest(Authentication auth, ProxySpec spec, Map<String, String> providedParameters) throws InvalidParametersException {
         Parameters parameters = spec.getParameters();
         if (parameters == null) {
             return Optional.empty();
@@ -160,7 +162,7 @@ public class ParametersService {
             if (!accessControlEvaluationService.checkAccess(auth, spec, valueSet.getAccessControl())) {
                 continue;
             }
-            Optional<ProvidedParameters> res = convertParametersIfAllowed(parameters.getDefinitions(), valueSet, providedParameters);
+            Optional<Pair<ParameterNames, ParameterValues>> res = convertParametersIfAllowed(parameters.getDefinitions(), valueSet, providedParameters);
             if (res.isPresent()) {
                 return res; // parameters are allowed, return the converted values
             }
@@ -173,12 +175,13 @@ public class ParametersService {
      * Checks whether the provided parameters are allowed by the given valueSet.
      * Returns the converted backend values if (and only if) the provided human-friendly values are allowed by this
      * valueSet.
-     * @param parameters the parameter defintiions
-     * @param valueSet the valueSet to check
+     *
+     * @param parameters         the parameter defintiions
+     * @param valueSet           the valueSet to check
      * @param providedParameters the parameters as provided by the user (using human friendly names)
      * @return the converted values (i.e. using backend values) if allowed otherwise nothing
      */
-    private Optional<ProvidedParameters> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, Map<String, String> providedParameters) {
+    private Optional<Pair<ParameterNames, ParameterValues>> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, Map<String, String> providedParameters) {
         Map<String, String> backendValues = new HashMap<>();
         Map<String, String> names = new HashMap<>();
         for (ParameterDefinition parameter: parameters) {
@@ -205,29 +208,25 @@ public class ParametersService {
             names.put(parameter.getDisplayNameOrId(), providedValue); // TODO description?
         }
         // providedParameters contains an allowed value for every parameter
-        // return the backend values (instead of the names provided by the user)
-        return Optional.of(new ProvidedParameters(
-                backendValues,
-                getStringRepresentation(parameters, providedParameters),
-                valueSet.getName()
-                ));
+        ParameterNames parameterNames = new ParameterNames(getParameterNames(parameters, providedParameters));
+        ParameterValues parameterValues = new ParameterValues(backendValues, valueSet.getName());
+        return Optional.of(Pair.of(parameterNames, parameterValues));
     }
 
-    public String getStringRepresentation(List<ParameterDefinition> parameters, Map<String, String> providedParameters) {
-        List<Map<String, String>> res = new ArrayList<>();
+    /**
+     * Creates ParamaterNames representation for the chosen parameters.
+     * This is the public value which can be seen by the user (e.g. in API responses).
+     *
+     * @param parameters parameter definitions
+     * @param providedParameters values chosen by the user
+     * @return
+     */
+    private List<ParameterNames.ParameterName> getParameterNames(List<ParameterDefinition> parameters, Map<String, String> providedParameters) {
+        List<ParameterNames.ParameterName> res = new ArrayList<>();
         for (ParameterDefinition parameter : parameters) {
-            res.add(new HashMap<String, String>() {{
-                put("displayName", parameter.getDisplayNameOrId());
-                put("description", parameter.getDescription());
-                put("value", providedParameters.get(parameter.getId())); // important: this is the human-friendly/frontend value
-            }});
+            res.add(new ParameterNames.ParameterName(parameter.getDisplayNameOrId(), parameter.getDescription(), providedParameters.get(parameter.getId())));
         }
-
-        try {
-            return objectMapper.writeValueAsString(res);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return res;
     }
 
     public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {

@@ -129,7 +129,9 @@ public class Proxy {
 	    // only output key<->value in JSON
 	    Map<String, String> result = new HashMap<>();
 	    for (RuntimeValue value : runtimeValues.values()) {
-	    	result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+			if (value.getKey().getIncludeInApi()) {
+				result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+			}
 		}
 	    return result;
 	}

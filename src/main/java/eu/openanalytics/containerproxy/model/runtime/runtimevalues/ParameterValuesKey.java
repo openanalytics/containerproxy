@@ -30,6 +30,7 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
                 false,
                 false, // TODO
                 false,
+                false, // IMPORTANT: the actual values may not be exposed through the API
                 false, ParameterValues.class);
     }
 

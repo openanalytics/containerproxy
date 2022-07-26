@@ -28,6 +28,7 @@ public class UserGroupsKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 true,
+                false, // no need to expose in API
                 true, String.class);
     }
 

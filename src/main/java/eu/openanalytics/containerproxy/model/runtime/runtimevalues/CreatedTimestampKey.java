@@ -28,6 +28,7 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 false,
+                true,
                 true, String.class);
     }
 

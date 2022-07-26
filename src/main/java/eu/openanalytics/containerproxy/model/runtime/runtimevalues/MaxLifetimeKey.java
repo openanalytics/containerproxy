@@ -28,6 +28,7 @@ public class MaxLifetimeKey extends RuntimeValueKey<Long> {
                 false,
                 true,
                 false,
+                true,
                 true, Long.class);
     }
 

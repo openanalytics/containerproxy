@@ -28,6 +28,7 @@ public class RealmIdKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 true,
+                false, // no need to expose in API
                 false, String.class);
     }
 

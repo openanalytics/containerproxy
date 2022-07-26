@@ -28,6 +28,7 @@ public class ProxySpecIdKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 false,
+                false, // no need to expose in API
                 true, String.class);
     }
 

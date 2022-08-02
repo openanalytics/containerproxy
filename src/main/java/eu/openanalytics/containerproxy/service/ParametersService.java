@@ -108,22 +108,6 @@ public class ParametersService {
             throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: not every parameter has a default value. Either define no defaults, or defaults for all parameters.", spec.getId()));
         }
 
-        // Check that every default value exists
-        if (spec.getParameters().getDefinitions().get(0).getDefaultValue() != null) {
-            for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
-                boolean defaultValueExists = false;
-                for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
-                    if (valueSet.getParameterValues(definition.getId()).contains(definition.getDefaultValue())) {
-                        defaultValueExists = true;
-                        break;
-                    }
-                }
-                if (!defaultValueExists) {
-                    throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: default value for parameter with id '%s' is not defined in a value-set", spec.getId(), definition.getId()));
-                }
-            }
-        }
-
         // Validate Parameter Value Sets
         int valueSetIdx = 0;
         for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
@@ -141,6 +125,22 @@ public class ParametersService {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: value set %s contains values for more parameters than there are defined", spec.getId(), valueSetIdx));
             }
             valueSetIdx++;
+        }
+
+        // Check that every default value exists
+        if (spec.getParameters().getDefinitions().get(0).getDefaultValue() != null) {
+            for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
+                boolean defaultValueExists = false;
+                for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
+                    if (valueSet.getParameterValues(definition.getId()).contains(definition.getDefaultValue())) {
+                        defaultValueExists = true;
+                        break;
+                    }
+                }
+                if (!defaultValueExists) {
+                    throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: default value for parameter with id '%s' is not defined in a value-set", spec.getId(), definition.getId()));
+                }
+            }
         }
 
     }

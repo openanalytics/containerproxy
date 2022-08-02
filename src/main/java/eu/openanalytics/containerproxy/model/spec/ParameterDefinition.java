@@ -33,13 +33,16 @@ public class ParameterDefinition {
     private final String displayName;
     private final String description;
 
+    private final String defaultValue;
+
     // a mapping of the raw value (used in the backend) to a human friendly name used in the front-end
     private final BidiMap<String, String> valueNames;
 
-    public ParameterDefinition(String id, String displayName, String description, List<ValueName> valueNames) {
+    public ParameterDefinition(String id, String displayName, String description, List<ValueName> valueNames, String defaultValue) {
         this.id = id;
         this.displayName = displayName;
         this.description = description;
+        this.defaultValue = defaultValue;
         this.valueNames = new DualHashBidiMap<>();
         if (valueNames != null) {
             for (ValueName valueName : valueNames) {
@@ -73,6 +76,10 @@ public class ParameterDefinition {
 
     public String getId() {
         return id;
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
     }
 
     /**

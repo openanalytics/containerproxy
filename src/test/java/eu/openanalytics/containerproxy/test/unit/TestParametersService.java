@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
@@ -149,6 +150,35 @@ public class TestParametersService {
                         "well"
                 ),
                 allowedParametersForUser.getValues().get("parameter4"));
+
+        Assertions.assertEquals(Arrays.asList(0, 0, 0, 0), allowedParametersForUser.getDefaultValue());
+    }
+
+    @Test
+    public void testDefaultValues() {
+        ProxySpec spec = proxyService.getProxySpec("default-values");
+
+        Authentication authJack = mock(Authentication.class);
+        when(authJack.getName()).thenReturn("jack");
+
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(authJack, spec);
+        // jack does not have access to a value of this set
+        Assertions.assertEquals(Arrays.asList(0, 0, 0), allowedParametersForUser.getDefaultValue());
+
+        Authentication authThomas = mock(Authentication.class);
+        when(authThomas.getName()).thenReturn("thomas");
+
+        AllowedParametersForUser allowedParametersForUser2 = parametersService.calculateAllowedParametersForUser(authThomas, spec);
+        // thomas does not have access to the combination of the default values
+        Assertions.assertEquals(Arrays.asList(0, 0, 0), allowedParametersForUser2.getDefaultValue());
+
+        Authentication authJeff = mock(Authentication.class);
+        when(authJeff.getName()).thenReturn("jeff");
+
+        AllowedParametersForUser allowedParametersForUser3 = parametersService.calculateAllowedParametersForUser(authJeff, spec);
+        // thomas does not have access to the combination of the default values
+        Assertions.assertEquals(Arrays.asList(1, 2, 3), allowedParametersForUser3.getDefaultValue());
+
     }
 
     private Pair<ParameterNames, ParameterValues> testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {

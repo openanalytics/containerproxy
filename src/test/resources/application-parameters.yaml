@@ -226,3 +226,42 @@ proxy:
               users:
                 - jack
                 - jeff
+    - id: default-values
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            default: 3838
+      parameters:
+        definitions:
+          - id: parameter1
+            default-value: value1
+          - id: parameter2
+            default-value: value2
+          - id: parameter3
+            default-value: value3
+        value-sets:
+          - values:
+              parameter1:
+              - value1
+              - value2
+              parameter2:
+              - value1
+              - value2
+              parameter3:
+               - value1
+               - value2
+          - values:
+              parameter1: value1
+              parameter2: value2
+              parameter3: value3
+            access-control:
+              users:
+                - jeff
+          - values:
+              parameter1: value1
+              parameter2: value3
+              parameter3: value3
+            access-control:
+              users:
+                - thomas

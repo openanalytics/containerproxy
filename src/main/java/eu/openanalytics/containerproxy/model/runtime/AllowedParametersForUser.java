@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,10 +36,12 @@ public class AllowedParametersForUser {
      */
     private final HashSet<List<Integer>> allowedCombinations;
 
+    private final List<Integer> defaultValue;
 
-    public AllowedParametersForUser(Map<String, List<String>> values, HashSet<List<Integer>> allowedCombinations) {
+    public AllowedParametersForUser(Map<String, List<String>> values, HashSet<List<Integer>> allowedCombinations, List<Integer> defaultValue) {
         this.values = values;
         this.allowedCombinations = allowedCombinations;
+        this.defaultValue = defaultValue;
     }
 
     public HashSet<List<Integer>> getAllowedCombinations() {
@@ -50,5 +50,9 @@ public class AllowedParametersForUser {
 
     public Map<String, List<String>> getValues() {
         return values;
+    }
+
+    public List<Integer> getDefaultValue() {
+        return defaultValue;
     }
 }

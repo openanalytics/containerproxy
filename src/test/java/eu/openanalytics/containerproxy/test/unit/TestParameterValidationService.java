@@ -70,6 +70,12 @@ public class TestParameterValidationService {
         test("classpath:application-parameters-validation-7.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: value set 0 contains values for more parameters than there are defined");
     }
 
+    @Test
+    public void testDefaultValueErrors() {
+        test("classpath:application-parameters-validation-9.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: not every parameter has a default value. Either define no defaults, or defaults for all parameters");
+        test("classpath:application-parameters-validation-10.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: default value for parameter with id 'parameter2' is not defined in a value-set");
+    }
+
     public static class TestPropertyLoader implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
         private final String location;

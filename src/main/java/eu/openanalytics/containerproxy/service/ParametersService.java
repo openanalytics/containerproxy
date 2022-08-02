@@ -35,14 +35,17 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ParametersService {
@@ -53,12 +56,9 @@ public class ParametersService {
 
     private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
 
-    private final ObjectMapper objectMapper;
-
     public ParametersService(IProxySpecProvider baseSpecProvider, AccessControlEvaluationService accessControlEvaluationService, ObjectMapper objectMapper) {
         this.baseSpecProvider = baseSpecProvider;
         this.accessControlEvaluationService = accessControlEvaluationService;
-        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -99,6 +99,28 @@ public class ParametersService {
             }
             if (definition.getDescription() != null && StringUtils.isBlank(definition.getDescription())) {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: description may not be blank of parameter with id '%s'", spec.getId(), definition.getId()));
+            }
+        }
+
+        // Check that either no defaults are provided or that all parameters has a default value
+        List<String> defaults = spec.getParameters().getDefinitions().stream().map(ParameterDefinition::getDefaultValue).collect(Collectors.toList());
+        if (!defaults.stream().allMatch(Objects::isNull) && !defaults.stream().allMatch(Objects::nonNull)) {
+            throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: not every parameter has a default value. Either define no defaults, or defaults for all parameters.", spec.getId()));
+        }
+
+        // Check that every default value exists
+        if (spec.getParameters().getDefinitions().get(0).getDefaultValue() != null) {
+            for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
+                boolean defaultValueExists = false;
+                for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
+                    if (valueSet.getParameterValues(definition.getId()).contains(definition.getDefaultValue())) {
+                        defaultValueExists = true;
+                        break;
+                    }
+                }
+                if (!defaultValueExists) {
+                    throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: default value for parameter with id '%s' is not defined in a value-set", spec.getId(), definition.getId()));
+                }
             }
         }
 
@@ -232,7 +254,7 @@ public class ParametersService {
     public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {
         Parameters parameters = proxySpec.getParameters();
         if (parameters == null) {
-            return new AllowedParametersForUser(new HashMap<>(), new HashSet<>());
+            return new AllowedParametersForUser(new HashMap<>(), new HashSet<>(), null);
         }
         List<String> parameterIds = parameters.getIds();
 
@@ -270,7 +292,10 @@ public class ParametersService {
             allowedCombinations.addAll(getAllowedCombinationsForSingleValueSet(parameterIds, valueSet, valuesToIndex));
         }
 
-        return new AllowedParametersForUser(values, allowedCombinations);
+        // 4. compute default value
+        List<Integer> defaultValue = getDefaultValue(parameters.getDefinitions(), allowedCombinations, valuesToIndex);
+
+        return new AllowedParametersForUser(values, allowedCombinations, defaultValue);
 
     }
 
@@ -300,6 +325,26 @@ public class ParametersService {
             }
         }
         return newAllowedCombinations;
+    }
+
+    private List<Integer> getDefaultValue(List<ParameterDefinition> definitions, HashSet<List<Integer>> allowedCombinations, Map<String, Map<String, Integer>> valuesToIndex) {
+        List<Integer> noDefault = new ArrayList<>(Collections.nCopies(definitions.size(), 0));
+        List<Integer> result = new ArrayList<>();
+
+        if (definitions.get(0).getDefaultValue() == null) {
+            return noDefault; // no default values defined
+        }
+        for (ParameterDefinition definition: definitions) {
+            Integer valueIndex = valuesToIndex.get(definition.getId()).get(definition.getDefaultValue());
+            if (valueIndex == null) {
+                return noDefault; // default value cannot be used by this user
+            }
+            result.add(valueIndex);
+        }
+        if (allowedCombinations.contains(result)) {
+            return result;
+        }
+        return noDefault; // this combination cannot be used by the user
     }
 
 }

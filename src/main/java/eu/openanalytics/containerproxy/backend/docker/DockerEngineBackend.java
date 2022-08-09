@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
+import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.exceptions.NotFoundException;
 import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
@@ -29,6 +31,7 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
+import com.spotify.docker.client.messages.RegistryAuth;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -37,6 +40,8 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URL;
@@ -49,10 +54,27 @@ import java.util.Optional;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
+	private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
+
+	private ImagePullPolicy imagePullPolicy;
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	@Override
+	public void initialize() {
+		super.initialize();
+		imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
+	}
+
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
 		Builder hostConfigBuilder = HostConfig.builder();
-		
+
+		if (imagePullPolicy == ImagePullPolicy.Always
+			|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
+			logger.info("Pulling image {}", spec.getImage());
+			pullImage(spec);
+		}
+
 		Map<String, List<PortBinding>> portBindings = new HashMap<>();
 		if (isUseInternalNetwork()) {
 			// In internal networking mode, we can access container ports directly, no need to bind on host.
@@ -203,6 +225,36 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		return containers;
 	}
-	
+
+	private boolean isImagePresent(ContainerSpec spec) throws DockerException, InterruptedException {
+		try {
+			dockerClient.inspectImage(spec.getImage());
+			return true;
+		} catch (NotFoundException ex) {
+			return false;
+		}
+	}
+
+	private void pullImage(ContainerSpec spec) throws DockerException, InterruptedException {
+		if (spec.getDockerRegistryDomain() != null
+				&& spec.getDockerRegistryUsername() != null
+				&& spec.getDockerRegistryPassword() != null) {
+
+			RegistryAuth registryAuth = RegistryAuth.builder()
+					.serverAddress(spec.getDockerRegistryDomain())
+					.username(spec.getDockerRegistryUsername())
+					.password(spec.getDockerRegistryPassword())
+					.build();
+			dockerClient.pull(spec.getImage(), registryAuth, message -> {});
+		} else {
+			dockerClient.pull(spec.getImage(), message -> {});
+		}
+	}
+
+	public enum ImagePullPolicy {
+		Never,
+		Always,
+		IfNotPresent
+	}
 
 }

@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ContainerSpec {
@@ -43,6 +45,10 @@ public class ContainerSpec {
 	private String targetPath;
 	private Map<String, String> labels = new HashMap<>();
 	private Map<String, String> settings = new HashMap<>();
+	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
+	private String dockerRegistryDomain;
+	private String dockerRegistryUsername;
+	private String dockerRegistryPassword;
 
 	public String getImage() {
 		return image;
@@ -153,6 +159,38 @@ public class ContainerSpec {
 		this.targetPath = targetPath;
 	}
 
+	public List<DockerSwarmSecret> getDockerSwarmSecrets() {
+		return dockerSwarmSecrets;
+	}
+
+	public void setDockerSwarmSecrets(List<DockerSwarmSecret> dockerSwarmSecrets) {
+		this.dockerSwarmSecrets = dockerSwarmSecrets;
+	}
+
+	public String getDockerRegistryDomain() {
+		return dockerRegistryDomain;
+	}
+
+	public void setDockerRegistryDomain(String dockerRegistryDomain) {
+		this.dockerRegistryDomain = dockerRegistryDomain;
+	}
+
+	public String getDockerRegistryUsername() {
+		return dockerRegistryUsername;
+	}
+
+	public void setDockerRegistryUsername(String dockerRegistryUsername) {
+		this.dockerRegistryUsername = dockerRegistryUsername;
+	}
+
+	public String getDockerRegistryPassword() {
+		return dockerRegistryPassword;
+	}
+
+	public void setDockerRegistryPassword(String dockerRegistryPassword) {
+		this.dockerRegistryPassword = dockerRegistryPassword;
+	}
+
 	public void copy(ContainerSpec target) {
 		target.setImage(image);
 		if (cmd != null) target.setCmd(Arrays.copyOf(cmd, cmd.length));
@@ -182,7 +220,13 @@ public class ContainerSpec {
 			if (target.getSettings() == null) target.setSettings(new HashMap<>());
 			target.getSettings().putAll(settings);
 		}
+		if (dockerSwarmSecrets != null) {
+			if (target.getDockerSwarmSecrets() == null) target.setDockerSwarmSecrets(new ArrayList<>());
+			target.getDockerSwarmSecrets().addAll(dockerSwarmSecrets);
+		}
+		target.setDockerRegistryDomain(dockerRegistryDomain);
+		target.setDockerRegistryUsername(dockerRegistryUsername);
+		target.setDockerRegistryPassword(dockerRegistryPassword);
 		target.setTargetPath(targetPath);
 	}
-
 }

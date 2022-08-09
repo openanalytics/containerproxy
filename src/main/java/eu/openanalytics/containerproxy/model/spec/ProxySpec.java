@@ -103,6 +103,9 @@ public class ProxySpec {
 	
 	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
 		this.containerSpecs = containerSpecs;
+		for (int i = 0; i < this.containerSpecs.size(); i++) {
+			this.containerSpecs.get(i).setIndex(i);
+		}
 	}
 	
 	/**

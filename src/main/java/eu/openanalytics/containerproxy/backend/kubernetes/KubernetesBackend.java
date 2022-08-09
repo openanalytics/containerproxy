@@ -44,11 +44,13 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
@@ -68,6 +70,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -87,6 +90,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -159,6 +165,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		Container container = new Container();
 		container.setSpec(spec);
 		container.setId(UUID.randomUUID().toString());
+		container.setIndex(spec.getIndex());
 
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
@@ -281,28 +288,40 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
 
-		// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
+		// create additional manifests -> use the effective f(i.e. patched) namespace if no namespace is provided
 		createAdditionalManifests(proxy, effectiveKubeNamespace);
 
+		// tell the status service we are starting the pod/container
+		proxyStatusService.containerStarting(proxy, container);
+
+		// create and start the pod
 		Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 
 		int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
-		int maxTries = totalWaitMs / 1000;
-		Retrying.retry(i -> {
-				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-					if (i > 1 && log != null) log.debug(String.format("Container not ready yet, trying again (%d/%d)", i, maxTries));
-					return false;
-				}
-				return true;
+		boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
+			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
+				if (currentAttempt > 10 && log != null) log.info(String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+				return false;
 			}
-		, maxTries, 1000);
-		if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-			Pod pod = kubeClient.resource(startedPod).fromServer().get();
-			container.getParameters().put(PARAM_POD, pod);
-			proxy.getContainers().add(container);
-			throw new ContainerProxyException("Container did not become ready in time");
+			return true;
+		}, totalWaitMs);
+
+		if (!podReady) {
+			// check a final time whether the pod is ready
+			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
+				Pod pod = kubeClient.resource(startedPod).fromServer().get();
+				container.getParameters().put(PARAM_POD, pod);
+				proxy.getContainers().add(container);
+
+				proxyStatusService.containerStartFailed(proxy, container);
+				throw new ContainerProxyException("Container did not become ready in time");
+			}
 		}
+
+		proxyStatusService.containerStarted(proxy, container);
 		Pod pod = kubeClient.resource(startedPod).fromServer().get();
+
+		parseKubernetesEvents(proxy, container, pod);
 
 		Service service = null;
 		if (isUseInternalNetwork()) {
@@ -328,7 +347,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						.build());
 
 			// Workaround: waitUntilReady appears to be buggy.
-			Retrying.retry(i -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60, 1000);
+			Retrying.retry((currentAttempt, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
 
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
@@ -352,6 +371,65 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 
 		return container;
+	}
+
+	private LocalDateTime getEventTime(Event event) {
+		if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
+			return OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		if (event.getFirstTimestamp() != null) {
+			return OffsetDateTime.parse(event.getFirstTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		if (event.getLastTimestamp() != null) {
+			return OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+		}
+
+		return null;
+	}
+
+	private void parseKubernetesEvents(Proxy proxy, Container container, Pod pod) {
+		List<Event> events;
+		try {
+			 events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+					.withKind("Pod")
+					.withName(pod.getMetadata().getName())
+					.withNamespace(pod.getMetadata().getNamespace())
+					.build()).list().getItems();
+		} catch (KubernetesClientException ex) {
+			if (ex.getCode() == 403) {
+				log.warn("Cannot parse events of pod because of insufficient permissions. If fine-grained statistics are desired, give the ShinyProxy ServiceAccount permission to events of pods.");
+				return;
+			}
+			throw ex;
+		}
+
+		LocalDateTime pullingTime = null;
+		LocalDateTime pulledTime = null;
+		LocalDateTime scheduledTime = null;
+
+		for (Event event : events) {
+			if (event.getCount() != null && event.getCount() >  1) {
+				// ignore events which happened multiple time as we are unable to properly process them
+				continue;
+			}
+			if (event.getReason().equalsIgnoreCase("Pulling")) {
+				pullingTime = getEventTime(event);
+			} else if (event.getReason().equalsIgnoreCase("Pulled")) {
+				pulledTime = getEventTime(event);
+			} else if (event.getReason().equalsIgnoreCase("Scheduled")) {
+				scheduledTime = getEventTime(event);
+			}
+		}
+
+		if (pullingTime != null && pulledTime != null) {
+			proxyStatusService.imagePulled(proxy, container, pullingTime, pulledTime);
+		}
+
+		if (scheduledTime != null) {
+			proxyStatusService.containerScheduled(proxy, container, scheduledTime);
+		}
 	}
 
 	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {

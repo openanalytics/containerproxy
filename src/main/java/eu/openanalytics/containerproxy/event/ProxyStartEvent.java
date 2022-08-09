@@ -26,15 +26,15 @@ import java.time.Duration;
 
 public class ProxyStartEvent extends ApplicationEvent {
 
+    private final String proxyId;
     private final String userId;
     private final String specId;
-    private final Duration startupTime;
 
-    public ProxyStartEvent(Object source, String userId, String specId, Duration startupTime) {
+    public ProxyStartEvent(Object source, String proxyId, String userId, String specId) {
         super(source);
+        this.proxyId = proxyId;
         this.userId = userId;
         this.specId = specId;
-        this.startupTime = startupTime;
     }
 
     public String getUserId() {
@@ -45,7 +45,7 @@ public class ProxyStartEvent extends ApplicationEvent {
         return specId;
     }
 
-    public Duration getStartupTime() {
-        return startupTime;
+    public String getProxyId() {
+        return proxyId;
     }
 }

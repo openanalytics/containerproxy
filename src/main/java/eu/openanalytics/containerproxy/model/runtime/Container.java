@@ -29,6 +29,10 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 
 public class Container {
 
+	/**
+	 * Index in the array of ContainerSpecs of the ProxySpec.
+	 */
+	private Integer index;
 	private String id;
 	private ContainerSpec spec;
 
@@ -37,12 +41,15 @@ public class Container {
 	public String getId() {
 		return id;
 	}
+
 	public void setId(String id) {
 		this.id = id;
 	}
+
 	public ContainerSpec getSpec() {
 		return spec;
 	}
+
 	public void setSpec(ContainerSpec spec) {
 		this.spec = spec;
 	}
@@ -51,8 +58,16 @@ public class Container {
 	public Map<String, Object> getParameters() {
 		return parameters;
 	}
+
 	public void setParameters(Map<String, Object> parameters) {
 		this.parameters = parameters;
 	}
 
+	public Integer getIndex() {
+		return index;
+	}
+
+	public void setIndex(Integer index) {
+		this.index = index;
+	}
 }

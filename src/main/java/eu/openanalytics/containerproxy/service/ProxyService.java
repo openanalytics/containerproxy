@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import javax.ws.rs.HEAD;
 
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
@@ -101,6 +102,9 @@ public class ProxyService {
 
 	@Inject
 	private RuntimeValueService runtimeValueService;
+
+	@Inject
+	private ProxyStatusService proxyStatusService;
 
 	private boolean stopAppsOnShutdown;
 
@@ -255,29 +259,30 @@ public class ProxyService {
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setSpec(spec);
+
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
 
 		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
 
-		activeProxies.add(proxy);
+		saveProxy(proxy);
 
 		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);
 		if (res.isFailure()) {
-			activeProxies.remove(proxy);
+			removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
 			throw new ContainerProxyException(res.getMessage(), res.getThrowable());
 		} else if (res.getValue().getStatus() == ProxyStatus.Stopped) {
 			// Proxy start succeeded, but the Proxy was stopped in the meantime
-			activeProxies.remove(proxy);
+			removeProxy(proxy);
 			return proxy;
 		}
 
 		setupProxy(proxy);
 
-		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getId()));
-		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getUserId(), spec.getId(), Duration.ofMillis(proxy.getStartupTimestamp() - proxy.getCreatedTimestamp())));
+		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getContainers().get(0).getId()));
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getId(), proxy.getUserId(), spec.getId()));
 
 		return proxy;
 	}
@@ -295,7 +300,6 @@ public class ProxyService {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
 
-
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
@@ -312,7 +316,7 @@ public class ProxyService {
 				} catch (InterruptedException e) {
 					throw new RuntimeException(e);
 				}
-				activeProxies.remove(proxy);
+				removeProxy(proxy);
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}
@@ -331,7 +335,7 @@ public class ProxyService {
 	 * @param proxy
 	 */
 	public void addExistingProxy(Proxy proxy) {
-		activeProxies.add(proxy);			
+		activeProxies.add(proxy);
 
 		setupProxy(proxy);
 
@@ -354,6 +358,16 @@ public class ProxyService {
 				logService.attachToOutput(proxy, outputAttacher);
 			}
 		}
+	}
+
+	private void saveProxy(Proxy proxy) {
+		activeProxies.add(proxy);
+		proxyStatusService.proxyCreated(proxy);
+	}
+
+	private void removeProxy(Proxy proxy) {
+		activeProxies.remove(proxy);
+		proxyStatusService.proxyRemoved(proxy);
 	}
 
 }

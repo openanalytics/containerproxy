@@ -130,6 +130,7 @@ public class AppRecoveryService {
 					continue;
 				}
 				container.setSpec(containerSpec);
+				container.setIndex(containerSpec.getIndex());
 				proxy.addContainer(container);
 				proxy.setStatus(ProxyStatus.Up);
 

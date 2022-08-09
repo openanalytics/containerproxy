@@ -78,6 +78,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
 		Container container = new Container();
 		container.setSpec(spec);
+		container.setIndex(spec.getIndex());
 
 		Mount[] mounts = null;
 		if (spec.getVolumes() != null) mounts = Arrays.stream(spec.getVolumes())
@@ -176,10 +177,12 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
 		}
 
+		// tell the status service we are starting the container
+		proxyStatusService.containerStarting(proxy, container);
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
 
 		// Give the service some time to start up and launch a container.
-		boolean containerFound = Retrying.retry(i -> {
+		boolean containerFound = Retrying.retry((i, maxAttempts) -> {
 			try {
 				Task serviceTask = dockerClient
 						.listTasks(Task.Criteria.builder().serviceName(serviceName).build())
@@ -191,12 +194,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				throw new RuntimeException("Failed to inspect swarm service tasks", e);
 			}
 			return (container.getId() != null);
-		}, 30, 2000, true);
+		}, 60_000, true);
 
 		if (!containerFound) {
 			dockerClient.removeService(serviceId);
+			proxyStatusService.containerStartFailed(proxy, container);
 			throw new IllegalStateException("Swarm container did not start in time");
 		}
+		proxyStatusService.containerStarted(proxy, container);
 
 		// Calculate proxy routes for all configured ports.
 		for (String mappingKey: spec.getPortMapping().keySet()) {

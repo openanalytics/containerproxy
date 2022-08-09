@@ -61,13 +61,14 @@ public class TestIntegrationOnSwarm {
 
     private boolean checkEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
         // Docker
-        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+        try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
 
-        // Docker swarm
-        return dockerClient.listContainers().stream()
-                .filter(it -> !(it.labels() != null && it.labels().containsKey("created_by.minikube.sigs.k8s.io") && it.labels().get("created_by.minikube.sigs.k8s.io").equals("true")))
-                .count() == 0
-                && dockerClient.listServices().size() == 0;
+            // Docker swarm
+            return dockerClient.listContainers().stream()
+                    .filter(it -> !(it.labels() != null && it.labels().containsKey("created_by.minikube.sigs.k8s.io") && it.labels().get("created_by.minikube.sigs.k8s.io").equals("true")))
+                    .count() == 0
+                    && dockerClient.listServices().size() == 0;
+        }
     }
 
     @AfterEach

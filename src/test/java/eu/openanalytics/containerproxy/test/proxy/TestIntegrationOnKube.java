@@ -766,8 +766,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[13].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -820,8 +819,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             String specId = environment.getProperty("proxy.specs[13].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -870,8 +868,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[14].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -930,8 +927,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             String specId = environment.getProperty("proxy.specs[14].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -990,8 +986,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             String specId = environment.getProperty("proxy.specs[15].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1028,8 +1023,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[16].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1088,8 +1082,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             String specId = environment.getProperty("proxy.specs[16].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1140,8 +1133,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[17].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1218,8 +1210,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[18].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1262,8 +1253,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // same spec, different value
             String specId2 = environment.getProperty("proxy.specs[19].id");
-            baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
-            spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            spec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
             proxy = proxyService.startProxy(spec, true);
 
             // secret has no namespace defined -> should be created in the default namespace
@@ -1308,8 +1298,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             String specId = environment.getProperty("proxy.specs[20].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1346,8 +1335,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[21].id");
 
-            ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1390,8 +1378,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             // same spec, different value
             String specId2 = environment.getProperty("proxy.specs[22].id");
-            baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
-            spec = proxyService.resolveProxySpec(baseSpec, null, null);
+            spec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
             proxy = proxyService.startProxy(spec, true);
 
             // secret has no namespace defined -> should be created in the default namespace
@@ -1517,7 +1504,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
-            Assertions.assertEquals("2G", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
+            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
@@ -1562,7 +1549,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
-            Assertions.assertEquals("2G", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
+            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
@@ -1645,7 +1632,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         }
 
         @Override
-        protected IContainerBackend createInstance() throws Exception {
+        protected IContainerBackend createInstance() {
             KubernetesBackend backend = new KubernetesBackend();
             applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
             backend.initialize(client);

@@ -28,6 +28,7 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
                 true,
                 false,
                 false,
+                true,
                 true, String.class);
     }
 

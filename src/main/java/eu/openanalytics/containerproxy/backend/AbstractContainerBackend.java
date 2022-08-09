@@ -20,12 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.base.Charsets;
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
@@ -55,16 +49,14 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 
 import javax.inject.Inject;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,6 +69,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
 	protected static final String PROPERTY_PRIVILEGED = "privileged";
 
+	private static final String PARAM_CONTAINER_IMAGE = "CONTAINER_IMAGE";
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
 	protected final Logger log = LogManager.getLogger(getClass());
 
@@ -149,6 +142,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	}
 
+	@Override
+	public String getContainerImage(Container container) {
+		return (String) container.getParameters().get(PARAM_CONTAINER_IMAGE);
+	}
+
 	protected void doStartProxy(Proxy proxy) throws Exception {
 		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
@@ -161,6 +159,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 			Container c = startContainer(eSpec, proxy);
 			c.setSpec(spec);
+			c.getParameters().put(PARAM_CONTAINER_IMAGE, eSpec.getImage());
 
 			proxy.getContainers().add(c);
 		}

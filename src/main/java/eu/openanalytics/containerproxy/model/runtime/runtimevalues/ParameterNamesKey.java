@@ -18,19 +18,23 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.setting.type;
+package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import org.springframework.stereotype.Component;
+import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
-import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
+public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
 
-@Component("setting.type.string")
-public class StringSettingType extends AbstractSettingType {
+    public ParameterNamesKey() {
+        super("openanalytics.eu/sp-parameters-names",
+                "SHINYPROXY_PARAMETER_NAMES",
+                false,
+                false,
+                false,
+                true, // IMPORTANT: only the names of the values may be exposed through the API
+                false, ParameterNames.class);
+    }
 
-	@Override
-	protected Object getValue(RuntimeSetting setting, RuntimeSettingSpec settingSpec) {
-		return String.valueOf(setting.getValue());
-	}
+    public static ParameterNamesKey inst = new ParameterNamesKey();
+
 
 }

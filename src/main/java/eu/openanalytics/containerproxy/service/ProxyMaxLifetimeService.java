@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,22 +43,15 @@ import java.util.TimerTask;
 public class ProxyMaxLifetimeService {
 
     private static final Integer CLEANUP_INTERVAL = 5 * 60 * 1000;
-    private static final String PROP_DEFAULT_PROXY_MAX_LIFETIME = "proxy.default-proxy-max-lifetime";
 
     private final Logger log = LogManager.getLogger(ProxyMaxLifetimeService.class);
 
     @Inject
     private ProxyService proxyService;
 
-    @Inject
-    private Environment environment;
-
-    private Long defaultMaxLifetime;
 
     @PostConstruct
     public void init() {
-        defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
-
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -84,10 +78,7 @@ public class ProxyMaxLifetimeService {
             return false;
         }
 
-        Long maxLifeTime = proxy.getSpec().getMaxLifeTime();
-        if (maxLifeTime == null) {
-            maxLifeTime = defaultMaxLifetime;
-        }
+        Long maxLifeTime = proxy.getRuntimeObject(MaxLifetimeKey.inst);
 
         if (maxLifeTime > 0) {
             Instant notBeforeTime = Instant.now().minus(maxLifeTime, ChronoUnit.MINUTES);

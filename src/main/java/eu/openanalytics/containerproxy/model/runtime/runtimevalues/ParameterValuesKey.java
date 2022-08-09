@@ -18,22 +18,23 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.setting.type;
+package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import org.springframework.stereotype.Component;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
-import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
-import eu.openanalytics.containerproxy.spec.ProxySpecException;
+public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
-@Component("setting.type.int")
-public class IntSettingType extends AbstractSettingType {
+    public ParameterValuesKey() {
+        super("openanalytics.eu/sp-parameters",
+                "SHINYPROXY_PARAMETERS",
+                false,
+                false, // TODO
+                false,
+                false, // IMPORTANT: the actual values may not be exposed through the API
+                false, ParameterValues.class);
+    }
 
-	@Override
-	protected Object getValue(RuntimeSetting setting, RuntimeSettingSpec settingSpec) {
-		if (setting.getValue() == null) return null;
-		else if (setting.getValue() instanceof Number) return ((Number) setting.getValue()).intValue();
-		else throw new ProxySpecException("Setting value is not an integer: " + setting.getName() + ": " + setting.getValue());
-	}	
+    public static ParameterValuesKey inst = new ParameterValuesKey();
+
 
 }

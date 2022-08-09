@@ -20,18 +20,18 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class RealmIdKey extends RuntimeValueKey<String> {
+public class HeartbeatTimeoutKey extends RuntimeValueKey<Long> {
 
-    private RealmIdKey() {
-        super("openanalytics.eu/sp-realm-id",
-                "SHINYPROXY_REALM_ID",
+    private HeartbeatTimeoutKey() {
+        super("openanalytics.eu/sp-heartbeat-timeout",
+                "SHINYPROXY_HEARTBEAT_TIMEOUT",
                 false,
                 true,
+                false,
                 true,
-                false, // no need to expose in API
-                false, String.class);
+                true, Long.class);
     }
 
-    public static RealmIdKey inst = new RealmIdKey();
+    public static HeartbeatTimeoutKey inst = new HeartbeatTimeoutKey();
 
 }

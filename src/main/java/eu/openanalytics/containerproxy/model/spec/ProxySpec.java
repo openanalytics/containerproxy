@@ -21,10 +21,7 @@
 package eu.openanalytics.containerproxy.model.spec;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ProxySpec {
 
@@ -33,24 +30,19 @@ public class ProxySpec {
 	private String description;
 	private String logoURL;
 
-	private ProxyAccessControl accessControl;
+	private AccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
-	private List<RuntimeSettingSpec> runtimeSettingSpecs;
 
-	private Map<String, String> settings = new HashMap<>();
-	
 	private String kubernetesPodPatches;
 	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
 	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
-	private Long maxLifeTime;
-	private Boolean stopOnLogout;
-	private Long heartbeatTimeout;
+    private Parameters parameters;
 
-	public ProxySpec() {
-		settings = new HashMap<>();
-	}
-	
+	private String maxLifeTime;
+	private Boolean stopOnLogout;
+	private String heartbeatTimeout;
+
 	public String getId() {
 		return id;
 	}
@@ -83,11 +75,11 @@ public class ProxySpec {
 		this.logoURL = logoURL;
 	}
 
-	public ProxyAccessControl getAccessControl() {
+	public AccessControl getAccessControl() {
 		return accessControl;
 	}
 
-	public void setAccessControl(ProxyAccessControl accessControl) {
+	public void setAccessControl(AccessControl accessControl) {
 		this.accessControl = accessControl;
 	}
 
@@ -113,22 +105,6 @@ public class ProxySpec {
 		this.containerSpecs = containerSpecs;
 	}
 	
-	public List<RuntimeSettingSpec> getRuntimeSettingSpecs() {
-		return runtimeSettingSpecs;
-	}
-	
-	public void setRuntimeSettingSpecs(List<RuntimeSettingSpec> runtimeSettingSpecs) {
-		this.runtimeSettingSpecs = runtimeSettingSpecs;
-	}
-	
-	public Map<String, String> getSettings() {
-		return settings;
-	}
-
-	public void setSettings(Map<String, String> settings) {
-		this.settings = settings;
-	}
-
 	/**
 	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
 	 */
@@ -156,11 +132,11 @@ public class ProxySpec {
 		return kubernetesAdditionalPersistentManifests;
 	}
 
-	public Long getMaxLifeTime() {
+	public String getMaxLifeTime() {
 		return maxLifeTime;
 	}
 
-	public void setMaxLifeTime(Long maxLifeTime) {
+	public void setMaxLifeTime(String maxLifeTime) {
 		this.maxLifeTime = maxLifeTime;
 	}
 
@@ -172,64 +148,19 @@ public class ProxySpec {
 		this.stopOnLogout = stopOnLogout;
 	}
 
-	public Long getHeartbeatTimeout() {
+	public String getHeartbeatTimeout() {
 		return heartbeatTimeout;
 	}
 
-	public void setHeartbeatTimeout(Long heartbeatTimeout) {
+	public void setHeartbeatTimeout(String heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
 	}
 
-	public void copy(ProxySpec target) {
-		target.setId(id);
-		target.setDisplayName(displayName);
-		target.setDescription(description);
-		target.setLogoURL(logoURL);
-		target.setMaxLifeTime(maxLifeTime);
-		target.setStopOnLogout(stopOnLogout);
-		target.setHeartbeatTimeout(heartbeatTimeout);
+    public Parameters getParameters() {
+        return parameters;
+    }
 
-		if (accessControl != null) {
-			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
-			accessControl.copy(target.getAccessControl());
-		}
-		
-		if (containerSpecs != null) {
-			if (target.getContainerSpecs() == null) target.setContainerSpecs(new ArrayList<>());
-			for (ContainerSpec spec: containerSpecs) {
-				ContainerSpec copy = new ContainerSpec();
-				spec.copy(copy);
-				target.getContainerSpecs().add(copy);
-			}
-		}
-		
-		if (runtimeSettingSpecs != null) {
-			if (target.getRuntimeSettingSpecs() == null) target.setRuntimeSettingSpecs(new ArrayList<>());
-			for (RuntimeSettingSpec spec: runtimeSettingSpecs) {
-				RuntimeSettingSpec copy = new RuntimeSettingSpec();
-				spec.copy(copy);
-				target.getRuntimeSettingSpecs().add(copy);
-			}
-		}
-		
-		if (settings != null) {
-			if (target.getSettings() == null) target.setSettings(new HashMap<>());
-			target.getSettings().putAll(settings);
-		}
-		
-		
-		if (kubernetesPodPatches != null) {
-			target.setKubernetesPodPatches(kubernetesPodPatches);
-		}
-		
-		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(new ArrayList<>(kubernetesAdditionalManifests));
-		}
-
-		if (kubernetesAdditionalPersistentManifests != null) {
-			target.setKubernetesAdditionalPersistentManifests(new ArrayList<>(kubernetesAdditionalPersistentManifests));
-		}
-
-	}
-
+    public void setParameters(Parameters parameters) {
+        this.parameters = parameters;
+    }
 }

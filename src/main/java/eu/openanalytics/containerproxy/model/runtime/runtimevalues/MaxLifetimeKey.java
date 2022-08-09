@@ -18,24 +18,20 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime;
+package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class RuntimeSetting {
+public class MaxLifetimeKey extends RuntimeValueKey<Long> {
 
-	private String name;
-	private Object value;
-	
-	public String getName() {
-		return name;
-	}
-	public void setName(String name) {
-		this.name = name;
-	}
-	public Object getValue() {
-		return value;
-	}
-	public void setValue(Object value) {
-		this.value = value;
-	}
-	
+    private MaxLifetimeKey() {
+        super("openanalytics.eu/sp-max-lifetime",
+                "SHINYPROXY_MAX_LIFETIME",
+                false,
+                true,
+                false,
+                true,
+                true, Long.class);
+    }
+
+    public static MaxLifetimeKey inst = new MaxLifetimeKey();
+
 }

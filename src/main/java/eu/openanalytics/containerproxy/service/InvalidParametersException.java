@@ -18,15 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.setting;
+package eu.openanalytics.containerproxy.service;
 
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.model.spec.RuntimeSettingSpec;
-import eu.openanalytics.containerproxy.spec.ProxySpecException;
+public class InvalidParametersException extends Exception {
 
-public interface IRuntimeSettingType {
+    private final String error;
 
-	public void apply(RuntimeSetting setting, RuntimeSettingSpec settingSpec, ProxySpec targetSpec) throws ProxySpecException;
+    public InvalidParametersException(String error) {
+        super(error);
+        this.error = error;
+    }
 
+    public String getError() {
+        return error;
+    }
 }

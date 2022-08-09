@@ -21,14 +21,18 @@
 package eu.openanalytics.containerproxy.test.proxy;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.PropertySource;
+import org.springframework.core.io.Resource;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class PropertyOverrideContextInitializer

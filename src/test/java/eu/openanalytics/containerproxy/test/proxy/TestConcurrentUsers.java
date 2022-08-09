@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.test.proxy;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +31,6 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -42,8 +40,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import javax.inject.Inject;
-import java.util.HashSet;
-import java.util.Set;
 
 @SpringBootTest(classes = { ContainerProxyApplication.class }, webEnvironment = WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension.class)
@@ -111,16 +107,8 @@ public class TestConcurrentUsers {
 	}
 
 	private String loginAndLaunchProxy(String username, String password, String specId) throws Exception {
-		Set<RuntimeSetting> createProxyBody = new HashSet<RuntimeSetting>();
-
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-
-		HttpEntity<Set<RuntimeSetting>> createProxyRequest = new HttpEntity<Set<RuntimeSetting>>(createProxyBody,
-				headers);
-
 		ResponseEntity<Proxy> createProxyResponse = this.restTemplate.withBasicAuth(username, password).postForEntity(
-				"http://localhost:" + port + "/api/proxy/{proxySpecId}", createProxyRequest, Proxy.class, specId);
+				"http://localhost:" + port + "/api/proxy/{proxySpecId}",  null, Proxy.class, specId);
 		Assertions.assertEquals(201, createProxyResponse.getStatusCodeValue());
 
 		Proxy createdProxy = createProxyResponse.getBody();

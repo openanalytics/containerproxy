@@ -129,7 +129,9 @@ public class Proxy {
 	    // only output key<->value in JSON
 	    Map<String, String> result = new HashMap<>();
 	    for (RuntimeValue value : runtimeValues.values()) {
-	    	result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+			if (value.getKey().getIncludeInApi()) {
+				result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+			}
 		}
 	    return result;
 	}
@@ -180,10 +182,24 @@ public class Proxy {
 		return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
 	}
 
+    public Object getRuntimeObject(String keyAsEnvVar) {
+        Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+        return getRuntimeObject(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+    }
+
 	public <T> T getRuntimeObject(RuntimeValueKey<T> key) {
 		Objects.requireNonNull(key, "key may not be null");
 		RuntimeValue runtimeValue = runtimeValues.get(key);
 		Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
+		return runtimeValue.getObject();
+	}
+
+	public <T> T getRuntimeObjectOrNull(RuntimeValueKey<T> key) {
+		Objects.requireNonNull(key, "key may not be null");
+		RuntimeValue runtimeValue = runtimeValues.get(key);
+		if (runtimeValue == null) {
+			return null;
+		}
 		return runtimeValue.getObject();
 	}
 

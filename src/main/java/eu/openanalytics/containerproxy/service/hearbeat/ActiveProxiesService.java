@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.service.hearbeat;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,14 +48,10 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
 
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
-    public static final String PROP_TIMEOUT = "proxy.heartbeat-timeout";
-    public static final Long DEFAULT_TIMEOUT = 60000L;
 
     private final Logger log = LogManager.getLogger(HeartbeatService.class);
 
     private final Map<String, Long> proxyHeartbeats = Collections.synchronizedMap(new HashMap<>());
-
-    private long defaultHeartbeatTimeout;
 
     @Inject
     private Environment environment;
@@ -65,7 +62,6 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     @PostConstruct
     public void init() {
         long cleanupInterval = 2 * environment.getProperty(PROP_RATE, Long.class, DEFAULT_RATE);
-        defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -102,12 +98,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
             return;
         }
 
-        Long heartbeatTimeout;
-        if (proxy.getSpec().getHeartbeatTimeout() != null) {
-            heartbeatTimeout = proxy.getSpec().getHeartbeatTimeout();
-        } else {
-            heartbeatTimeout = defaultHeartbeatTimeout;
-        }
+        Long heartbeatTimeout = proxy.getRuntimeObject(HeartbeatTimeoutKey.inst);
 
         if (heartbeatTimeout <= 0) {
             // heartbeats disabled for this app (or globally)

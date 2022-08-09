@@ -26,8 +26,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,11 +55,8 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.runtime.RuntimeSetting;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecMergeStrategy;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import eu.openanalytics.containerproxy.spec.ProxySpecException;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 
 /**
@@ -85,9 +82,6 @@ public class ProxyService {
 	private IProxySpecProvider baseSpecProvider;
 	
 	@Inject
-	private IProxySpecMergeStrategy specMergeStrategy;
-	
-	@Inject
 	private IContainerBackend backend;
 
 	@Inject
@@ -104,6 +98,9 @@ public class ProxyService {
 
 	@Inject
 	private Environment environment;
+
+	@Inject
+	private RuntimeValueService runtimeValueService;
 
 	private boolean stopAppsOnShutdown;
 
@@ -171,21 +168,6 @@ public class ProxyService {
 	}
 	
 	/**
-	 * Resolve a ProxySpec. A base spec will be merged with a runtime spec (one of them is optional),
-	 * and an optional set of runtime settings will be applied to the resulting spec.
-	 * 
-	 * @param baseSpec The base spec, provided by the configured {@link IProxySpecProvider}.
-	 * @param runtimeSpec The runtime spec, may be null if <b>baseSpec</b> is not null.
-	 * @param runtimeSettings Optional runtime settings.
-	 * @return A merged ProxySpec that can be used to launch new proxies.
-	 * @throws ProxySpecException If the merge fails for any reason.
-	 * @see IProxySpecMergeStrategy
-	 */
-	public ProxySpec resolveProxySpec(ProxySpec baseSpec, ProxySpec runtimeSpec, Set<RuntimeSetting> runtimeSettings) throws ProxySpecException {
-		return specMergeStrategy.merge(baseSpec, runtimeSpec, runtimeSettings);
-	}
-	
-	/**
 	 * Find a proxy using its ID.
 	 * 
 	 * @param id The ID of the proxy to find.
@@ -250,8 +232,8 @@ public class ProxyService {
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException {
-	    return startProxy(spec, ignoreAccessControl, null, UUID.randomUUID().toString());
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl) throws ContainerProxyException, InvalidParametersException {
+	    return startProxy(spec, ignoreAccessControl, null, UUID.randomUUID().toString(), null);
     }
 
 	/**
@@ -263,7 +245,7 @@ public class ProxyService {
 	 * @return The newly launched proxy.
 	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId) throws ContainerProxyException {
+	public Proxy startProxy(ProxySpec spec, boolean ignoreAccessControl, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) throws ContainerProxyException, InvalidParametersException {
 		if (!ignoreAccessControl && !userService.canAccess(spec)) {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
@@ -276,6 +258,9 @@ public class ProxyService {
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
+
+		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
+
 		activeProxies.add(proxy);
 
 		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);
@@ -309,9 +294,8 @@ public class ProxyService {
 		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
-		
-		activeProxies.remove(proxy);
-		
+
+
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
@@ -323,6 +307,12 @@ public class ProxyService {
 					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
 							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 				}
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+				activeProxies.remove(proxy);
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}

@@ -76,6 +76,7 @@ import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 
 import javax.inject.Inject;
 import javax.json.JsonPatch;
@@ -367,6 +368,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				userService.getCurrentAuth().getCredentials());
 		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
 
+		if (StringUtils.isBlank(expressionAwarePatch)) {
+			return null;
+		}
+
 		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
 		yamlReader.registerModule(new JSR353Module());
 		return yamlReader.readValue(expressionAwarePatch, JsonPatch.class);
@@ -503,6 +508,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
 				kubeClient.resource(pod).withGracePeriod(0).delete();
 			}
+
 			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
 			if (service != null) {
 				kubeClient.resource(service).withGracePeriod(0).delete();

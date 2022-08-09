@@ -65,6 +65,14 @@ public class ProxyStatusService {
     /**
      * Step 2.2: pull image
      */
+    public void imagePulling(Proxy proxy, Container container) {
+        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepStarted();
+    }
+
+    public void imagePulled(Proxy proxy, Container container) {
+        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepSucceeded();
+    }
+
     public void imagePulled(Proxy proxy, Container container, LocalDateTime pullingTime, LocalDateTime pulledTime) {
         startupLog.get(proxy.getId())
                 .getPullImage(container.getIndex())

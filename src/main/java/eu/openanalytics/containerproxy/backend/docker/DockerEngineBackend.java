@@ -76,7 +76,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		if (imagePullPolicy == ImagePullPolicy.Always
 			|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
 			logger.info("Pulling image {}", spec.getImage());
+			proxyStatusService.imagePulling(proxy, container);
 			pullImage(spec);
+			proxyStatusService.imagePulled(proxy, container);
 		}
 
 		Map<String, List<PortBinding>> portBindings = new HashMap<>();

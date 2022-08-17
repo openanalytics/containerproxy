@@ -678,7 +678,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					portBindings.put(containerPort, hostPort);
 				}
 
-				HashMap<String, Object> parameters = new HashMap();
+				HashMap<String, Object> parameters = new HashMap<>();
 				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
 				parameters.put(PARAM_POD, pod);
 

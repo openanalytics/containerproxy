@@ -41,7 +41,22 @@ public class ExistingContainerInfo {
         this.image = image;
         this.portBindings = portBindings;
         this.parameters = parameters;
+        this.proxyStatus = null;
+    }
 
+    public ExistingContainerInfo(String containerId,
+                                 Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues,
+                                 String image,
+                                 Map<Integer, Integer> portBindings,
+                                 Map<String, Object> parameters,
+                                 ProxyStatus proxyStatus
+    ) {
+        this.containerId = containerId;
+        this.runtimeValues = runtimeValues;
+        this.image = image;
+        this.portBindings = portBindings;
+        this.parameters = parameters;
+        this.proxyStatus = proxyStatus;
     }
 
     private final String containerId;
@@ -49,6 +64,8 @@ public class ExistingContainerInfo {
     private final String image;
     private final Map<Integer, Integer> portBindings;
     private final Map<String, Object> parameters;
+
+    private final ProxyStatus proxyStatus;
 
     public String getContainerId() {
         return containerId;
@@ -75,4 +92,7 @@ public class ExistingContainerInfo {
         return runtimeValues.get(key);
     }
 
+    public ProxyStatus getProxyStatus() {
+        return proxyStatus;
+    }
 }

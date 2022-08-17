@@ -20,8 +20,9 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ProxySpec {
 
@@ -33,15 +34,13 @@ public class ProxySpec {
 	private AccessControl accessControl;
 	private List<ContainerSpec> containerSpecs;
 
-	private String kubernetesPodPatches;
-	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
-	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
-
     private Parameters parameters;
 
 	private String maxLifeTime;
 	private Boolean stopOnLogout;
 	private String heartbeatTimeout;
+
+	private final Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
 	public String getId() {
 		return id;
@@ -108,33 +107,6 @@ public class ProxySpec {
 		}
 	}
 	
-	/**
-	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
-	 */
-	public String getKubernetesPodPatch() {
-		return kubernetesPodPatches;
-	}
-
-	public void setKubernetesPodPatches(String kubernetesPodPatches) {
-		this.kubernetesPodPatches = kubernetesPodPatches;
-	}
-
-	public void setKubernetesAdditionalManifests(List<String> manifests) {
-		this.kubernetesAdditionalManifests = manifests;
-	}
-
-	public List<String> getKubernetesAdditionalManifests() {
-		return kubernetesAdditionalManifests;
-	}
-
-	public void setKubernetesAdditionalPersistentManifests(List<String> manifests) {
-		this.kubernetesAdditionalPersistentManifests = manifests;
-	}
-
-	public List<String> getKubernetesAdditionalPersistentManifests() {
-		return kubernetesAdditionalPersistentManifests;
-	}
-
 	public String getMaxLifeTime() {
 		return maxLifeTime;
 	}
@@ -166,4 +138,13 @@ public class ProxySpec {
     public void setParameters(Parameters parameters) {
         this.parameters = parameters;
     }
+
+	public void addSpecExtension(ISpecExtension specExtension) {
+		specExtensions.put(specExtension.getClass(), specExtension);
+	}
+
+	public <T> T getSpecExtension(Class<T> extensionClass) {
+		return extensionClass.cast(specExtensions.get(extensionClass));
+	}
+
 }

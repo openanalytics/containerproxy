@@ -115,7 +115,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
 	private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
 	private static final String PROPERTY_NODE_SELECTOR = "node-selector";
-	private static final String PROPERTY_APP_NAMESPACES = "proxy.app-namespaces";
 
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
@@ -433,7 +432,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {
-		String patchAsString = proxy.getSpec().getKubernetesPodPatch();
+		String patchAsString = proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
 		if (patchAsString == null) {
 			return null;
 		}
@@ -472,14 +471,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec());
-		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
+		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalManifests());
 	}
 
 	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec(),
 				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
-		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalPersistentManifests());
 	}
 
 	private void applyAdditionalManifest(GenericKubernetesResource resource) {

@@ -132,6 +132,7 @@ public class IdentifierService {
         Object parsedConfig = objectMapper.readValue(file, Object.class);
         String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
 
+        // TODO
         MessageDigest digest = MessageDigest.getInstance("SHA-1");
         digest.reset();
         digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));

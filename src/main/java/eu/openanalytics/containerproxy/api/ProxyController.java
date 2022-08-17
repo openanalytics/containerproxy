@@ -27,6 +27,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -104,4 +105,21 @@ public class ProxyController extends BaseController {
 			put("message", "proxy_stopped");
 		}});
 	}
+
+	@RequestMapping(value="/api/proxy/{proxyId}/pause", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Map<String, String>> pauseProxy(@PathVariable String proxyId) {
+		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
+		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+
+		if (proxy.getStatus() == ProxyStatus.Up) {
+			proxyService.pauseProxy(proxy, true, false);
+		} else {
+			proxyService.unPauseProxy(proxy, false, false); // TODO
+		}
+		return ResponseEntity.ok(new HashMap<String, String>() {{
+			put("status", "success");
+			put("message", "proxy_paused");
+		}});
+	}
+
 }

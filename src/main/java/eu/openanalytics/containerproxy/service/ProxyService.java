@@ -300,19 +300,6 @@ public class ProxyService {
 			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 		}
 
-		if (!backend.supportsSoftStop()) {
-			hardStopProxy(proxy, async, ignoreAccessControl);
-		} else {
-			backend.softStopProxy(proxy);
-			log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-		}
-	}
-
-	public void hardStopProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
-		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
-			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
-		}
-
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
@@ -331,11 +318,75 @@ public class ProxyService {
 		};
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
-		
+
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
 	}
+
+	public void pauseProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
+		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
+			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
+		}
+
+		if (!backend.supportsPause()) {
+			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
+		}
+
+		Runnable releaser = () -> {
+			try {
+				backend.pauseProxy(proxy);
+				logService.detach(proxy);
+				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				// TODO
+//				if (proxy.getStartupTimestamp() == 0) {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+//				} else {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+//							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+//				}
+			} catch (Exception e){
+				log.error("Failed to pause proxy " + proxy.getId(), e);
+			}
+		};
+		if (async) containerKiller.submit(releaser);
+		else releaser.run();
+
+		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
+			mappingManager.removeMapping(target.getKey());
+		}
+	}
+
+	public void unPauseProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
+		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
+			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
+		}
+
+		if (!backend.supportsPause()) {
+			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
+		}
+		Runnable releaser = () -> {
+			try {
+				backend.resumeProxy(proxy);
+				logService.detach(proxy);
+				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				// TODO
+//				if (proxy.getStartupTimestamp() == 0) {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+//				} else {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+//							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+//				}
+				setupProxy(proxy);
+			} catch (Exception e){
+				log.error("Failed to resume proxy " + proxy.getId(), e);
+			}
+		};
+		if (async) containerKiller.submit(releaser);
+		else releaser.run();
+
+	}
+
 
 	/**
 	 * Add existing Proxy to the ProxyService.

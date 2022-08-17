@@ -103,9 +103,9 @@ public class ProxyStatusService {
      *  Step 4: all containers has been started and all applications are running -> proxy has been started
      */
     public void proxyStarted(Proxy proxy) {
-        for (Container container: proxy.getContainers()) {
-            startupLog.get(proxy.getId()).getStartApplication(container.getIndex()).stepSucceeded();
-        }
+//        for (Container container: proxy.getContainers()) {
+//            startupLog.get(proxy.getId()).getStartApplication(container.getIndex()).stepSucceeded();
+//        }
         startupLog.get(proxy.getId()).getCreateProxy().stepSucceeded();
     }
 

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.function.BiConsumer;
 
@@ -61,8 +62,12 @@ public interface IContainerBackend {
 	 */
 	public void stopProxy(Proxy proxy) throws ContainerProxyException;
 
-	default public void softStopProxy(Proxy proxy) throws ContainerProxyException {
-		throw new IllegalStateException("SoftStop not supported by backend");
+	default public void pauseProxy(Proxy proxy) {
+		throw new IllegalStateException("PauseProxy not supported by backend");
+	}
+
+	default public void resumeProxy(Proxy proxy) throws IOException {
+		throw new IllegalStateException("ResumeProxy not supported by backend");
 	}
 
 	/**
@@ -93,14 +98,12 @@ public interface IContainerBackend {
 	 */
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 
-	public String getContainerImage(Container container);
-
 	default public String getBackendContainerName(Container container) {
 		return "N/A";
 	}
 
 	// TODO move implementation to abstract class
-	default public Boolean supportsSoftStop() {
+	default public Boolean supportsPause() {
 		return false;
 	}
 

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+// TODO convert to long?
 public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
     private CreatedTimestampKey() {
@@ -33,5 +34,10 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
     }
 
     public static CreatedTimestampKey inst = new CreatedTimestampKey();
+
+    @Override
+    public String fromString(String value) {
+        return value;
+    }
 
 }

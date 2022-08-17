@@ -34,4 +34,9 @@ public class ProxiedAppKey extends RuntimeValueKey<String> {
 
     public static ProxiedAppKey inst = new ProxiedAppKey();
 
+    @Override
+    public String fromString(String value) {
+        return value;
+    }
+
 }

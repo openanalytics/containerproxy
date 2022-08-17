@@ -34,4 +34,9 @@ public class UserIdKey extends RuntimeValueKey<String> {
 
     public static UserIdKey inst = new UserIdKey();
 
+    @Override
+    public String fromString(String value) {
+        return value;
+    }
+
 }

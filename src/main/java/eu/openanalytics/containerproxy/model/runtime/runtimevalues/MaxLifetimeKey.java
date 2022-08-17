@@ -34,4 +34,9 @@ public class MaxLifetimeKey extends RuntimeValueKey<Long> {
 
     public static MaxLifetimeKey inst = new MaxLifetimeKey();
 
+    @Override
+    public Long fromString(String value) {
+        return Long.parseLong(value);
+    }
+
 }

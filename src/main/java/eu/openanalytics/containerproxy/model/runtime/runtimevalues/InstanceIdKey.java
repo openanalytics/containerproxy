@@ -34,4 +34,9 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
 
     public static InstanceIdKey inst = new InstanceIdKey();
 
+    @Override
+    public String fromString(String value) {
+        return value;
+    }
+
 }

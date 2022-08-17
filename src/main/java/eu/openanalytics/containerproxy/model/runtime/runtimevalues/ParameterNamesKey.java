@@ -37,4 +37,9 @@ public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
     public static ParameterNamesKey inst = new ParameterNamesKey();
 
 
+    @Override
+    public ParameterNames fromString(String value) {
+        throw new IllegalArgumentException("TODO");
+    }
+
 }

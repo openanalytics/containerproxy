@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 
 public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
@@ -36,5 +37,9 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
     public static ParameterValuesKey inst = new ParameterValuesKey();
 
+    @Override
+    public ParameterValues fromString(String value) {
+        throw new IllegalArgumentException("TODO");
+    }
 
 }

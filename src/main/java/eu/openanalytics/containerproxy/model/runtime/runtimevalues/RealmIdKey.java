@@ -34,4 +34,9 @@ public class RealmIdKey extends RuntimeValueKey<String> {
 
     public static RealmIdKey inst = new RealmIdKey();
 
+    @Override
+    public String fromString(String value) {
+        return value;
+    }
+
 }

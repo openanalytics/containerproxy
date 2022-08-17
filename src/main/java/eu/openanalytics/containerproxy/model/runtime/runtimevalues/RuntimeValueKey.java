@@ -91,4 +91,6 @@ public abstract class RuntimeValueKey<T> {
         return clazz.isInstance(object);
     }
 
+    public abstract T fromString(String value);
+
 }

@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -62,10 +61,18 @@ public class ProxyMappingManager {
 	private PathHandler pathHandler;
 	
 	private Map<String, String> mappings = new HashMap<>();
-	
-	@Inject
+
 	private HeartbeatService heartbeatService;
-	
+
+	/**
+	 * Setting HeartbeatService, losing up circular dependencies.
+	 *
+	 * @param heartbeatService heartbeatService.
+	 */
+	public void setHeartbeatService(HeartbeatService heartbeatService) {
+		this.heartbeatService = heartbeatService;
+	}
+
 	public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {
 		if (pathHandler == null) {
 			pathHandler = new ProxyPathHandler(defaultHandler);

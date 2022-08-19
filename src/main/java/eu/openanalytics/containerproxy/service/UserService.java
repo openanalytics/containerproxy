@@ -74,8 +74,16 @@ public class UserService {
 	@Inject
 	private ApplicationEventPublisher applicationEventPublisher;
 
-	@Inject
 	private AccessControlService accessControlService;
+
+	/**
+	 * Setting AccessControlService, losing up circular dependencies.
+	 *
+	 * @param accessControlService accessControlService.
+	 */
+	public void setAccessControlService(AccessControlService accessControlService) {
+		this.accessControlService = accessControlService;
+	}
 
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();

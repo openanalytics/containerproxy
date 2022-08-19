@@ -58,7 +58,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -87,9 +86,6 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	Environment environment;
 
-	@Inject
-	WebSecurityConfigurerAdapter webSecurityConfigurerAdapter;
-	
 	@Inject
 	ApplicationContext ctx;
 

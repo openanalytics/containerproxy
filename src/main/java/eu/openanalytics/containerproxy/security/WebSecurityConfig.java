@@ -27,21 +27,19 @@ import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -59,7 +57,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class WebSecurityConfig {
 
 	private final Logger logger = LogManager.getLogger(getClass());
 
@@ -80,28 +78,31 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
-	
-	@Override
-	public void configure(WebSecurity web) {
-//		web
-//			.ignoring().antMatchers("/css/**").and()
-//			.ignoring().antMatchers("/img/**").and()
-//			.ignoring().antMatchers("/js/**").and()
-//			.ignoring().antMatchers("/assets/**").and()
-//			.ignoring().antMatchers("/webjars/**").and();
-//		
-		if (customConfigs != null) {
-			for (ICustomSecurityConfig cfg: customConfigs) {
-				try {
-					cfg.apply(web);
-				} catch (Exception e) {
-					// This function may not throw exceptions, therefore we exit the process here
-					// We do not want half-configured security.
-					e.printStackTrace();
-					System.exit(1);
+
+
+	@Bean
+	public WebSecurityCustomizer webSecurityCustomizer() {
+		return (web) -> {
+			//		web
+			//			.ignoring().antMatchers("/css/**").and()
+			//			.ignoring().antMatchers("/img/**").and()
+			//			.ignoring().antMatchers("/js/**").and()
+			//			.ignoring().antMatchers("/assets/**").and()
+			//			.ignoring().antMatchers("/webjars/**").and();
+			//
+			if (customConfigs != null) {
+				for (ICustomSecurityConfig cfg: customConfigs) {
+					try {
+						cfg.apply(web);
+					} catch (Exception e) {
+						// This function may not throw exceptions, therefore we exit the process here
+						// We do not want half-configured security.
+						e.printStackTrace();
+						System.exit(1);
+					}
 				}
 			}
-		}
+		};
 	}
 
 	private void checkForIncorrectConfiguration(HttpServletRequest request) {
@@ -111,8 +112,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 	}
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		// App Recovery Filter
 		http.addFilterAfter(appRecoveryFilter, BasicAuthenticationFilter.class);
 
@@ -120,8 +121,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST"));
 
 		http.exceptionHandling().accessDeniedHandler(new AccessDeniedHandler() {
-		    final AntPathRequestMatcher matcher = new AntPathRequestMatcher("/login", "POST");
-		    final AccessDeniedHandler defaultAccessDeniedHandler = new AccessDeniedHandlerImpl();
+			final AntPathRequestMatcher matcher = new AntPathRequestMatcher("/login", "POST");
+			final AccessDeniedHandler defaultAccessDeniedHandler = new AccessDeniedHandlerImpl();
 			@Override
 			public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
 				checkForIncorrectConfiguration(request);
@@ -151,11 +152,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			default:
 				if (frameOptions.toUpperCase().startsWith("ALLOW-FROM")) {
 					http.headers()
-						.frameOptions().disable()
-						.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
+							.frameOptions().disable()
+							.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
 				}
 		}
-		
+
 		// Allow public access to health endpoint
 		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/health/readiness").permitAll();
@@ -166,17 +167,17 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		if (customConfigs != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) cfg.apply(http);
 		}
-		
+
 
 		if (auth.hasAuthorization()) {
 			http.authorizeRequests().antMatchers(
 					"/login", "/signin/**", "/auth-error", "/app-access-denied", "/logout-success",
 					"/favicon.ico", "/css/**", "/img/**", "/js/**", "/assets/**", "/webjars/**").permitAll();
 			http
-				.formLogin()
+					.formLogin()
 					.loginPage("/login")
 					.and()
-				.logout()
+					.logout()
 					.logoutUrl(auth.getLogoutURL())
 					// important: set the next option after logoutUrl because it would otherwise get overwritten
 					.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
@@ -184,9 +185,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 					.logoutSuccessHandler(auth.getLogoutSuccessHandler());
 
 			// Enable basic auth for RESTful calls when APISecurityConfig is not enabled.
-			http.addFilter(new BasicAuthenticationFilter(super.authenticationManagerBean()));
+			http.httpBasic();
 		}
-	
+
 
 		if (auth.hasAuthorization()) {
 			// The `anyRequest` method may only be called once.
@@ -198,7 +199,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		// create session cookie even if there is no Authentication in order to support the None authentication backend
 		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
+		return http.build();
 	}
+
 
 	@Bean
 	public GlobalAuthenticationConfigurerAdapter authenticationConfiguration() {
@@ -209,13 +212,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				auth.configureAuthenticationManagerBuilder(amb);
 			}
 		};
-	}
-
-	@Bean(name="authenticationManager")
-	@ConditionalOnExpression("'${proxy.authentication}' == 'kerberos' || '${proxy.authentication}' == 'saml' || '${proxy.authentication}' == 'keycloak'")
-	@Override
-	public AuthenticationManager authenticationManagerBean() throws Exception {
-		return super.authenticationManagerBean();
 	}
 
 }

@@ -37,7 +37,6 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
 	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
 
-	@Inject
 	private ProxyService proxyService;
 
 	@Inject
@@ -52,9 +51,9 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
 	@Override
 	public void onLogout(String userId) {
-		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
+		for (Proxy proxy: this.proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
 			if (shouldBeStopped(proxy)) {
-				proxyService.stopProxy(proxy, true, true);
+				this.proxyService.stopProxy(proxy, true, true);
 			}
 		}
 	}
@@ -64,6 +63,15 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 			return proxy.getSpec().stopOnLogout();
 		}
 		return defaultStopProxyOnLogout;
+	}
+
+	/**
+	 * Setting ProxyService, loosing up circular dependency.
+	 *
+	 * @param proxyService proxyService.
+	 */
+	public void setProxyService(ProxyService proxyService) {
+		this.proxyService = proxyService;
 	}
 
 }

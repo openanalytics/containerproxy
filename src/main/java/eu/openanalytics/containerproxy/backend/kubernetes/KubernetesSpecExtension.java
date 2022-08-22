@@ -34,7 +34,6 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
 
     private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
-
     public String getKubernetesPodPatches() {
         return kubernetesPodPatches;
     }

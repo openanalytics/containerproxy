@@ -18,15 +18,35 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.kubernetes;
+package eu.openanalytics.containerproxy.spec.impl;
 
+import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 
-import eu.openanalytics.containerproxy.spec.impl.AbstractSpecExtensionProvider;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+import java.util.List;
 
-@Configuration
-@ConfigurationProperties(prefix = "proxy")
-public class KubernetesSpecExtensionProvider extends AbstractSpecExtensionProvider<KubernetesSpecExtension> {
+public class AbstractSpecExtensionProvider<T extends ISpecExtension> {
+
+    private List<T> specs;
+
+    @Inject
+    private IProxySpecProvider proxySpecProvider;
+
+    @PostConstruct
+    public void postInit() {
+        specs.forEach(specExtension -> {
+            proxySpecProvider.getSpec(specExtension.getId()).addSpecExtension(specExtension);
+        });
+    }
+
+    public void setSpecs(List<T> specs) {
+        this.specs = specs;
+    }
+
+    public List<T> getSpecs() {
+        return specs;
+    }
 
 }

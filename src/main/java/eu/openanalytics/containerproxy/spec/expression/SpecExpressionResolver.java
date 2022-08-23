@@ -118,9 +118,9 @@ public class SpecExpressionResolver {
 		return evaluate(expression, context, Boolean.class);
 	}
 
-    public List<String> evaluateToList(String[] expressions, SpecExpressionContext context) {
+    public List<String> evaluateToList(List<String> expressions, SpecExpressionContext context) {
 		if (expressions == null) return null;
-		return Arrays.stream(expressions).flatMap(	 (el) ->
+		return expressions.stream().flatMap(	 (el) ->
 				((List<String>) evaluate(el, context, List.class)).stream()).collect(Collectors.toList());
     }
 }

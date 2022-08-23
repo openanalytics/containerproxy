@@ -65,8 +65,8 @@ public class ContainerSpec {
 	public SpelField.StringList getCmd() {
 		return cmd;
 	}
-	public void setCmd(SpelField.StringList cmd) {
-		this.cmd = cmd;
+	public void setCmd(List<String> cmd) {
+		this.cmd = new SpelField.StringList(cmd);
 	}
 	public Map<String, String> getEnv() {
 		return env;
@@ -89,20 +89,20 @@ public class ContainerSpec {
 	public SpelField.StringList getNetworkConnections() {
 		return networkConnections;
 	}
-	public void setNetworkConnections(SpelField.StringList networkConnections) {
-		this.networkConnections = networkConnections;
+	public void setNetworkConnections(List<String> networkConnections) {
+		this.networkConnections = new SpelField.StringList(networkConnections);
 	}
 	public SpelField.StringList getDns() {
 		return dns;
 	}
-	public void setDns(SpelField.StringList dns) {
-		this.dns = dns;
+	public void setDns(List<String> dns) {
+		this.dns = new SpelField.StringList(dns);
 	}
 	public SpelField.StringList getVolumes() {
 		return volumes;
 	}
-	public void setVolumes(SpelField.StringList volumes) {
-		this.volumes = volumes;
+	public void setVolumes(List<String> volumes) {
+		this.volumes = new SpelField.StringList(volumes);
 	}
 	public Map<String, Integer> getPortMapping() {
 		return portMapping;

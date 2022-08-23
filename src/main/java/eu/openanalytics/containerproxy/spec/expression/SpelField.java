@@ -142,9 +142,9 @@ public abstract class SpelField<O, R> {
 
     }
 
-    public static class StringList extends SpelField<java.lang.String[], List<java.lang.String>> {
+    public static class StringList extends SpelField<List<java.lang.String>, List<java.lang.String>> {
 
-        public StringList(java.lang.String[] originalValue) {
+        public StringList(List<java.lang.String> originalValue) {
             super(originalValue);
         }
 

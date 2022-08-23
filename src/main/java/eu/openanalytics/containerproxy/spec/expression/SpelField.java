@@ -21,7 +21,9 @@
 package eu.openanalytics.containerproxy.spec.expression;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -167,6 +169,26 @@ public abstract class SpelField<O, R> {
                 value = new ArrayList<>();
             }
             value.add(newValue);
+        }
+
+    }
+
+    public static class StringMap extends SpelField<Map<java.lang.String, java.lang.String>, Map<java.lang.String, java.lang.String>> {
+
+        public StringMap(Map<java.lang.String, java.lang.String> originalValue) {
+            super(originalValue);
+        }
+
+        public StringMap() {
+            super(null);
+        }
+
+        @Override
+        public void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            value = new HashMap<>();
+            originalValue.forEach((key, mapValue) -> {
+                value.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext));
+            });
         }
 
     }

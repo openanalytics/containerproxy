@@ -37,7 +37,7 @@ public class ContainerSpec {
 	private Integer index;
 	private SpelField.String image; // r
 	private SpelField.StringList cmd = new SpelField.StringList();
-	private Map<String, String> env; // TODO
+	private SpelField.StringMap env = new SpelField.StringMap();
 	private SpelField.String envFile = new SpelField.String();
 	private SpelField.String network = new SpelField.String();
 	private SpelField.StringList networkConnections = new SpelField.StringList();
@@ -68,11 +68,11 @@ public class ContainerSpec {
 	public void setCmd(List<String> cmd) {
 		this.cmd = new SpelField.StringList(cmd);
 	}
-	public Map<String, String> getEnv() {
+	public SpelField.StringMap getEnv() {
 		return env;
 	}
 	public void setEnv(Map<String, String> env) {
-		this.env = env;
+		this.env = new SpelField.StringMap(env);
 	}
 	public SpelField.String getEnvFile() {
 		return envFile;
@@ -200,6 +200,7 @@ public class ContainerSpec {
 	public void resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
 		image.resolve(resolver, context);
 		cmd.resolve(resolver, context);
+		env.resolve(resolver, context);
 		envFile.resolve(resolver, context);
 		network.resolve(resolver, context);
 		networkConnections.resolve(resolver, context);

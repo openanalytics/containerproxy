@@ -20,17 +20,15 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -60,9 +58,6 @@ public class RuntimeValueService {
     private ParametersService parametersService;
 
     @Inject
-    private SpecExpressionResolver expressionResolver;
-
-    @Inject
     private Environment environment;
 
     @Inject
@@ -82,25 +77,8 @@ public class RuntimeValueService {
             proxy.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()));
         }
 
-        SpecExpressionContext context = SpecExpressionContext.create(
-                proxy,
-                proxy.getSpec(),
-                userService.getCurrentAuth().getPrincipal(),
-                userService.getCurrentAuth().getCredentials());
-
-        if (spec.getHeartbeatTimeout() != null) {
-            Long timeout = expressionResolver.evaluateToLong(spec.getHeartbeatTimeout(), context);
-            proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, timeout));
-        } else {
-            proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, defaultHeartbeatTimeout));
-        }
-
-        if (spec.getMaxLifeTime() != null) {
-            Long maxLifetime = expressionResolver.evaluateToLong(spec.getMaxLifeTime(), context);
-            proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, maxLifetime));
-        } else {
-            proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, defaultMaxLifetime));
-        }
+        proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)));
+        proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)));
     }
 
 }

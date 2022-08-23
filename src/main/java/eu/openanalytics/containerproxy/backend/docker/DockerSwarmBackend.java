@@ -47,6 +47,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 import java.net.URI;
@@ -75,16 +76,16 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Container container = new Container();
-		container.setSpec(spec);
 		container.setIndex(spec.getIndex());
 
-		Mount[] mounts = null;
-		if (spec.getVolumes() != null) mounts = Arrays.stream(spec.getVolumes())
-				.map(b -> b.split(":"))
-				.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
-				.toArray(i -> new Mount[i]);
+		Mount[] mounts = spec.getVolumes()
+				.mapOrNull(volumes -> volumes.stream()
+					.map(b -> b.split(":"))
+					.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
+					.toArray(i -> new Mount[i]));
+
 		Map<String, String> labels = spec.getLabels();
 
 		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
@@ -100,42 +101,42 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
 				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
-				.image(spec.getImage())
+				.image(spec.getImage().getValue())
 				.labels(labels)
-				.command(spec.getCmd())
+				.command(spec.getCmd().getValueOrNull())
 				.env(convertEnv(buildEnv(spec, proxy)))
-				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns()).build())
+				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
 				.mounts(mounts)
                 .secrets(secretBinds)
 				.build();
 
-		NetworkAttachmentConfig[] networks = Arrays
-				.stream(Optional.ofNullable(spec.getNetworkConnections()).orElse(new String[0]))
-				.map(n -> NetworkAttachmentConfig.builder().target(n).build())
-				.toArray(i -> new NetworkAttachmentConfig[i]);
+		NetworkAttachmentConfig[] networks = spec.getNetworkConnections().mapOrNull(nc ->
+				nc.stream()
+						.map(n -> NetworkAttachmentConfig.builder().target(n).build())
+						.toArray(i -> new NetworkAttachmentConfig[i]));
 
-		if (spec.getNetwork() != null) {
+		if (spec.getNetwork().isPresent()) {
 			networks = Arrays.copyOf(networks, networks.length + 1);
-			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork()).build();
+			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build();
 		}
 
 		Resources.Builder reservationsBuilder = Resources.builder();
 		// reservations are used by the Docker swarm scheduler
-		if (spec.getCpuRequest() != null) {
+		if (spec.getCpuRequest().isPresent()) {
 			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-			reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest()) * 10e8));
+			reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest().getValue()) * 10e8));
 		}
-		if (spec.getMemoryRequest() != null) {
-			reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest()));
+		if (spec.getMemoryRequest().isPresent()) {
+			reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest().getValue()));
 		}
 
 		Resources.Builder limitsBuilder = Resources.builder();
-		if (spec.getCpuLimit() != null) {
+		if (spec.getCpuLimit().isPresent()) {
 			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-			limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit()) * 10e8));
+			limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit().getValue()) * 10e8));
 		}
-		if (spec.getMemoryLimit() != null) {
-			limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit()));
+		if (spec.getMemoryLimit().isPresent()) {
+			limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
 		}
 
 		String serviceName = "sp-service-" + UUID.randomUUID().toString();
@@ -212,17 +213,17 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					.mapToInt(pc -> pc.publishedPort()).findAny().orElse(-1);
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
+			URI target = calculateTarget(spec, container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 
 		return container;
 	}
 
-	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
+	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
-		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
 		int targetPort;
 
 		if (isUseInternalNetwork()) {

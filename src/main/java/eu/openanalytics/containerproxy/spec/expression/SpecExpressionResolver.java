@@ -119,6 +119,7 @@ public class SpecExpressionResolver {
 	}
 
     public List<String> evaluateToList(String[] expressions, SpecExpressionContext context) {
+		if (expressions == null) return null;
 		return Arrays.stream(expressions).flatMap(	 (el) ->
 				((List<String>) evaluate(el, context, List.class)).stream()).collect(Collectors.toList());
     }

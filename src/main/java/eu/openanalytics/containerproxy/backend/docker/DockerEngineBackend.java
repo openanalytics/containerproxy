@@ -24,6 +24,7 @@ import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.exceptions.NotFoundException;
+import com.spotify.docker.client.messages.AttachedNetwork;
 import com.spotify.docker.client.messages.Container.PortMapping;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
@@ -40,6 +41,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,9 +68,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Container container = new Container();
-		container.setSpec(spec);
 		container.setIndex(spec.getIndex());
 
 		Builder hostConfigBuilder = HostConfig.builder();
@@ -93,19 +94,19 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		}
 		hostConfigBuilder.portBindings(portBindings);
 		
-		hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest()));
-		hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit()));
-		if (spec.getCpuLimit() != null) {
+		hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
+		hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
+		if (spec.getCpuLimit().isPresent()) {
 			// Workaround, see https://github.com/spotify/docker-client/issues/959
 			long period = 100000;
-			long quota = (long) (period * Float.parseFloat(spec.getCpuLimit()));
+			long quota = (long) (period * Float.parseFloat(spec.getCpuLimit().getValue()));
 			hostConfigBuilder.cpuPeriod(period);
 			hostConfigBuilder.cpuQuota(quota);
 		}
-		
-		Optional.ofNullable(spec.getNetwork()).ifPresent(n -> hostConfigBuilder.networkMode(spec.getNetwork()));
-		Optional.ofNullable(spec.getDns()).ifPresent(dns -> hostConfigBuilder.dns(dns));
-		Optional.ofNullable(spec.getVolumes()).ifPresent(v -> hostConfigBuilder.binds(v));
+
+		spec.getNetwork().ifPresent(hostConfigBuilder::networkMode);
+		spec.getDns().ifPresent(hostConfigBuilder::dns);
+		spec.getVolumes().ifPresent(hostConfigBuilder::binds);
 		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 
 		Map<String, String> labels = spec.getLabels();
@@ -118,10 +119,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
-			    .image(spec.getImage())
+			    .image(spec.getImage().getValue())
 			    .labels(labels)
 			    .exposedPorts(portBindings.keySet())
-			    .cmd(spec.getCmd())
+			    .cmd(spec.getCmd().getValueOrNull())
 			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
 
@@ -131,8 +132,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 			container.setId(containerCreation.id());
 
-			if (spec.getNetworkConnections() != null) {
-				for (String networkConnection: spec.getNetworkConnections()) {
+			if (spec.getNetworkConnections().isPresent()) {
+				for (String networkConnection: spec.getNetworkConnections().getValue()) {
 					dockerClient.connectToNetwork(containerCreation.id(), networkConnection);
 				}
 			}
@@ -152,7 +153,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			int hostPort = Integer.valueOf(Optional.ofNullable(binding).map(pb -> pb.get(0).hostPort()).orElse("0"));
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
+			URI target = calculateTarget(spec, container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
 		
@@ -160,11 +161,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception {
+	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int hostPort) throws Exception {
 		String targetProtocol;
 		String targetHostName;
 		String targetPort;
-		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
 
 		if (isUseInternalNetwork()) {
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
@@ -187,11 +188,12 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
-		for (Container container: proxy.getContainers()) {
-			String[] networkConnections = container.getSpec().getNetworkConnections();
-			if (networkConnections != null) {
-				for (String conn: networkConnections) {
-					dockerClient.disconnectFromNetwork(container.getId(), conn);
+		for (Container container : proxy.getContainers()) {
+			ContainerInfo containerInfo = dockerClient.inspectContainer(container.getId());
+			if (containerInfo != null && containerInfo.networkSettings() != null
+					&& containerInfo.networkSettings().networks() != null) {
+				for (AttachedNetwork network : containerInfo.networkSettings().networks().values()) {
+					dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
 				}
 			}
 			dockerClient.removeContainer(container.getId(), RemoveContainerParam.forceKill());
@@ -240,7 +242,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 	private boolean isImagePresent(ContainerSpec spec) throws DockerException, InterruptedException {
 		try {
-			dockerClient.inspectImage(spec.getImage());
+			dockerClient.inspectImage(spec.getImage().getValue());
 			return true;
 		} catch (NotFoundException ex) {
 			return false;
@@ -257,9 +259,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 					.username(spec.getDockerRegistryUsername())
 					.password(spec.getDockerRegistryPassword())
 					.build();
-			dockerClient.pull(spec.getImage(), registryAuth, message -> {});
+			dockerClient.pull(spec.getImage().getValue(), registryAuth, message -> {});
 		} else {
-			dockerClient.pull(spec.getImage(), message -> {});
+			dockerClient.pull(spec.getImage().getValue(), message -> {});
 		}
 	}
 

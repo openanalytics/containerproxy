@@ -112,7 +112,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
 
         long proxySilence = currentTimestamp - lastHeartbeat;
         if (proxySilence > heartbeatTimeout) {
-            log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), proxySilence));
+            log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), proxySilence));
             proxyHeartbeats.remove(proxy.getId());
             proxyService.stopProxy(proxy, true, true);
         }

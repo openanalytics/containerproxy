@@ -20,9 +20,14 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+
 public interface ISpecExtension {
 
     String getId();
 
     void setId(String id);
+
+    void resolve(SpecExpressionResolver resolver, SpecExpressionContext context);
 }

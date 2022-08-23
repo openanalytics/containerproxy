@@ -43,6 +43,8 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -104,6 +106,9 @@ public class ProxyService {
 
 	@Inject
 	private ProxyStatusService proxyStatusService;
+
+	@Inject
+	private SpecExpressionResolver expressionResolver;
 
 	private boolean stopAppsOnShutdown;
 
@@ -257,17 +262,25 @@ public class ProxyService {
 		proxy.setId(proxyId);
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
-		proxy.setSpec(spec);
+//		proxy.setSpec(spec);
 
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
 
+		SpecExpressionContext context = SpecExpressionContext.create(
+				proxy,
+				spec,
+				userService.getCurrentAuth().getPrincipal(),
+				userService.getCurrentAuth().getCredentials());
+
+		spec.resolve(expressionResolver, context);
+
 		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
 
 		saveProxy(proxy);
 
-		SuccessOrFailure<Proxy> res = backend.startProxy(proxy);
+		SuccessOrFailure<Proxy> res = backend.startProxy(proxy, spec);
 		if (res.isFailure()) {
 			removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
@@ -303,11 +316,11 @@ public class ProxyService {
 			try {
 				backend.stopProxy(proxy);
 				logService.detach(proxy);
-				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				if (proxy.getStartupTimestamp() == 0) {
-					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpecId(), null));
 				} else {
-					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpecId(),
 							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 				}
 				removeProxy(proxy);
@@ -336,7 +349,7 @@ public class ProxyService {
 			try {
 				backend.pauseProxy(proxy);
 				logService.detach(proxy);
-				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				// TODO
 //				if (proxy.getStartupTimestamp() == 0) {
 //					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
@@ -368,7 +381,7 @@ public class ProxyService {
 			try {
 				backend.resumeProxy(proxy);
 				logService.detach(proxy);
-				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				// TODO
 //				if (proxy.getStartupTimestamp() == 0) {
 //					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
@@ -397,7 +410,7 @@ public class ProxyService {
 
 		setupProxy(proxy);
 
-		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 	}
 
 	/**

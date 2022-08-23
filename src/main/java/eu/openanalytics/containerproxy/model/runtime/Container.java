@@ -46,14 +46,6 @@ public class Container {
 		this.id = id;
 	}
 
-	public ContainerSpec getSpec() {
-		return spec;
-	}
-
-	public void setSpec(ContainerSpec spec) {
-		this.spec = spec;
-	}
-
 	@JsonIgnore
 	public Map<String, Object> getParameters() {
 		return parameters;

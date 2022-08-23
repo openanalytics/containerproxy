@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -100,7 +101,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -160,20 +160,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Container container = new Container();
-		container.setSpec(spec);
+//		container.setSpec(spec);
 		container.setId(UUID.randomUUID().toString());
 		container.setIndex(spec.getIndex());
 
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
 
-		String[] volumeStrings = Optional.ofNullable(spec.getVolumes()).orElse(new String[] {});
+		List<String> volumeStrings = spec.getVolumes().getValueOrDefault(Collections.emptyList());
 		List<Volume> volumes = new ArrayList<>();
-		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.length];
-		for (int i = 0; i < volumeStrings.length; i++) {
-			String[] volume = volumeStrings[i].split(":");
+		VolumeMount[] volumeMounts = new VolumeMount[volumeStrings.size()];
+		for (int i = 0; i < volumeStrings.size(); i++) {
+			String[] volume = volumeStrings.get(i).split(":");
 			String hostSource = volume[0];
 			String containerDest = volume[1];
 			String name = "shinyproxy-volume-" + i;
@@ -210,19 +210,22 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withPrivileged(isPrivileged() || spec.isPrivileged())
 				.build();
 
+
+
+
 		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
-		resourceRequirementsBuilder.addToRequests("cpu", Optional.ofNullable(spec.getCpuRequest()).map(s -> new Quantity(s)).orElse(null));
-		resourceRequirementsBuilder.addToLimits("cpu", Optional.ofNullable(spec.getCpuLimit()).map(s -> new Quantity(s)).orElse(null));
-		resourceRequirementsBuilder.addToRequests("memory", Optional.ofNullable(spec.getMemoryRequest()).map(s -> new Quantity(s)).orElse(null));
-		resourceRequirementsBuilder.addToLimits("memory", Optional.ofNullable(spec.getMemoryLimit()).map(s -> new Quantity(s)).orElse(null));
+		resourceRequirementsBuilder.addToRequests("cpu", spec.getCpuRequest().mapOrNull(Quantity::new));
+		resourceRequirementsBuilder.addToLimits("cpu", spec.getCpuLimit().mapOrNull(Quantity::new));
+		resourceRequirementsBuilder.addToRequests("memory", spec.getMemoryRequest().mapOrNull(Quantity::new));
+		resourceRequirementsBuilder.addToLimits("memory", spec.getMemoryLimit().mapOrNull(Quantity::new));
 
 		List<ContainerPort> containerPorts = spec.getPortMapping().values().stream()
 				.map(p -> new ContainerPortBuilder().withContainerPort(p).build())
 				.collect(Collectors.toList());
 
 		ContainerBuilder containerBuilder = new ContainerBuilder()
-				.withImage(spec.getImage())
-				.withCommand(spec.getCmd())
+				.withImage(spec.getImage().getValue())
+				.withCommand(spec.getCmd().getValueOrNull())
 				.withName("sp-container-" + container.getId())
 				.withPorts(containerPorts)
 				.withVolumeMounts(volumeMounts)
@@ -280,7 +283,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 		}
 
-		JsonPatch patch = readPatchFromSpec(spec, proxy);
+		JsonPatch patch = readPatchFromSpec(spec, proxy, proxySpec);
 
 		Pod startupPod = podBuilder.withSpec(podSpec).build();
 		Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
@@ -288,7 +291,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		container.getParameters().put(PARAM_NAMESPACE, effectiveKubeNamespace);
 
 		// create additional manifests -> use the effective f(i.e. patched) namespace if no namespace is provided
-		createAdditionalManifests(proxy, effectiveKubeNamespace);
+		createAdditionalManifests(proxy, proxySpec, effectiveKubeNamespace);
 
 		// tell the status service we are starting the pod/container
 		proxyStatusService.containerStarting(proxy, container);
@@ -364,7 +367,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.findAny().orElse(-1);
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
+			URI target = calculateTarget(spec, container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 
@@ -431,16 +434,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
-	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy) throws JsonMappingException, JsonProcessingException {
-		String patchAsString = proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
+	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonMappingException, JsonProcessingException {
+		String patchAsString = proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
 		if (patchAsString == null) {
 			return null;
 		}
 
+		// TODO
 		// resolve expressions
 		SpecExpressionContext context = SpecExpressionContext.create(containerSpec,
 				proxy,
-				proxy.getSpec(),
+				proxySpec,
 				userService.getCurrentAuth().getPrincipal(),
 				userService.getCurrentAuth().getCredentials());
 		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
@@ -459,26 +463,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 *
 	 * The resource will only be created if it does not already exist.
 	 */
-	private void createAdditionalManifests(Proxy proxy, String namespace) throws JsonProcessingException {
-		for (GenericKubernetesResource fullObject: getAdditionManifestsAsObjects(proxy, namespace)) {
+	private void createAdditionalManifests(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
+		for (GenericKubernetesResource fullObject: getAdditionManifestsAsObjects(proxy, proxySpec, namespace)) {
 			applyAdditionalManifest(fullObject);
 		}
-		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(proxy, namespace)) {
+		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(proxy, proxySpec, namespace)) {
 			applyAdditionalManifest(fullObject);
 		}
 	}
 
-	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
+	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy, proxy.getSpec());
-		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalManifests());
+				proxy, proxySpec);
+		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalManifests());
 	}
 
-	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
+	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy, proxy.getSpec(),
+				proxy, proxySpec,
 				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
-		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalPersistentManifests());
+		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalPersistentManifests());
 	}
 
 	private void applyAdditionalManifest(GenericKubernetesResource resource) {
@@ -556,11 +560,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return true;
 	}
 
-	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
+	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
-		String targetPath = computeTargetPath(container.getSpec().getTargetPath());
+		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
 
 		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 
@@ -595,7 +599,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 
 			// delete additional manifests
-			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy, kubeNamespace)) {
+			// we retrieve the spec here, therefore this is not compatible with AppRecovery
+			ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, kubeNamespace)) {
 				kubeClient.resource(fullObject).withGracePeriod(0).delete();
 			}
 		}
@@ -703,12 +709,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (key.getIncludeAsLabel()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, value));
+					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
 				}
 			} else if (key.getIncludeAsAnnotation() && annotations != null) {
 				String value = annotations.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, value));
+					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
 				}
 			} else if (key.isRequired()) {
 				// value is null but is required
@@ -722,11 +728,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 
 	@Override
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
 		Service service = (Service) container.getParameters().get(PARAM_SERVICE);
 		// Calculate proxy routes for all configured ports.
-		for (String mappingKey: container.getSpec().getPortMapping().keySet()) {
-			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
+		for (String mappingKey: containerSpec.getPortMapping().keySet()) {
+			int containerPort = containerSpec.getPortMapping().get(mappingKey);
 
 			int servicePort = -1;
 			if (service != null) servicePort = service.getSpec().getPorts().stream()
@@ -734,7 +740,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.findAny().orElse(-1);
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
+			URI target = calculateTarget(containerSpec, container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}

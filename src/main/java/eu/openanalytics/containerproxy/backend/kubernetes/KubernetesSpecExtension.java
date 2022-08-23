@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import eu.openanalytics.containerproxy.model.spec.AbstractSpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,4 +60,8 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
         this.kubernetesAdditionalPersistentManifests = kubernetesAdditionalPersistentManifests;
     }
 
+    @Override
+    public void resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+
+    }
 }

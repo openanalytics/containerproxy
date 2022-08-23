@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.model.runtime;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -38,8 +39,6 @@ public class Proxy {
 
 	private String id;
 	
-	private ProxySpec spec;
-
 	private ProxyStatus status;
 
 	private long startupTimestamp;
@@ -62,14 +61,6 @@ public class Proxy {
 
 	public void setId(String id) {
 		this.id = id;
-	}
-
-	public ProxySpec getSpec() {
-		return spec;
-	}
-
-	public void setSpec(ProxySpec spec) {
-		this.spec = spec;
 	}
 
 	public ProxyStatus getStatus() {
@@ -98,6 +89,10 @@ public class Proxy {
 
 	public String getUserId() {
 		return userId;
+	}
+
+	public String getSpecId() {
+		return getRuntimeValue(ProxySpecIdKey.inst);
 	}
 
 	public void setUserId(String userId) {

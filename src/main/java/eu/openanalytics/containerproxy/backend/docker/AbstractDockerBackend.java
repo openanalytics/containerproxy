@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.PortAllocator;
 
 import java.io.IOException;
@@ -115,11 +116,11 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
 	}
 
-	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
+	abstract protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int hostPort) throws Exception;
 
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		for (String mappingKey : container.getSpec().getPortMapping().keySet()) {
-			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
+	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		for (String mappingKey : containerSpec.getPortMapping().keySet()) {
+			int containerPort = containerSpec.getPortMapping().get(mappingKey);
 
 			int hostPort = -1; // in case of internal networking
 			if (portBindings.containsKey(containerPort) && portBindings.get(containerPort) != 0) {
@@ -128,7 +129,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			}
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
+			URI target = calculateTarget(containerSpec, container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}
@@ -155,7 +156,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, value));
+					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
 				} else if (key.isRequired()) {
 					// value is null but is required
 					log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());

@@ -22,7 +22,9 @@ package eu.openanalytics.containerproxy.backend.strategy.impl;
 
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +45,9 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	@Inject
 	private Environment environment;
 
+	@Inject
+	private IProxySpecProvider specProvider;
+
 	private boolean defaultStopProxyOnLogout;
 
 	@PostConstruct
@@ -60,8 +65,10 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	}
 
 	public boolean shouldBeStopped(Proxy proxy) {
-		if (proxy.getSpec().stopOnLogout() != null) {
-			return proxy.getSpec().stopOnLogout();
+		// we retrieve the spec here, therefore this is not compatible with AppRecovery
+		ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
+		if (proxySpec != null && proxySpec.stopOnLogout() != null) {
+			return proxySpec.stopOnLogout();
 		}
 		return defaultStopProxyOnLogout;
 	}

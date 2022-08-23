@@ -144,17 +144,8 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 		String principal = getCurrentPrincipal();
 		String ccache = ccacheReg.get(principal);
 		
-		List<String> volumes = new ArrayList<>();
-		if (spec.getVolumes() != null) {
-			for (int i = 0; i < spec.getVolumes().length; i++) {
-				volumes.add(spec.getVolumes()[i]);
-			}
-		}
-		
 		String ccachePath = Paths.get(ccache).getParent().toString();
-		volumes.add(ccachePath + ":/tmp/kerberos");
-		
-		spec.setVolumes(volumes.toArray(new String[volumes.size()]));
+		spec.getVolumes().add(ccachePath + ":/tmp/kerberos");
 	}
 	
 	@Override

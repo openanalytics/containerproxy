@@ -37,11 +37,12 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
@@ -50,10 +51,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 
 import javax.inject.Inject;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,6 +111,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	// Note: lazy to prevent cyclic dependencies
 	protected AppRecoveryService appRecoveryService;
 
+	@Inject
+	protected IProxySpecProvider specProvider;
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		// If this application runs as a container itself, things like port publishing can be omitted.
@@ -118,16 +122,16 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public SuccessOrFailure<Proxy> startProxy(Proxy proxy) throws ContainerProxyException {
+	public SuccessOrFailure<Proxy> startProxy(Proxy proxy, ProxySpec spec) throws ContainerProxyException {
 		proxy.setStatus(ProxyStatus.Starting);
 		proxy.setCreatedTimestamp(System.currentTimeMillis());
-		setRuntimeValues(proxy);
+		setRuntimeValues(proxy, spec);
 
 		try {
-			doStartProxy(proxy);
+			doStartProxy(proxy, spec);
 
 			if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-				log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+				log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				stopProxy(proxy);
 				return SuccessOrFailure.createSuccess(proxy);
 			}
@@ -155,25 +159,18 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return (String) container.getParameters().get(PARAM_CONTAINER_IMAGE);
 	}
 
-	protected void doStartProxy(Proxy proxy) throws Exception {
-		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
+	protected void doStartProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
+		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
-			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec,
-					proxy,
-					expressionResolver,
-					userService.getCurrentAuth()
-					);
-
-			Container c = startContainer(eSpec, proxy);
-			c.setSpec(spec);
-			c.getParameters().put(PARAM_CONTAINER_IMAGE, eSpec.getImage());
+			Container c = startContainer(spec, proxy, proxySpec);
+			c.getParameters().put(PARAM_CONTAINER_IMAGE, spec.getImage().getValue()); // TODO move to RuntimeValue
 
 			proxy.getContainers().add(c);
 		}
 	}
 
-	protected abstract Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception;
+	protected abstract Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {
@@ -233,10 +230,10 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.getValue());
 			}
 
-			String envFile = containerSpec.getEnvFile();
-			if (envFile != null && Files.isRegularFile(Paths.get(envFile))) {
+			Path envFile = containerSpec.getEnvFile().mapOrNull(Paths::get);
+			if (envFile != null && Files.isRegularFile(envFile)) {
 				Properties envProps = new Properties();
-				envProps.load(new FileInputStream(envFile));
+				envProps.load(Files.newInputStream(envFile));
 				for (Object key : envProps.keySet()) {
 					env.put(key.toString(), envProps.get(key).toString());
 				}
@@ -289,11 +286,12 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return targetPath;
 	}
 
-	private void setRuntimeValues(Proxy proxy) {
+	// TODO merge with runtimeValueService
+	private void setRuntimeValues(Proxy proxy, ProxySpec proxySpec) {
 		proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
 		proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
 		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
-		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxy.getSpec().getId()));
+		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()));
 
 		if (identifierService.realmId != null) {
 			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));

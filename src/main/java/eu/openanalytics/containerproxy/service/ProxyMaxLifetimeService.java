@@ -66,7 +66,7 @@ public class ProxyMaxLifetimeService {
                 String uptime = DurationFormatUtils.formatDurationWords(
                         System.currentTimeMillis() - proxy.getCreatedTimestamp(),
                         true, false);
-                log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), uptime));
+                log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), uptime));
                 proxyService.stopProxy(proxy, true, true);
             }
         }

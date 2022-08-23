@@ -195,7 +195,7 @@ public class Micrometer implements IStatCollector {
      */
     private void updateCachedProxyCount() {
         for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
-            Integer count = proxyService.getProxies(p -> p.getSpec().getId().equals(spec.getId()) && p.getStatus() == ProxyStatus.Up, true).size();
+            Integer count = proxyService.getProxies(p -> p.getSpecId().equals(spec.getId()) && p.getStatus() == ProxyStatus.Up, true).size();
             proxyCountCache.put(spec.getId(), count);
             logger.debug(String.format("Running proxies count for spec %s: %s ", spec.getId(), count));
         }

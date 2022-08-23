@@ -20,6 +20,10 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,37 +35,37 @@ public class ContainerSpec {
 	 * Index in the array of ContainerSpecs of the ProxySpec.
 	 */
 	private Integer index;
-	private String image;
-	private String[] cmd;
-	private Map<String, String> env;
-	private String envFile;
-	private String network;
-	private String[] networkConnections;
-	private String[] dns;
-	private String[] volumes;
-	private Map<String, Integer> portMapping = new HashMap<>();
+	private SpelField.String image; // r
+	private SpelField.StringList cmd = new SpelField.StringList();
+	private Map<String, String> env; // TODO
+	private SpelField.String envFile = new SpelField.String();
+	private SpelField.String network = new SpelField.String();
+	private SpelField.StringList networkConnections = new SpelField.StringList();
+	private SpelField.StringList dns = new SpelField.StringList();
+	private SpelField.StringList volumes = new SpelField.StringList();
+	private Map<String, Integer> portMapping = new HashMap<>(); // TODO
 	private boolean privileged;
-	private String memoryRequest;
-	private String memoryLimit;
-	private String cpuRequest;
-	private String cpuLimit;
-	private String targetPath;
-	private Map<String, String> labels = new HashMap<>();
-	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
+	private SpelField.String memoryRequest = new SpelField.String();
+	private SpelField.String memoryLimit = new SpelField.String();
+	private SpelField.String cpuRequest = new SpelField.String();
+	private SpelField.String cpuLimit = new SpelField.String();
+	private SpelField.String targetPath =  new SpelField.String();
+	private Map<String, String> labels = new HashMap<>(); // TODO
+	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList(); // TODO
 	private String dockerRegistryDomain;
 	private String dockerRegistryUsername;
 	private String dockerRegistryPassword;
 
-	public String getImage() {
+	public SpelField.String getImage() {
 		return image;
 	}
-	public void setImage(String image) {
+	public void setImage(SpelField.String image) {
 		this.image = image;
 	}
-	public String[] getCmd() {
+	public SpelField.StringList getCmd() {
 		return cmd;
 	}
-	public void setCmd(String[] cmd) {
+	public void setCmd(SpelField.StringList cmd) {
 		this.cmd = cmd;
 	}
 	public Map<String, String> getEnv() {
@@ -70,34 +74,34 @@ public class ContainerSpec {
 	public void setEnv(Map<String, String> env) {
 		this.env = env;
 	}
-	public String getEnvFile() {
+	public SpelField.String getEnvFile() {
 		return envFile;
 	}
-	public void setEnvFile(String envFile) {
+	public void setEnvFile(SpelField.String envFile) {
 		this.envFile = envFile;
 	}
-	public String getNetwork() {
+	public SpelField.String getNetwork() {
 		return network;
 	}
-	public void setNetwork(String network) {
+	public void setNetwork(SpelField.String network) {
 		this.network = network;
 	}
-	public String[] getNetworkConnections() {
+	public SpelField.StringList getNetworkConnections() {
 		return networkConnections;
 	}
-	public void setNetworkConnections(String[] networkConnections) {
+	public void setNetworkConnections(SpelField.StringList networkConnections) {
 		this.networkConnections = networkConnections;
 	}
-	public String[] getDns() {
+	public SpelField.StringList getDns() {
 		return dns;
 	}
-	public void setDns(String[] dns) {
+	public void setDns(SpelField.StringList dns) {
 		this.dns = dns;
 	}
-	public String[] getVolumes() {
+	public SpelField.StringList getVolumes() {
 		return volumes;
 	}
-	public void setVolumes(String[] volumes) {
+	public void setVolumes(SpelField.StringList volumes) {
 		this.volumes = volumes;
 	}
 	public Map<String, Integer> getPortMapping() {
@@ -112,28 +116,28 @@ public class ContainerSpec {
 	public void setPrivileged(boolean privileged) {
 		this.privileged = privileged;
 	}
-	public String getMemoryRequest() {
+	public SpelField.String getMemoryRequest() {
 		return memoryRequest;
 	}
-	public void setMemoryRequest(String memoryRequest) {
+	public void setMemoryRequest(SpelField.String memoryRequest) {
 		this.memoryRequest = memoryRequest;
 	}
-	public String getMemoryLimit() {
+	public SpelField.String getMemoryLimit() {
 		return memoryLimit;
 	}
-	public void setMemoryLimit(String memoryLimit) {
+	public void setMemoryLimit(SpelField.String memoryLimit) {
 		this.memoryLimit = memoryLimit;
 	}
-	public String getCpuRequest() {
+	public SpelField.String getCpuRequest() {
 		return cpuRequest;
 	}
-	public void setCpuRequest(String cpuRequest) {
+	public void setCpuRequest(SpelField.String cpuRequest) {
 		this.cpuRequest = cpuRequest;
 	}
-	public String getCpuLimit() {
+	public SpelField.String getCpuLimit() {
 		return cpuLimit;
 	}
-	public void setCpuLimit(String cpuLimit) {
+	public void setCpuLimit(SpelField.String cpuLimit) {
 		this.cpuLimit = cpuLimit;
 	}
 
@@ -145,11 +149,11 @@ public class ContainerSpec {
 		this.labels = labels;
 	}
 
-	public String getTargetPath() {
+	public SpelField.String getTargetPath() {
 		return targetPath;
 	}
 
-	public void setTargetPath(String targetPath) {
+	public void setTargetPath(SpelField.String targetPath) {
 		this.targetPath = targetPath;
 	}
 
@@ -191,5 +195,20 @@ public class ContainerSpec {
 
 	public void setIndex(Integer index) {
 		this.index = index;
+	}
+
+	public void resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+		image.resolve(resolver, context);
+		cmd.resolve(resolver, context);
+		envFile.resolve(resolver, context);
+		network.resolve(resolver, context);
+		networkConnections.resolve(resolver, context);
+		dns.resolve(resolver, context);
+		volumes.resolve(resolver, context);
+		memoryRequest.resolve(resolver, context);
+		memoryLimit.resolve(resolver, context);
+		cpuRequest.resolve(resolver, context);
+		cpuLimit.resolve(resolver, context);
+		targetPath.resolve(resolver, context);
 	}
 }

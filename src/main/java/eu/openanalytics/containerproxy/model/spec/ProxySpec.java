@@ -20,6 +20,10 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +40,10 @@ public class ProxySpec {
 
     private Parameters parameters;
 
-	private String maxLifeTime;
+	private SpelField.Long maxLifeTime = new SpelField.Long();
+
 	private Boolean stopOnLogout;
-	private String heartbeatTimeout;
+	private SpelField.Long heartbeatTimeout = new SpelField.Long();
 
 	private final Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
@@ -85,33 +90,34 @@ public class ProxySpec {
 	public List<ContainerSpec> getContainerSpecs() {
 		return containerSpecs;
 	}
-	
+
 	public ContainerSpec getContainerSpec(String image) {
 		if (image == null || image.isEmpty()) return null;
+		// we compare with the original value here, when AppRecovery tries to recover the spec, we don't interpret spel
 		return containerSpecs.stream().filter(s -> {
-			if (image.endsWith(":latest") && !s.getImage().contains(":")) {
+			if (image.endsWith(":latest") && !s.getImage().getOriginalValue().contains(":")) {
 				// if we query for the latest image and the spec does not contain a tag -> then add :latest to the
                 // image name of the spec.
 				// e.g. querying for "debian:latest" while "debian" is specified in the spec
 				return image.equals(s.getImage() + ":latest");
 			} else {
-				return image.equals(s.getImage());
+				return image.equals(s.getImage().getOriginalValue());
 			}
 		}).findAny().orElse(null);
 	}
-	
+
 	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
 		this.containerSpecs = containerSpecs;
 		for (int i = 0; i < this.containerSpecs.size(); i++) {
 			this.containerSpecs.get(i).setIndex(i);
 		}
 	}
-	
-	public String getMaxLifeTime() {
+
+	public SpelField.Long getMaxLifeTime() {
 		return maxLifeTime;
 	}
 
-	public void setMaxLifeTime(String maxLifeTime) {
+	public void setMaxLifeTime(SpelField.Long maxLifeTime) {
 		this.maxLifeTime = maxLifeTime;
 	}
 
@@ -123,11 +129,11 @@ public class ProxySpec {
 		this.stopOnLogout = stopOnLogout;
 	}
 
-	public String getHeartbeatTimeout() {
+	public SpelField.Long getHeartbeatTimeout() {
 		return heartbeatTimeout;
 	}
 
-	public void setHeartbeatTimeout(String heartbeatTimeout) {
+	public void setHeartbeatTimeout(SpelField.Long heartbeatTimeout) {
 		this.heartbeatTimeout = heartbeatTimeout;
 	}
 
@@ -145,6 +151,17 @@ public class ProxySpec {
 
 	public <T> T getSpecExtension(Class<T> extensionClass) {
 		return extensionClass.cast(specExtensions.get(extensionClass));
+	}
+
+	public void resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+		heartbeatTimeout.resolve(resolver, context);
+		maxLifeTime.resolve(resolver, context);
+		for (ISpecExtension iSpecExtension : specExtensions.values()) {
+			iSpecExtension.resolve(resolver, context);
+		}
+		for (ContainerSpec containerSpec : containerSpecs) {
+			containerSpec.resolve(resolver, context.copy(containerSpec));
+		}
 	}
 
 }

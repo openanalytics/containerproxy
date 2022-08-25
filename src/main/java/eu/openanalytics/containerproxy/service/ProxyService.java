@@ -262,7 +262,6 @@ public class ProxyService {
 		proxy.setId(proxyId);
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
-//		proxy.setSpec(spec);
 
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
@@ -274,7 +273,8 @@ public class ProxyService {
 				userService.getCurrentAuth().getPrincipal(),
 				userService.getCurrentAuth().getCredentials());
 
-		spec.resolve(expressionResolver, context);
+		// resolve SpEL expression in spec
+		spec = spec.resolve(expressionResolver, context);
 
 		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
 

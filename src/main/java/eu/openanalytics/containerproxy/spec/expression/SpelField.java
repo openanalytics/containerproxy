@@ -29,14 +29,22 @@ import java.util.function.Function;
 
 public abstract class SpelField<O, R> {
 
-    protected O originalValue;
+    protected final O originalValue;
 
-    protected R value = null;
+    protected final R value;
 
-    protected boolean resolved = false;
+    protected final boolean resolved;
 
     public SpelField(O originalValue) {
         this.originalValue = originalValue;
+        this.value = null;
+        resolved = false;
+    }
+
+    private SpelField(O originalValue, R value) {
+        this.originalValue = originalValue;
+        this.value = value;
+        this.resolved = true;
     }
 
     public R getValue() {
@@ -96,19 +104,7 @@ public abstract class SpelField<O, R> {
         return originalValue;
     }
 
-    public void resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
-        if (resolved) {
-            throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
-        }
-        if (originalValue == null) {
-            value = null;
-        } else {
-            doResolve(specExpressionResolver, specExpressionContext);
-        }
-        resolved = true;
-    }
-
-    protected abstract void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext);
+    public abstract SpelField<O,R> resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext);
 
     public static class String extends SpelField<java.lang.String, java.lang.String> {
 
@@ -120,9 +116,19 @@ public abstract class SpelField<O, R> {
             super(null);
         }
 
+        private String(java.lang.String originalValue, java.lang.String value) {
+            super(originalValue, value);
+        }
+
         @Override
-        public void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
-            value = specExpressionResolver.evaluateToString(originalValue, specExpressionContext);
+        public SpelField.String resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.String(null, null);
+            }
+            return new SpelField.String(originalValue, specExpressionResolver.evaluateToString(originalValue, specExpressionContext));
         }
 
     }
@@ -137,9 +143,19 @@ public abstract class SpelField<O, R> {
             super(null);
         }
 
+        private Long(java.lang.String originalValue, java.lang.Long value) {
+            super(originalValue, value);
+        }
+
         @Override
-        public void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
-            value = specExpressionResolver.evaluateToLong(originalValue, specExpressionContext);
+        public SpelField.Long resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.Long(null, null);
+            }
+            return new SpelField.Long(originalValue, specExpressionResolver.evaluateToLong(originalValue, specExpressionContext));
         }
 
     }
@@ -154,10 +170,20 @@ public abstract class SpelField<O, R> {
             super(null);
         }
 
+        private StringList(List<java.lang.String> originalValue, List<java.lang.String> value) {
+            super(originalValue, value);
+        }
+
         @Override
-        public void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+        public SpelField.StringList resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.StringList(null, new ArrayList<>());
+            }
             // TODO implementation is different from ExpressionAwareContainerSpec::resolve
-            value = specExpressionResolver.evaluateToList(originalValue, specExpressionContext);
+            return new SpelField.StringList(originalValue, specExpressionResolver.evaluateToList(originalValue, specExpressionContext));
         }
 
         /**
@@ -165,8 +191,8 @@ public abstract class SpelField<O, R> {
          * @param newValue
          */
         public void add(java.lang.String newValue) {
-            if (value == null) {
-                value = new ArrayList<>();
+            if (!resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
             }
             value.add(newValue);
         }
@@ -183,12 +209,24 @@ public abstract class SpelField<O, R> {
             super(null);
         }
 
+        private StringMap(Map<java.lang.String, java.lang.String> originalValue, Map<java.lang.String, java.lang.String> value) {
+            super(originalValue, value);
+        }
+
         @Override
-        public void doResolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
-            value = new HashMap<>();
+        public SpelField.StringMap resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.StringMap(null, null);
+            }
+
+            Map<java.lang.String, java.lang.String> newValue = new HashMap<>();
             originalValue.forEach((key, mapValue) -> {
-                value.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext));
+                newValue.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext));
             });
+            return new SpelField.StringMap(originalValue, newValue);
         }
 
     }

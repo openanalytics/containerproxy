@@ -204,10 +204,10 @@ public class AccessControlServiceTest {
     }
 
     private ProxySpec createProxySpec(AccessControl proxyAccessControl) {
-        ProxySpec proxySpec = new ProxySpec();
-        proxySpec.setId("myId");
-        proxySpec.setAccessControl(proxyAccessControl);
-        return proxySpec;
+        return ProxySpec.builder()
+                .id("myId")
+                .accessControl(proxyAccessControl)
+                .build();
     }
 
 }

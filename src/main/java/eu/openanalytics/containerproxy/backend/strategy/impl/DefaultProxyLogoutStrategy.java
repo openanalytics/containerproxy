@@ -67,8 +67,8 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	public boolean shouldBeStopped(Proxy proxy) {
 		// we retrieve the spec here, therefore this is not compatible with AppRecovery
 		ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-		if (proxySpec != null && proxySpec.stopOnLogout() != null) {
-			return proxySpec.stopOnLogout();
+		if (proxySpec != null && proxySpec.getStopOnLogout() != null) {
+			return proxySpec.getStopOnLogout();
 		}
 		return defaultStopProxyOnLogout;
 	}

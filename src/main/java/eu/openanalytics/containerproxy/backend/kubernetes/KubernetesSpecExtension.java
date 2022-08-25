@@ -61,7 +61,7 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     }
 
     @Override
-    public void resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
-
+    public KubernetesSpecExtension resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return this;
     }
 }

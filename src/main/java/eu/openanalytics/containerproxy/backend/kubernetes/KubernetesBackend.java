@@ -162,7 +162,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	@Override
 	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Container container = new Container();
-//		container.setSpec(spec);
 		container.setId(UUID.randomUUID().toString());
 		container.setIndex(spec.getIndex());
 
@@ -263,7 +262,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 		}
 
-		podLabels.putAll(spec.getLabels());
+		if (spec.getLabels().isPresent()) {
+			podLabels.putAll(spec.getLabels().getValue());
+		}
 
 		objectMetaBuilder.addToLabels(podLabels);
 

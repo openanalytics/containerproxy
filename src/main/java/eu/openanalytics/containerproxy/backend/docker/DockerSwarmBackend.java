@@ -86,7 +86,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
 					.toArray(i -> new Mount[i]));
 
-		Map<String, String> labels = spec.getLabels();
+		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
 		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {

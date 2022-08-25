@@ -64,7 +64,7 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.StringList volumes = new SpelField.StringList();
     @Builder.Default
-    private Map<String, Integer> portMapping = new HashMap<>(); // TODO
+    private Map<String, Integer> portMapping = new HashMap<>();
     private boolean privileged;
     @Builder.Default
     private SpelField.String memoryRequest = new SpelField.String();
@@ -77,9 +77,9 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.String targetPath = new SpelField.String();
     @Builder.Default
-    private Map<String, String> labels = new HashMap<>(); // TODO
+    private SpelField.StringMap labels = new SpelField.StringMap();
     @Builder.Default
-    private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList<>(); // TODO
+    private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList<>();
     private String dockerRegistryDomain;
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
@@ -104,6 +104,10 @@ public class ContainerSpec {
 		this.volumes = new SpelField.StringList(volumes);
 	}
 
+    public void setLabels(Map<String, String> labels) {
+        this.labels = new SpelField.StringMap(labels);
+    }
+
     public ContainerSpec resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
                 .image(image.resolve(resolver, context))
@@ -119,6 +123,7 @@ public class ContainerSpec {
                 .cpuRequest(cpuRequest.resolve(resolver, context))
                 .cpuLimit(cpuLimit.resolve(resolver, context))
                 .targetPath(targetPath.resolve(resolver, context))
+                .labels(labels.resolve(resolver, context))
                 .build();
     }
 

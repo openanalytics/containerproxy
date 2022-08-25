@@ -109,7 +109,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		spec.getVolumes().ifPresent(hostConfigBuilder::binds);
 		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 
-		Map<String, String> labels = spec.getLabels();
+		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
 		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {

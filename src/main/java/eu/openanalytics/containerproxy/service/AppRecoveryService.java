@@ -154,11 +154,11 @@ public class AppRecoveryService {
 	}
 
 	private void setupPortMapping(ContainerSpec containerSpec, Proxy proxy, Container container, ExistingContainerInfo containerInfo) throws Exception {
-		// TODO is interpret SpEL required?
+		// TODO get rid of containerSpec https://projects.openanalytics.eu/issues/28365
 		// interpretation of spel was required in order to support the target-path setting
 		// move this to a RuntimeValue
 		SpecExpressionContext context = SpecExpressionContext.create(containerSpec, proxy);
-		containerSpec.resolve(expressionResolver, context);
+		containerSpec = containerSpec.resolve(expressionResolver, context);
 		containerBackend.setupPortMappingExistingProxy(containerSpec, proxy, container, containerInfo.getPortBindings());
 	}
 

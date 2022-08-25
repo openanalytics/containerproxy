@@ -62,7 +62,7 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.StringList dns = new SpelField.StringList();
     @Builder.Default
-    private SpelField.StringList volumes = new SpelField.StringList();
+    private SpelField.StringList volumes = new SpelField.StringList(new ArrayList<>());
     @Builder.Default
     private Map<String, Integer> portMapping = new HashMap<>();
     private boolean privileged;

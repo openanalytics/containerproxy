@@ -29,7 +29,9 @@ public class ProxiedAppKey extends RuntimeValueKey<String> {
                 false,
                 false,
                 false, // no need to expose in API
-                true, String.class);
+                true,
+                false,
+                String.class);
     }
 
     public static ProxiedAppKey inst = new ProxiedAppKey();

@@ -63,6 +63,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(ParameterValuesKey.inst);
         addRuntimeValueKey(HeartbeatTimeoutKey.inst);
         addRuntimeValueKey(MaxLifetimeKey.inst);
+        addRuntimeValueKey(ContainerIndexKey.inst);
     }
 
 }

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -120,7 +121,14 @@ public class SpecExpressionResolver {
 
     public List<String> evaluateToList(List<String> expressions, SpecExpressionContext context) {
 		if (expressions == null) return null;
-		return expressions.stream().flatMap(	 (el) ->
-				((List<String>) evaluate(el, context, List.class)).stream()).collect(Collectors.toList());
+		return expressions.stream()
+				.flatMap((el) -> {
+					List<String> result = evaluate(el, context, List.class);
+					if (result == null) {
+						result = new ArrayList<>();
+					}
+					return result.stream();
+				})
+				.collect(Collectors.toList());
     }
 }

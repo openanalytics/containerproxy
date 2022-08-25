@@ -67,21 +67,6 @@ public class ProxySpec {
     @Builder.Default
     Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
-    public ContainerSpec getContainerSpec(String image) {
-        if (image == null || image.isEmpty()) return null;
-        // we compare with the original value here, when AppRecovery tries to recover the spec, we don't interpret spel
-        return containerSpecs.stream().filter(s -> {
-            if (image.endsWith(":latest") && !s.getImage().getOriginalValue().contains(":")) {
-                // if we query for the latest image and the spec does not contain a tag -> then add :latest to the
-                // image name of the spec.
-                // e.g. querying for "debian:latest" while "debian" is specified in the spec
-                return image.equals(s.getImage() + ":latest");
-            } else {
-                return image.equals(s.getImage().getOriginalValue());
-            }
-        }).findAny().orElse(null);
-    }
-
     public void setContainerIndex() {
         for (int i = 0; i < this.containerSpecs.size(); i++) {
             this.containerSpecs.get(i).setIndex(i);

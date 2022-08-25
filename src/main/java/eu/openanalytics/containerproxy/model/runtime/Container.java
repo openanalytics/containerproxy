@@ -25,16 +25,15 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueStore;
 
-public class Container {
+public class Container extends RuntimeValueStore {
 
 	/**
 	 * Index in the array of ContainerSpecs of the ProxySpec.
 	 */
 	private Integer index;
 	private String id;
-	private ContainerSpec spec;
 
 	private Map<String, Object> parameters = new HashMap<>();
 	

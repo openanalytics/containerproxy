@@ -180,7 +180,7 @@ public abstract class SpelField<O, R> {
                 throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
             }
             if (originalValue == null) {
-                return new SpelField.StringList(null, new ArrayList<>());
+                return new SpelField.StringList(null, null);
             }
             // TODO implementation is different from ExpressionAwareContainerSpec::resolve
             return new SpelField.StringList(originalValue, specExpressionResolver.evaluateToList(originalValue, specExpressionContext));

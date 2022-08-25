@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.ProxyStatusService;
+import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -114,6 +115,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Inject
 	protected IProxySpecProvider specProvider;
 
+	@Inject
+	private RuntimeValueService runtimeValueService;
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		// If this application runs as a container itself, things like port publishing can be omitted.
@@ -163,14 +167,19 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
-			Container c = startContainer(spec, proxy, proxySpec);
-			c.getParameters().put(PARAM_CONTAINER_IMAGE, spec.getImage().getValue()); // TODO move to RuntimeValue
+			Container container = new Container();
+			container.setIndex(spec.getIndex());
+			container.getParameters().put(PARAM_CONTAINER_IMAGE, spec.getImage().getValue()); // TODO move to RuntimeValue
 
-			proxy.getContainers().add(c);
+			runtimeValueService.createRuntimeValues(spec, container);
+
+			proxy.getContainers().add(container);
+
+			startContainer(container, spec, proxy, proxySpec);
 		}
 	}
 
-	protected abstract Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception;
+	protected abstract void startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {

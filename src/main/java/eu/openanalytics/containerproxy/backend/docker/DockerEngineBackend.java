@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
 
@@ -68,10 +69,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
-		Container container = new Container();
-		container.setIndex(spec.getIndex());
-
+	protected void startContainer(Container container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Builder hostConfigBuilder = HostConfig.builder();
 
 		if (imagePullPolicy == ImagePullPolicy.Always
@@ -111,11 +109,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
-		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+		Stream.concat(
+				proxy.getRuntimeValues().values().stream(),
+				container.getRuntimeValues().values().stream()
+		).forEach(runtimeValue -> {
 			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
 				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 			}
-		}
+		});
 
 		ContainerConfig containerConfig = ContainerConfig.builder()
 			    .hostConfig(hostConfigBuilder.build())
@@ -156,8 +157,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			URI target = calculateTarget(spec, container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
-		
-		return container;
 	}
 
 	@Override

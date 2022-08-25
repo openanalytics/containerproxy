@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
@@ -45,6 +46,7 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Service to recover running apps after restart.
@@ -115,7 +117,13 @@ public class AppRecoveryService {
 					// and started is only important for the events (e.g. Prometheus) not for the whole application.
 					proxy.setStartupTimestamp(proxy.getCreatedTimestamp());
 					proxy.setUserId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
-					proxy.addRuntimeValues(containerInfo.getRuntimeValues());
+
+					proxy.addRuntimeValues(containerInfo.getRuntimeValues()
+							.values()
+							.stream()
+							.filter(r -> !r.getKey().isContainerSpecific())
+							.collect(Collectors.toList())
+					);
 
 					proxies.put(proxyId, proxy);
 				}
@@ -123,12 +131,14 @@ public class AppRecoveryService {
 				Container container = new Container();
 				container.setId(containerInfo.getContainerId());
 				container.setParameters(containerInfo.getParameters());
-				ContainerSpec containerSpec = proxySpec.getContainerSpec(containerInfo.getImage());
-				if (containerSpec == null) {
-					log.warn(String.format("Found existing container (%s) but not corresponding container spec.", containerInfo.getContainerId()));
-					continue;
-				}
-				container.setIndex(containerSpec.getIndex());
+				container.addRuntimeValues(containerInfo.getRuntimeValues()
+						.values()
+						.stream()
+						.filter(r -> r.getKey().isContainerSpecific())
+						.collect(Collectors.toList())
+				);
+				container.setIndex(container.getRuntimeObject(ContainerIndexKey.inst));
+
 				proxy.addContainer(container);
 				if (containerInfo.getProxyStatus() != null) {
 					proxy.setStatus(containerInfo.getProxyStatus());
@@ -136,6 +146,7 @@ public class AppRecoveryService {
 					proxy.setStatus(ProxyStatus.Up);
 				}
 
+				ContainerSpec containerSpec = proxySpec.getContainerSpecs().get(container.getIndex());
 				setupPortMapping(containerSpec, proxy, container, containerInfo);
 
 				proxySpecProvider.postProcessRecoveredProxy(proxy);

@@ -30,7 +30,9 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
                 true,
                 false,
                 true,
-                true, String.class);
+                true,
+                false,
+                String.class);
     }
 
     public static CreatedTimestampKey inst = new CreatedTimestampKey();

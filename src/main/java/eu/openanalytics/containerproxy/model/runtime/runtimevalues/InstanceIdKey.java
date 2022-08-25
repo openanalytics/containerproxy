@@ -29,7 +29,9 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
                 false,
                 false,
                 true,
-                true, String.class);
+                true,
+                false,
+                String.class);
     }
 
     public static InstanceIdKey inst = new InstanceIdKey();

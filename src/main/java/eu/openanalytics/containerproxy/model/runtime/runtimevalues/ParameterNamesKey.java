@@ -31,7 +31,9 @@ public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
                 false,
                 false,
                 true, // IMPORTANT: only the names of the values may be exposed through the API
-                false, ParameterNames.class);
+                false,
+                false,
+                ParameterNames.class);
     }
 
     public static ParameterNamesKey inst = new ParameterNamesKey();

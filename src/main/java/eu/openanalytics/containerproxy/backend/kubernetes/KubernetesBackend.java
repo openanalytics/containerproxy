@@ -104,6 +104,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -160,10 +161,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
-		Container container = new Container();
+	protected void startContainer(Container container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		container.setId(UUID.randomUUID().toString());
-		container.setIndex(spec.getIndex());
 
 		String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 		String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
@@ -209,9 +208,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withPrivileged(isPrivileged() || spec.isPrivileged())
 				.build();
 
-
-
-
 		ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
 		resourceRequirementsBuilder.addToRequests("cpu", spec.getCpuRequest().mapOrNull(Quantity::new));
 		resourceRequirementsBuilder.addToLimits("cpu", spec.getCpuLimit().mapOrNull(Quantity::new));
@@ -252,7 +248,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				.withNamespace(kubeNamespace)
 				.withName("sp-pod-" + container.getId());
 
-		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+		Stream.concat(
+				proxy.getRuntimeValues().values().stream(),
+				container.getRuntimeValues().values().stream()
+		).forEach(runtimeValue -> {
             if (runtimeValue.getKey().getIncludeAsLabel()) {
                 podLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 				serviceLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
@@ -260,7 +259,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (runtimeValue.getKey().getIncludeAsAnnotation()) {
 				objectMetaBuilder.addToAnnotations(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 			}
-		}
+		});
 
 		if (spec.getLabels().isPresent()) {
 			podLabels.putAll(spec.getLabels().getValue());
@@ -314,7 +313,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
 				Pod pod = kubeClient.resource(startedPod).fromServer().get();
 				container.getParameters().put(PARAM_POD, pod);
-				proxy.getContainers().add(container);
 
 				proxyStatusService.containerStartFailed(proxy, container);
 				throw new ContainerProxyException("Container did not become ready in time");
@@ -371,9 +369,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			URI target = calculateTarget(spec, container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
-
-
-		return container;
 	}
 
 	private LocalDateTime getEventTime(Event event) {

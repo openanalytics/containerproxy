@@ -20,14 +20,17 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
@@ -79,6 +82,10 @@ public class RuntimeValueService {
 
         proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)));
         proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)));
+    }
+
+    public void createRuntimeValues(ContainerSpec containerSpec, Container container) {
+        container.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()));
     }
 
 }

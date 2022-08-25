@@ -20,25 +20,25 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class UserGroupsKey extends RuntimeValueKey<String> {
+public class ContainerIndexKey extends RuntimeValueKey<Integer> {
 
-    private UserGroupsKey() {
-        super("openanalytics.eu/sp-user-groups",
-                "SHINYPROXY_USERGROUPS",
+    private ContainerIndexKey() {
+        super("openanalytics.eu/sp-container-index",
+                "SHINYPROXY_CONTAINER_INDEX",
+                false,
+                true,
                 false,
                 true,
                 true,
-                false, // no need to expose in API
                 true,
-                false,
-                String.class);
+                Integer.class);
     }
 
-    public static UserGroupsKey inst = new UserGroupsKey();
+    public static ContainerIndexKey inst = new ContainerIndexKey();
 
     @Override
-    public String fromString(String value) {
-        return value;
+    public Integer fromString(String value) {
+        return Integer.parseInt(value);
     }
 
 }

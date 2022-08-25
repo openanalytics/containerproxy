@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
@@ -76,10 +77,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
-		Container container = new Container();
-		container.setIndex(spec.getIndex());
-
+	protected void startContainer(Container container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
 		Mount[] mounts = spec.getVolumes()
 				.mapOrNull(volumes -> volumes.stream()
 					.map(b -> b.split(":"))
@@ -88,11 +86,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
-		for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
+		Stream.concat(
+				proxy.getRuntimeValues().values().stream(),
+				container.getRuntimeValues().values().stream()
+		).forEach(runtimeValue -> {
 			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-			    labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 			}
-		}
+		});
 
         List<SecretBind> secretBinds = new ArrayList<>();
         for (DockerSwarmSecret secret : spec.getDockerSwarmSecrets()) {
@@ -216,8 +217,6 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			URI target = calculateTarget(spec, container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
-
-		return container;
 	}
 
 	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int servicePort) throws Exception {

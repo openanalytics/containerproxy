@@ -29,7 +29,9 @@ public class HeartbeatTimeoutKey extends RuntimeValueKey<Long> {
                 true,
                 false,
                 true,
-                true, Long.class);
+                true,
+                false,
+                Long.class);
     }
 
     public static HeartbeatTimeoutKey inst = new HeartbeatTimeoutKey();

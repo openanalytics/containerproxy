@@ -29,7 +29,9 @@ public class UserIdKey extends RuntimeValueKey<String> {
                 true,
                 true,
                 false, // no need to expose in API
-                true, String.class);
+               true,
+                false,
+                String.class);
     }
 
     public static UserIdKey inst = new UserIdKey();

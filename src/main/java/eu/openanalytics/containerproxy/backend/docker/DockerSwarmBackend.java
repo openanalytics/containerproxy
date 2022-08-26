@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
@@ -295,6 +296,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			if (runtimeValues == null) {
 				continue;
 			}
+			runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
 
 			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
 			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {

@@ -62,8 +62,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_CERT_PATH = "cert-path";
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
 	protected static final String PROPERTY_PRIVILEGED = "privileged";
-
-	private static final String PARAM_CONTAINER_IMAGE = "CONTAINER_IMAGE";
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
 	protected final Logger log = LogManager.getLogger(getClass());
 
@@ -145,18 +143,12 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	}
 
-	@Override
-	public String getContainerImage(Container container) {
-		return (String) container.getParameters().get(PARAM_CONTAINER_IMAGE);
-	}
-
 	protected void doStartProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
 			Container container = new Container();
 			container.setIndex(spec.getIndex());
-			container.getParameters().put(PARAM_CONTAINER_IMAGE, spec.getImage().getValue()); // TODO move to RuntimeValue
 
 			runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
 

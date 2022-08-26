@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
@@ -665,6 +666,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				if (runtimeValues == null) {
 					continue;
 				}
+				runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().get(0).getImage()));
 
 				String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
 				if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {

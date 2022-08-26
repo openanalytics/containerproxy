@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
@@ -112,6 +113,7 @@ public class RuntimeValueService {
 
     public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         container.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()));
+        container.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()));
     }
 
 }

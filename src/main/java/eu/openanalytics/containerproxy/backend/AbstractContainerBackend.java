@@ -27,19 +27,10 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
-import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.UserService;
@@ -99,8 +90,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	// Note: lazy needed to work around early initialization conflict
 	protected IAuthenticationBackend authBackend;
 
-	@Inject
-	protected IdentifierService identifierService;
 
 	@Inject
 	@Lazy
@@ -128,8 +117,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Override
 	public SuccessOrFailure<Proxy> startProxy(Proxy proxy, ProxySpec spec) throws ContainerProxyException {
 		proxy.setStatus(ProxyStatus.Starting);
-		proxy.setCreatedTimestamp(System.currentTimeMillis());
-		setRuntimeValues(proxy, spec);
 
 		try {
 			doStartProxy(proxy, spec);
@@ -171,7 +158,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			container.setIndex(spec.getIndex());
 			container.getParameters().put(PARAM_CONTAINER_IMAGE, spec.getImage().getValue()); // TODO move to RuntimeValue
 
-			runtimeValueService.createRuntimeValues(spec, container);
+			runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
 
 			proxy.getContainers().add(container);
 
@@ -293,23 +280,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		}
 
 		return targetPath;
-	}
-
-	// TODO merge with runtimeValueService
-	private void setRuntimeValues(Proxy proxy, ProxySpec proxySpec) {
-		proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
-		proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
-		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
-		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()));
-
-		if (identifierService.realmId != null) {
-			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));
-		}
-
-		proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));
-		String[] groups = userService.getGroups(userService.getCurrentAuth());
-		proxy.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)));
-		proxy.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())));
 	}
 
 }

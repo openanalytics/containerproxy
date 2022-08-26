@@ -262,10 +262,14 @@ public class ProxyService {
 		proxy.setId(proxyId);
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
+		proxy.setCreatedTimestamp(System.currentTimeMillis());
 
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);
 		}
+
+		// add the runtime values which can be used in spel (and thus which don't use spel themselves)
+		runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
 
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy,
@@ -276,7 +280,8 @@ public class ProxyService {
 		// resolve SpEL expression in spec
 		spec = spec.resolve(expressionResolver, context);
 
-		runtimeValueService.createRuntimeValues(spec, parameters, proxy);
+		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
+		runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
 
 		saveProxy(proxy);
 

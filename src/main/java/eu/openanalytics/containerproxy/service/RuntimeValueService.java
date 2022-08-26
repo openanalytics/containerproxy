@@ -25,11 +25,19 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.apache.commons.lang3.tuple.Pair;
@@ -66,25 +74,43 @@ public class RuntimeValueService {
     @Inject
     private UserService userService;
 
+    @Inject
+    protected IdentifierService identifierService;
+
     @PostConstruct
     public void init() {
         defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
-    public void createRuntimeValues(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
-        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
+    public void addRuntimeValuesBeforeSpel(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
+        proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
+        proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
+        proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
+        proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()));
 
+        if (identifierService.realmId != null) {
+            proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));
+        }
+        proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));
+        String[] groups = UserService.getGroups(userService.getCurrentAuth());
+        proxy.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)));
+        proxy.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())));
+
+        // parameters
+        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
         if (providedParametersOptional.isPresent()) {
             proxy.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()));
             proxy.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()));
         }
+    }
 
+    public void addRuntimeValuesAfterSpel(ProxySpec spec, Proxy proxy) {
         proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)));
         proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)));
     }
 
-    public void createRuntimeValues(ContainerSpec containerSpec, Container container) {
+    public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         container.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()));
     }
 

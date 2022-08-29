@@ -27,7 +27,6 @@ import eu.openanalytics.containerproxy.service.ProxyService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,21 +42,20 @@ import java.util.TimerTask;
  * Service which 1) keeps track of active proxies by listening for heartbeats (created by {@link HeartbeatService})
  * and 2) kills proxies which where inactive for too long.
  */
-@Service
 public class ActiveProxiesService implements IHeartbeatProcessor {
 
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
 
-    private final Logger log = LogManager.getLogger(HeartbeatService.class);
+    protected final Logger log = LogManager.getLogger(HeartbeatService.class);
 
-    private final Map<String, Long> proxyHeartbeats = Collections.synchronizedMap(new HashMap<>());
-
-    @Inject
-    private Environment environment;
+    protected final Map<String, Long> proxyHeartbeats = Collections.synchronizedMap(new HashMap<>());
 
     @Inject
-    private ProxyService proxyService;
+    protected Environment environment;
+
+    @Inject
+    protected ProxyService proxyService;
 
     @PostConstruct
     public void init() {
@@ -80,6 +78,10 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
 
     public Long getLastHeartBeat(String proxyId) {
         return proxyHeartbeats.get(proxyId);
+    }
+
+    public void setLastHeartBeat(String proxyId, Long time) {
+        proxyHeartbeats.put(proxyId, time);
     }
 
     private void performCleanup() {

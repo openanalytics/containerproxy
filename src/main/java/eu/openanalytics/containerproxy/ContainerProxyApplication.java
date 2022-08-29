@@ -22,13 +22,12 @@ package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
-import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
-import eu.openanalytics.containerproxy.service.hearbeat.SessionReActivatorService;
+import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.server.handlers.SameSiteCookieHandler;
@@ -43,13 +42,13 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -58,8 +57,8 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
-import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.session.security.SpringSessionBackedSessionRegistry;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.filter.FormContentFilter;
 
 import javax.annotation.PostConstruct;
@@ -69,7 +68,6 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
@@ -243,8 +241,14 @@ public class ContainerProxyApplication {
 	}
 
 	@Bean
-	public HeartbeatService heartbeatService(ActiveProxiesService activeProxiesService, SessionReActivatorService sessionReActivatorService) {
-		return new HeartbeatService(Arrays.asList(activeProxiesService, sessionReActivatorService));
+	public HeartbeatService heartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
+		return new HeartbeatService(heartbeatProcessors);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	public ActiveProxiesService activeProxiesService() {
+		return new ActiveProxiesService();
 	}
 
 	public static Properties getDefaultProperties() {

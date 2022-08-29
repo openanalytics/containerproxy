@@ -117,6 +117,11 @@ public class AppRecoveryService {
 					// and started is only important for the events (e.g. Prometheus) not for the whole application.
 					proxy.setStartupTimestamp(proxy.getCreatedTimestamp());
 					proxy.setUserId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
+					if (proxySpec.getDisplayName() != null) {
+						proxy.setDisplayName(proxySpec.getDisplayName());
+					} else {
+						proxy.setDisplayName(proxySpec.getId());
+					}
 
 					proxy.addRuntimeValues(containerInfo.getRuntimeValues()
 							.values()

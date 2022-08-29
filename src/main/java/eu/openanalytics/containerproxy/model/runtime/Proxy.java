@@ -44,6 +44,8 @@ public class Proxy extends RuntimeValueStore {
 	private long createdTimestamp;
 	private String userId;
 
+	private String displayName;
+
 	private List<Container> containers;
 	private Map<String,URI> targets;
 
@@ -116,4 +118,11 @@ public class Proxy extends RuntimeValueStore {
 		this.targets = targets;
 	}
 
+	public String getDisplayName() {
+		return displayName;
+	}
+
+	public void setDisplayName(String displayName) {
+		this.displayName = displayName;
+	}
 }

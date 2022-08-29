@@ -263,6 +263,11 @@ public class ProxyService {
 		proxy.setStatus(ProxyStatus.New);
 		proxy.setUserId(userService.getCurrentUserId());
 		proxy.setCreatedTimestamp(System.currentTimeMillis());
+		if (spec.getDisplayName() != null) {
+			proxy.setDisplayName(spec.getDisplayName());
+		} else {
+			proxy.setDisplayName(spec.getId());
+		}
 
 		if (runtimeValues != null) {
 			proxy.addRuntimeValues(runtimeValues);

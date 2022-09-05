@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.UserService;
@@ -104,6 +105,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Inject
 	private RuntimeValueService runtimeValueService;
+
+	@Inject
+	protected IdentifierService identifierService;
 
 	@Override
 	public void initialize() throws ContainerProxyException {

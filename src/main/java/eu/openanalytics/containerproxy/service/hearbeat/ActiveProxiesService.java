@@ -47,7 +47,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
 
-    protected final Logger log = LogManager.getLogger(HeartbeatService.class);
+    private final Logger log = LogManager.getLogger(getClass());
 
     protected final Map<String, Long> proxyHeartbeats = Collections.synchronizedMap(new HashMap<>());
 

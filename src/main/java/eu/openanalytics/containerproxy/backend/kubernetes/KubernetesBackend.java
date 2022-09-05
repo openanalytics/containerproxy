@@ -53,7 +53,6 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -61,6 +60,7 @@ import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -472,14 +472,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec());
-		return parseAdditionalManifests(context, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
+		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getKubernetesAdditionalManifests());
 	}
 
 	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxy.getSpec(),
 				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
-		return parseAdditionalManifests(context, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
+		return parseAdditionalManifests(proxy.getSpec().getId(), context, namespace, proxy.getSpec().getKubernetesAdditionalPersistentManifests());
 	}
 
 	private void applyAdditionalManifest(GenericKubernetesResource resource) {
@@ -520,7 +520,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<GenericKubernetesResource> parseAdditionalManifests(SpecExpressionContext context, String namespace, List<String> manifests) throws JsonProcessingException {
+	private List<GenericKubernetesResource> parseAdditionalManifests(String specId, SpecExpressionContext context, String namespace, List<String> manifests) throws JsonProcessingException {
 		ArrayList<GenericKubernetesResource> result = new ArrayList<>();
 		for (String manifest : manifests) {
 			String expressionManifest = expressionResolver.evaluateToString(manifest, context);
@@ -535,6 +535,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				// therefore we overwrite this namespace with the namespace of the pod.
 				fullObject.getMetadata().setNamespace(namespace);
 			}
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-additional-manifest", "true");
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-realm", identifierService.realmId); // TODO
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-spec-id", specId);
 			result.add(fullObject);
 		}
 		return result;

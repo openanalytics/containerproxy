@@ -110,4 +110,7 @@ public interface IContainerBackend {
 		return false;
 	}
 
+    default public void addRuntimeValuesBeforeSpel(ProxySpec spec, Proxy proxy) throws ContainerProxyException {
+
+	}
 }

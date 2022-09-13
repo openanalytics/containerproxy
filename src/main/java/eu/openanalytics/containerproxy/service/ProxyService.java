@@ -275,6 +275,7 @@ public class ProxyService {
 
 		// add the runtime values which can be used in spel (and thus which don't use spel themselves)
 		runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
+		backend.addRuntimeValuesBeforeSpel(spec, proxy);
 
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy,

@@ -20,7 +20,8 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
-import java.util.ArrayList;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,14 @@ public abstract class SpelField<O, R> {
         this.originalValue = originalValue;
         this.value = value;
         this.resolved = true;
+    }
+
+    @JsonValue
+    public Object toJson() {
+        if (!resolved) {
+            return originalValue;
+        }
+        return value;
     }
 
     public R getValue() {

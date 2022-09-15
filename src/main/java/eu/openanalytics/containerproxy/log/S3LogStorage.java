@@ -32,24 +32,25 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.util.Arrays;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
+//import com.amazonaws.AmazonClientException;
+//import com.amazonaws.auth.AWSStaticCredentialsProvider;
+//import com.amazonaws.auth.BasicAWSCredentials;
+//import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
+//import com.amazonaws.services.s3.AmazonS3;
+//import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+//import com.amazonaws.services.s3.model.ObjectMetadata;
+//import com.amazonaws.services.s3.model.S3Object;
+//import com.amazonaws.services.s3.transfer.TransferManager;
+//import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 //TODO Optimize flushing behaviour
 public class S3LogStorage extends AbstractLogStorage {
 
-	private AmazonS3 s3;
-	private TransferManager transferMgr;
+//	private AmazonS3 s3;
+//	private TransferManager transferMgr;
 	
 	private String bucketName;
 	private String bucketPath;
@@ -78,14 +79,14 @@ public class S3LogStorage extends AbstractLogStorage {
 			bucketPath = subPath.substring(bucketPathIndex + 1) + "/";
 		}
 		
-		s3 = AmazonS3ClientBuilder.standard()
-				.withEndpointConfiguration(new EndpointConfiguration(endpoint, null))
-				.enablePathStyleAccess()
-				.withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, accessSecret)))
-				.build();
-		transferMgr = TransferManagerBuilder.standard()
-				.withS3Client(s3)
-				.build();
+//		s3 = AmazonS3ClientBuilder.standard()
+//				.withEndpointConfiguration(new EndpointConfiguration(endpoint, null))
+//				.enablePathStyleAccess()
+//				.withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, accessSecret)))
+//				.build();
+//		transferMgr = TransferManagerBuilder.standard()
+//				.withS3Client(s3)
+//				.build();
 	}
 	
 	@Override
@@ -109,35 +110,35 @@ public class S3LogStorage extends AbstractLogStorage {
 			System.arraycopy(bytes, 0, bytesToUpload, originalBytes.length, bytes.length);
 		}
 		
-		ObjectMetadata metadata = new ObjectMetadata();
-		metadata.setContentLength(bytesToUpload.length);
-		if (enableSSE) metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
-		
-		if (log.isDebugEnabled()) log.debug(String.format("Writing log file to S3 [size: %d] [path: %s]", bytesToUpload.length, key));
-		
-		InputStream bufferedInput = new BufferedInputStream(new ByteArrayInputStream(bytesToUpload), 20*1024*1024);
-		try {
-			transferMgr.upload(bucketName, key, bufferedInput, metadata).waitForCompletion();
-		} catch (AmazonClientException | InterruptedException e) {
-			throw new IOException(e);
-		}
+//		ObjectMetadata metadata = new ObjectMetadata();
+//		metadata.setContentLength(bytesToUpload.length);
+//		if (enableSSE) metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
+//
+//		if (log.isDebugEnabled()) log.debug(String.format("Writing log file to S3 [size: %d] [path: %s]", bytesToUpload.length, key));
+//
+//		InputStream bufferedInput = new BufferedInputStream(new ByteArrayInputStream(bytesToUpload), 20*1024*1024);
+//		try {
+//			transferMgr.upload(bucketName, key, bufferedInput, metadata).waitForCompletion();
+//		} catch (AmazonClientException | InterruptedException e) {
+//			throw new IOException(e);
+//		}
 	}
 	
 	private byte[] getContent(String key) throws IOException {
-		if (s3.doesObjectExist(bucketName, key)) {
-			S3Object o = s3.getObject(bucketName, key);
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			try (InputStream in = o.getObjectContent()) {
-				byte[] buffer = new byte[40*1024];
-				int len = 0;
-				while ((len = in.read(buffer)) > 0) {
-					out.write(buffer, 0, len);
-				}
-			}
-			return out.toByteArray();
-		} else {
+//		if (s3.doesObjectExist(bucketName, key)) {
+//			S3Object o = s3.getObject(bucketName, key);
+//			ByteArrayOutputStream out = new ByteArrayOutputStream();
+//			try (InputStream in = o.getObjectContent()) {
+//				byte[] buffer = new byte[40*1024];
+//				int len = 0;
+//				while ((len = in.read(buffer)) > 0) {
+//					out.write(buffer, 0, len);
+//				}
+//			}
+//			return out.toByteArray();
+//		} else {
 			return null;
-		}
+//		}
 	}
 	
 	private class S3OutputStream extends OutputStream {

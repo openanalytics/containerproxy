@@ -99,13 +99,14 @@ public class ContainerProxyApplication {
 	public static Boolean secureCookiesEnabled;
 	public static String sameSiteCookiePolicy;
 
-	public static void main(String[] args) {
+	static {
 		Security.addProvider(new BouncyCastleProvider());
-
 		ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
 		ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
 		ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
+	}
 
+	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));

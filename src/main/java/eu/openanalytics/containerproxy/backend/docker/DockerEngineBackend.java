@@ -36,6 +36,7 @@ import com.spotify.docker.client.messages.RegistryAuth;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
@@ -142,6 +143,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 			dockerClient.startContainer(containerCreation.id());
 			proxyStatusService.containerStarted(proxy, container);
+			container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()));
 		} catch (DockerException ex) {
 			proxyStatusService.containerStartFailed(proxy, container);
 			throw ex;
@@ -215,6 +217,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				continue;
 			}
 			runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, container.image()));
+			runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, container.id()));
 
 			// add ports to PortAllocator (even if we don't recover the proxy)
 			for (PortMapping portMapping: container.ports()) {

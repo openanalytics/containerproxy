@@ -101,10 +101,6 @@ public interface IContainerBackend {
 	 */
 	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 
-	default public String getBackendContainerName(Container container) {
-		return "N/A";
-	}
-
 	// TODO move implementation to abstract class
 	default public Boolean supportsPause() {
 		return false;

@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
@@ -183,6 +184,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		// tell the status service we are starting the container
 		proxyStatusService.containerStarting(proxy, container);
 		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
+		container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId));
 
 		// Give the service some time to start up and launch a container.
 		boolean containerFound = Retrying.retry((i, maxAttempts) -> {
@@ -297,6 +299,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				continue;
 			}
 			runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
+			runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, service.id()));
 
 			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
 			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {

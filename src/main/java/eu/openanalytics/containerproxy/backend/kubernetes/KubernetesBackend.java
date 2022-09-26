@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
@@ -354,6 +355,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			service = kubeClient.resource(startupService).fromServer().get();
 		}
 
+		container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
 		container.getParameters().put(PARAM_POD, pod);
 		container.getParameters().put(PARAM_SERVICE, service);
 
@@ -667,6 +669,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue;
 				}
 				runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().get(0).getImage()));
+				runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
 
 				String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
 				if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
@@ -743,13 +746,5 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
-	@Override
-	public String getBackendContainerName(Container container) {
-		if (container.getParameters().containsKey(PARAM_POD)) {
-			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-			return pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName();
-		}
-		return "N/A";
-	}
 
 }

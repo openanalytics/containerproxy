@@ -64,6 +64,8 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(HeartbeatTimeoutKey.inst);
         addRuntimeValueKey(MaxLifetimeKey.inst);
         addRuntimeValueKey(ContainerIndexKey.inst);
+        addRuntimeValueKey(ContainerImageKey.inst);
+        addRuntimeValueKey(BackendContainerNameKey.inst);
     }
 
 }

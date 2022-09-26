@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.service.hearbeat;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,6 +57,9 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
 
     @Inject
     protected ProxyService proxyService;
+
+    @Inject
+    private IProxyReleaseStrategy releaseStrategy;
 
     @PostConstruct
     public void init() {
@@ -116,7 +120,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         if (proxySilence > heartbeatTimeout) {
             log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), proxySilence));
             proxyHeartbeats.remove(proxy.getId());
-            proxyService.stopProxy(proxy, true, true);
+            releaseStrategy.releaseProxy(proxy);
         }
     }
 

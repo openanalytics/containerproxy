@@ -49,6 +49,8 @@ public class ProxyMaxLifetimeService {
     @Inject
     private ProxyService proxyService;
 
+    @Inject
+    private IProxyReleaseStrategy releaseStrategy;
 
     @PostConstruct
     public void init() {
@@ -67,7 +69,7 @@ public class ProxyMaxLifetimeService {
                         System.currentTimeMillis() - proxy.getCreatedTimestamp(),
                         true, false);
                 log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), uptime));
-                proxyService.stopProxy(proxy, true, true);
+                releaseStrategy.releaseProxy(proxy);
             }
         }
 

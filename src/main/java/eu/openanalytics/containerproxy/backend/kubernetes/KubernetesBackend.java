@@ -740,4 +740,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
+	@Override
+	public String getBackendContainerName(Container container) {
+		if (container.getParameters().containsKey(PARAM_POD)) {
+			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
+			return pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName();
+		}
+		return "N/A";
+	}
+
 }

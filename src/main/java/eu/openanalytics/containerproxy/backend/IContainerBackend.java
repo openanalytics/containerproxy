@@ -90,4 +90,9 @@ public interface IContainerBackend {
 	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 
 	public String getContainerImage(Container container);
+
+	default public String getBackendContainerName(Container container) {
+		return "N/A";
+	}
+
 }

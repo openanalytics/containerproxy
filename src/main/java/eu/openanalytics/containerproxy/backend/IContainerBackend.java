@@ -32,7 +32,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 
@@ -55,7 +54,7 @@ public interface IContainerBackend {
 	 * @param spec
 	 * @throws ContainerProxyException If the startup fails for any reason.
 	 */
-	public SuccessOrFailure<Proxy> startProxy(Proxy proxy, ProxySpec spec) throws ContainerProxyException;
+	public void startProxy(Proxy proxy, ProxySpec spec) throws Exception;
 
 	/**
 	 * Stop the given proxy. Any resources used by the proxy should be released.
@@ -69,7 +68,7 @@ public interface IContainerBackend {
 		throw new IllegalStateException("PauseProxy not supported by backend");
 	}
 
-	default public void resumeProxy(Proxy proxy) throws IOException {
+	default public void resumeProxy(Proxy proxy, ProxySpec proxySpec) throws IOException {
 		throw new IllegalStateException("ResumeProxy not supported by backend");
 	}
 

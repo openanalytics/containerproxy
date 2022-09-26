@@ -39,13 +39,20 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -109,6 +116,9 @@ public class ProxyService {
 
 	@Inject
 	private SpecExpressionResolver expressionResolver;
+
+	@Inject
+	protected IProxyTestStrategy testStrategy;
 
 	private boolean stopAppsOnShutdown;
 
@@ -273,35 +283,34 @@ public class ProxyService {
 			proxy.addRuntimeValues(runtimeValues);
 		}
 
-		// add the runtime values which can be used in spel (and thus which don't use spel themselves)
-		runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
-		backend.addRuntimeValuesBeforeSpel(spec, proxy);
-
-		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy,
-				spec,
-				userService.getCurrentAuth().getPrincipal(),
-				userService.getCurrentAuth().getCredentials());
-
-		// resolve SpEL expression in spec
-		spec = spec.resolve(expressionResolver, context);
-
-		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
-		runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
+		spec = prepareProxyForStart(proxy, spec, parameters);
 
 		saveProxy(proxy);
 
-		SuccessOrFailure<Proxy> res = backend.startProxy(proxy, spec);
-		if (res.isFailure()) {
+		proxy.setStatus(ProxyStatus.Starting);
+
+		try {
+			backend.startProxy(proxy, spec);
+		} catch (Throwable t) {
 			removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
-			throw new ContainerProxyException(res.getMessage(), res.getThrowable());
-		} else if (res.getValue().getStatus() == ProxyStatus.Stopped) {
-			// Proxy start succeeded, but the Proxy was stopped in the meantime
-			removeProxy(proxy);
-			return proxy;
+			throw new ContainerProxyException("Container failed to start", t);
 		}
 
+		if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
+			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
+			return proxy; // TODO
+		}
+
+		if (!testStrategy.testProxy(proxy)) {
+			backend.stopProxy(proxy);
+			proxyStatusService.applicationStartupFailed(proxy);
+			throw new ContainerProxyException("Container did not respond in time");
+		}
+
+		proxy.setStartupTimestamp(System.currentTimeMillis());
+		proxy.setStatus(ProxyStatus.Up);
+		proxyStatusService.proxyStarted(proxy);
 		setupProxy(proxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getContainers().get(0).getId()));
@@ -388,11 +397,29 @@ public class ProxyService {
 		if (!backend.supportsPause()) {
 			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
 		}
+
 		Runnable releaser = () -> {
 			try {
-				backend.resumeProxy(proxy);
-				logService.detach(proxy);
+				// When resuming the proxy, we *do* want to re-evaluate the environment variables
+				// therefore we fetch the latest version of the spec and evaluate SpeL
+				ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
+
+				spec = prepareProxyForStart(proxy, spec, null); // TODO support parameters
+
+				backend.resumeProxy(proxy, spec); // TODO handle errors
+
+				// TODO handle stopped pending app
+
+				if (!testStrategy.testProxy(proxy)) {
+					backend.stopProxy(proxy);
+					proxyStatusService.applicationStartupFailed(proxy);
+					throw new ContainerProxyException("Container did not respond in time");
+				}
+
+				proxy.setStatus(ProxyStatus.Up);
+
 				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
+
 				// TODO
 //				if (proxy.getStartupTimestamp() == 0) {
 //					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
@@ -400,6 +427,7 @@ public class ProxyService {
 //					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
 //							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 //				}
+
 				setupProxy(proxy);
 			} catch (Exception e){
 				log.error("Failed to resume proxy " + proxy.getId(), e);
@@ -422,6 +450,25 @@ public class ProxyService {
 		setupProxy(proxy);
 
 		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
+	}
+
+	private ProxySpec prepareProxyForStart(Proxy proxy, ProxySpec spec, Map<String, String> parameters) throws InvalidParametersException {
+		// add the runtime values which can be used in spel (and thus which don't use spel themselves)
+		runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
+		backend.addRuntimeValuesBeforeSpel(spec, proxy);
+
+		SpecExpressionContext context = SpecExpressionContext.create(
+				proxy,
+				spec,
+				userService.getCurrentAuth().getPrincipal(),
+				userService.getCurrentAuth().getCredentials());
+
+		// resolve SpEL expression in spec
+		spec = spec.resolve(expressionResolver, context);
+
+		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
+		runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
+		return spec;
 	}
 
 	/**

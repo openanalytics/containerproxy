@@ -70,6 +70,16 @@ public class RuntimeValueStore {
         }
     }
 
+    public void putRuntimeValue(RuntimeValue runtimeValue, boolean override) {
+        if (!this.runtimeValues.containsKey(runtimeValue.getKey()) || override) {
+            runtimeValues.put(runtimeValue.getKey(), runtimeValue);
+        }
+    }
+
+    public void removeRuntimeValue(RuntimeValueKey<?> key) {
+        runtimeValues.remove(key);
+    }
+
     public void addRuntimeValues(List<RuntimeValue> runtimeValues) {
         for (RuntimeValue runtimeValue: runtimeValues) {
             addRuntimeValue(runtimeValue);

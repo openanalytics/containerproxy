@@ -86,39 +86,39 @@ public class RuntimeValueService {
     }
 
     public void addRuntimeValuesBeforeSpel(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
-        proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
-        proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
-        proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
-        proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()));
+        proxy.putRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"), false);
+        proxy.putRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
+        proxy.putRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
+        proxy.putRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()), false);
 
         if (identifierService.realmId != null) {
-            proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));
+            proxy.putRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
         }
-        proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));
+        proxy.putRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
         String[] groups = UserService.getGroups(userService.getCurrentAuth());
-        proxy.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)));
-        proxy.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())));
+        proxy.putRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
+        proxy.putRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 
         // parameters
         Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
         if (providedParametersOptional.isPresent()) {
-            proxy.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()));
-            proxy.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()));
+            proxy.putRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
+            proxy.putRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
         }
     }
 
     public void addRuntimeValuesAfterSpel(ProxySpec spec, Proxy proxy) {
-        proxy.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)));
-        proxy.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)));
+        proxy.putRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)), true);
+        proxy.putRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)), true);
     }
 
     public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
-        container.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()));
-        container.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()));
+        container.putRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
+        container.putRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
         if (containerSpec.getTargetPath().isPresent()) {
-            container.addRuntimeValue(new RuntimeValue(TargetPathKey.inst, containerSpec.getTargetPath().getValue()));
+            container.putRuntimeValue(new RuntimeValue(TargetPathKey.inst, containerSpec.getTargetPath().getValue()), true);
         } else {
-            container.addRuntimeValue(new RuntimeValue(TargetPathKey.inst, ""));
+            container.putRuntimeValue(new RuntimeValue(TargetPathKey.inst, ""), true);
         }
     }
 

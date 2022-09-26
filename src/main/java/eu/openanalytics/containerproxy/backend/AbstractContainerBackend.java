@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.backend;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
-import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
@@ -37,7 +36,6 @@ import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.util.SuccessOrFailure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
@@ -71,9 +69,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Inject
 	protected IProxyTargetMappingStrategy mappingStrategy;
-
-	@Inject
-	protected IProxyTestStrategy testStrategy;
 
 	@Inject
 	protected UserService userService;
@@ -117,37 +112,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public SuccessOrFailure<Proxy> startProxy(Proxy proxy, ProxySpec spec) throws ContainerProxyException {
-		proxy.setStatus(ProxyStatus.Starting);
-
-		try {
-			doStartProxy(proxy, spec);
-
-			if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-				log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-				stopProxy(proxy);
-				return SuccessOrFailure.createSuccess(proxy);
-			}
-
-			if (!testStrategy.testProxy(proxy)) {
-				stopProxy(proxy);
-				proxyStatusService.applicationStartupFailed(proxy);
-				return SuccessOrFailure.createFailure(proxy, "Container did not respond in time");
-			}
-
-			proxy.setStartupTimestamp(System.currentTimeMillis());
-			proxy.setStatus(ProxyStatus.Up);
-			proxyStatusService.proxyStarted(proxy);
-
-			return SuccessOrFailure.createSuccess(proxy);
-		} catch (Throwable t) {
-			stopProxy(proxy);
-			return SuccessOrFailure.createFailure(proxy, "Container failed to start", t);
-		}
-
-	}
-
-	protected void doStartProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
+	public void startProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 

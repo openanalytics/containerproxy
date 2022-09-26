@@ -260,7 +260,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	 *  - Ensures the path is empty when not path is defined (or when a single / is defined)
 	 */
 	public static String computeTargetPath(String targetPath) {
-		if (targetPath == null) {
+		if (targetPath == null || targetPath.equals("")) {
 			return "";
 		}
 

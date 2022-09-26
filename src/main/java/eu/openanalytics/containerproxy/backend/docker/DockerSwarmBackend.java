@@ -46,6 +46,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
@@ -217,15 +218,16 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					.mapToInt(pc -> pc.publishedPort()).findAny().orElse(-1);
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(spec, container, containerPort, servicePort);
+			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}
 
-	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int servicePort) throws Exception {
+	@Override
+	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
-		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
+		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 		int targetPort;
 
 		if (isUseInternalNetwork()) {

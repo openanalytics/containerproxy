@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
@@ -114,6 +115,11 @@ public class RuntimeValueService {
     public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         container.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()));
         container.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()));
+        if (containerSpec.getTargetPath().isPresent()) {
+            container.addRuntimeValue(new RuntimeValue(TargetPathKey.inst, containerSpec.getTargetPath().getValue()));
+        } else {
+            container.addRuntimeValue(new RuntimeValue(TargetPathKey.inst, ""));
+        }
     }
 
 }

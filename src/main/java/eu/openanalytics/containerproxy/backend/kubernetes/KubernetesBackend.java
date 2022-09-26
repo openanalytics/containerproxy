@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
@@ -359,19 +360,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		container.getParameters().put(PARAM_POD, pod);
 		container.getParameters().put(PARAM_SERVICE, service);
 
-		// Calculate proxy routes for all configured ports.
-		for (String mappingKey: spec.getPortMapping().keySet()) {
-			int containerPort = spec.getPortMapping().get(mappingKey);
-
-			int servicePort = -1;
-			if (service != null) servicePort = service.getSpec().getPorts().stream()
-					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
-					.findAny().orElse(-1);
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(spec, container, containerPort, servicePort);
-			proxy.getTargets().put(mapping, target);
-		}
+		setupPortMappingExistingProxy(spec, proxy, container, new HashMap<>());
 	}
 
 	private LocalDateTime getEventTime(Event event) {
@@ -559,11 +548,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return true;
 	}
 
-	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int servicePort) throws Exception {
+	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
-		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
+		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 
 		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
 
@@ -741,7 +730,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.findAny().orElse(-1);
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(containerSpec, container, containerPort, servicePort);
+			URI target = calculateTarget(container, containerPort, servicePort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}

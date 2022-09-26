@@ -116,7 +116,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
 	}
 
-	abstract protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int hostPort) throws Exception;
+	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
 
 	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
 		for (String mappingKey : containerSpec.getPortMapping().keySet()) {
@@ -129,7 +129,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			}
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(containerSpec, container, containerPort, hostPort);
+			URI target = calculateTarget(container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}

@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -157,17 +158,17 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			int hostPort = Integer.valueOf(Optional.ofNullable(binding).map(pb -> pb.get(0).hostPort()).orElse("0"));
 
 			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(spec, container, containerPort, hostPort);
+			URI target = calculateTarget(container, containerPort, hostPort);
 			proxy.getTargets().put(mapping, target);
 		}
 	}
 
 	@Override
-	protected URI calculateTarget(ContainerSpec containerSpec, Container container, int containerPort, int hostPort) throws Exception {
+	protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception {
 		String targetProtocol;
 		String targetHostName;
 		String targetPort;
-		String targetPath = computeTargetPath(containerSpec.getTargetPath().getValueOrNull());
+		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 
 		if (isUseInternalNetwork()) {
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);

@@ -30,7 +30,7 @@ public class SpelFieldConverters {
 
     @Component
     @ConfigurationPropertiesBinding
-    public static class FloatToSpelFieldStringConverto implements Converter<Float, SpelField.String> {
+    public static class FloatToSpelFieldStringConvertor implements Converter<Float, SpelField.String> {
         @Override
         public SpelField.String convert(@Nonnull Float source) {
             return new SpelField.String(source.toString());

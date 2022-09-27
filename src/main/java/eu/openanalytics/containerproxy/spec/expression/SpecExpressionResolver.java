@@ -115,6 +115,10 @@ public class SpecExpressionResolver {
 		return evaluate(expression, context, Long.class);
 	}
 
+	public Integer evaluateToInteger(String expression, SpecExpressionContext context) {
+		return evaluate(expression, context, Integer.class);
+	}
+
 	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
 		return evaluate(expression, context, Boolean.class);
 	}

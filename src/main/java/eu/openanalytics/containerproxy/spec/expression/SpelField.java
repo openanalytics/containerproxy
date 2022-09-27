@@ -148,6 +148,14 @@ public abstract class SpelField<O, R> {
             super(originalValue);
         }
 
+        public Long(java.lang.Integer originalValue) {
+            super(originalValue.toString());
+        }
+
+        public Long(java.lang.Long originalValue) {
+            super(originalValue.toString());
+        }
+
         public Long() {
             super(null);
         }
@@ -165,6 +173,37 @@ public abstract class SpelField<O, R> {
                 return new SpelField.Long(null, null);
             }
             return new SpelField.Long(originalValue, specExpressionResolver.evaluateToLong(originalValue, specExpressionContext));
+        }
+
+    }
+
+    public static class Integer extends SpelField<java.lang.String, java.lang.Integer> {
+
+        public Integer(java.lang.String originalValue) {
+            super(originalValue);
+        }
+
+        public Integer(java.lang.Integer originalValue) {
+            super(originalValue.toString());
+        }
+
+        public Integer() {
+            super(null);
+        }
+
+        private Integer(java.lang.String originalValue, java.lang.Integer value) {
+            super(originalValue, value);
+        }
+
+        @Override
+        public SpelField.Integer resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.Integer(null, null);
+            }
+            return new SpelField.Integer(originalValue, specExpressionResolver.evaluateToInteger(originalValue, specExpressionContext));
         }
 
     }
@@ -236,6 +275,37 @@ public abstract class SpelField<O, R> {
                 newValue.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext));
             });
             return new SpelField.StringMap(originalValue, newValue);
+        }
+
+    }
+
+    public static class Boolean extends SpelField<java.lang.String, java.lang.Boolean> {
+
+        public Boolean(java.lang.String originalValue) {
+            super(originalValue);
+        }
+
+        public Boolean(java.lang.Boolean originalValue) {
+            super(originalValue.toString());
+        }
+
+        public Boolean() {
+            super(null);
+        }
+
+        private Boolean(java.lang.String originalValue, java.lang.Boolean value) {
+            super(originalValue, value);
+        }
+
+        @Override
+        public SpelField.Boolean resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            if (resolved) {
+                throw new IllegalStateException("Trying to resolve a SpelField which is already resolved.");
+            }
+            if (originalValue == null) {
+                return new SpelField.Boolean(null, null);
+            }
+            return new SpelField.Boolean(originalValue, specExpressionResolver.evaluateToBoolean(originalValue, specExpressionContext));
         }
 
     }

@@ -175,6 +175,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			http
 				.formLogin()
 					.loginPage("/login")
+					.successForwardUrl("/")
 					.and()
 				.logout()
 					.logoutUrl(auth.getLogoutURL())

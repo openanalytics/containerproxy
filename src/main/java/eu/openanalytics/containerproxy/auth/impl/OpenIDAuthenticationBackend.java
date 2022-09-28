@@ -105,6 +105,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		http
 			.oauth2Login()
 				.loginPage("/login")
+				.defaultSuccessUrl("/", true)
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientRepository(oAuth2AuthorizedClientRepository)
 				.authorizationEndpoint()

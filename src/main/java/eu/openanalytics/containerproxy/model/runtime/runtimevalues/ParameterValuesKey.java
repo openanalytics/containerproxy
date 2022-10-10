@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 
 public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {

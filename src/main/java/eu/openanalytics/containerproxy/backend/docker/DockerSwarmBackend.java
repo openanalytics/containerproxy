@@ -40,16 +40,18 @@ import com.spotify.docker.client.messages.swarm.TaskSpec;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
+import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
 
@@ -156,13 +158,15 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 						.build());
 
 		List<PortConfig> portsToPublish = new ArrayList<>();
+		Map<Integer, Integer> portBindings = new HashMap<>();
 		if (isUseInternalNetwork()) {
 			// In internal networking mode, we can access container ports directly, no need to bind on host.
 		} else {
 			// Access ports via port publishing on the service.
-			for (Integer containerPort: spec.getPortMapping().values()) {
+			for (PortMapping portMapping: spec.getPortMapping()) {
 				int hostPort = portAllocator.allocate(proxy.getId());
-				portsToPublish.add(PortConfig.builder().publishedPort(hostPort).targetPort(containerPort).build());
+				portsToPublish.add(PortConfig.builder().publishedPort(hostPort).targetPort(portMapping.getPort()).build());
+				portBindings.put(portMapping.getPort(), hostPort);
 			}
 			serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
 		}
@@ -209,31 +213,19 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		}
 		proxyStatusService.containerStarted(proxy, container);
 
-		// Calculate proxy routes for all configured ports.
-		for (String mappingKey: spec.getPortMapping().keySet()) {
-			int containerPort = spec.getPortMapping().get(mappingKey);
-
-			int servicePort = portsToPublish.stream()
-					.filter(pc -> pc.targetPort() == containerPort)
-					.mapToInt(pc -> pc.publishedPort()).findAny().orElse(-1);
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
-			proxy.getTargets().put(mapping, target);
-		}
+		setupPortMappingExistingProxy(proxy, container, portBindings);
 	}
 
 	@Override
-	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
+	protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
-		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 		int targetPort;
 
 		if (isUseInternalNetwork()) {
 			// Access on containerShortId:containerPort
 			targetHostName = container.getId().substring(0, 12);
-			targetPort = containerPort;
+			targetPort = portMapping.getPort();
 		} else {
 			// Access on dockerHostName:servicePort
 			URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
@@ -241,7 +233,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			targetPort = servicePort;
 		}
 
-		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
 	}
 
     private SecretBind convertSecret(DockerSwarmSecret secret) throws DockerException, InterruptedException {

@@ -20,9 +20,11 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
@@ -32,15 +34,16 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterValuesKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
@@ -115,11 +118,15 @@ public class RuntimeValueService {
     public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         container.putRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
         container.putRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
-        if (containerSpec.getTargetPath().isPresent()) {
-            container.putRuntimeValue(new RuntimeValue(TargetPathKey.inst, containerSpec.getTargetPath().getValue()), true);
-        } else {
-            container.putRuntimeValue(new RuntimeValue(TargetPathKey.inst, ""), true);
+
+        PortMappings portMappings = new PortMappings();
+        for (PortMapping portMapping : containerSpec.getPortMapping()) {
+            portMappings.addPortMapping(new PortMappings.PortMappingEntry(
+                    portMapping.getName(), portMapping.getPort(),
+                    AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
         }
+
+        container.putRuntimeValue(new RuntimeValue(PortMappingsKey.inst, portMappings), false);
     }
 
 }

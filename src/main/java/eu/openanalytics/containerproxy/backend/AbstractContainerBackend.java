@@ -24,8 +24,10 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -44,6 +46,7 @@ import org.springframework.core.env.Environment;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -241,6 +244,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		}
 
 		return targetPath;
+	}
+
+	abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
+
+	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
+
+			Integer boundPort = null; // in case of internal networking
+			if (!isUseInternalNetwork()) {
+				// in case of non-internal networking
+				boundPort = portBindings.get(portMapping.getPort());
+			}
+
+			String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
+			URI target = calculateTarget(container, portMapping, boundPort);
+			proxy.getTargets().put(mapping, target);
+		}
 	}
 
 }

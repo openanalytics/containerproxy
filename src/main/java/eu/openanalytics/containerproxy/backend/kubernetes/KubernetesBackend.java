@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
@@ -38,7 +39,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
@@ -217,8 +217,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		resourceRequirementsBuilder.addToRequests("memory", spec.getMemoryRequest().mapOrNull(Quantity::new));
 		resourceRequirementsBuilder.addToLimits("memory", spec.getMemoryLimit().mapOrNull(Quantity::new));
 
-		List<ContainerPort> containerPorts = spec.getPortMapping().values().stream()
-				.map(p -> new ContainerPortBuilder().withContainerPort(p).build())
+		List<ContainerPort> containerPorts = spec.getPortMapping().stream()
+				.map(p -> new ContainerPortBuilder().withContainerPort(p.getPort()).build())
 				.collect(Collectors.toList());
 
 		ContainerBuilder containerBuilder = new ContainerBuilder()
@@ -328,11 +328,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		parseKubernetesEvents(proxy, container, pod);
 
 		Service service = null;
+		Map<Integer, Integer> portBindings = new HashMap<>();
 		if (isUseInternalNetwork()) {
 			// If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.
 		} else {
-			List<ServicePort> servicePorts = spec.getPortMapping().values().stream()
-					.map(p -> new ServicePortBuilder().withPort(p).build())
+			List<ServicePort> servicePorts = spec.getPortMapping().stream()
+					.map(p -> new ServicePortBuilder().withPort(p.getPort()).build())
 					.collect(Collectors.toList());
 
 			Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace)
@@ -354,13 +355,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			Retrying.retry((currentAttempt, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
 
 			service = kubeClient.resource(startupService).fromServer().get();
+			portBindings = service.getSpec().getPorts().stream()
+					.collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
 		}
 
 		container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
 		container.getParameters().put(PARAM_POD, pod);
 		container.getParameters().put(PARAM_SERVICE, service);
 
-		setupPortMappingExistingProxy(spec, proxy, container, new HashMap<>());
+		setupPortMappingExistingProxy(proxy, container, portBindings);
 	}
 
 	private LocalDateTime getEventTime(Event event) {
@@ -548,23 +551,22 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return true;
 	}
 
-	protected URI calculateTarget(Container container, int containerPort, int servicePort) throws Exception {
+	protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
 		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
-		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 
-		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
+		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD)); // TODO move outside this function
 
 		if (isUseInternalNetwork()) {
 			targetHostName = pod.getStatus().getPodIP();
-			targetPort = containerPort;
+			targetPort = portMapping.getPort();
 		} else {
 			targetHostName = pod.getStatus().getHostIP();
 			targetPort = servicePort;
 		}
 
-		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
 	}
 
 	@Override
@@ -666,20 +668,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue;
 				}
 
-				Map<Integer, Integer> portBindings = new HashMap<>();
-				for (ContainerPort portMapping: pod.getSpec().getContainers().get(0).getPorts()) {
-					Integer hostPort = portMapping.getHostPort();
-					Integer containerPort = portMapping.getContainerPort();
-					portBindings.put(containerPort, hostPort);
-				}
-
 				HashMap<String, Object> parameters = new HashMap<>();
 				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
 				parameters.put(PARAM_POD, pod);
 
+				Map<Integer, Integer> portBindings = new HashMap<>();
 				if (!isUseInternalNetwork()) {
 						Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
 					parameters.put(PARAM_SERVICE, service);
+					portBindings = service.getSpec().getPorts().stream()
+							.collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
 				}
 
 				containers.add(new ExistingContainerInfo(containerId, runtimeValues,
@@ -715,25 +713,5 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		return runtimeValues;
 	}
-
-
-	@Override
-	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		Service service = (Service) container.getParameters().get(PARAM_SERVICE);
-		// Calculate proxy routes for all configured ports.
-		for (String mappingKey: containerSpec.getPortMapping().keySet()) {
-			int containerPort = containerSpec.getPortMapping().get(mappingKey);
-
-			int servicePort = -1;
-			if (service != null) servicePort = service.getSpec().getPorts().stream()
-					.filter(p -> p.getPort() == containerPort).map(p -> p.getNodePort())
-					.findAny().orElse(-1);
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, servicePort);
-			proxy.getTargets().put(mapping, target);
-		}
-	}
-
 
 }

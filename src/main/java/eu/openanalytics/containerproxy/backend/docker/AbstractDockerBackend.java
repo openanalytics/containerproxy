@@ -35,12 +35,10 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.util.PortAllocator;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -114,24 +112,6 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
 	protected Container getPrimaryContainer(Proxy proxy) {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
-	}
-
-	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
-
-	public void setupPortMappingExistingProxy(ContainerSpec containerSpec, Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		for (String mappingKey : containerSpec.getPortMapping().keySet()) {
-			int containerPort = containerSpec.getPortMapping().get(mappingKey);
-
-			int hostPort = -1; // in case of internal networking
-			if (portBindings.containsKey(containerPort) && portBindings.get(containerPort) != 0) {
-				// in case of non internal networking
-				hostPort = portBindings.get(containerPort);
-			}
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
-			proxy.getTargets().put(mapping, target);
-		}
 	}
 
 	protected List<String> convertEnv(Map<String, String> env) {

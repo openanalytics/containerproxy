@@ -35,13 +35,13 @@ import com.spotify.docker.client.messages.PortBinding;
 import com.spotify.docker.client.messages.RegistryAuth;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -55,7 +55,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 public class DockerEngineBackend extends AbstractDockerBackend {
@@ -83,17 +82,19 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			proxyStatusService.imagePulled(proxy, container);
 		}
 
-		Map<String, List<PortBinding>> portBindings = new HashMap<>();
+		Map<String, List<PortBinding>> dockerPortBindings = new HashMap<>(); // portBindings for Docker API
+		Map<Integer, Integer> portBindings = new HashMap<>();
 		if (isUseInternalNetwork()) {
 			// In internal networking mode, we can access container ports directly, no need to bind on host.
 		} else {
 			// Allocate ports on the docker host to proxy to.
-			for (Integer containerPort: spec.getPortMapping().values()) {
+			for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping: spec.getPortMapping()) {
 				int hostPort = portAllocator.allocate(proxy.getId());
-				portBindings.put(String.valueOf(containerPort), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
+				dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
+				portBindings.put(portMapping.getPort(), hostPort);
 			}
 		}
-		hostConfigBuilder.portBindings(portBindings);
+		hostConfigBuilder.portBindings(dockerPortBindings);
 		
 		hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
 		hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
@@ -125,7 +126,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			    .hostConfig(hostConfigBuilder.build())
 			    .image(spec.getImage().getValue())
 			    .labels(labels)
-			    .exposedPorts(portBindings.keySet())
+			    .exposedPorts(dockerPortBindings.keySet())
 			    .cmd(spec.getCmd().getValueOrNull())
 			    .env(convertEnv(buildEnv(spec, proxy)))
 			    .build();
@@ -149,26 +150,15 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			proxyStatusService.containerStartFailed(proxy, container);
 			throw ex;
 		}
-		// Calculate proxy routes for all configured ports.
 
-		for (String mappingKey: spec.getPortMapping().keySet()) {
-			int containerPort = spec.getPortMapping().get(mappingKey);
-			
-			List<PortBinding> binding = portBindings.get(String.valueOf(containerPort));
-			int hostPort = Integer.valueOf(Optional.ofNullable(binding).map(pb -> pb.get(0).hostPort()).orElse("0"));
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
-			proxy.getTargets().put(mapping, target);
-		}
+		setupPortMappingExistingProxy(proxy, container, portBindings);
 	}
 
 	@Override
-	protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception {
+	protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
 		String targetProtocol;
 		String targetHostName;
 		String targetPort;
-		String targetPath = computeTargetPath(container.getRuntimeValue(TargetPathKey.inst));
 
 		if (isUseInternalNetwork()) {
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
@@ -178,7 +168,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			ContainerInfo info = dockerClient.inspectContainer(container.getId());
 			targetHostName = info.config().hostname();
 
-			targetPort = String.valueOf(containerPort);
+			targetPort = String.valueOf(portMapping.getPort());
 		} else {
 			URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
 			targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, hostURL.getProtocol());
@@ -186,7 +176,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			targetPort = String.valueOf(hostPort);
 		}
 		
-		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, targetPath));
+		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
 	}
 	
 	@Override

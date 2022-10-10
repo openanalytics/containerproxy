@@ -20,25 +20,34 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class TargetPathKey extends RuntimeValueKey<String> {
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 
-    private TargetPathKey() {
-        super("openanalytics.eu/sp-target-path",
-                "SHINYPROXY_TARGET_PATH",
+public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
+
+    private PortMappingsKey() {
+        super("openanalytics.eu/sp-port-mappings",
+                "SHINYPROXY_PORT_MAPPINGS",
                 false,
                 true,
                 false,
                 false, // important: may not be exposed in API for security
+               true,
                 true,
-                true,
-                String.class);
+                PortMappings.class);
     }
 
-    public static TargetPathKey inst = new TargetPathKey();
+    public static PortMappingsKey inst = new PortMappingsKey();
 
     @Override
-    public String fromString(String value) {
-        return value;
+    public PortMappings fromString(String value) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.readValue(value, PortMappings.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

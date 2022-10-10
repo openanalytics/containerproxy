@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Data
 @Setter
@@ -64,7 +65,7 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.StringList volumes = new SpelField.StringList(new ArrayList<>());
     @Builder.Default
-    private Map<String, Integer> portMapping = new HashMap<>();
+    private List<PortMapping> portMapping = new ArrayList<>();
     private boolean privileged;
     @Builder.Default
     private SpelField.String memoryRequest = new SpelField.String();
@@ -74,8 +75,6 @@ public class ContainerSpec {
     private SpelField.String cpuRequest = new SpelField.String();
     @Builder.Default
     private SpelField.String cpuLimit = new SpelField.String();
-    @Builder.Default
-    private SpelField.String targetPath = new SpelField.String();
     @Builder.Default
     private SpelField.StringMap labels = new SpelField.StringMap();
     @Builder.Default
@@ -122,7 +121,7 @@ public class ContainerSpec {
                 .memoryLimit(memoryLimit.resolve(resolver, context))
                 .cpuRequest(cpuRequest.resolve(resolver, context))
                 .cpuLimit(cpuLimit.resolve(resolver, context))
-                .targetPath(targetPath.resolve(resolver, context))
+                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
                 .labels(labels.resolve(resolver, context))
                 .build();
     }

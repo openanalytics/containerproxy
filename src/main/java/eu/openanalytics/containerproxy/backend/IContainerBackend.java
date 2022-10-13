@@ -68,7 +68,7 @@ public interface IContainerBackend {
 		throw new IllegalStateException("PauseProxy not supported by backend");
 	}
 
-	default public void resumeProxy(Proxy proxy, ProxySpec proxySpec) throws IOException {
+	default public void resumeProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
 		throw new IllegalStateException("ResumeProxy not supported by backend");
 	}
 

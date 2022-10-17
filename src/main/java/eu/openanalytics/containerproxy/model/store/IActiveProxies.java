@@ -18,25 +18,24 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec;
-
-import java.util.List;
+package eu.openanalytics.containerproxy.model.store;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+
+import java.util.Collection;
 
 /**
- * A provider of base (predefined) ProxySpecs, e.g. from the application's configuration file.
+ * Interface to manage Active Proxies in the ProxyService.
  */
-public interface IProxySpecProvider {
+public interface IActiveProxies {
 
-	public List<ProxySpec> getSpecs();
-	
-	public ProxySpec getSpec(String id);
+    public Collection<Proxy> getAllProxies();
 
-	default public Proxy postProcessRecoveredProxy(Proxy proxy) {
-		// no-op
-		return proxy;
-	}
+    public void addProxy(Proxy proxy);
 
+    public void removeProxy(Proxy proxy);
+
+    public void update(Proxy proxy);
+
+    public Proxy getProxy(String proxyId);
 }

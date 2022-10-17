@@ -48,6 +48,14 @@ public class RuntimeValue {
         return value.toString();
     }
 
+    /**
+     * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.
+     */
+    @Override
+    public String toString() {
+        return getValue();
+    }
+
     public <T> T getObject() {
         return (T) getObject(key.getClazz());
     }

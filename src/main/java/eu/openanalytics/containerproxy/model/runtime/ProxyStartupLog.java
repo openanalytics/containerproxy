@@ -108,7 +108,7 @@ public class ProxyStartupLog {
 
         public void stepFailed() {
             if (state != StartupStepState.STARTED) {
-                throw new IllegalStateException("Cannot finish (with failure) step if it is not yet started or already completed");
+                return; // step was never started -> don't record endTime
             }
             endTime = LocalDateTime.now();
             state = StartupStepState.FAILURE;

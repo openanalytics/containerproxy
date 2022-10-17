@@ -1131,9 +1131,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithPersistentManifestPolicyCreateOnce() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[17].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_create_once");
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1333,9 +1331,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithPersistentManifestPolicyReplace() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[21].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_replace");
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1377,8 +1373,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // same spec, different value
-            String specId2 = environment.getProperty("proxy.specs[22].id");
-            spec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
+            spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_replace2");
             proxy = proxyService.startProxy(spec, true);
 
             // secret has no namespace defined -> should be created in the default namespace
@@ -1415,9 +1410,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     @Test
     public void advancedRuntimeLabels() {
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[12].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_advanced_runtime_labels");
             Proxy proxy = proxyService.startProxy(spec, true);
             String containerId = proxy.getContainers().get(0).getId();
 

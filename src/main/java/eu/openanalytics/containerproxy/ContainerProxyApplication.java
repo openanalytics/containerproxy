@@ -25,6 +25,8 @@ import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
+import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.memory.MemoryActiveProxies;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
@@ -308,6 +310,12 @@ public class ContainerProxyApplication {
 		app.setDefaultProperties(getDefaultProperties());
 		// See: https://github.com/keycloak/keycloak/pull/7053
 		System.setProperty("jdk.serialSetFilterAfterRead", "true");
+	}
+
+	// TODO
+	@Bean
+	public IActiveProxies activeProxies() {
+		return new MemoryActiveProxies();
 	}
 
 }

@@ -33,6 +33,7 @@ import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Builder;
 import com.spotify.docker.client.messages.PortBinding;
 import com.spotify.docker.client.messages.RegistryAuth;
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
@@ -71,87 +72,89 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected void startContainer(Container container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
-		Builder hostConfigBuilder = HostConfig.builder();
-
-		if (imagePullPolicy == ImagePullPolicy.Always
-			|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
-			logger.info("Pulling image {}", spec.getImage());
-			proxyStatusService.imagePulling(proxy, container);
-			pullImage(spec);
-			proxyStatusService.imagePulled(proxy, container);
-		}
-
-		Map<String, List<PortBinding>> dockerPortBindings = new HashMap<>(); // portBindings for Docker API
-		Map<Integer, Integer> portBindings = new HashMap<>();
-		if (isUseInternalNetwork()) {
-			// In internal networking mode, we can access container ports directly, no need to bind on host.
-		} else {
-			// Allocate ports on the docker host to proxy to.
-			for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping: spec.getPortMapping()) {
-				int hostPort = portAllocator.allocate(proxy.getId());
-				dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
-				portBindings.put(portMapping.getPort(), hostPort);
-			}
-		}
-		hostConfigBuilder.portBindings(dockerPortBindings);
-		
-		hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
-		hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
-		if (spec.getCpuLimit().isPresent()) {
-			// Workaround, see https://github.com/spotify/docker-client/issues/959
-			long period = 100000;
-			long quota = (long) (period * Float.parseFloat(spec.getCpuLimit().getValue()));
-			hostConfigBuilder.cpuPeriod(period);
-			hostConfigBuilder.cpuQuota(quota);
-		}
-
-		spec.getNetwork().ifPresent(hostConfigBuilder::networkMode);
-		spec.getDns().ifPresent(hostConfigBuilder::dns);
-		spec.getVolumes().ifPresent(hostConfigBuilder::binds);
-		hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
-
-		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
-
-		Stream.concat(
-				proxy.getRuntimeValues().values().stream(),
-				container.getRuntimeValues().values().stream()
-		).forEach(runtimeValue -> {
-			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
-			}
-		});
-
-		ContainerConfig containerConfig = ContainerConfig.builder()
-			    .hostConfig(hostConfigBuilder.build())
-			    .image(spec.getImage().getValue())
-			    .labels(labels)
-			    .exposedPorts(dockerPortBindings.keySet())
-			    .cmd(spec.getCmd().getValueOrNull())
-			    .env(convertEnv(buildEnv(spec, proxy)))
-			    .build();
+	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException {
+		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 
 		try {
+			Builder hostConfigBuilder = HostConfig.builder();
+
+			if (imagePullPolicy == ImagePullPolicy.Always
+					|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
+				logger.info("Pulling image {}", spec.getImage());
+				proxyStatusService.imagePulling(proxy.getId(), initialContainer.getIndex());
+				pullImage(spec);
+				proxyStatusService.imagePulled(proxy.getId(), initialContainer.getIndex());
+			}
+
+			Map<String, List<PortBinding>> dockerPortBindings = new HashMap<>(); // portBindings for Docker API
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			if (isUseInternalNetwork()) {
+				// In internal networking mode, we can access container ports directly, no need to bind on host.
+			} else {
+				// Allocate ports on the docker host to proxy to.
+				for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping : spec.getPortMapping()) {
+					int hostPort = portAllocator.allocate(proxy.getId());
+					dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
+					portBindings.put(portMapping.getPort(), hostPort);
+				}
+			}
+			hostConfigBuilder.portBindings(dockerPortBindings);
+
+			hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
+			hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
+			if (spec.getCpuLimit().isPresent()) {
+				// Workaround, see https://github.com/spotify/docker-client/issues/959
+				long period = 100000;
+				long quota = (long) (period * Float.parseFloat(spec.getCpuLimit().getValue()));
+				hostConfigBuilder.cpuPeriod(period);
+				hostConfigBuilder.cpuQuota(quota);
+			}
+
+			spec.getNetwork().ifPresent(hostConfigBuilder::networkMode);
+			spec.getDns().ifPresent(hostConfigBuilder::dns);
+			spec.getVolumes().ifPresent(hostConfigBuilder::binds);
+			hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
+
+			Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
+
+			Stream.concat(
+					proxy.getRuntimeValues().values().stream(),
+					initialContainer.getRuntimeValues().values().stream()
+			).forEach(runtimeValue -> {
+				if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+				}
+			});
+
+			ContainerConfig containerConfig = ContainerConfig.builder()
+					.hostConfig(hostConfigBuilder.build())
+					.image(spec.getImage().getValue())
+					.labels(labels)
+					.exposedPorts(dockerPortBindings.keySet())
+					.cmd(spec.getCmd().getValueOrNull())
+					.env(convertEnv(buildEnv(spec, proxy)))
+					.build();
+
 			// tell the status service we are starting the container
-			proxyStatusService.containerStarting(proxy, container);
+			proxyStatusService.containerStarting(proxy.getId(), initialContainer.getIndex());
 			ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
-			container.setId(containerCreation.id());
+			rContainerBuilder.id(containerCreation.id());
 
 			if (spec.getNetworkConnections().isPresent()) {
-				for (String networkConnection: spec.getNetworkConnections().getValue()) {
+				for (String networkConnection : spec.getNetworkConnections().getValue()) {
 					dockerClient.connectToNetwork(containerCreation.id(), networkConnection);
 				}
 			}
 
 			dockerClient.startContainer(containerCreation.id());
-			proxyStatusService.containerStarted(proxy, container);
-			container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()));
-		} catch (DockerException ex) {
-			proxyStatusService.containerStartFailed(proxy, container);
-			throw ex;
-		}
+			proxyStatusService.containerStarted(proxy.getId(), initialContainer.getIndex());
+			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()), false);
 
-		setupPortMappingExistingProxy(proxy, container, portBindings);
+			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
+		} catch (Throwable throwable) {
+			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
+			throw new ContainerFailedToStartException("", throwable, rContainerBuilder.build());
+		}
 	}
 
 	@Override
@@ -175,7 +178,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			targetHostName = hostURL.getHost();
 			targetPort = String.valueOf(hostPort);
 		}
-		
 		return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
 	}
 	

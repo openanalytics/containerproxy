@@ -25,7 +25,8 @@ proxy:
         - image: "openanalytics/shinyproxy-demo"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
-            default: 3838
+            - name: default
+              port: 3838
       parameters:
         definitions:
           - id: "parameter1$#>>>.;;"

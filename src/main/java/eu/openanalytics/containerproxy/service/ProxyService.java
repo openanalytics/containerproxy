@@ -24,7 +24,6 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -39,11 +38,14 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.store.IActiveProxies;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.logging.log4j.LogManager;
@@ -77,7 +79,9 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 public class ProxyService {
 		
 	private Logger log = LogManager.getLogger(ProxyService.class);
-	private List<Proxy> activeProxies = Collections.synchronizedList(new ArrayList<>());
+
+	@Inject
+	private IActiveProxies activeProxies;
 	private ExecutorService containerKiller = Executors.newSingleThreadExecutor();
 	
 	@Inject
@@ -130,7 +134,7 @@ public class ProxyService {
 		try {
 			containerKiller.shutdown();
 		} finally {
-			for (Proxy proxy : activeProxies) {
+			for (Proxy proxy : activeProxies.getAllProxies()) {
 				try {
 					backend.stopProxy(proxy);
 				} catch (Exception exception) {
@@ -207,13 +211,12 @@ public class ProxyService {
 	 * @return A List of matching proxies, may be empty.
 	 */
 	public List<Proxy> getProxies(Predicate<Proxy> filter, boolean ignoreAccessControl) {
+		// TODO remove filter option
 		boolean isAdmin = userService.isAdmin();
 		List<Proxy> matches = new ArrayList<>();
-		synchronized (activeProxies) {
-			for (Proxy proxy: activeProxies) {
-				boolean hasAccess = ignoreAccessControl || isAdmin || userService.isOwner(proxy);
-				if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
-			}
+		for (Proxy proxy: activeProxies.getAllProxies()) {
+			boolean hasAccess = ignoreAccessControl || isAdmin || userService.isOwner(proxy);
+			if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
 		}
 		return matches;
 	}
@@ -226,11 +229,9 @@ public class ProxyService {
 	 */
 	public List<Proxy> getProxiesOfCurrentUser(Predicate<Proxy> filter) {
 		List<Proxy> matches = new ArrayList<>();
-		synchronized (activeProxies) {
-			for (Proxy proxy: activeProxies) {
-				boolean hasAccess = userService.isOwner(proxy);
-				if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
-			}
+		for (Proxy proxy: activeProxies.getAllProxies()) {
+			boolean hasAccess = userService.isOwner(proxy);
+			if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
 		}
 		return matches;
 	}
@@ -261,55 +262,84 @@ public class ProxyService {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
 
-		Proxy proxy = new Proxy();
-		proxy.setId(proxyId);
-		proxy.setStatus(ProxyStatus.New);
-		proxy.setUserId(userService.getCurrentUserId());
-		proxy.setCreatedTimestamp(System.currentTimeMillis());
+		Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
+		proxyBuilder.id(proxyId);
+		proxyBuilder.status(ProxyStatus.New);
+		proxyBuilder.userId(userService.getCurrentUserId());
+		proxyBuilder.specId(spec.getId());
+		proxyBuilder.createdTimestamp(System.currentTimeMillis());
+
 		if (spec.getDisplayName() != null) {
-			proxy.setDisplayName(spec.getDisplayName());
+			proxyBuilder.displayName(spec.getDisplayName());
 		} else {
-			proxy.setDisplayName(spec.getId());
+			proxyBuilder.displayName(spec.getId());
 		}
 
 		if (runtimeValues != null) {
-			proxy.addRuntimeValues(runtimeValues);
+			proxyBuilder.addRuntimeValues(runtimeValues);
 		}
 
-		spec = prepareProxyForStart(proxy, spec, parameters);
+		Proxy currentProxy = proxyBuilder.build();
+		saveProxy(currentProxy);
 
-		saveProxy(proxy);
+		currentProxy = runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, currentProxy);
+		currentProxy = backend.addRuntimeValuesBeforeSpel(spec, currentProxy);
 
-		proxy.setStatus(ProxyStatus.Starting);
+		SpecExpressionContext context = SpecExpressionContext.create(
+				currentProxy,
+				spec,
+				userService.getCurrentAuth().getPrincipal(),
+				userService.getCurrentAuth().getCredentials());
+
+		// resolve SpEL expression in spec
+		spec = spec.resolve(expressionResolver, context);
+
+		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
+		currentProxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, currentProxy);
+
+		currentProxy = currentProxy.toBuilder().status(ProxyStatus.Starting).build(); // TODO update proxy
 
 		try {
-			backend.startProxy(proxy, spec);
-		} catch (Throwable t) {
-			removeProxy(proxy);
-			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			currentProxy = backend.startProxy(currentProxy, spec);
+		} catch (ProxyFailedToStartException t) {
+			try {
+				backend.stopProxy(t.getProxy());
+			} catch (Throwable t2) {
+				// log error, but ignore it otherwise
+				// most important is that we remove the proxy from memory
+				log.warn("Error while stopping failed proxy", t2);
+			}
+			removeProxy(t.getProxy());
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, t.getProxy().getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		}
 
-		if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-			return proxy; // TODO
-		}
+		// TODO
+//		if (proxyBuilder.getStatus().equals(ProxyStatus.Stopped) || proxyBuilder.getStatus().equals(ProxyStatus.Stopping)) {
+//			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxyBuilder.getUserId(), proxyBuilder.getSpecId(), proxyBuilder.getId()));
+//			return proxyBuilder;
+//		}
 
-		if (!testStrategy.testProxy(proxy)) {
-			backend.stopProxy(proxy);
-			proxyStatusService.applicationStartupFailed(proxy);
+		if (!testStrategy.testProxy(currentProxy)) {
+			backend.stopProxy(currentProxy);
+			proxyStatusService.applicationStartupFailed(currentProxy.getId(), currentProxy.getContainers().size());
 			throw new ContainerProxyException("Container did not respond in time");
 		}
 
-		proxy.setStartupTimestamp(System.currentTimeMillis());
-		proxy.setStatus(ProxyStatus.Up);
-		proxyStatusService.proxyStarted(proxy);
-		setupProxy(proxy);
+		currentProxy = currentProxy.toBuilder()
+				.startupTimestamp(System.currentTimeMillis())
+				.status(ProxyStatus.Up)
+				.build();
 
-		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), spec.getId(), proxy.getContainers().get(0).getId()));
-		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, proxy.getId(), proxy.getUserId(), spec.getId()));
+		proxyStatusService.proxyStarted(currentProxy.getId(), currentProxy.getContainers().size());
+		setupProxy(currentProxy);
 
-		return proxy;
+		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", currentProxy.getUserId(), spec.getId(), currentProxy.getContainers().get(0).getId()));
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, currentProxy.getId(), currentProxy.getUserId(), spec.getId()));
+
+		activeProxies.update(currentProxy);
+
+		return currentProxy;
 	}
 
 
@@ -344,8 +374,10 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
-			mappingManager.removeMapping(target.getKey());
+		for (Container container : proxy.getContainers()) {
+			for (Entry<String, URI> target : container.getTargets().entrySet()) {
+				mappingManager.removeMapping(target.getKey());
+			}
 		}
 	}
 
@@ -377,57 +409,59 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
-			mappingManager.removeMapping(target.getKey());
+		for (Container container : proxy.getContainers()) {
+			for (Entry<String, URI> target : container.getTargets().entrySet()) {
+				mappingManager.removeMapping(target.getKey());
+			}
 		}
 	}
 
 	public void unPauseProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
-		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
-			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
-		}
-
-		if (!backend.supportsPause()) {
-			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
-		}
-
-		Runnable releaser = () -> {
-			try {
-				// When resuming the proxy, we *do* want to re-evaluate the environment variables
-				// therefore we fetch the latest version of the spec and evaluate SpeL
-				ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
-
-				spec = prepareProxyForStart(proxy, spec, null); // TODO support parameters
-
-				backend.resumeProxy(proxy, spec); // TODO handle errors
-
-				// TODO handle stopped pending app
-
-				if (!testStrategy.testProxy(proxy)) {
-					backend.stopProxy(proxy);
-					proxyStatusService.applicationStartupFailed(proxy);
-					throw new ContainerProxyException("Container did not respond in time");
-				}
-
-				proxy.setStatus(ProxyStatus.Up);
-
-				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-
-				// TODO
-//				if (proxy.getStartupTimestamp() == 0) {
-//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
-//				} else {
-//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
-//							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+//		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
+//			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
+//		}
+//
+//		if (!backend.supportsPause()) {
+//			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
+//		}
+//
+//		Runnable releaser = () -> {
+//			try {
+//				// When resuming the proxy, we *do* want to re-evaluate the environment variables
+//				// therefore we fetch the latest version of the spec and evaluate SpeL
+//				ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
+//
+//				spec = prepareProxyForStart(initialProxy, proxy, spec, null); // TODO support parameters
+//
+//				backend.resumeProxy(proxy, spec); // TODO handle errors
+//
+//				// TODO handle stopped pending app
+//
+//				if (!testStrategy.testProxy(proxy)) {
+//					backend.stopProxy(proxy);
+//					proxyStatusService.applicationStartupFailed(proxy);
+//					throw new ContainerProxyException("Container did not respond in time");
 //				}
-
-				setupProxy(proxy);
-			} catch (Exception e){
-				log.error("Failed to resume proxy " + proxy.getId(), e);
-			}
-		};
-		if (async) containerKiller.submit(releaser);
-		else releaser.run();
+//
+//				proxy.setStatus(ProxyStatus.Up);
+//
+//				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
+//
+//				// TODO
+////				if (proxy.getStartupTimestamp() == 0) {
+////					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+////				} else {
+////					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+////							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+////				}
+//
+//				setupProxy(proxy);
+//			} catch (Exception e){
+//				log.error("Failed to resume proxy " + proxy.getId(), e);
+//			}
+//		};
+//		if (async) containerKiller.submit(releaser);
+//		else releaser.run();
 
 	}
 
@@ -438,38 +472,21 @@ public class ProxyService {
 	 * @param proxy
 	 */
 	public void addExistingProxy(Proxy proxy) {
-		activeProxies.add(proxy);
+		activeProxies.addProxy(proxy);
 
 		setupProxy(proxy);
 
 		log.info(String.format("Existing Proxy re-activated [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 	}
 
-	private ProxySpec prepareProxyForStart(Proxy proxy, ProxySpec spec, Map<String, String> parameters) throws InvalidParametersException {
-		// add the runtime values which can be used in spel (and thus which don't use spel themselves)
-		runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
-		backend.addRuntimeValuesBeforeSpel(spec, proxy);
-
-		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy,
-				spec,
-				userService.getCurrentAuth().getPrincipal(),
-				userService.getCurrentAuth().getCredentials());
-
-		// resolve SpEL expression in spec
-		spec = spec.resolve(expressionResolver, context);
-
-		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
-		runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
-		return spec;
-	}
-
 	/**
 	 * Setups the Mapping of and logging of the proxy.
 	 */
 	private void setupProxy(Proxy proxy) {
-		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
-			mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
+		for (Container container : proxy.getContainers()) {
+			for (Entry<String, URI> target : container.getTargets().entrySet()) {
+				mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
+			}
 		}
 
 		if (logService.isLoggingEnabled()) {
@@ -483,13 +500,13 @@ public class ProxyService {
 	}
 
 	private void saveProxy(Proxy proxy) {
-		activeProxies.add(proxy);
-		proxyStatusService.proxyCreated(proxy);
+		activeProxies.addProxy(proxy);
+		proxyStatusService.proxyCreated(proxy.getId());
 	}
 
 	private void removeProxy(Proxy proxy) {
-		activeProxies.remove(proxy);
-		proxyStatusService.proxyRemoved(proxy);
+		activeProxies.removeProxy(proxy);
+		proxyStatusService.proxyRemoved(proxy.getId());
 	}
 
 }

@@ -20,45 +20,116 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueStore;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
+
+import java.net.URI;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueStore;
-
+@Value
+@EqualsAndHashCode(callSuper = true)
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class Container extends RuntimeValueStore {
 
-	/**
-	 * Index in the array of ContainerSpecs of the ProxySpec.
-	 */
-	private Integer index;
-	private String id;
+    /**
+     * Index in the array of ContainerSpecs of the ProxySpec.
+     */
+    Integer index;
+    String id;
 
-	private Map<String, Object> parameters = new HashMap<>();
-	
-	public String getId() {
-		return id;
-	}
+    Map<String, Object> parameters;
+    Map<String, URI> targets;
+    Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    @JsonCreator
+    public static Container createFromJson(@JsonProperty("index") Integer index,
+                                           @JsonProperty("id") String id,
+                                           @JsonProperty("targets") Map<String, URI> targets,
+                                           @JsonProperty("runtimeValues") Map<String, String> runtimeValues) {
 
-	@JsonIgnore
-	public Map<String, Object> getParameters() {
-		return parameters;
-	}
+        Container.ContainerBuilder builder = Container.builder()
+                .index(index)
+                .id(id)
+                .targets(targets);
 
-	public void setParameters(Map<String, Object> parameters) {
-		this.parameters = parameters;
-	}
+        for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+            builder.addRuntimeValue(new RuntimeValue(key, key.fromString(runtimeValue.getValue())), false);
+        }
 
-	public Integer getIndex() {
-		return index;
-	}
+        return builder.build();
+    }
 
-	public void setIndex(Integer index) {
-		this.index = index;
-	}
+    @JsonIgnore
+    public Map<String, Object> getParameters() {
+        if (parameters == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(parameters);
+    }
+
+    public Map<String, URI> getTargets() {
+        if (targets == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(targets);
+    }
+
+    @Override
+    public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
+        if (runtimeValues == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(runtimeValues);
+    }
+
+    public static class ContainerBuilder {
+
+        public Container.ContainerBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
+            if (this.runtimeValues == null) {
+                this.runtimeValues = new HashMap<>();
+            }
+            if (!this.runtimeValues.containsKey(runtimeValue.getKey()) || override) {
+                this.runtimeValues.put(runtimeValue.getKey(), runtimeValue);
+            }
+            return this;
+        }
+
+        public Container.ContainerBuilder addRuntimeValues(List<RuntimeValue> runtimeValues) {
+            for (RuntimeValue runtimeValue: runtimeValues) {
+                addRuntimeValue(runtimeValue, false);
+            }
+            return this;
+        }
+
+        public Container.ContainerBuilder addTarget(String mapping, URI target) {
+            if (targets == null) {
+                targets = new HashMap<>();
+            }
+            targets.put(mapping, target);
+            return this;
+        }
+
+        public Container.ContainerBuilder addParameter(String key, Object object) {
+            if (parameters == null) {
+                parameters = new HashMap<>();
+            }
+            parameters.put(key, object);
+            return this;
+        }
+    }
+
 }

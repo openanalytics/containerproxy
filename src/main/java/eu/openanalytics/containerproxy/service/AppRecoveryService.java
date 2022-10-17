@@ -91,7 +91,7 @@ public class AppRecoveryService {
 				log.info("Recovery of running apps enabled (but only apps started with the current config file)");
 			}
 
-			Map<String, Proxy> proxies = new HashMap<>();
+			Map<String, Proxy.ProxyBuilder> proxies = new HashMap<>();
 
 			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
 			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getValue();
@@ -102,19 +102,21 @@ public class AppRecoveryService {
 					continue;
 				}
 				if (!proxies.containsKey(proxyId)) {
-					Proxy proxy = new Proxy();
-					proxy.setId(proxyId);
-					proxy.setStatus(ProxyStatus.Stopped);
-					proxy.setCreatedTimestamp(Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getValue()));
+					Proxy.ProxyBuilder proxy = Proxy.builder();
+					proxy.id(proxyId);
+					proxy.specId(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getValue());
+					proxy.status(ProxyStatus.Stopped);
+					long createdTimestamp = Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getValue());
+					proxy.createdTimestamp(createdTimestamp);
 					// we cannot store the startUpTimestamp in the ContainerBackend, therefore when recovering apps
 					// we set the startUpTimestamp to the time the proxy was created. The distinction between created
 					// and started is only important for the events (e.g. Prometheus) not for the whole application.
-					proxy.setStartupTimestamp(proxy.getCreatedTimestamp());
-					proxy.setUserId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
+					proxy.startupTimestamp(createdTimestamp);
+					proxy.userId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
 					if (proxySpec.getDisplayName() != null) {
-						proxy.setDisplayName(proxySpec.getDisplayName());
+						proxy.displayName(proxySpec.getDisplayName());
 					} else {
-						proxy.setDisplayName(proxySpec.getId());
+						proxy.displayName(proxySpec.getId());
 					}
 
 					proxy.addRuntimeValues(containerInfo.getRuntimeValues()
@@ -126,30 +128,31 @@ public class AppRecoveryService {
 
 					proxies.put(proxyId, proxy);
 				}
-				Proxy proxy = proxies.get(proxyId);
-				Container container = new Container();
-				container.setId(containerInfo.getContainerId());
-				container.setParameters(containerInfo.getParameters());
-				container.addRuntimeValues(containerInfo.getRuntimeValues()
+				Proxy.ProxyBuilder proxy = proxies.get(proxyId);
+				Container.ContainerBuilder containerBuilder = Container.builder();
+				containerBuilder.id(containerInfo.getContainerId());
+				containerBuilder.parameters(containerInfo.getParameters());
+				containerBuilder.addRuntimeValues(containerInfo.getRuntimeValues()
 						.values()
 						.stream()
 						.filter(r -> r.getKey().isContainerSpecific())
 						.collect(Collectors.toList())
 				);
-				container.setIndex(container.getRuntimeObject(ContainerIndexKey.inst));
+				containerBuilder.index(containerInfo.getRuntimeValue(ContainerIndexKey.inst).getObject());
 
-				proxy.addContainer(container);
+				Container container = containerBuilder.build();
 				if (containerInfo.getProxyStatus() != null) {
-					proxy.setStatus(containerInfo.getProxyStatus());
+					proxy.status(containerInfo.getProxyStatus());
 				} else {
-					proxy.setStatus(ProxyStatus.Up);
+					proxy.status(ProxyStatus.Up);
 				}
-
-				containerBackend.setupPortMappingExistingProxy( proxy, container, containerInfo.getPortBindings());
-				proxySpecProvider.postProcessRecoveredProxy(proxy);
+				container = containerBackend.setupPortMappingExistingProxy(proxy.build(), container, containerInfo.getPortBindings());
+				proxy.addContainer(container);
 			}
 
-			for (Proxy proxy: proxies.values()) {
+			for (Proxy.ProxyBuilder proxyBuilder: proxies.values()) {
+				Proxy proxy = proxyBuilder.build();
+				proxy = proxySpecProvider.postProcessRecoveredProxy(proxy);
 				proxyService.addExistingProxy(proxy);
 				heartbeatService.heartbeatReceived(HeartbeatService.HeartbeatSource.INTERNAL, proxy.getId(), null);
 			}

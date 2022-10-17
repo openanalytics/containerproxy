@@ -20,7 +20,9 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -115,29 +117,35 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public void startProxy(Proxy proxy, ProxySpec proxySpec) throws Exception {
+	public Proxy startProxy(Proxy proxy, ProxySpec proxySpec) throws ProxyFailedToStartException {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
-			Container container = new Container();
-			container.setIndex(spec.getIndex());
+			Container.ContainerBuilder containerBuilder = Container.builder();
+			containerBuilder.index(spec.getIndex());
+			Container container = containerBuilder.build();
 
-			runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
+			container = runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
 
-			proxy.getContainers().add(container);
-
-			startContainer(container, spec, proxy, proxySpec);
+			try {
+				container = startContainer(container, spec, proxy, proxySpec);
+				proxy = proxy.toBuilder().addContainer(container).build();
+			} catch (ContainerFailedToStartException t) {
+				proxy = proxy.toBuilder().addContainer(t.getContainer()).build();
+				throw new ProxyFailedToStartException("", t, proxy);
+			}
 		}
+		return proxy;
 	}
 
-	protected abstract void startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception;
+	protected abstract Container startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {
 		try {
-			proxy.setStatus(ProxyStatus.Stopping);
+//			proxy.setStatus(ProxyStatus.Stopping); // TODO store state
 			doStopProxy(proxy);
-			proxy.setStatus(ProxyStatus.Stopped);
+//			proxy.setStatus(ProxyStatus.Stopped); // TODO store state
 		} catch (Exception e) {
 			throw new ContainerProxyException("Failed to stop container", e);
 		}
@@ -248,7 +256,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
 
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+	public Container setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		Container.ContainerBuilder containerBuilder = container.toBuilder();
 		for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
 
 			Integer boundPort = null; // in case of internal networking
@@ -259,8 +268,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 			String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
 			URI target = calculateTarget(container, portMapping, boundPort);
-			proxy.getTargets().put(mapping, target);
+			containerBuilder.addTarget(mapping, target);
 		}
+		return containerBuilder.build();
 	}
 
 }

@@ -25,13 +25,15 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
   - id: 01_hello_volume
     container-specs:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       volumes:
        - "/srv/myvolume1:/srv/myvolume1"
        - "/srv/myvolume2:/srv/myvolume2"
@@ -40,7 +42,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       env:
         VAR1:
         VAR2: VALUE2
@@ -50,7 +53,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       env:
         MY_SECRET: secretKeyRef:mysecret:username
   - id: 01_hello_limits
@@ -58,7 +62,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       cpu-request: 1
       cpu-limit: 2
       memory-request: "1Gi"
@@ -68,14 +73,16 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       privileged: true
   - id: 01_hello_patches1
     container-specs:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
@@ -95,7 +102,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       volumes:
        - "/srv/myvolume1:/srv/myvolume1"
       env:
@@ -121,7 +129,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
@@ -153,7 +162,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: add
         path: /spec/containers/0/env/-
@@ -193,13 +203,15 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
   - id: 01_hello_manifests_persistent # 11
     container-specs:
        - image: "openanalytics/shinyproxy-demo"
          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
          port-mapping:
-           default: 3838
+           - name: default
+             port: 3838
     kubernetes-pod-patches: |
        - op: replace
          path: /metadata/namespace
@@ -232,7 +244,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
         env:
           TEST_PROXY_ID: "#{proxy.getRuntimeValue('SHINYPROXY_PROXY_ID')}"
           SHINYPROXY_USERNAME: "abc_xyz"
@@ -253,7 +266,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-manifests:
       - |
         apiVersion: v1
@@ -270,7 +284,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-manifests:
       - |
         apiVersion: v1
@@ -287,7 +302,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-manifests:
       - |
         apiVersion: v1
@@ -304,7 +320,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-manifests:
       - |
         apiVersion: v1
@@ -316,12 +333,13 @@ proxy:
         type: Opaque
         data:
           password: cGFzc3dvcmQ=
-  - id: 01_hello_persistent_manifests_policy_replace # 17
+  - id: 01_hello_persistent_manifests_policy_create_once
     container-specs:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -338,7 +356,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -355,7 +374,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -372,7 +392,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -389,7 +410,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -399,13 +421,15 @@ proxy:
           annotations:
             openanalytics.eu/sp-additional-manifest-policy: Replace
         type: Opaque
-          password: b2xkX3Bhc3N3b3Jk
+        data:
+          password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_replace2 # 22
     container-specs:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
     kubernetes-additional-persistent-manifests:
       - |
         apiVersion: v1
@@ -422,7 +446,8 @@ proxy:
       - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
         memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
         port-mapping:
-          default: 8787
+          - name: default
+            port: 8787
     parameters:
       definitions:
         - id: environment
@@ -504,7 +529,8 @@ proxy:
       - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
         memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
         port-mapping:
-          default: 8787
+          - name: default
+            port: 3838
     parameters:
       definitions:
         - id: environment
@@ -546,7 +572,8 @@ proxy:
       - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
         memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
         port-mapping:
-          default: 8787
+          - name: default
+            port: 3838
     parameters:
       definitions:
         - id: environment

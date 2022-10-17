@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import eu.openanalytics.containerproxy.model.runtime.Container;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import org.springframework.stereotype.Service;
 
@@ -37,27 +35,27 @@ public class ProxyStatusService {
     /**
      * Step 1: proxy has been created
      */
-    public void proxyCreated(Proxy proxy) {
+    public void proxyCreated(String proxyId) {
         ProxyStartupLog proxyStartupLog = new ProxyStartupLog();
         proxyStartupLog.getCreateProxy().stepStarted();
-        startupLog.put(proxy.getId(), proxyStartupLog);
+        startupLog.put(proxyId, proxyStartupLog);
     }
 
     /**
      * Step 2: container has been created and is starting up
      */
-    public void containerStarting(Proxy proxy, Container container) {
-        startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).stepStarted();
+    public void containerStarting(String proxyId, int containerIdx) {
+        startupLog.get(proxyId).getStartContainer(containerIdx).stepStarted();
     }
 
     /**
      * Step 2.1: schedule container
      */
-    public void containerScheduled(Proxy proxy, Container container, LocalDateTime scheduledTime) {
-        startupLog.get(proxy.getId())
-                .getScheduleContainer(container.getIndex())
+    public void containerScheduled(String proxyId, int containerIdx, LocalDateTime scheduledTime) {
+        startupLog.get(proxyId)
+                .getScheduleContainer(containerIdx)
                 .stepSucceeded(
-                    startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).getStartTime(),
+                    startupLog.get(proxyId).getStartContainer(containerIdx).getStartTime(),
                     scheduledTime
                 );
     }
@@ -65,17 +63,17 @@ public class ProxyStatusService {
     /**
      * Step 2.2: pull image
      */
-    public void imagePulling(Proxy proxy, Container container) {
-        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepStarted();
+    public void imagePulling(String proxyId, int containerIdx) {
+        startupLog.get(proxyId).getPullImage(containerIdx).stepStarted();
     }
 
-    public void imagePulled(Proxy proxy, Container container) {
-        startupLog.get(proxy.getId()).getPullImage(container.getIndex()).stepSucceeded();
+    public void imagePulled(String proxyId, int containerIdx) {
+        startupLog.get(proxyId).getPullImage(containerIdx).stepSucceeded();
     }
 
-    public void imagePulled(Proxy proxy, Container container, LocalDateTime pullingTime, LocalDateTime pulledTime) {
-        startupLog.get(proxy.getId())
-                .getPullImage(container.getIndex())
+    public void imagePulled(String proxyId, int containerIdx, LocalDateTime pullingTime, LocalDateTime pulledTime) {
+        startupLog.get(proxyId)
+                .getPullImage(containerIdx)
                 .stepSucceeded(
                         pullingTime,
                         pulledTime
@@ -85,45 +83,45 @@ public class ProxyStatusService {
     /**
      * Step 3: container has been started and application is starting up
      */
-    public void containerStarted(Proxy proxy, Container container) {
-        startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).stepSucceeded();
-        startupLog.get(proxy.getId()).getStartApplication(container.getIndex()).stepStarted();
+    public void containerStarted(String proxyId, int containerIdx) {
+        startupLog.get(proxyId).getStartContainer(containerIdx).stepSucceeded();
+        startupLog.get(proxyId).getStartApplication(containerIdx).stepStarted();
     }
 
     /**
      * Step 3 (fail): container could not be started
      */
-    public void containerStartFailed(Proxy proxy, Container container) {
-        startupLog.get(proxy.getId()).getStartContainer(container.getIndex()).stepFailed();
-        startupLog.get(proxy.getId()).getCreateProxy().stepFailed();
+    public void containerStartFailed(String proxyId, int containerIdx) {
+        startupLog.get(proxyId).getStartContainer(containerIdx).stepFailed();
+        startupLog.get(proxyId).getCreateProxy().stepFailed();
     }
 
 
     /**
      *  Step 4: all containers has been started and all applications are running -> proxy has been started
      */
-    public void proxyStarted(Proxy proxy) {
-//        for (Container container: proxy.getContainers()) {
-//            startupLog.get(proxy.getId()).getStartApplication(container.getIndex()).stepSucceeded();
-//        }
-        startupLog.get(proxy.getId()).getCreateProxy().stepSucceeded();
+    public void proxyStarted(String proxyId, int numContainers) {
+        for (int i = 0; i < numContainers; i++) {
+            startupLog.get(proxyId).getStartApplication(i).stepSucceeded();
+        }
+        startupLog.get(proxyId).getCreateProxy().stepSucceeded();
     }
 
     /**
      * Step 4 (fail): one of the applications is unreachable -> it could not be started
      */
-    public void applicationStartupFailed(Proxy proxy) {
-        for (Container container: proxy.getContainers()) {
-            startupLog.get(proxy.getId()).getStartApplication(container.getIndex()).stepFailed();
+    public void applicationStartupFailed(String proxyId, int numContainers) {
+        for (int i = 0; i < numContainers; i++) {
+            startupLog.get(proxyId).getStartApplication(i).stepFailed();
         }
-        startupLog.get(proxy.getId()).getCreateProxy().stepFailed();
+        startupLog.get(proxyId).getCreateProxy().stepFailed();
     }
 
     /**
      * Step 5: proxy has been removed (e.g. stopped by user, stopped because it failed to start ...)
      */
-    public void proxyRemoved(Proxy proxy) {
-        startupLog.remove(proxy.getId());
+    public void proxyRemoved(String proxyId) {
+        startupLog.remove(proxyId);
     }
 
     /**

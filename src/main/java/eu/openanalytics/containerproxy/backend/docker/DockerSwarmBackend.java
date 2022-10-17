@@ -37,6 +37,7 @@ import com.spotify.docker.client.messages.swarm.Service;
 import com.spotify.docker.client.messages.swarm.ServiceSpec;
 import com.spotify.docker.client.messages.swarm.Task;
 import com.spotify.docker.client.messages.swarm.TaskSpec;
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -47,7 +48,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
@@ -82,138 +82,147 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected void startContainer(Container container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws Exception {
-		Mount[] mounts = spec.getVolumes()
-				.mapOrNull(volumes -> volumes.stream()
-					.map(b -> b.split(":"))
-					.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
-					.toArray(i -> new Mount[i]));
+	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException  {
+		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
+		try {
+			Mount[] mounts = spec.getVolumes()
+					.mapOrNull(volumes -> volumes.stream()
+							.map(b -> b.split(":"))
+							.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
+							.toArray(i -> new Mount[i]));
 
-		Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
+			Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
-		Stream.concat(
-				proxy.getRuntimeValues().values().stream(),
-				container.getRuntimeValues().values().stream()
-		).forEach(runtimeValue -> {
-			if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-				labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
-			}
-		});
-
-        List<SecretBind> secretBinds = new ArrayList<>();
-        for (DockerSwarmSecret secret : spec.getDockerSwarmSecrets()) {
-            secretBinds.add(convertSecret(secret));
-        }
-
-		com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
-				com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
-				.image(spec.getImage().getValue())
-				.labels(labels)
-				.command(spec.getCmd().getValueOrNull())
-				.env(convertEnv(buildEnv(spec, proxy)))
-				.dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
-				.mounts(mounts)
-                .secrets(secretBinds)
-				.build();
-
-		NetworkAttachmentConfig[] networks = spec.getNetworkConnections().mapOrNull(nc ->
-				nc.stream()
-						.map(n -> NetworkAttachmentConfig.builder().target(n).build())
-						.toArray(i -> new NetworkAttachmentConfig[i]));
-
-		if (spec.getNetwork().isPresent()) {
-			networks = Arrays.copyOf(networks, networks.length + 1);
-			networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build();
-		}
-
-		Resources.Builder reservationsBuilder = Resources.builder();
-		// reservations are used by the Docker swarm scheduler
-		if (spec.getCpuRequest().isPresent()) {
-			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-			reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest().getValue()) * 10e8));
-		}
-		if (spec.getMemoryRequest().isPresent()) {
-			reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest().getValue()));
-		}
-
-		Resources.Builder limitsBuilder = Resources.builder();
-		if (spec.getCpuLimit().isPresent()) {
-			// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-			limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit().getValue()) * 10e8));
-		}
-		if (spec.getMemoryLimit().isPresent()) {
-			limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
-		}
-
-		String serviceName = "sp-service-" + UUID.randomUUID().toString();
-		ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
-				.networks(networks)
-				.name(serviceName)
-				.taskTemplate(TaskSpec.builder()
-						.containerSpec(containerSpec)
-						.resources(ResourceRequirements.builder()
-								.reservations(reservationsBuilder.build())
-								.limits(limitsBuilder.build())
-								.build())
-						.build());
-
-		List<PortConfig> portsToPublish = new ArrayList<>();
-		Map<Integer, Integer> portBindings = new HashMap<>();
-		if (isUseInternalNetwork()) {
-			// In internal networking mode, we can access container ports directly, no need to bind on host.
-		} else {
-			// Access ports via port publishing on the service.
-			for (PortMapping portMapping: spec.getPortMapping()) {
-				int hostPort = portAllocator.allocate(proxy.getId());
-				portsToPublish.add(PortConfig.builder().publishedPort(hostPort).targetPort(portMapping.getPort()).build());
-				portBindings.put(portMapping.getPort(), hostPort);
-			}
-			serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
-		}
-
-		String serviceId;
-		if (spec.getDockerRegistryDomain() != null
-				&& spec.getDockerRegistryUsername() != null
-				&& spec.getDockerRegistryPassword() != null) {
-
-			RegistryAuth registryAuth = RegistryAuth.builder()
-					.serverAddress(spec.getDockerRegistryDomain())
-					.username(spec.getDockerRegistryUsername())
-					.password(spec.getDockerRegistryPassword())
-					.build();
-			serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
-		} else {
-			serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
-		}
-
-		// tell the status service we are starting the container
-		proxyStatusService.containerStarting(proxy, container);
-		container.getParameters().put(PARAM_SERVICE_ID, serviceId);
-		container.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId));
-
-		// Give the service some time to start up and launch a container.
-		boolean containerFound = Retrying.retry((i, maxAttempts) -> {
-			try {
-				Task serviceTask = dockerClient
-						.listTasks(Task.Criteria.builder().serviceName(serviceName).build())
-						.stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
-				if (serviceTask.status().containerStatus() != null) {
-					container.setId(serviceTask.status().containerStatus().containerId());
+			Stream.concat(
+					proxy.getRuntimeValues().values().stream(),
+					initialContainer.getRuntimeValues().values().stream()
+			).forEach(runtimeValue -> {
+				if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
 				}
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to inspect swarm service tasks", e);
+			});
+
+			List<SecretBind> secretBinds = new ArrayList<>();
+			for (DockerSwarmSecret secret : spec.getDockerSwarmSecrets()) {
+				secretBinds.add(convertSecret(secret));
 			}
-			return (container.getId() != null);
-		}, 60_000, true);
 
-		if (!containerFound) {
-			dockerClient.removeService(serviceId);
-			proxyStatusService.containerStartFailed(proxy, container);
-			throw new IllegalStateException("Swarm container did not start in time");
+			com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
+					com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
+							.image(spec.getImage().getValue())
+							.labels(labels)
+							.command(spec.getCmd().getValueOrNull())
+							.env(convertEnv(buildEnv(spec, proxy)))
+							.dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
+							.mounts(mounts)
+							.secrets(secretBinds)
+							.build();
+
+			NetworkAttachmentConfig[] networks = spec.getNetworkConnections().mapOrNull(nc ->
+					nc.stream()
+							.map(n -> NetworkAttachmentConfig.builder().target(n).build())
+							.toArray(i -> new NetworkAttachmentConfig[i]));
+
+			if (spec.getNetwork().isPresent()) {
+				networks = Arrays.copyOf(networks, networks.length + 1);
+				networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build();
+			}
+
+			Resources.Builder reservationsBuilder = Resources.builder();
+			// reservations are used by the Docker swarm scheduler
+			if (spec.getCpuRequest().isPresent()) {
+				// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
+				reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest().getValue()) * 10e8));
+			}
+			if (spec.getMemoryRequest().isPresent()) {
+				reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest().getValue()));
+			}
+
+			Resources.Builder limitsBuilder = Resources.builder();
+			if (spec.getCpuLimit().isPresent()) {
+				// note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
+				limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit().getValue()) * 10e8));
+			}
+			if (spec.getMemoryLimit().isPresent()) {
+				limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
+			}
+
+			String serviceName = "sp-service-" + UUID.randomUUID().toString();
+			ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
+					.networks(networks)
+					.name(serviceName)
+					.taskTemplate(TaskSpec.builder()
+							.containerSpec(containerSpec)
+							.resources(ResourceRequirements.builder()
+									.reservations(reservationsBuilder.build())
+									.limits(limitsBuilder.build())
+									.build())
+							.build());
+
+			List<PortConfig> portsToPublish = new ArrayList<>();
+			Map<Integer, Integer> portBindings = new HashMap<>();
+			if (isUseInternalNetwork()) {
+				// In internal networking mode, we can access container ports directly, no need to bind on host.
+			} else {
+				// Access ports via port publishing on the service.
+				for (PortMapping portMapping : spec.getPortMapping()) {
+					int hostPort = portAllocator.allocate(proxy.getId());
+					portsToPublish.add(PortConfig.builder().publishedPort(hostPort).targetPort(portMapping.getPort()).build());
+					portBindings.put(portMapping.getPort(), hostPort);
+				}
+				serviceSpecBuilder.endpointSpec(EndpointSpec.builder().ports(portsToPublish).build());
+			}
+
+			String serviceId;
+			if (spec.getDockerRegistryDomain() != null
+					&& spec.getDockerRegistryUsername() != null
+					&& spec.getDockerRegistryPassword() != null) {
+
+				RegistryAuth registryAuth = RegistryAuth.builder()
+						.serverAddress(spec.getDockerRegistryDomain())
+						.username(spec.getDockerRegistryUsername())
+						.password(spec.getDockerRegistryPassword())
+						.build();
+				serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
+			} else {
+				serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
+			}
+
+			// tell the status service we are starting the container
+			proxyStatusService.containerStarting(proxy.getId(), initialContainer.getIndex());
+			rContainerBuilder.addParameter(PARAM_SERVICE_ID, serviceId);
+			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId), false);
+
+			// Give the service some time to start up and launch a container.
+			boolean containerFound = Retrying.retry((i, maxAttempts) -> {
+				try {
+					Task serviceTask = dockerClient
+							.listTasks(Task.Criteria.builder().serviceName(serviceName).build())
+							.stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
+					if (serviceTask.status().containerStatus() != null) {
+						rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
+						return true;
+					}
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to inspect swarm service tasks", e);
+				}
+				return false;
+			}, 60_000, true);
+
+			if (!containerFound) {
+				dockerClient.removeService(serviceId);
+				throw new ContainerFailedToStartException("Swarm container did not start in time", null, rContainerBuilder.build());
+			}
+			proxyStatusService.containerStarted(proxy.getId(), initialContainer.getIndex());
+
+			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
+		} catch (ContainerFailedToStartException t) {
+			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
+			throw t;
+		} catch (Throwable t) {
+			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
+			throw new ContainerFailedToStartException("", t, rContainerBuilder.build());
 		}
-		proxyStatusService.containerStarted(proxy, container);
-
-		setupPortMappingExistingProxy(proxy, container, portBindings);
 	}
 
 	@Override

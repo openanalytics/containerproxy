@@ -20,109 +20,115 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueStore;
-import net.minidev.json.annotate.JsonIgnore;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 
-import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Value
+@EqualsAndHashCode(callSuper = true)
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class Proxy extends RuntimeValueStore {
 
-	private String id;
+	String id;
 	
-	private ProxyStatus status;
+	ProxyStatus status;
 
-	private long startupTimestamp;
-	private long createdTimestamp;
-	private String userId;
+	long startupTimestamp;
+	long createdTimestamp;
 
-	private String displayName;
+	String userId;
+	String specId;
 
-	private List<Container> containers;
-	private Map<String,URI> targets;
+	String displayName;
 
-	public Proxy() {
-		containers = new ArrayList<>();
-		targets = new HashMap<>();
-	}
-	
-	public String getId() {
-		return id;
-	}
+	List<Container> containers;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+	Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
-	public ProxyStatus getStatus() {
-		return status;
-	}
+	@JsonCreator
+	public static Proxy createFromJson(@JsonProperty("id") String id,
+									   @JsonProperty("status") ProxyStatus status,
+									   @JsonProperty("startupTimestamp") long startupTimestamp,
+									   @JsonProperty("createdTimestamp") long createdTimestamp,
+									   @JsonProperty("userId") String userId,
+									   @JsonProperty("specId") String specId,
+									   @JsonProperty("displayName") String displayName,
+									   @JsonProperty("containers") List<Container> containers,
+									   @JsonProperty("runtimeValues") Map<String, String> runtimeValues) {
 
-	public void setStatus(ProxyStatus status) {
-		this.status = status;
-	}
+		Proxy.ProxyBuilder builder = Proxy.builder()
+				.id(id)
+				.status(status)
+				.startupTimestamp(startupTimestamp)
+				.createdTimestamp(createdTimestamp)
+				.userId(userId)
+				.specId(specId)
+				.displayName(displayName)
+				.containers(containers);
 
-	public long getStartupTimestamp() {
-		return startupTimestamp;
-	}
+		for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+			builder.addRuntimeValue(new RuntimeValue(key, key.fromString(runtimeValue.getValue())), false);
+        }
 
-	public void setStartupTimestamp(long startupTimestamp) {
-		this.startupTimestamp = startupTimestamp;
-	}
-
-	public long getCreatedTimestamp() {
-		return createdTimestamp;
-	}
-
-	public void setCreatedTimestamp(long createdTimestamp) {
-		this.createdTimestamp = createdTimestamp;
-	}
-
-	public String getUserId() {
-		return userId;
-	}
-
-	public String getSpecId() {
-		return getRuntimeValue(ProxySpecIdKey.inst);
-	}
-
-	public void setUserId(String userId) {
-		this.userId = userId;
+		return builder.build();
 	}
 
 	public List<Container> getContainers() {
-		return containers;
-	}
-	
-	public void setContainers(List<Container> containers) {
-		this.containers = containers;
-	}
-	
-	public void addContainer(Container container) {
-		this.containers.add(container);
-	}
-	
-	public Map<String, URI> getTargets() {
-		return targets;
-	}
-	
-	public void setTargets(Map<String, URI> targets) {
-		this.targets = targets;
+		if (containers == null) {
+			return Collections.emptyList();
+		}
+		return Collections.unmodifiableList(containers);
 	}
 
-	public String getDisplayName() {
-		return displayName;
+	public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
+		if (runtimeValues == null) {
+			return Collections.unmodifiableMap(new HashMap<>());
+		}
+		return Collections.unmodifiableMap(runtimeValues);
 	}
 
-	public void setDisplayName(String displayName) {
-		this.displayName = displayName;
+	public static class ProxyBuilder {
+
+		public ProxyBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
+			if (this.runtimeValues == null) {
+				this.runtimeValues = new HashMap<>();
+			}
+			if (!this.runtimeValues.containsKey(runtimeValue.getKey()) || override) {
+				this.runtimeValues.put(runtimeValue.getKey(), runtimeValue);
+			}
+			return this;
+		}
+
+		public ProxyBuilder addRuntimeValues(List<RuntimeValue> runtimeValues) {
+			for (RuntimeValue runtimeValue: runtimeValues) {
+				addRuntimeValue(runtimeValue, false);
+			}
+			return this;
+		}
+
+		public ProxyBuilder addContainer(Container container) {
+			if (containers == null) {
+				containers = new ArrayList<>();
+			}
+			containers.add(container);
+			return this;
+		}
+
 	}
+
 }

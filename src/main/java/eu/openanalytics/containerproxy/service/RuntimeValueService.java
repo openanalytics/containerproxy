@@ -88,36 +88,43 @@ public class RuntimeValueService {
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
-    public void addRuntimeValuesBeforeSpel(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
-        proxy.putRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"), false);
-        proxy.putRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
-        proxy.putRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
-        proxy.putRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()), false);
+    public Proxy addRuntimeValuesBeforeSpel(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
+        Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
+        proxyBuilder.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()), false);
 
         if (identifierService.realmId != null) {
-            proxy.putRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
         }
-        proxy.putRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
         String[] groups = UserService.getGroups(userService.getCurrentAuth());
-        proxy.putRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
-        proxy.putRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 
         // parameters
         Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
         if (providedParametersOptional.isPresent()) {
-            proxy.putRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
-            proxy.putRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
         }
+        return proxyBuilder.build();
     }
 
-    public void addRuntimeValuesAfterSpel(ProxySpec spec, Proxy proxy) {
-        proxy.putRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)), true);
-        proxy.putRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)), true);
+    public Proxy addRuntimeValuesAfterSpel(ProxySpec spec, Proxy proxy) {
+        Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
+
+        proxyBuilder.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)), true);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)), true);
+
+        return proxyBuilder.build();
     }
 
-    public void addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
-        container.putRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
-        container.putRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
+    public Container addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
+        Container.ContainerBuilder containerBuilder = container.toBuilder();
+        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
+        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
 
         PortMappings portMappings = new PortMappings();
         for (PortMapping portMapping : containerSpec.getPortMapping()) {
@@ -126,7 +133,8 @@ public class RuntimeValueService {
                     AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
         }
 
-        container.putRuntimeValue(new RuntimeValue(PortMappingsKey.inst, portMappings), false);
+        containerBuilder.addRuntimeValue(new RuntimeValue(PortMappingsKey.inst, portMappings), false);
+        return containerBuilder.build();
     }
 
 }

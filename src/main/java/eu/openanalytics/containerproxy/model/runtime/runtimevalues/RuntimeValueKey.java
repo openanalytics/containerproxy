@@ -100,4 +100,12 @@ public abstract class RuntimeValueKey<T> {
 
     public abstract T fromString(String value);
 
+    /**
+     * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.
+     */
+    @Override
+    public String toString() {
+        return keyAsEnvVar;
+    }
+
 }

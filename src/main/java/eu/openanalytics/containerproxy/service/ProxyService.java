@@ -184,12 +184,13 @@ public class ProxyService {
 	
 	/**
 	 * Find a proxy using its ID.
+	 * Without authentication check.
 	 * 
 	 * @param id The ID of the proxy to find.
 	 * @return The matching proxy, or null if no match was found.
 	 */
 	public Proxy getProxy(String id) {
-		return findProxy(proxy -> proxy.getId().equals(id), true);
+		return activeProxies.getProxy(id);
 	}
 	
 	/**

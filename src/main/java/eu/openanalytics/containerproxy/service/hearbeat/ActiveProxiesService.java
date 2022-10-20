@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTime
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.env.Environment;
@@ -63,6 +64,9 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     @Inject
     private IProxyReleaseStrategy releaseStrategy;
 
+    @Inject
+    private ILeaderService leaderService;
+
     @PostConstruct
     public void init() {
         long cleanupInterval = 2 * environment.getProperty(PROP_RATE, Long.class, DEFAULT_RATE);
@@ -91,6 +95,10 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     }
 
     private void performCleanup() {
+        if (!leaderService.isLeader()) {
+            log.debug("Skipping checking heartbeats because we are not the leader");
+            return;
+        }
         try {
             long currentTimestamp = System.currentTimeMillis();
             for (Proxy proxy : proxyService.getProxies(null, true)) {

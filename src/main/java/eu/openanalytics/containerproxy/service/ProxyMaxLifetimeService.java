@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.service;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,6 +53,9 @@ public class ProxyMaxLifetimeService {
     @Inject
     private IProxyReleaseStrategy releaseStrategy;
 
+    @Inject
+    private ILeaderService leaderService;
+
     @PostConstruct
     public void init() {
         new Timer().schedule(new TimerTask() {
@@ -63,6 +67,10 @@ public class ProxyMaxLifetimeService {
     }
 
     private void performCleanup() {
+        if (!leaderService.isLeader()) {
+            log.debug("Skipping checking max lifetimes because we are not the leader");
+            return;
+        }
         for (Proxy proxy : proxyService.getProxies(null, true)) {
             if (mustBeReleased(proxy)) {
                 String uptime = DurationFormatUtils.formatDurationWords(

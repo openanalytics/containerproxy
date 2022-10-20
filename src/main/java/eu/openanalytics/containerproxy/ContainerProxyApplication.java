@@ -323,45 +323,4 @@ public class ContainerProxyApplication {
 		System.setProperty("jdk.serialSetFilterAfterRead", "true");
 	}
 
-	// TODO
-	@Bean
-	public IActiveProxies activeProxies() {
-		return new RedisActiveProxies();
-	}
-
-	@Bean
-	public RedisTemplate<String, Proxy> proxyRedisTemplate(RedisConnectionFactory connectionFactory) {
-		RedisTemplate<String, Proxy> template = new RedisTemplate<>();
-		template.setConnectionFactory(connectionFactory);
-
-		Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Proxy.class);
-		ObjectMapper om = new ObjectMapper();
-		om.setConfig(om.getSerializationConfig().withView(Views.Internal.class));
-		jackson2JsonRedisSerializer.setObjectMapper(om);
-		template.setKeySerializer(new StringRedisSerializer());
-		template.setHashKeySerializer(new StringRedisSerializer());
-		template.setValueSerializer(jackson2JsonRedisSerializer);
-		template.setHashValueSerializer(jackson2JsonRedisSerializer);
-
-		return template;
-	}
-
-	@Bean
-	public IHeartbeatStore heartbeatStore() {
-		return new RedisHeartbeatStore();
-	}
-
-	@Bean
-	public RedisTemplate<String, Long> heartbeatsRedisTemplate(RedisConnectionFactory connectionFactory) {
-		RedisTemplate<String, Long> template = new RedisTemplate<>();
-		template.setConnectionFactory(connectionFactory);
-
-		template.setKeySerializer(new StringRedisSerializer());
-		template.setHashKeySerializer(new StringRedisSerializer());
-		template.setValueSerializer(new GenericToStringSerializer<>(Long.class));
-		template.setHashValueSerializer(new GenericToStringSerializer<>(Long.class));
-
-		return template;
-	}
-
 }

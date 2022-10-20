@@ -27,6 +27,8 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import org.springframework.http.HttpStatus;
@@ -60,7 +62,8 @@ public class ProxyController extends BaseController {
 		if (spec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		return new ResponseEntity<>(spec, HttpStatus.OK);
 	}
-	
+
+	@JsonView(Views.UserApi.class)
 	@RequestMapping(value="/api/proxy", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
 	public List<Proxy> listProxies(@RequestParam(value = "only_owned_proxies", required = false, defaultValue = "false") boolean onlyOwnedProxies) {
 		if (onlyOwnedProxies) {
@@ -70,7 +73,8 @@ public class ProxyController extends BaseController {
 		// if the user is an admin this will return all proxies
 		return proxyService.getProxies(null, false);
 	}
-	
+
+	@JsonView(Views.UserApi.class)
 	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Proxy> getProxy(@PathVariable String proxyId) {
 		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);

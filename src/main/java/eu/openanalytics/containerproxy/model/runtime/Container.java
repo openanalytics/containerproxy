@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.model.runtime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -42,6 +44,7 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Builder(toBuilder = true)
 @AllArgsConstructor
+@JsonView(Views.Default.class)
 public class Container extends RuntimeValueStore {
 
     /**
@@ -58,7 +61,7 @@ public class Container extends RuntimeValueStore {
     public static Container createFromJson(@JsonProperty("index") Integer index,
                                            @JsonProperty("id") String id,
                                            @JsonProperty("targets") Map<String, URI> targets,
-                                           @JsonProperty("runtimeValues") Map<String, String> runtimeValues) {
+                                           @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
         Container.ContainerBuilder builder = Container.builder()
                 .index(index)

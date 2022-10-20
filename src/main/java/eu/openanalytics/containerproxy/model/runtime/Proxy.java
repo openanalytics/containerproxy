@@ -21,7 +21,10 @@
 package eu.openanalytics.containerproxy.model.runtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -31,16 +34,19 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
 @Builder(toBuilder = true)
 @AllArgsConstructor
+@JsonView(Views.Default.class)
 public class Proxy extends RuntimeValueStore {
 
 	String id;
@@ -68,7 +74,7 @@ public class Proxy extends RuntimeValueStore {
 									   @JsonProperty("specId") String specId,
 									   @JsonProperty("displayName") String displayName,
 									   @JsonProperty("containers") List<Container> containers,
-									   @JsonProperty("runtimeValues") Map<String, Object> runtimeValues) {
+									   @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
 		Proxy.ProxyBuilder builder = Proxy.builder()
 				.id(id)
@@ -80,10 +86,10 @@ public class Proxy extends RuntimeValueStore {
 				.displayName(displayName)
 				.containers(containers);
 
-		for (Map.Entry<String, Object> runtimeValue : runtimeValues.entrySet()) {
-            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
-			builder.addRuntimeValue(new RuntimeValue(key, runtimeValue.getValue()), false);
-        }
+		for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+			RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+			builder.addRuntimeValue(new RuntimeValue(key, key.deserializeFromString(runtimeValue.getValue())), false);
+		}
 
 		return builder.build();
 	}
@@ -100,6 +106,14 @@ public class Proxy extends RuntimeValueStore {
 			return Collections.unmodifiableMap(new HashMap<>());
 		}
 		return Collections.unmodifiableMap(runtimeValues);
+	}
+
+	@JsonIgnore
+	public Map<String, URI> getTargets() {
+		return getContainers()
+				.stream()
+				.flatMap(c -> c.getTargets().entrySet().stream())
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 	}
 
 	public static class ProxyBuilder {

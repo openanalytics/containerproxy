@@ -18,24 +18,19 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.store;
+package eu.openanalytics.containerproxy.model;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
+public class Views {
 
-import java.util.Collection;
+    public interface Default {
+    }
 
-/**
- * Interface to manage Active Proxies in the ProxyService.
- */
-public interface IActiveProxies {
+    public interface UserApi extends Default {
 
-    public Collection<Proxy> getAllProxies();
+    }
 
-    public void addProxy(Proxy proxy);
+    public interface Internal extends Default {
 
-    public void removeProxy(Proxy proxy);
+    }
 
-    public void update(Proxy proxy); // TODO rename to updateProxy
-
-    public Proxy getProxy(String proxyId);
 }

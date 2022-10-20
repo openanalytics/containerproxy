@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +34,7 @@ public abstract class RuntimeValueStore {
     @JsonIgnore
     protected abstract Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues();
 
+    @JsonView(Views.UserApi.class)
     @JsonProperty("runtimeValues")
     public Map<String, Object> getRuntimeValuesJson() {
         // only output key<->value in JSON
@@ -41,6 +44,18 @@ public abstract class RuntimeValueStore {
                 result.put(value.getKey().getKeyAsEnvVar(), value.getObject());
             }
           }
+        return result;
+    }
+
+    // TODO use a proper name for the internal representation of runtimeValue or switch to DTOs
+    @JsonView(Views.Internal.class)
+    @JsonProperty("_runtimeValues")
+    public Map<String, Object> geAllRuntimeValuesJson() {
+        // only output key<->value in JSON
+        Map<String, Object> result = new HashMap<>();
+        for (RuntimeValue value : getRuntimeValues().values()) {
+            result.put(value.getKey().getKeyAsEnvVar(), value.toString());
+        }
         return result;
     }
 

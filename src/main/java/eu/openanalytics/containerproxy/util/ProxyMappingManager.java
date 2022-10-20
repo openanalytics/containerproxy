@@ -76,6 +76,10 @@ public class ProxyMappingManager {
 	@SuppressWarnings("deprecation")
 	public synchronized void addMapping(String proxyId, String mapping, URI target) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
+
+		if (mappings.containsKey(mapping)) {
+			return;
+		}
 		
 		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
 			@Override

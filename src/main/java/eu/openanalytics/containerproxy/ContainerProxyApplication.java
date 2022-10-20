@@ -29,7 +29,11 @@ import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
+import eu.openanalytics.containerproxy.model.store.memory.MemoryActiveProxies;
+import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisActiveProxies;
+import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
@@ -57,6 +61,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -325,7 +330,7 @@ public class ContainerProxyApplication {
 	}
 
 	@Bean
-	public RedisTemplate<String, Proxy> redisTemplate(RedisConnectionFactory connectionFactory) {
+	public RedisTemplate<String, Proxy> proxyRedisTemplate(RedisConnectionFactory connectionFactory) {
 		RedisTemplate<String, Proxy> template = new RedisTemplate<>();
 		template.setConnectionFactory(connectionFactory);
 
@@ -337,6 +342,24 @@ public class ContainerProxyApplication {
 		template.setHashKeySerializer(new StringRedisSerializer());
 		template.setValueSerializer(jackson2JsonRedisSerializer);
 		template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+		return template;
+	}
+
+	@Bean
+	public IHeartbeatStore heartbeatStore() {
+		return new RedisHeartbeatStore();
+	}
+
+	@Bean
+	public RedisTemplate<String, Long> heartbeatsRedisTemplate(RedisConnectionFactory connectionFactory) {
+		RedisTemplate<String, Long> template = new RedisTemplate<>();
+		template.setConnectionFactory(connectionFactory);
+
+		template.setKeySerializer(new StringRedisSerializer());
+		template.setHashKeySerializer(new StringRedisSerializer());
+		template.setValueSerializer(new GenericToStringSerializer<>(Long.class));
+		template.setHashValueSerializer(new GenericToStringSerializer<>(Long.class));
 
 		return template;
 	}

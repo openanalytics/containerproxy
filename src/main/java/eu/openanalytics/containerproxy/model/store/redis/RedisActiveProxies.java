@@ -49,7 +49,7 @@ public class RedisActiveProxies implements IActiveProxies {
 
     private final Logger logger = LogManager.getLogger(RedisActiveProxies.class);
 
-    private String redisKeyPrefix;
+    private String redisKey;
 
     private HashOperations<String, String, Proxy> ops;
 
@@ -57,13 +57,13 @@ public class RedisActiveProxies implements IActiveProxies {
 
     @PostConstruct
     public void init() {
-        redisKeyPrefix = "shinyproxy_" + identifierService.realmId + "__";
+        redisKey = "shinyproxy_" + identifierService.realmId + "__active_proxies";
         ops = redisTemplate.opsForHash();
     }
 
     @Override
     public List<Proxy> getAllProxies() {
-        List<Proxy> res = ops.values(redisKeyPrefix + "active_proxies");
+        List<Proxy> res = ops.values(redisKey);
         res.forEach(this::cacheProxy);
         return res;
     }
@@ -71,28 +71,28 @@ public class RedisActiveProxies implements IActiveProxies {
     @Override
     public void addProxy(Proxy proxy) {
         logger.info("Add proxy {}", proxy.getId());
-        ops.put(redisKeyPrefix + "active_proxies", proxy.getId(), proxy);
+        ops.put(redisKey, proxy.getId(), proxy);
         cacheProxy(proxy);
     }
 
     @Override
     public void removeProxy(Proxy proxy) {
         logger.info("Remove proxy {}", proxy.getId());
-        ops.delete(redisKeyPrefix + "active_proxies", proxy.getId());
+        ops.delete(redisKey, proxy.getId());
         // TODO remove from cache
     }
 
     @Override
     public void update(Proxy proxy) {
         logger.info("Update proxy {}", proxy.getId());
-        ops.put(redisKeyPrefix + "active_proxies", proxy.getId(), proxy);
+        ops.put(redisKey, proxy.getId(), proxy);
         cacheProxy(proxy);
     }
 
     @Override
     public Proxy getProxy(String proxyId) {
         // TODO maybe use a cache for this (only for Up Proxies), first check how much this is used
-        Proxy proxy = ops.get(redisKeyPrefix + "active_proxies", proxyId);
+        Proxy proxy = ops.get(redisKey, proxyId);
         if (proxy != null) {
             cacheProxy(proxy);
         }

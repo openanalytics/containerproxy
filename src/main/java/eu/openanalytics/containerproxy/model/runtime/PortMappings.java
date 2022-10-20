@@ -22,8 +22,7 @@ package eu.openanalytics.containerproxy.model.runtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,14 +48,9 @@ public class PortMappings {
         this.portMappings.add(portMappingEntry);
     }
 
-    @Override
-    public String toString() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            return objectMapper.writeValueAsString(portMappings);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+    @JsonValue
+    public List<PortMappingEntry> jsonValue() {
+        return portMappings;
     }
 
     public static class PortMappingEntry {

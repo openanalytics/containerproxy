@@ -67,7 +67,7 @@ public class Container extends RuntimeValueStore {
 
         for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
             RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
-            builder.addRuntimeValue(new RuntimeValue(key, key.fromString(runtimeValue.getValue())), false);
+            builder.addRuntimeValue(new RuntimeValue(key, key.deserializeFromString(runtimeValue.getValue())), false);
         }
 
         return builder.build();

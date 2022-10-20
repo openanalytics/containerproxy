@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -33,14 +34,9 @@ public class ParameterNames {
         this.values = values;
     }
 
-    @Override
-    public String toString() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            return objectMapper.writeValueAsString(values);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+    @JsonValue
+    public List<ParameterName> jsonValue() {
+        return values;
     }
 
     public List<ParameterName> getParametersNames() {

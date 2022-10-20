@@ -37,7 +37,12 @@ public class RealmIdKey extends RuntimeValueKey<String> {
     public static RealmIdKey inst = new RealmIdKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

@@ -195,7 +195,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
-				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.getValue());
+				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.toString());
 			}
 
 			Path envFile = containerSpec.getEnvFile().mapOrNull(Paths::get);

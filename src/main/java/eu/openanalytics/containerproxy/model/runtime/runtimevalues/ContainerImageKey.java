@@ -37,7 +37,12 @@ public class ContainerImageKey extends RuntimeValueKey<String> {
     public static ContainerImageKey inst = new ContainerImageKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

@@ -260,11 +260,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					initialContainer.getRuntimeValues().values().stream()
 			).forEach(runtimeValue -> {
 				if (runtimeValue.getKey().getIncludeAsLabel()) {
-					podLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
-					serviceLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+					podLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
+					serviceLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
 				}
 				if (runtimeValue.getKey().getIncludeAsAnnotation()) {
-					objectMetaBuilder.addToAnnotations(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+					objectMetaBuilder.addToAnnotations(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
 				}
 			});
 
@@ -678,7 +678,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().get(0).getImage()));
 				runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
 
-				String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+				String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
 				if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
 					log.warn("Ignoring container {} because instanceId {} is not correct", containerId, containerInstanceId);
 					continue;
@@ -713,12 +713,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (key.getIncludeAsLabel()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
+					runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
 				}
 			} else if (key.getIncludeAsAnnotation() && annotations != null) {
 				String value = annotations.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
+					runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
 				}
 			} else if (key.isRequired()) {
 				// value is null but is required

@@ -22,11 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import eu.openanalytics.containerproxy.model.runtime.Container;
 
-import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,26 +33,16 @@ public abstract class RuntimeValueStore {
     protected abstract Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues();
 
     @JsonProperty("runtimeValues")
-    public Map<String, String> getRuntimeValuesJson() {
+    public Map<String, Object> getRuntimeValuesJson() {
         // only output key<->value in JSON
-        Map<String, String> result = new HashMap<>();
+        Map<String, Object> result = new HashMap<>();
         for (RuntimeValue value : getRuntimeValues().values()) {
             if (value.getKey().getIncludeInApi()) {
-                result.put(value.getKey().getKeyAsEnvVar(), value.getValue());
+                result.put(value.getKey().getKeyAsEnvVar(), value.getObject());
             }
-        }
+          }
         return result;
     }
-
-//    TODO
-//    @JsonProperty("runtimeValues")
-//    public void setRuntimeValuesJson(Map<String, String> runtimeValues) {
-//        for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
-//            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
-//            RuntimeValue value = new RuntimeValue(key, runtimeValue.getValue());
-//            this.runtimeValues.put(key, value);
-//        }
-//    }
 
     /**
      * Used in SpEL of application.yml
@@ -90,7 +77,7 @@ public abstract class RuntimeValueStore {
         Objects.requireNonNull(key, "key may not be null");
         RuntimeValue runtimeValue = getRuntimeValues().get(key);
         Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
-        return runtimeValue.getValue();
+        return key.serializeToString(runtimeValue.getObject());
     }
 
 }

@@ -136,7 +136,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, key.fromString(value)));
+					runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
 				} else if (key.isRequired()) {
 					// value is null but is required
 					log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());

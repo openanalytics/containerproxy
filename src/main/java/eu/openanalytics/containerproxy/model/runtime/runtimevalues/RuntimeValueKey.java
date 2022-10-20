@@ -98,7 +98,9 @@ public abstract class RuntimeValueKey<T> {
         return clazz.isInstance(object);
     }
 
-    public abstract T fromString(String value);
+    public abstract T deserializeFromString(String value);
+
+    public abstract String serializeToString(T value);
 
     /**
      * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.

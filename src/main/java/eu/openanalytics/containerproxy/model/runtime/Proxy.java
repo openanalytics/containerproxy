@@ -44,7 +44,7 @@ import java.util.Map;
 public class Proxy extends RuntimeValueStore {
 
 	String id;
-	
+
 	ProxyStatus status;
 
 	long startupTimestamp;
@@ -68,7 +68,7 @@ public class Proxy extends RuntimeValueStore {
 									   @JsonProperty("specId") String specId,
 									   @JsonProperty("displayName") String displayName,
 									   @JsonProperty("containers") List<Container> containers,
-									   @JsonProperty("runtimeValues") Map<String, String> runtimeValues) {
+									   @JsonProperty("runtimeValues") Map<String, Object> runtimeValues) {
 
 		Proxy.ProxyBuilder builder = Proxy.builder()
 				.id(id)
@@ -80,9 +80,9 @@ public class Proxy extends RuntimeValueStore {
 				.displayName(displayName)
 				.containers(containers);
 
-		for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+		for (Map.Entry<String, Object> runtimeValue : runtimeValues.entrySet()) {
             RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
-			builder.addRuntimeValue(new RuntimeValue(key, key.fromString(runtimeValue.getValue())), false);
+			builder.addRuntimeValue(new RuntimeValue(key, runtimeValue.getValue()), false);
         }
 
 		return builder.build();

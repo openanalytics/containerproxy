@@ -38,7 +38,12 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
     public static CreatedTimestampKey inst = new CreatedTimestampKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

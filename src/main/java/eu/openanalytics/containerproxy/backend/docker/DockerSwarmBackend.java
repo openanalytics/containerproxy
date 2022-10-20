@@ -98,7 +98,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					initialContainer.getRuntimeValues().values().stream()
 			).forEach(runtimeValue -> {
 				if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
 				}
 			});
 
@@ -304,7 +304,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
 			runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, service.id()));
 
-			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
 			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
 				log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.get(0).id(), containerInstanceId);
 				continue;
@@ -316,7 +316,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					int hostPort = portMapping.publishedPort();
 					int containerPort = portMapping.targetPort();
 					portBindings.put(containerPort, hostPort);
-					portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), hostPort);
+					portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getObject(), hostPort);
 				}
 			}
 

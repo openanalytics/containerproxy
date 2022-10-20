@@ -37,7 +37,12 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
     public static InstanceIdKey inst = new InstanceIdKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

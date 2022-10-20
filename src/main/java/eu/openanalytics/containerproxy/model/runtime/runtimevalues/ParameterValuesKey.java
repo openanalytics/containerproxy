@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 
 public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
@@ -39,8 +41,17 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
     public static ParameterValuesKey inst = new ParameterValuesKey();
 
     @Override
-    public ParameterValues fromString(String value) {
+    public ParameterValues deserializeFromString(String value) {
         throw new IllegalArgumentException("TODO");
     }
 
+    @Override
+    public String serializeToString(ParameterValues value) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

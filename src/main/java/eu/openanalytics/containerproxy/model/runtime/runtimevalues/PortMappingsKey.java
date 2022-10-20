@@ -41,10 +41,20 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
     public static PortMappingsKey inst = new PortMappingsKey();
 
     @Override
-    public PortMappings fromString(String value) {
+    public PortMappings deserializeFromString(String value) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.readValue(value, PortMappings.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public String serializeToString(PortMappings value) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

@@ -37,8 +37,13 @@ public class HeartbeatTimeoutKey extends RuntimeValueKey<Long> {
     public static HeartbeatTimeoutKey inst = new HeartbeatTimeoutKey();
 
     @Override
-    public Long fromString(String value) {
+    public Long deserializeFromString(String value) {
         return Long.parseLong(value);
+    }
+
+    @Override
+    public String serializeToString(Long value) {
+        return value.toString();
     }
 
 }

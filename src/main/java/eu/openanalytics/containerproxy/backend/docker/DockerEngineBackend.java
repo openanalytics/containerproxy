@@ -122,7 +122,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 					initialContainer.getRuntimeValues().values().stream()
 			).forEach(runtimeValue -> {
 				if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.getValue());
+					labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
 				}
 			});
 
@@ -214,10 +214,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 			// add ports to PortAllocator (even if we don't recover the proxy)
 			for (PortMapping portMapping: container.ports()) {
-				portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getValue(), portMapping.publicPort());
+				portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getObject(), portMapping.publicPort());
 			}
 
-			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getValue();
+			String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
 			if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
 				log.warn("Ignoring container {} because instanceId {} is not correct", container.id(), containerInstanceId);
 				continue;

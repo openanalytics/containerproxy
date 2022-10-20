@@ -94,9 +94,9 @@ public class AppRecoveryService {
 			Map<String, Proxy.ProxyBuilder> proxies = new HashMap<>();
 
 			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
-			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getValue();
+			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getObject();
 
-				ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getValue());
+				ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getObject());
 				if (proxySpec == null) {
 					log.warn(String.format("Found existing container (%s) but not corresponding proxy spec.", containerInfo.getContainerId()));
 					continue;
@@ -104,15 +104,15 @@ public class AppRecoveryService {
 				if (!proxies.containsKey(proxyId)) {
 					Proxy.ProxyBuilder proxy = Proxy.builder();
 					proxy.id(proxyId);
-					proxy.specId(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getValue());
+					proxy.specId(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getObject());
 					proxy.status(ProxyStatus.Stopped);
-					long createdTimestamp = Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getValue());
+					long createdTimestamp = Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getObject());
 					proxy.createdTimestamp(createdTimestamp);
 					// we cannot store the startUpTimestamp in the ContainerBackend, therefore when recovering apps
 					// we set the startUpTimestamp to the time the proxy was created. The distinction between created
 					// and started is only important for the events (e.g. Prometheus) not for the whole application.
 					proxy.startupTimestamp(createdTimestamp);
-					proxy.userId(containerInfo.getRuntimeValue(UserIdKey.inst).getValue());
+					proxy.userId(containerInfo.getRuntimeValue(UserIdKey.inst).getObject());
 					if (proxySpec.getDisplayName() != null) {
 						proxy.displayName(proxySpec.getDisplayName());
 					} else {

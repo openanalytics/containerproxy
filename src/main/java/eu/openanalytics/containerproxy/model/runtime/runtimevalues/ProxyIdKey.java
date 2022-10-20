@@ -37,7 +37,12 @@ public class ProxyIdKey extends RuntimeValueKey<String> {
     public static ProxyIdKey inst = new ProxyIdKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

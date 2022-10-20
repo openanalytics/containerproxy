@@ -37,8 +37,13 @@ public class ContainerIndexKey extends RuntimeValueKey<Integer> {
     public static ContainerIndexKey inst = new ContainerIndexKey();
 
     @Override
-    public Integer fromString(String value) {
+    public Integer deserializeFromString(String value) {
         return Integer.parseInt(value);
+    }
+
+    @Override
+    public String serializeToString(Integer value) {
+        return value.toString();
     }
 
 }

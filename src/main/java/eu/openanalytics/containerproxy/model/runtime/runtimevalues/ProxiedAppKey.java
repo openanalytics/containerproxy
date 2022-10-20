@@ -37,7 +37,12 @@ public class ProxiedAppKey extends RuntimeValueKey<String> {
     public static ProxiedAppKey inst = new ProxiedAppKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

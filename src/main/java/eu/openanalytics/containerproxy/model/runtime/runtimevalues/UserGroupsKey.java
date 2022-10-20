@@ -37,7 +37,12 @@ public class UserGroupsKey extends RuntimeValueKey<String> {
     public static UserGroupsKey inst = new UserGroupsKey();
 
     @Override
-    public String fromString(String value) {
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
         return value;
     }
 

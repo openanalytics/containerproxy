@@ -20,20 +20,11 @@
  */
 package eu.openanalytics.containerproxy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
-import eu.openanalytics.containerproxy.model.Views;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
-import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.memory.MemoryActiveProxies;
-import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.redis.RedisActiveProxies;
-import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
@@ -60,10 +51,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericToStringSerializer;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.core.session.SessionRegistry;
@@ -293,8 +280,9 @@ public class ContainerProxyApplication {
 		properties.put("management.server.port", "9090");
 		// enable prometheus endpoint by default (but not the exporter)
 		properties.put("management.endpoint.prometheus.enabled", "true");
+		properties.put("management.endpoint.recyclable.enabled", "true");
 		// include prometheus and health endpoint in exposure
-		properties.put("management.endpoints.web.exposure.include", "health,prometheus");
+		properties.put("management.endpoints.web.exposure.include", "health,prometheus,recyclable");
 
 		// ====================
 

@@ -30,7 +30,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "none", matchIfMissing=true)
+@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "None", matchIfMissing=true)
 public class MemoryStoreConfiguration {
 
     @Bean

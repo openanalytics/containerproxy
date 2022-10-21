@@ -46,7 +46,7 @@ import org.springframework.integration.support.locks.ExpirableLockRegistry;
 import javax.inject.Inject;
 
 @Configuration
-@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "redis")
+@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "Redis")
 public class RedisStoreConfiguration {
 
     @Inject
@@ -76,7 +76,7 @@ public class RedisStoreConfiguration {
 
     @Bean
     public ExpirableLockRegistry expirableLockRegistry() {
-        return new RedisLockRegistry(connectionFactory, "shinyproxy__"  + identifierService.realmId + "__locks");
+        return new RedisLockRegistry(connectionFactory, "shinyproxy_"  + identifierService.realmId + "__locks");
     }
 
     @Bean

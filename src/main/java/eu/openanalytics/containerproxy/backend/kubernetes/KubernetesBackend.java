@@ -85,6 +85,7 @@ import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 import javax.inject.Inject;
 import javax.json.JsonPatch;
@@ -105,6 +106,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -123,10 +125,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private static final String DEFAULT_NAMESPACE = "default";
 	private static final String DEFAULT_API_VERSION = "v1";
-
-	private static final String PARAM_POD = "pod";
-	private static final String PARAM_SERVICE = "service";
-	private static final String PARAM_NAMESPACE = "namespace";
 
 	private static final String SECRET_KEY_REF = "secretKeyRef";
 
@@ -295,7 +293,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			Pod startupPod = podBuilder.withSpec(podSpec).build();
 			Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
 			final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
-			rContainerBuilder.addParameter(PARAM_NAMESPACE, effectiveKubeNamespace);
+			// set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
+			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
 
 			// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
 			createAdditionalManifests(proxy, proxySpec, effectiveKubeNamespace);
@@ -319,9 +318,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (!podReady) {
 				// check a final time whether the pod is ready
 				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-					Pod pod = kubeClient.resource(startedPod).fromServer().get();
-					rContainerBuilder.addParameter(PARAM_POD, pod);
-
 					proxyStatusService.containerStartFailed(proxy.getId(), spec.getIndex());
 					throw new ContainerFailedToStartException("Container did not become ready in time", null, rContainerBuilder.build());
 				}
@@ -363,10 +359,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				portBindings = service.getSpec().getPorts().stream()
 						.collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
 			}
-
-			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()), false);
-			rContainerBuilder.addParameter(PARAM_POD, pod);
-			rContainerBuilder.addParameter(PARAM_SERVICE, service);
 
 			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
 		} catch (ContainerFailedToStartException t) {
@@ -571,7 +563,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		String targetHostName;
 		int targetPort;
 
-		Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD)); // TODO move outside this function
+		Pod pod = getPod(container).orElseThrow(() -> new ContainerFailedToStartException("Pod not found while calculating target", null, container));
 
 		if (isUseInternalNetwork()) {
 			targetHostName = pod.getStatus().getPodIP();
@@ -587,27 +579,20 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container: proxy.getContainers()) {
-			if (!container.getParameters().containsKey(PARAM_NAMESPACE)) {
+			Optional<Pair<String, String>> podInfo = getPodInfo(container);
+			if (!podInfo.isPresent()) {
 				// container was not yet fully created
 				continue;
 			}
-			String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
 
-			Pod pod = Pod.class.cast(container.getParameters().get(PARAM_POD));
-			if (pod != null)  {
-				// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
-				kubeClient.resource(pod).withGracePeriod(0).delete();
-			}
+			// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
+			kubeClient.pods().inNamespace(podInfo.get().getKey()).withName(podInfo.get().getValue()).withGracePeriod(0).delete();
+			kubeClient.services().inNamespace(podInfo.get().getKey()).withName(getServiceName(container)).delete();
 			
-			Service service = Service.class.cast(container.getParameters().get(PARAM_SERVICE));
-			if (service != null) {
-				kubeClient.resource(service).withGracePeriod(0).delete();
-			}
-
 			// delete additional manifests
 			// we retrieve the spec here, therefore this is not compatible with AppRecovery
 			ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, kubeNamespace)) {
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getKey())) {
 				kubeClient.resource(fullObject).withGracePeriod(0).delete();
 			}
 		}
@@ -619,12 +604,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return (stdOut, stdErr) -> {
 			try {
 				Container container = proxy.getContainers().get(0);
-				String kubeNamespace = container.getParameters().get(PARAM_NAMESPACE).toString();
-				if (kubeNamespace == null) {
-					kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+				Optional<Pair<String, String>> pod = getPodInfo(container);
+				if (pod.isPresent()) {
+					LogWatch watcher = kubeClient.pods().inNamespace(pod.get().getKey()).withName(pod.get().getValue()).watchLog();
+					IOUtils.copy(watcher.getOutput(), stdOut);
+				} else {
+					log.error("Error while attaching to container output: pod info not found");
 				}
-				LogWatch watcher = kubeClient.pods().inNamespace(kubeNamespace).withName("sp-pod-" + container.getId()).watchLog();
-				IOUtils.copy(watcher.getOutput(), stdOut);
 			} catch (IOException e) {
 				log.error("Error while attaching to container output", e);
 			}
@@ -684,20 +670,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					continue;
 				}
 
-				HashMap<String, Object> parameters = new HashMap<>();
-				parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
-				parameters.put(PARAM_POD, pod);
-
 				Map<Integer, Integer> portBindings = new HashMap<>();
 				if (!isUseInternalNetwork()) {
 						Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
-					parameters.put(PARAM_SERVICE, service);
 					portBindings = service.getSpec().getPorts().stream()
 							.collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
 				}
 
 				containers.add(new ExistingContainerInfo(containerId, runtimeValues,
-						pod.getSpec().getContainers().get(0).getImage(),  portBindings, parameters));
+						pod.getSpec().getContainers().get(0).getImage(),  portBindings));
 			}
 		}
 
@@ -728,6 +709,27 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 
 		return runtimeValues;
+	}
+
+	private Optional<Pair<String, String>> getPodInfo(Container container) {
+		String podId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+		if (podId == null) {
+			return Optional.empty();
+		}
+		String[] tmp = podId.split("/");
+		return Optional.of(Pair.of(tmp[0], tmp[1]));
+	}
+
+	private String getServiceName(Container container) {
+		return "sp-service-" + container.getId();
+	}
+
+	private Optional<Pod> getPod(Container container) {
+		return getPodInfo(container).flatMap(this::getPod);
+	}
+
+	private Optional<Pod> getPod(Pair<String, String> podInfo) {
+		return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getKey()).withName(podInfo.getValue()).get());
 	}
 
 }

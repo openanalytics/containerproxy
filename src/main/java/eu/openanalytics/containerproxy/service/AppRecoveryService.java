@@ -131,7 +131,6 @@ public class AppRecoveryService {
 				Proxy.ProxyBuilder proxy = proxies.get(proxyId);
 				Container.ContainerBuilder containerBuilder = Container.builder();
 				containerBuilder.id(containerInfo.getContainerId());
-				containerBuilder.parameters(containerInfo.getParameters());
 				containerBuilder.addRuntimeValues(containerInfo.getRuntimeValues()
 						.values()
 						.stream()

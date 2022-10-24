@@ -126,13 +126,6 @@ public class Container extends RuntimeValueStore {
             return this;
         }
 
-        public Container.ContainerBuilder addParameter(String key, Object object) {
-            if (parameters == null) {
-                parameters = new HashMap<>();
-            }
-            parameters.put(key, object);
-            return this;
-        }
     }
 
 }

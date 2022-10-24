@@ -230,7 +230,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 				portBindings.put(containerPort, hostPort);
 			}	
 			
-			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings, new HashMap<>()));
+			containers.add(new ExistingContainerInfo(container.id(), runtimeValues, container.image(),  portBindings));
 
 		}
 		

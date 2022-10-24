@@ -69,8 +69,6 @@ import java.util.stream.Stream;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
-	private static final String PARAM_SERVICE_ID = "serviceId";
-
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
@@ -190,7 +188,6 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
 			// tell the status service we are starting the container
 			proxyStatusService.containerStarting(proxy.getId(), initialContainer.getIndex());
-			rContainerBuilder.addParameter(PARAM_SERVICE_ID, serviceId);
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId), false);
 
 			// Give the service some time to start up and launch a container.
@@ -274,7 +271,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     @Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container: proxy.getContainers()) {
-			String serviceId = (String) container.getParameters().get(PARAM_SERVICE_ID);
+			String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
 			if (serviceId != null) dockerClient.removeService(serviceId);
 		}
 		portAllocator.release(proxy.getId());
@@ -321,7 +318,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 
 			containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
-					containerSpec.image(), portBindings, Collections.singletonMap(PARAM_SERVICE_ID, service.id())));
+					containerSpec.image(), portBindings));
 
 		}
 

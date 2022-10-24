@@ -282,23 +282,29 @@ public class ProxyService {
 
 		Proxy currentProxy = proxyBuilder.build();
 		saveProxy(currentProxy);
+		try {
 
-		currentProxy = runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, currentProxy);
-		currentProxy = backend.addRuntimeValuesBeforeSpel(spec, currentProxy);
+			currentProxy = runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, currentProxy);
+			currentProxy = backend.addRuntimeValuesBeforeSpel(spec, currentProxy);
 
-		SpecExpressionContext context = SpecExpressionContext.create(
-				currentProxy,
-				spec,
-				userService.getCurrentAuth().getPrincipal(),
-				userService.getCurrentAuth().getCredentials());
+			SpecExpressionContext context = SpecExpressionContext.create(
+					currentProxy,
+					spec,
+					userService.getCurrentAuth().getPrincipal(),
+					userService.getCurrentAuth().getCredentials());
 
-		// resolve SpEL expression in spec
-		spec = spec.resolve(expressionResolver, context);
+			// resolve SpEL expression in spec
+			spec = spec.resolve(expressionResolver, context);
 
-		// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
-		currentProxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, currentProxy);
+			// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
+			currentProxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, currentProxy);
 
-		currentProxy = currentProxy.toBuilder().status(ProxyStatus.Starting).build(); // TODO update proxy
+			currentProxy = currentProxy.toBuilder().status(ProxyStatus.Starting).build(); // TODO update proxy
+		} catch (Throwable t) {
+			removeProxy(currentProxy);
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, currentProxy.getUserId(), spec.getId()));
+			throw new ContainerProxyException("Container failed to start", t);
+		}
 
 		try {
 			currentProxy = backend.startProxy(currentProxy, spec);
@@ -313,9 +319,13 @@ public class ProxyService {
 			removeProxy(t.getProxy());
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, t.getProxy().getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
+		} catch (Throwable t) {
+			removeProxy(currentProxy);
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, currentProxy.getUserId(), spec.getId()));
+			throw new ContainerProxyException("Container failed to start", t);
 		}
 
-		// TODO
+	// TODO
 //		if (proxyBuilder.getStatus().equals(ProxyStatus.Stopped) || proxyBuilder.getStatus().equals(ProxyStatus.Stopping)) {
 //			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxyBuilder.getUserId(), proxyBuilder.getSpecId(), proxyBuilder.getId()));
 //			return proxyBuilder;

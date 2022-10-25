@@ -48,6 +48,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.store.IActiveProxies;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -282,29 +283,9 @@ public class ProxyService {
 
 		Proxy currentProxy = proxyBuilder.build();
 		saveProxy(currentProxy);
-		try {
-
-			currentProxy = runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, currentProxy);
-			currentProxy = backend.addRuntimeValuesBeforeSpel(spec, currentProxy);
-
-			SpecExpressionContext context = SpecExpressionContext.create(
-					currentProxy,
-					spec,
-					userService.getCurrentAuth().getPrincipal(),
-					userService.getCurrentAuth().getCredentials());
-
-			// resolve SpEL expression in spec
-			spec = spec.resolve(expressionResolver, context);
-
-			// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
-			currentProxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, currentProxy);
-
-			currentProxy = currentProxy.toBuilder().status(ProxyStatus.Starting).build(); // TODO update proxy
-		} catch (Throwable t) {
-			removeProxy(currentProxy);
-			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, currentProxy.getUserId(), spec.getId()));
-			throw new ContainerProxyException("Container failed to start", t);
-		}
+		Pair<ProxySpec, Proxy> r = prepareProxyForStart(currentProxy, spec, parameters);
+		spec = r.getKey();
+		currentProxy = r.getValue();
 
 		try {
 			currentProxy = backend.startProxy(currentProxy, spec);
@@ -407,6 +388,8 @@ public class ProxyService {
 		Runnable releaser = () -> {
 			try {
 				backend.pauseProxy(proxy);
+				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Paused).build();
+				activeProxies.update(stoppedProxy);
 				logService.detach(proxy);
 				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				// TODO
@@ -423,58 +406,97 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
+		Proxy stoppingProxy = proxy.toBuilder().status(ProxyStatus.Pausing).build();
+		activeProxies.update(stoppingProxy);
 		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
 	}
 
 	public void unPauseProxy(Proxy proxy, boolean async, boolean ignoreAccessControl) {
-//		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
-//			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
-//		}
-//
-//		if (!backend.supportsPause()) {
-//			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
-//		}
-//
-//		Runnable releaser = () -> {
-//			try {
-//				// When resuming the proxy, we *do* want to re-evaluate the environment variables
-//				// therefore we fetch the latest version of the spec and evaluate SpeL
-//				ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
-//
-//				spec = prepareProxyForStart(initialProxy, proxy, spec, null); // TODO support parameters
-//
-//				backend.resumeProxy(proxy, spec); // TODO handle errors
-//
-//				// TODO handle stopped pending app
-//
-//				if (!testStrategy.testProxy(proxy)) {
-//					backend.stopProxy(proxy);
-//					proxyStatusService.applicationStartupFailed(proxy);
-//					throw new ContainerProxyException("Container did not respond in time");
-//				}
-//
-//				proxy.setStatus(ProxyStatus.Up);
-//
-//				log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-//
-//				// TODO
-////				if (proxy.getStartupTimestamp() == 0) {
-////					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
-////				} else {
-////					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
-////							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
-////				}
-//
-//				setupProxy(proxy);
-//			} catch (Exception e){
-//				log.error("Failed to resume proxy " + proxy.getId(), e);
-//			}
-//		};
-//		if (async) containerKiller.submit(releaser);
-//		else releaser.run();
+		if (!ignoreAccessControl && !userService.isAdmin() && !userService.isOwner(proxy)) {
+			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
+		}
 
+		if (!backend.supportsPause()) {
+			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
+		}
+
+		// When resuming the proxy, we *do* want to re-evaluate the environment variables
+		// therefore we fetch the latest version of the spec and evaluate SpeL
+		ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
+		Pair<ProxySpec, Proxy> r = prepareProxyForStart(proxy, spec, null); // TODO support parameters
+		spec = r.getKey();
+		proxy = r.getValue();
+
+		try {
+			proxy = backend.resumeProxy(proxy, spec); // TODO handle errors
+		} catch (ProxyFailedToStartException t) {
+			try {
+				backend.stopProxy(t.getProxy());
+			} catch (Throwable t2) {
+				// log error, but ignore it otherwise
+				// most important is that we remove the proxy from memory
+				log.warn("Error while stopping failed proxy", t2);
+			}
+			removeProxy(t.getProxy());
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, t.getProxy().getUserId(), spec.getId()));
+			throw new ContainerProxyException("Container failed to start", t);
+		} catch (Throwable t) {
+			removeProxy(proxy);
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			throw new ContainerProxyException("Container failed to start", t);
+		}
+
+		// TODO handle stopped pending app
+
+		if (!testStrategy.testProxy(proxy)) {
+			backend.stopProxy(proxy);
+			proxyStatusService.applicationStartupFailed(proxy.getId(), spec.getContainerSpecs().size());
+			throw new ContainerProxyException("Container did not respond in time");
+		}
+
+		proxy = proxy.toBuilder()
+				.status(ProxyStatus.Up)
+				.build();
+
+		log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
+
+		// TODO
+//				if (proxy.getStartupTimestamp() == 0) {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
+//				} else {
+//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
+//							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
+//				}
+
+		setupProxy(proxy);
+		activeProxies.update(proxy);
+	}
+
+	private Pair<ProxySpec, Proxy> prepareProxyForStart(Proxy proxy, ProxySpec spec, Map<String, String> parameters) {
+		try {
+			proxy = runtimeValueService.addRuntimeValuesBeforeSpel(spec, parameters, proxy);
+			proxy = backend.addRuntimeValuesBeforeSpel(spec, proxy);
+
+			SpecExpressionContext context = SpecExpressionContext.create(
+					proxy,
+					spec,
+					userService.getCurrentAuth().getPrincipal(),
+					userService.getCurrentAuth().getCredentials());
+
+			// resolve SpEL expression in spec
+			spec = spec.resolve(expressionResolver, context);
+
+			// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
+			proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
+
+			return Pair.of(spec, proxy.toBuilder().status(ProxyStatus.Starting).build()); // TODO update proxy
+		} catch (Throwable t) {
+			removeProxy(proxy);
+			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
+			throw new ContainerProxyException("Container failed to start", t);
+		}
 	}
 
 

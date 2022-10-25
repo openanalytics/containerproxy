@@ -369,6 +369,9 @@ public class ProxyService {
 		Runnable releaser = () -> {
 			try {
 				backend.stopProxy(proxy);
+				// TODO we may want to remove this
+				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Stopped).build();
+				activeProxies.update(stoppedProxy);
 				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				if (proxy.getStartupTimestamp() == 0) {
@@ -377,7 +380,7 @@ public class ProxyService {
 					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpecId(),
 							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 				}
-				removeProxy(proxy);
+				removeProxy(stoppedProxy);
 			} catch (Exception e){
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}
@@ -385,10 +388,10 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		for (Container container : proxy.getContainers()) {
-			for (Entry<String, URI> target : container.getTargets().entrySet()) {
-				mappingManager.removeMapping(target.getKey());
-			}
+		Proxy stoppingProxy = proxy.toBuilder().status(ProxyStatus.Stopping).build();
+		activeProxies.update(stoppingProxy);
+		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
+			mappingManager.removeMapping(target.getKey());
 		}
 	}
 
@@ -420,10 +423,8 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		for (Container container : proxy.getContainers()) {
-			for (Entry<String, URI> target : container.getTargets().entrySet()) {
-				mappingManager.removeMapping(target.getKey());
-			}
+		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
+			mappingManager.removeMapping(target.getKey());
 		}
 	}
 

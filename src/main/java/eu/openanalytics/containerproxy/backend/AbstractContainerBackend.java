@@ -143,9 +143,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {
 		try {
-//			proxy.setStatus(ProxyStatus.Stopping); // TODO store state
 			doStopProxy(proxy);
-//			proxy.setStatus(ProxyStatus.Stopped); // TODO store state
 		} catch (Exception e) {
 			throw new ContainerProxyException("Failed to stop container", e);
 		}

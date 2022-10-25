@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.model.store.redis;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.store.IActiveProxies;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
@@ -64,7 +65,7 @@ public class RedisActiveProxies implements IActiveProxies {
     @Override
     public List<Proxy> getAllProxies() {
         List<Proxy> res = ops.values(redisKey);
-        res.forEach(this::cacheProxy);
+        res.forEach(this::updateMappings);
         return res;
     }
 
@@ -72,21 +73,21 @@ public class RedisActiveProxies implements IActiveProxies {
     public void addProxy(Proxy proxy) {
         logger.info("Add proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
-        cacheProxy(proxy);
+        updateMappings(proxy);
     }
 
     @Override
     public void removeProxy(Proxy proxy) {
         logger.info("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
-        // TODO remove from cache
+        updateMappings(proxy);
     }
 
     @Override
     public void update(Proxy proxy) {
         logger.info("Update proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
-        cacheProxy(proxy);
+        updateMappings(proxy);
     }
 
     @Override
@@ -94,12 +95,26 @@ public class RedisActiveProxies implements IActiveProxies {
         // TODO maybe use a cache for this (only for Up Proxies), first check how much this is used
         Proxy proxy = ops.get(redisKey, proxyId);
         if (proxy != null) {
-            cacheProxy(proxy);
+            updateMappings(proxy);
         }
         return proxy;
     }
 
-    public void cacheProxy(Proxy proxy) {
+    public void updateMappings(Proxy proxy) {
+        if (proxy.getStatus() == ProxyStatus.Stopping || proxy.getStatus() == ProxyStatus.Stopped
+                || proxy.getStatus() == ProxyStatus.Pausing || proxy.getStatus() == ProxyStatus.Paused) {
+
+            Map<String, URI> oldTargets = targetsCache.remove(proxy.getId());
+            if (oldTargets != null) {
+                // there were still some old mappings -> remove them
+                logger.info("Redis: remove mappings for {}", proxy.getId());
+                for (Map.Entry<String, URI> target : proxy.getTargets().entrySet()) {
+                    mappingManager.removeMapping(target.getKey());
+                }
+            }
+            return;
+        }
+
         Map<String, URI> newTargets = proxy.getTargets();
         Map<String, URI> oldTargets = targetsCache.put(proxy.getId(), newTargets);
 

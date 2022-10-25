@@ -40,8 +40,8 @@ public class RecyclableEndpoint {
     public Map<String, Object> health() {
         int count = webSocketCounterService.getCount();
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("is_recyclable", count == 0);
-        details.put("active_connections", count);
+        details.put("isRecyclable", count == 0);
+        details.put("activeConnections", count);
         return details;
     }
 

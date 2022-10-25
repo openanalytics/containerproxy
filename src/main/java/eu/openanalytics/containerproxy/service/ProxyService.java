@@ -493,6 +493,13 @@ public class ProxyService {
 
 			return Pair.of(spec, proxy.toBuilder().status(ProxyStatus.Starting).build()); // TODO update proxy
 		} catch (Throwable t) {
+			try {
+				backend.stopProxy(proxy); // stop in case we are resuming
+			} catch (Throwable t2) {
+				// log error, but ignore it otherwise
+				// most important is that we remove the proxy from memory
+				log.warn("Error while stopping failed proxy", t2);
+			}
 			removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);

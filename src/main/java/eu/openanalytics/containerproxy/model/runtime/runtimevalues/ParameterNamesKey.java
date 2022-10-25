@@ -43,7 +43,12 @@ public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
 
     @Override
     public ParameterNames deserializeFromString(String value) {
-        throw new IllegalArgumentException("TODO");
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.readValue(value, ParameterNames.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

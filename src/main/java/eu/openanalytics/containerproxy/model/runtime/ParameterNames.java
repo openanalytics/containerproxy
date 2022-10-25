@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +32,7 @@ import java.util.Map;
 public class ParameterNames {
     private final List<ParameterName> values;
 
+    @JsonCreator
     public ParameterNames(List<ParameterName> values) {
         this.values = values;
     }
@@ -49,7 +52,10 @@ public class ParameterNames {
         private final String description;
         private final String value;
 
-        public ParameterName(String displayName, String description, String value) {
+        @JsonCreator
+        public ParameterName(@JsonProperty("displayName") String displayName,
+                             @JsonProperty("description") String description,
+                             @JsonProperty("value") String value) {
             this.displayName = displayName;
             this.description = description;
             this.value = value;

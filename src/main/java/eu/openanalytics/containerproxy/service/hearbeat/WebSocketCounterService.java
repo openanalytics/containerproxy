@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -40,7 +41,7 @@ public class WebSocketCounterService implements IHeartbeatProcessor {
     @Inject
     protected Environment environment;
 
-    private final ConcurrentHashMap<String, Long> wsHeartbeats = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> wsHeartbeats = ProxyHashMap.create();
 
     private long cleanupInterval;
 

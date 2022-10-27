@@ -21,12 +21,13 @@
 package eu.openanalytics.containerproxy.model.store.memory;
 
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MemoryHeartbeatStore implements IHeartbeatStore {
 
-    private final ConcurrentHashMap<String, Long> heartbeats = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> heartbeats = ProxyHashMap.create();
 
     @Override
     public void update(String proxyId, Long currentTimeMillis) {

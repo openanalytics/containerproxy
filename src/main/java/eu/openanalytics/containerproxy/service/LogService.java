@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.log.LogPaths;
 import eu.openanalytics.containerproxy.log.LogStreams;
 import eu.openanalytics.containerproxy.log.NoopLogStorage;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,7 @@ public class LogService {
 	private boolean loggingEnabled;
 	private final Logger log = LogManager.getLogger(LogService.class);
 	
-	private final ConcurrentHashMap<String, LogStreams> proxyStreams = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
 
 	@Inject
 	ILogStorage logStorage;

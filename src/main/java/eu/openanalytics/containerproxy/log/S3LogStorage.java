@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.log;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.util.Arrays;
@@ -57,7 +58,7 @@ public class S3LogStorage extends AbstractLogStorage {
 
 	private final Logger log = LogManager.getLogger(S3LogStorage.class);
 
-	private final ConcurrentHashMap<String, LogStreams> proxyStreams = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
 
 	private S3Client s3Client;
 

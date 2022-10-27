@@ -24,14 +24,14 @@ import org.springframework.context.ApplicationEvent;
 
 import java.time.Duration;
 
-public class ProxyStopEvent extends ApplicationEvent {
+public class ProxyPauseEvent extends ApplicationEvent {
 
     private final String proxyId;
     private final String userId;
     private final String specId;
     private final Duration usageTime;
 
-    public ProxyStopEvent(Object source, String proxyId, String userId, String specId, Duration usageTime) {
+    public ProxyPauseEvent(Object source, String proxyId, String userId, String specId, Duration usageTime) {
         super(source);
         this.proxyId = proxyId;
         this.userId = userId;

@@ -31,8 +31,8 @@ public interface ILogStorage {
 	
 	public String getStorageLocation();
 	
-	public OutputStream[] createOutputStreams(Proxy proxy) throws IOException;
+	public LogStreams createOutputStreams(Proxy proxy) throws IOException;
 	
-	public String[] getLogs(Proxy proxy) throws IOException;
+	public LogPaths getLogs(Proxy proxy) throws IOException;
 
 }

@@ -93,15 +93,13 @@ public class S3LogStorage extends AbstractLogStorage {
 	}
 
 	@Override
-	public OutputStream[] createOutputStreams(Proxy proxy) throws IOException {
-		String[] paths = getLogs(proxy);
-		OutputStream[] streams = new OutputStream[2];
-		for (int i = 0; i < streams.length; i++) {
-			String fileName = paths[i].substring(paths[i].lastIndexOf("/") + 1);
-			// TODO kubernetes never flushes. So perform timed flushes, and also flush upon container shutdown
-			streams[i] = new BufferedOutputStream(new S3OutputStream(bucketPath + fileName), 1024*1024);
-		}
-		return streams;
+	public LogStreams createOutputStreams(Proxy proxy) throws IOException {
+		LogPaths paths = getLogs(proxy);
+		// TODO kubernetes never flushes. So perform timed flushes, and also flush upon container shutdown
+		return new LogStreams(
+				new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStdout().getFileName().toString()), 1024 * 1024),
+				new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024)
+		);
 	}
 
 	private void doUpload(String key, byte[] bytes) throws IOException {

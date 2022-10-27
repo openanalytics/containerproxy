@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.log;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.springframework.core.env.Environment;
 
 import javax.inject.Inject;
@@ -32,8 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractLogStorage implements ILogStorage {
 
-    // TODO remove on remove of proxy
-    private final ConcurrentHashMap<String, LogPaths> proxyStreams = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
 
     @Inject
     protected Environment environment;

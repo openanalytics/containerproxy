@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
@@ -395,13 +396,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Proxy proxy = proxyService.startProxy(spec, true);
                 String containerId = proxy.getContainers().get(0).getId();
 
-                // Check whether the effectively used namepsace is correct
-                Assertions.assertEquals(overriddenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
-                // no pods should exists in the default namespace
+                // Check whether the effectively used namespace is correct
+                Assertions.assertEquals(overriddenNamespace, proxy.getContainers().get(0).getRuntimeValue(BackendContainerNameKey.inst).split("/")[0]);
+                // no pods should exist in the default namespace
                 PodList podList = client.pods().inNamespace(namespace).list();
                 Assertions.assertEquals(0, podList.getItems().size());
 
-                // no services should exists in the default namespace
+                // no services should exist in the default namespace
                 ServiceList serviceList = client.services().inNamespace(namespace).list();
                 Assertions.assertEquals(0, serviceList.getItems().size());
 

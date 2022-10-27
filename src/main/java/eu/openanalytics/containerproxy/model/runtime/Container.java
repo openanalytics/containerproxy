@@ -53,7 +53,6 @@ public class Container extends RuntimeValueStore {
     Integer index;
     String id;
 
-    Map<String, Object> parameters;
     Map<String, URI> targets;
     Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
@@ -74,14 +73,6 @@ public class Container extends RuntimeValueStore {
         }
 
         return builder.build();
-    }
-
-    @JsonIgnore
-    public Map<String, Object> getParameters() {
-        if (parameters == null) {
-            return Collections.unmodifiableMap(new HashMap<>());
-        }
-        return Collections.unmodifiableMap(parameters);
     }
 
     public Map<String, URI> getTargets() {

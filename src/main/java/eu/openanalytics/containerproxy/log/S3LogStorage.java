@@ -41,16 +41,23 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
-//TODO Optimize flushing behaviour
+/**
+ * Stores logs in S3. Because S3 requests come with a cost and in order to reduce CPU usage, this class buffers the logs
+ * and only write the logs to S3 either every 10 seconds or when the buffer reaches 1MB.
+ */
 public class S3LogStorage extends AbstractLogStorage {
-
 
 	private String bucketName;
 	private String bucketPath;
 	private boolean enableSSE;
 
 	private final Logger log = LogManager.getLogger(S3LogStorage.class);
+
+	private final ConcurrentHashMap<String, LogStreams> proxyStreams = new ConcurrentHashMap<>();
 
 	private S3Client s3Client;
 
@@ -90,16 +97,38 @@ public class S3LogStorage extends AbstractLogStorage {
 			bucketName = subPath.substring(0, bucketPathIndex);
 			bucketPath = subPath.substring(bucketPathIndex + 1) + "/";
 		}
+
+		new Timer().schedule(new TimerTask() {
+			@Override
+			public void run() {
+				flushAllStreams();
+			}
+		}, 10000, 10000);
 	}
 
+	/**
+	 * Creates OutputStreams for the given Proxy object.
+	 *
+	 * <p>
+	 *     The {@link S3OutputStream} is wrapped into a {@link BufferedOutputStream} with a buffer of 1MB.
+	 *     When this buffer is full, it will get flushed and the logs are written to S3.
+	 *     The {@link BufferedOutputStream} is stored in this class and a timer calls the flush method every 10 seconds.
+	 *     Therefore, the latest logs (if any) are written to S3 every 10 seconds.
+	 *     Finally, the {@link BufferedOutputStream} are wrapped in {@link IgnoreFlushOutputStream} streams, such that
+	 *     the flush method is ignored. This is important, since some container backends (e.g. Docker) flushes the logs
+	 *     for ever write, which would mean we re-upload the log file to S3 for every write.
+	 * </p>
+	 *
+	 * @param proxy the proxy to create outputstreams for
+	 * @return the streams for this proxy
+	 */
 	@Override
-	public LogStreams createOutputStreams(Proxy proxy) throws IOException {
+	public LogStreams createOutputStreams(Proxy proxy) {
 		LogPaths paths = getLogs(proxy);
-		// TODO kubernetes never flushes. So perform timed flushes, and also flush upon container shutdown
-		return new LogStreams(
-				new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStdout().getFileName().toString()), 1024 * 1024),
-				new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024)
-		);
+		BufferedOutputStream stdout = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStdout().getFileName().toString()), 1024 * 1024);
+		BufferedOutputStream stderr = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024);
+		proxyStreams.put(proxy.getId(), new LogStreams(stdout, stderr));
+		return new LogStreams(new IgnoreFlushOutputStream(stdout), new IgnoreFlushOutputStream(stderr));
 	}
 
 	private void doUpload(String key, byte[] bytes) throws IOException {
@@ -128,7 +157,7 @@ public class S3LogStorage extends AbstractLogStorage {
         }
 	}
 
-	private byte[] getContent(String key) throws IOException {
+	private byte[] getContent(String key) {
 		try {
 			ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
 					GetObjectRequest.builder()
@@ -140,6 +169,53 @@ public class S3LogStorage extends AbstractLogStorage {
 		} catch (NoSuchKeyException e) {
 			return null;
 		}
+	}
+
+	/**
+	 * Flushes all streams of all proxies.
+	 */
+	private void flushAllStreams() {
+		for (LogStreams streams : proxyStreams.values()) {
+			try {
+				streams.getStdout().flush();
+			} catch (IOException e) {
+				log.error("Failed to flush S3 log stream", e);
+			}
+			try {
+				streams.getStderr().flush();
+			} catch (IOException e) {
+				log.error("Failed to flush S3 log stream", e);
+			}
+		}
+	}
+
+	/**
+	 * A {@link OutputStream} that wraps a {@link BufferedOutputStream} and ignores any calls to {@link #flush()}.
+	 */
+	private class IgnoreFlushOutputStream extends OutputStream {
+
+		private final BufferedOutputStream bufferedOutputStream;
+
+		public IgnoreFlushOutputStream(BufferedOutputStream bufferedOutputStream) {
+			this.bufferedOutputStream = bufferedOutputStream;
+		}
+
+		@Override
+		public void write(int i) throws IOException {
+			bufferedOutputStream.write(i);
+
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+			bufferedOutputStream.write(b, off, len);
+		}
+
+		@Override
+		public void flush() {
+			// ignore external flush requests
+		}
+
 	}
 
 	private class S3OutputStream extends OutputStream {

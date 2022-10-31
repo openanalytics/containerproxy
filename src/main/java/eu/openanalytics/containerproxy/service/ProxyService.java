@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,7 +29,6 @@ import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -98,9 +96,6 @@ public class ProxyService {
 	@Inject
 	private UserService userService;
 	
-	@Inject
-	private LogService logService;
-
 	@Inject
 	private ApplicationEventPublisher applicationEventPublisher;
 
@@ -328,9 +323,9 @@ public class ProxyService {
 		setupProxy(currentProxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", currentProxy.getUserId(), spec.getId(), currentProxy.getContainers().get(0).getId()));
-		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, currentProxy.getId(), currentProxy.getUserId(), spec.getId()));
-
 		activeProxies.update(currentProxy);
+
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, currentProxy.getId(), currentProxy.getUserId(), spec.getId()));
 
 		return currentProxy;
 	}
@@ -349,12 +344,11 @@ public class ProxyService {
 		}
 
 		Runnable releaser = () -> {
+			Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Stopped).build();
 			try {
 				backend.stopProxy(proxy);
 				// TODO we may want to remove this
-				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Stopped).build();
 				activeProxies.update(stoppedProxy);
-				logService.detach(proxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				if (proxy.getStartupTimestamp() == 0) {
 					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), null));
@@ -362,9 +356,13 @@ public class ProxyService {
 					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(),
 							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
 				}
-				removeProxy(stoppedProxy);
-			} catch (Exception e){
+			} catch (Exception e) {
 				log.error("Failed to release proxy " + proxy.getId(), e);
+			}
+			try {
+				removeProxy(stoppedProxy);
+			} catch (Exception e) {
+				log.error("Failed to remove proxy " + proxy.getId(), e);
 			}
 		};
 		if (async) containerKiller.submit(releaser);
@@ -391,7 +389,6 @@ public class ProxyService {
 				backend.pauseProxy(proxy);
 				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Paused).build();
 				activeProxies.update(stoppedProxy);
-				logService.detach(proxy);
 				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				if (proxy.getStartupTimestamp() == 0) {
 					applicationEventPublisher.publishEvent(new ProxyPauseEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), null));
@@ -527,15 +524,6 @@ public class ProxyService {
 		for (Container container : proxy.getContainers()) {
 			for (Entry<String, URI> target : container.getTargets().entrySet()) {
 				mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
-			}
-		}
-
-		if (logService.isLoggingEnabled()) {
-			BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
-			if (outputAttacher == null) {
-				log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
-			} else {
-				logService.attachToOutput(proxy, outputAttacher);
 			}
 		}
 	}

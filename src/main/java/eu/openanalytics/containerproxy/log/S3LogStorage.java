@@ -58,7 +58,7 @@ public class S3LogStorage extends AbstractLogStorage {
 
 	private final Logger log = LogManager.getLogger(S3LogStorage.class);
 
-	private final ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
+	private ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
 
 	private S3Client s3Client;
 
@@ -130,6 +130,12 @@ public class S3LogStorage extends AbstractLogStorage {
 		BufferedOutputStream stderr = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024);
 		proxyStreams.put(proxy.getId(), new LogStreams(stdout, stderr));
 		return new LogStreams(new IgnoreFlushOutputStream(stdout), new IgnoreFlushOutputStream(stderr));
+	}
+
+	@Override
+	public void stopService() {
+		super.stopService();
+		proxyStreams = ProxyHashMap.create();
 	}
 
 	private void doUpload(String key, byte[] bytes) throws IOException {

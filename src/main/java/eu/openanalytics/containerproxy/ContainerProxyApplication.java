@@ -52,6 +52,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
@@ -73,6 +74,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+@EnableScheduling
 @EnableAsync
 @SpringBootApplication
 @ComponentScan("eu.openanalytics")

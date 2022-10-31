@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractLogStorage implements ILogStorage {
 
-    private final ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
+    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
 
     @Inject
     protected Environment environment;
@@ -53,11 +53,17 @@ public abstract class AbstractLogStorage implements ILogStorage {
     @Override
     public LogPaths getLogs(Proxy proxy) {
         return proxyStreams.computeIfAbsent(proxy.getId(), (k) -> {
-            String timestamp = new SimpleDateFormat("yyyyMMdd").format(new Date()); // TODO include time
+            String timestamp = new SimpleDateFormat("dd_MMM_yyyy_kk_mm_ss").format(new Date()); // TODO include time
             return new LogPaths(
                     Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
                     Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
             );
         });
     }
+
+    @Override
+    public void stopService() {
+        proxyStreams = ProxyHashMap.create();
+    }
+
 }

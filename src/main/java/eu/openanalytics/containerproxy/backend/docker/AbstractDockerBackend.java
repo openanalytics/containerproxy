@@ -39,6 +39,7 @@ import eu.openanalytics.containerproxy.util.PortAllocator;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -99,6 +100,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			try {
 				LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
 				logStream.attach(stdOut, stdErr);
+			} catch (ClosedChannelException ignored) {
 			} catch (IOException | InterruptedException | DockerException e) {
 				log.error("Error while attaching to container output", e);
 			}

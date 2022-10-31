@@ -93,6 +93,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -602,17 +603,23 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
 		if (proxy.getContainers().isEmpty()) return null;
 		return (stdOut, stdErr) -> {
+			LogWatch watcher = null;
 			try {
 				Container container = proxy.getContainers().get(0);
 				Optional<Pair<String, String>> pod = getPodInfo(container);
 				if (pod.isPresent()) {
-					LogWatch watcher = kubeClient.pods().inNamespace(pod.get().getKey()).withName(pod.get().getValue()).watchLog();
-					IOUtils.copy(watcher.getOutput(), stdOut);
+						watcher = kubeClient.pods().inNamespace(pod.get().getKey()).withName(pod.get().getValue()).watchLog();
+						IOUtils.copy(watcher.getOutput(), stdOut);
 				} else {
 					log.error("Error while attaching to container output: pod info not found");
 				}
+			} catch (ClosedChannelException ignored) {
 			} catch (IOException e) {
 				log.error("Error while attaching to container output", e);
+			} finally {
+				if (watcher != null) {
+					watcher.close();
+				}
 			}
 		};
 	}

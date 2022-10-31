@@ -35,4 +35,6 @@ public interface ILogStorage {
 	
 	public LogPaths getLogs(Proxy proxy) throws IOException;
 
+	public void stopService();
+
 }

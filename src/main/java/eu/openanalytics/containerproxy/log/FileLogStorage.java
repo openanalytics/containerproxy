@@ -43,5 +43,5 @@ public class FileLogStorage extends AbstractLogStorage {
 				Files.newOutputStream(paths.getStderr())
 		);
 	}
-	
+
 }

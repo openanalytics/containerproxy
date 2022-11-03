@@ -134,6 +134,9 @@ public class Micrometer implements IStatCollector {
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
 
         ProxyStartupLog startupLog = proxyStatusService.getStartupLog(event.getProxyId());
+        if (startupLog == null) {
+            return;
+        }
 
         startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
             registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);

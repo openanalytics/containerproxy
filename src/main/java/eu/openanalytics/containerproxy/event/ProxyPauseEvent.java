@@ -20,38 +20,40 @@
  */
 package eu.openanalytics.containerproxy.event;
 
-import org.springframework.context.ApplicationEvent;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.With;
 
 import java.time.Duration;
 
-public class ProxyPauseEvent extends ApplicationEvent {
+@Value
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+public class ProxyPauseEvent extends BridgeableEvent {
 
-    private final String proxyId;
-    private final String userId;
-    private final String specId;
-    private final Duration usageTime;
+    @With
+    String source;
 
-    public ProxyPauseEvent(Object source, String proxyId, String userId, String specId, Duration usageTime) {
-        super(source);
-        this.proxyId = proxyId;
-        this.userId = userId;
-        this.specId = specId;
-        this.usageTime = usageTime;
+    String proxyId;
+    String userId;
+    String specId;
+    Duration usageTime;
+
+    public ProxyPauseEvent(Proxy proxy) {
+        source = "SOURCE_NOT_AVAILABLE";
+        proxyId = proxy.getId();
+        userId = proxy.getUserId();
+        specId = proxy.getSpecId();
+        if (proxy.getStartupTimestamp() == 0) {
+            usageTime = null;
+        } else {
+            usageTime = Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp());
+        }
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getSpecId() {
-        return specId;
-    }
-
-    public Duration getUsageTime() {
-        return usageTime;
-    }
-
-    public String getProxyId() {
-        return proxyId;
-    }
 }

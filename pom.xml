@@ -370,7 +370,6 @@
 			<artifactId>jackson-datatype-jsr353</artifactId>
 			<version>2.11.2</version>
 		</dependency>
-
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

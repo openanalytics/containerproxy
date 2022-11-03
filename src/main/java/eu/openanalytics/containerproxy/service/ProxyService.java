@@ -325,7 +325,7 @@ public class ProxyService {
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", currentProxy.getUserId(), spec.getId(), currentProxy.getContainers().get(0).getId()));
 		activeProxies.update(currentProxy);
 
-		applicationEventPublisher.publishEvent(new ProxyStartEvent(this, currentProxy.getId(), currentProxy.getUserId(), spec.getId()));
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(currentProxy));
 
 		return currentProxy;
 	}
@@ -350,12 +350,7 @@ public class ProxyService {
 				// TODO we may want to remove this
 				activeProxies.update(stoppedProxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-				if (proxy.getStartupTimestamp() == 0) {
-					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), null));
-				} else {
-					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(),
-							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
-				}
+				applicationEventPublisher.publishEvent(new ProxyStopEvent(proxy));
 			} catch (Exception e) {
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}
@@ -390,12 +385,7 @@ public class ProxyService {
 				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Paused).build();
 				activeProxies.update(stoppedProxy);
 				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-				if (proxy.getStartupTimestamp() == 0) {
-					applicationEventPublisher.publishEvent(new ProxyPauseEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), null));
-				} else {
-					applicationEventPublisher.publishEvent(new ProxyPauseEvent(this, proxy.getId(), proxy.getUserId(), proxy.getSpecId(),
-							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
-				}
+				applicationEventPublisher.publishEvent(new ProxyPauseEvent(proxy));
 			} catch (Exception e){
 				log.error("Failed to pause proxy " + proxy.getId(), e);
 			}

@@ -21,6 +21,8 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import eu.openanalytics.containerproxy.event.BridgeableEvent;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IActiveProxies;
@@ -28,6 +30,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisActiveProxies;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,6 +38,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -54,6 +60,9 @@ public class RedisStoreConfiguration {
 
     @Inject
     private IdentifierService identifierService;
+
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
 
     // Store beans
 
@@ -114,6 +123,44 @@ public class RedisStoreConfiguration {
         LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(expirableLockRegistry(), leaderService());
         initiator.setLeaderEventPublisher(new DefaultLeaderEventPublisher(applicationEventPublisher));
         return initiator;
+    }
+
+    @Bean
+    public ChannelTopic topic() {
+        return new ChannelTopic("events");
+    }
+
+    @Bean
+    public RedisTemplate<String, BridgeableEvent> eventRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, BridgeableEvent> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        Jackson2JsonRedisSerializer<BridgeableEvent> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(BridgeableEvent.class);
+        ObjectMapper om = new ObjectMapper();
+        om.registerModule(new JavaTimeModule());
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        return template;
+    }
+
+    @Bean
+    public RedisEventBridge redisEventBridge(RedisTemplate<String, BridgeableEvent> eventRedisTemplate) {
+        return new RedisEventBridge(
+                eventRedisTemplate,
+                topic(),
+                applicationEventPublisher);
+    }
+
+    @Bean
+    public RedisMessageListenerContainer redisContainer(RedisEventBridge redisEventBridge) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener(new MessageListenerAdapter(redisEventBridge), topic());
+        return container;
     }
 
 }

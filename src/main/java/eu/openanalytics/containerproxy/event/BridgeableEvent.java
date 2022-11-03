@@ -20,32 +20,20 @@
  */
 package eu.openanalytics.containerproxy.event;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.Value;
-import lombok.With;
 
-@Value
-@EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
-@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
-public class ProxyStartEvent extends BridgeableEvent {
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.springframework.context.ApplicationEvent;
 
-    @With
-    String source;
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.MINIMAL_CLASS,
+        property = "@class"
+)
+public abstract class BridgeableEvent extends ApplicationEvent {
 
-    String proxyId;
-    String userId;
-    String specId;
+    public abstract BridgeableEvent withSource(String source);
 
-    public ProxyStartEvent(Proxy proxy) {
-        source = "SOURCE_NOT_AVAILABLE";
-        proxyId = proxy.getId();
-        userId = proxy.getUserId();
-        specId = proxy.getSpecId();
+    public BridgeableEvent() {
+        super("SOURCE_NOT_AVAILABLE");
     }
 
 }

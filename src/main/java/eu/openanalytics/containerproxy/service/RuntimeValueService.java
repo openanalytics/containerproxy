@@ -29,6 +29,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.DisplayNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
@@ -94,6 +95,11 @@ public class RuntimeValueService {
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
         proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, spec.getId()), false);
+        if (spec.getDisplayName() == null || spec.getDisplayName().isEmpty()) {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(DisplayNameKey.inst, spec.getId()), true);
+        } else {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(DisplayNameKey.inst, spec.getDisplayName()), true);
+        }
 
         if (identifierService.realmId != null) {
             proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);

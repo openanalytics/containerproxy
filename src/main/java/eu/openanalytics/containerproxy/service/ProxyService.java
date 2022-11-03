@@ -344,7 +344,7 @@ public class ProxyService {
 		}
 
 		Runnable releaser = () -> {
-			Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Stopped).build();
+			Proxy stoppedProxy = proxy.withStatus(ProxyStatus.Stopped);
 			try {
 				backend.stopProxy(proxy);
 				// TODO we may want to remove this
@@ -363,7 +363,7 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		Proxy stoppingProxy = proxy.toBuilder().status(ProxyStatus.Stopping).build();
+		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
 		activeProxies.update(stoppingProxy);
 		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
@@ -382,7 +382,7 @@ public class ProxyService {
 		Runnable releaser = () -> {
 			try {
 				backend.pauseProxy(proxy);
-				Proxy stoppedProxy = proxy.toBuilder().status(ProxyStatus.Paused).build();
+				Proxy stoppedProxy = proxy.withStatus(ProxyStatus.Paused);
 				activeProxies.update(stoppedProxy);
 				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				applicationEventPublisher.publishEvent(new ProxyPauseEvent(proxy));
@@ -393,7 +393,7 @@ public class ProxyService {
 		if (async) containerKiller.submit(releaser);
 		else releaser.run();
 
-		Proxy stoppingProxy = proxy.toBuilder().status(ProxyStatus.Pausing).build();
+		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);
 		activeProxies.update(stoppingProxy);
 		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
@@ -443,9 +443,7 @@ public class ProxyService {
 			throw new ContainerProxyException("Container did not respond in time");
 		}
 
-		proxy = proxy.toBuilder()
-				.status(ProxyStatus.Up)
-				.build();
+		proxy = proxy.withStatus(ProxyStatus.Up);
 
 		log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 
@@ -478,7 +476,7 @@ public class ProxyService {
 			// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
 			proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
 
-			return Pair.of(spec, proxy.toBuilder().status(ProxyStatus.Starting).build()); // TODO update proxy
+			return Pair.of(spec, proxy.withStatus(ProxyStatus.Starting)); // TODO update proxy
 		} catch (Throwable t) {
 			try {
 				backend.stopProxy(proxy); // stop in case we are resuming

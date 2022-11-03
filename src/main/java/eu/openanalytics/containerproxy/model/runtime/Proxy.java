@@ -33,6 +33,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import lombok.With;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class Proxy extends RuntimeValueStore {
 
 	String id;
 
+	@With
 	ProxyStatus status;
 
 	long startupTimestamp;

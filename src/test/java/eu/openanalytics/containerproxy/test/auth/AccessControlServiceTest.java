@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.ProxyAccessControlService;
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -47,13 +48,15 @@ public class AccessControlServiceTest {
     private final UserService userService;
     private final IProxySpecProvider specProvider;
     private final ProxyAccessControlService accessControlService;
+    private final ProxyService proxyService;
 
     public AccessControlServiceTest() {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         specProvider = mock(IProxySpecProvider.class);
+        proxyService = mock(ProxyService.class);
         SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(new GenericApplicationContext());
-        accessControlService = new ProxyAccessControlService(specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver));
+        accessControlService = new ProxyAccessControlService(proxyService, specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver));
     }
 
     @Test

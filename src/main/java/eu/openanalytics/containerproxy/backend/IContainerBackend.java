@@ -29,6 +29,7 @@ import java.util.Map;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -49,11 +50,12 @@ public interface IContainerBackend {
 	 * The proxy will be in the {@link ProxyStatus#New} state before entering this method.
 	 * When this method returns, the proxy should be in the {@link ProxyStatus#Up} state.
 	 *
-	 * @param proxy        The proxy to start up.
+	 * @param proxy           The proxy to start up.
 	 * @param spec
+	 * @param proxyStartupLog
 	 * @throws ContainerProxyException If the startup fails for any reason.
 	 */
-	public Proxy startProxy(Proxy proxy,  ProxySpec spec) throws ProxyFailedToStartException;
+	public Proxy startProxy(Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
 
 	/**
 	 * Stop the given proxy. Any resources used by the proxy should be released.

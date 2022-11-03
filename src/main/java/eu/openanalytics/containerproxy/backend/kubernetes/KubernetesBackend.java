@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -100,6 +101,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -164,7 +166,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException {
+	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 		String containerId = UUID.randomUUID().toString();
 		rContainerBuilder.id(containerId);
@@ -301,7 +303,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			createAdditionalManifests(proxy, proxySpec, effectiveKubeNamespace);
 
 			// tell the status service we are starting the pod/container
-			proxyStatusService.containerStarting(proxy.getId(), spec.getIndex());
+			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
 
 			// create and start the pod
 			Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
@@ -319,15 +321,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (!podReady) {
 				// check a final time whether the pod is ready
 				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-					proxyStatusService.containerStartFailed(proxy.getId(), spec.getIndex());
 					throw new ContainerFailedToStartException("Container did not become ready in time", null, rContainerBuilder.build());
 				}
 			}
 
-			proxyStatusService.containerStarted(proxy.getId(), spec.getIndex());
+			proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 			Pod pod = kubeClient.resource(startedPod).fromServer().get();
 
-			parseKubernetesEvents(proxy.getId(), spec.getIndex(), pod);
+			parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
 
 			Service service = null;
 			Map<Integer, Integer> portBindings = new HashMap<>();
@@ -363,31 +364,32 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
 		} catch (ContainerFailedToStartException t) {
-			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
 			throw t;
 		} catch (Throwable throwable) {
-			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
 			throw new ContainerFailedToStartException("", throwable, rContainerBuilder.build());
 		}
 	}
 
 	private LocalDateTime getEventTime(Event event) {
 		if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
-			return OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+//			return OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			return ZonedDateTime.parse(event.getEventTime().getTime()).toLocalDateTime();
 		}
 
 		if (event.getFirstTimestamp() != null) {
-			return OffsetDateTime.parse(event.getFirstTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+//			return OffsetDateTime.parse(event.getFirstTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			return ZonedDateTime.parse(event.getFirstTimestamp()).toLocalDateTime();
 		}
 
 		if (event.getLastTimestamp() != null) {
-			return OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+//			return OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+			return ZonedDateTime.parse(event.getLastTimestamp()).toLocalDateTime();
 		}
 
 		return null;
 	}
 
-	private void parseKubernetesEvents(String proxyId, int containerIdx, Pod pod) {
+	private void parseKubernetesEvents(int containerIdx, Pod pod, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) {
 		List<Event> events;
 		try {
 			 events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
@@ -422,11 +424,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 
 		if (pullingTime != null && pulledTime != null) {
-			proxyStatusService.imagePulled(proxyId, containerIdx, pullingTime, pulledTime);
+			proxyStartupLogBuilder.imagePulled(containerIdx, pullingTime, pulledTime);
 		}
 
 		if (scheduledTime != null) {
-			proxyStatusService.containerScheduled(proxyId, containerIdx, scheduledTime);
+			LocalDateTime start = ZonedDateTime.parse(pod.getMetadata().getCreationTimestamp()).toLocalDateTime();
+			proxyStartupLogBuilder.containerScheduled(containerIdx, start, scheduledTime);
 		}
 	}
 

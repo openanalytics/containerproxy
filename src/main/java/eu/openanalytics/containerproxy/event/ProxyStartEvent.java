@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.event;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -40,12 +41,14 @@ public class ProxyStartEvent extends BridgeableEvent {
     String proxyId;
     String userId;
     String specId;
+    ProxyStartupLog proxyStartupLog;
 
-    public ProxyStartEvent(Proxy proxy) {
+    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
         source = "SOURCE_NOT_AVAILABLE";
         proxyId = proxy.getId();
         userId = proxy.getUserId();
         specId = proxy.getSpecId();
+        this.proxyStartupLog = proxyStartupLog;
     }
 
 }

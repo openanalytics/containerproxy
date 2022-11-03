@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -72,7 +73,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException {
+	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 
 		try {
@@ -81,9 +82,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			if (imagePullPolicy == ImagePullPolicy.Always
 					|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
 				logger.info("Pulling image {}", spec.getImage());
-				proxyStatusService.imagePulling(proxy.getId(), initialContainer.getIndex());
+				proxyStartupLogBuilder.pullingImage(initialContainer.getIndex());
 				pullImage(spec);
-				proxyStatusService.imagePulled(proxy.getId(), initialContainer.getIndex());
+				proxyStartupLogBuilder.imagePulled(initialContainer.getIndex());
 			}
 
 			Map<String, List<PortBinding>> dockerPortBindings = new HashMap<>(); // portBindings for Docker API
@@ -135,8 +136,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 					.env(convertEnv(buildEnv(spec, proxy)))
 					.build();
 
-			// tell the status service we are starting the container
-			proxyStatusService.containerStarting(proxy.getId(), initialContainer.getIndex());
+			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
 			ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
 			rContainerBuilder.id(containerCreation.id());
 
@@ -147,12 +147,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			}
 
 			dockerClient.startContainer(containerCreation.id());
-			proxyStatusService.containerStarted(proxy.getId(), initialContainer.getIndex());
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()), false);
+			proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
 			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
 		} catch (Throwable throwable) {
-			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
 			throw new ContainerFailedToStartException("", throwable, rContainerBuilder.build());
 		}
 	}

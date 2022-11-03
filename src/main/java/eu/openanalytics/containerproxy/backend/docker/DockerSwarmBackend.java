@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -59,7 +60,6 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +80,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException  {
+	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException  {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 		try {
 			Mount[] mounts = spec.getVolumes()
@@ -187,7 +187,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			}
 
 			// tell the status service we are starting the container
-			proxyStatusService.containerStarting(proxy.getId(), initialContainer.getIndex());
+			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId), false);
 
 			// Give the service some time to start up and launch a container.
@@ -210,14 +210,12 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				dockerClient.removeService(serviceId);
 				throw new ContainerFailedToStartException("Swarm container did not start in time", null, rContainerBuilder.build());
 			}
-			proxyStatusService.containerStarted(proxy.getId(), initialContainer.getIndex());
+			proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
 			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
 		} catch (ContainerFailedToStartException t) {
-			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
 			throw t;
 		} catch (Throwable t) {
-			proxyStatusService.containerStartFailed(proxy.getId(), initialContainer.getIndex());
 			throw new ContainerFailedToStartException("", t, rContainerBuilder.build());
 		}
 	}

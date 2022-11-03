@@ -28,14 +28,13 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrat
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
-import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
@@ -89,12 +88,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	// Note: lazy needed to work around early initialization conflict
 	protected IAuthenticationBackend authBackend;
 
-
-	@Inject
-	@Lazy
-	// Note: lazy needed to work around early initialization conflict
-	protected ProxyStatusService proxyStatusService;
-
 	@Inject
 	@Lazy
 	// Note: lazy to prevent cyclic dependencies
@@ -117,7 +110,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public Proxy startProxy(Proxy proxy, ProxySpec proxySpec) throws ProxyFailedToStartException {
+	public Proxy startProxy(Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
@@ -128,8 +121,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			container = runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
 
 			try {
-				container = startContainer(container, spec, proxy, proxySpec);
+				container = startContainer(container, spec, proxy, proxySpec, proxyStartupLogBuilder);
 				proxy = proxy.toBuilder().addContainer(container).build();
+				if (container.getIndex() == 0) {
+					proxyStartupLogBuilder.startingApplication();
+				}
 			} catch (ContainerFailedToStartException t) {
 				proxy = proxy.toBuilder().addContainer(t.getContainer()).build();
 				throw new ProxyFailedToStartException("", t, proxy);
@@ -138,7 +134,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return proxy;
 	}
 
-	protected abstract Container startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec) throws ContainerFailedToStartException;
+	protected abstract Container startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {

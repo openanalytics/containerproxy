@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
@@ -104,9 +105,6 @@ public class ProxyService {
 
 	@Inject
 	private RuntimeValueService runtimeValueService;
-
-	@Inject
-	private ProxyStatusService proxyStatusService;
 
 	@Inject
 	private SpecExpressionResolver expressionResolver;
@@ -260,6 +258,8 @@ public class ProxyService {
 			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
 		}
 
+		ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLog = new ProxyStartupLog.ProxyStartupLogBuilder();
+
 		Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
 		proxyBuilder.id(proxyId);
 		proxyBuilder.status(ProxyStatus.New);
@@ -278,13 +278,13 @@ public class ProxyService {
 		}
 
 		Proxy currentProxy = proxyBuilder.build();
-		saveProxy(currentProxy);
+		proxyStore.addProxy(currentProxy);
 		Pair<ProxySpec, Proxy> r = prepareProxyForStart(currentProxy, spec, parameters);
 		spec = r.getKey();
 		currentProxy = r.getValue();
 
 		try {
-			currentProxy = backend.startProxy(currentProxy, spec);
+			currentProxy = backend.startProxy(currentProxy, spec, proxyStartupLog);
 		} catch (ProxyFailedToStartException t) {
 			try {
 				backend.stopProxy(t.getProxy());
@@ -293,11 +293,11 @@ public class ProxyService {
 				// most important is that we remove the proxy from memory
 				log.warn("Error while stopping failed proxy", t2);
 			}
-			removeProxy(t.getProxy());
+			proxyStore.removeProxy(t.getProxy());
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, t.getProxy().getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		} catch (Throwable t) {
-			removeProxy(currentProxy);
+			proxyStore.removeProxy(currentProxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, currentProxy.getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		}
@@ -310,22 +310,21 @@ public class ProxyService {
 
 		if (!testStrategy.testProxy(currentProxy)) {
 			backend.stopProxy(currentProxy);
-			proxyStatusService.applicationStartupFailed(currentProxy.getId(), currentProxy.getContainers().size());
 			throw new ContainerProxyException("Container did not respond in time");
 		}
+		proxyStartupLog.applicationStarted();
 
 		currentProxy = currentProxy.toBuilder()
 				.startupTimestamp(System.currentTimeMillis())
 				.status(ProxyStatus.Up)
 				.build();
 
-		proxyStatusService.proxyStarted(currentProxy.getId(), currentProxy.getContainers().size());
 		setupProxy(currentProxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", currentProxy.getUserId(), spec.getId(), currentProxy.getContainers().get(0).getId()));
 		proxyStore.updateProxy(currentProxy);
 
-		applicationEventPublisher.publishEvent(new ProxyStartEvent(currentProxy));
+		applicationEventPublisher.publishEvent(new ProxyStartEvent(currentProxy, proxyStartupLog.succeeded()));
 
 		return currentProxy;
 	}
@@ -355,7 +354,7 @@ public class ProxyService {
 				log.error("Failed to release proxy " + proxy.getId(), e);
 			}
 			try {
-				removeProxy(stoppedProxy);
+				proxyStore.removeProxy(stoppedProxy);
 			} catch (Exception e) {
 				log.error("Failed to remove proxy " + proxy.getId(), e);
 			}
@@ -426,11 +425,11 @@ public class ProxyService {
 				// most important is that we remove the proxy from memory
 				log.warn("Error while stopping failed proxy", t2);
 			}
-			removeProxy(t.getProxy());
+			proxyStore.removeProxy(t.getProxy());
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, t.getProxy().getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		} catch (Throwable t) {
-			removeProxy(proxy);
+			proxyStore.removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		}
@@ -439,7 +438,6 @@ public class ProxyService {
 
 		if (!testStrategy.testProxy(proxy)) {
 			backend.stopProxy(proxy);
-			proxyStatusService.applicationStartupFailed(proxy.getId(), spec.getContainerSpecs().size());
 			throw new ContainerProxyException("Container did not respond in time");
 		}
 
@@ -478,7 +476,7 @@ public class ProxyService {
 				// most important is that we remove the proxy from memory
 				log.warn("Error while stopping failed proxy", t2);
 			}
-			removeProxy(proxy);
+			proxyStore.removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(this, proxy.getUserId(), spec.getId()));
 			throw new ContainerProxyException("Container failed to start", t);
 		}
@@ -507,16 +505,6 @@ public class ProxyService {
 				mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
 			}
 		}
-	}
-
-	private void saveProxy(Proxy proxy) {
-		proxyStore.addProxy(proxy);
-		proxyStatusService.proxyCreated(proxy.getId());
-	}
-
-	private void removeProxy(Proxy proxy) {
-		proxyStore.removeProxy(proxy);
-		proxyStatusService.proxyRemoved(proxy.getId());
 	}
 
 }

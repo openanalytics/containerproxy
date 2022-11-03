@@ -35,7 +35,7 @@ public interface IProxyStore {
 
     public void removeProxy(Proxy proxy);
 
-    public void updateProxy(Proxy proxy); 
+    public void updateProxy(Proxy proxy);
 
     public Proxy getProxy(String proxyId);
 }

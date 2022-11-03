@@ -54,11 +54,11 @@ class StatCollectorFactory {
 		log.info(String.format("Enabled. Sending usage statistics to %s.", baseURL));
 
 		if (baseURL.toLowerCase().contains("/write?db=")) {
-			return applicationContext.getAutowireCapableBeanFactory().createBean(InfluxDBCollector.class);
+			return new InfluxDBCollector();
 		} else if (baseURL.toLowerCase().startsWith("jdbc")) {
-			return applicationContext.getAutowireCapableBeanFactory().createBean(JDBCCollector.class);
+			return new JDBCCollector();
 		} else if (baseURL.equalsIgnoreCase("micrometer")) {
-			return applicationContext.getAutowireCapableBeanFactory().createBean(Micrometer.class);
+			return new Micrometer();
 		} else {
 			throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", baseURL));
 		}

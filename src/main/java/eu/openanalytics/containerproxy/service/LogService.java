@@ -21,6 +21,8 @@
 package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
+import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
+import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.log.ILogStorage;
@@ -47,7 +49,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
-// TODO pause+resume
 @Service
 public class LogService {
 
@@ -117,7 +118,29 @@ public class LogService {
 	}
 
 	@EventListener
+	public void onProxyResumed(ProxyResumeEvent event) {
+		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
+		Proxy proxy = proxyService.getProxy(event.getProxyId());
+		if (proxy == null) {
+			return;
+		}
+
+		attachToOutput(proxy);
+	}
+
+	@EventListener
 	public void onProxyStopped(ProxyStopEvent event) {
+		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
+		Proxy proxy = proxyService.getProxy(event.getProxyId());
+		if (proxy == null) {
+			return;
+		}
+
+		detach(proxy);
+	}
+
+	@EventListener
+	public void onProxyPaused(ProxyPauseEvent event) {
 		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
 		Proxy proxy = proxyService.getProxy(event.getProxyId());
 		if (proxy == null) {

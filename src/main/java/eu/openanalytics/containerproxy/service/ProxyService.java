@@ -39,6 +39,7 @@ import javax.inject.Inject;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
+import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
@@ -417,7 +418,7 @@ public class ProxyService {
 		proxy = r.getValue();
 
 		try {
-			proxy = backend.resumeProxy(proxy, spec); // TODO handle errors
+			proxy = backend.resumeProxy(proxy, spec);
 		} catch (ProxyFailedToStartException t) {
 			try {
 				backend.stopProxy(t.getProxy());
@@ -444,19 +445,12 @@ public class ProxyService {
 		}
 
 		proxy = proxy.withStatus(ProxyStatus.Up);
+		setupProxy(proxy);
 
 		log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-
-		// TODO
-//				if (proxy.getStartupTimestamp() == 0) {
-//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(), null));
-//				} else {
-//					applicationEventPublisher.publishEvent(new ProxyStopEvent(this, proxy.getUserId(), proxy.getSpec().getId(),
-//							Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp())));
-//				}
-
-		setupProxy(proxy);
 		activeProxies.update(proxy);
+
+		applicationEventPublisher.publishEvent(new ProxyResumeEvent(proxy));
 	}
 
 	private Pair<ProxySpec, Proxy> prepareProxyForStart(Proxy proxy, ProxySpec spec, Map<String, String> parameters) {

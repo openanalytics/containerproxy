@@ -61,7 +61,7 @@ public class ProxyMappingManager {
 	
 	private PathHandler pathHandler;
 	
-	private Map<String, String> mappings = new HashMap<>();
+	private final Map<String, String> mappings = new HashMap<>();
 	
 	@Inject
 	private HeartbeatService heartbeatService;

@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.service;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +44,7 @@ import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.commons.lang3.tuple.Pair;
@@ -82,7 +81,7 @@ public class ProxyService {
 	private Logger log = LogManager.getLogger(ProxyService.class);
 
 	@Inject
-	private IActiveProxies activeProxies;
+	private IProxyStore proxyStore;
 	private ExecutorService containerKiller = Executors.newSingleThreadExecutor();
 	
 	@Inject
@@ -132,7 +131,7 @@ public class ProxyService {
 		try {
 			containerKiller.shutdown();
 		} finally {
-			for (Proxy proxy : activeProxies.getAllProxies()) {
+			for (Proxy proxy : proxyStore.getAllProxies()) {
 				try {
 					backend.stopProxy(proxy);
 				} catch (Exception exception) {
@@ -188,7 +187,7 @@ public class ProxyService {
 	 * @return The matching proxy, or null if no match was found.
 	 */
 	public Proxy getProxy(String id) {
-		return activeProxies.getProxy(id);
+		return proxyStore.getProxy(id);
 	}
 	
 	/**
@@ -213,7 +212,7 @@ public class ProxyService {
 		// TODO remove filter option
 		boolean isAdmin = userService.isAdmin();
 		List<Proxy> matches = new ArrayList<>();
-		for (Proxy proxy: activeProxies.getAllProxies()) {
+		for (Proxy proxy: proxyStore.getAllProxies()) {
 			boolean hasAccess = ignoreAccessControl || isAdmin || userService.isOwner(proxy);
 			if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
 		}
@@ -228,7 +227,7 @@ public class ProxyService {
 	 */
 	public List<Proxy> getProxiesOfCurrentUser(Predicate<Proxy> filter) {
 		List<Proxy> matches = new ArrayList<>();
-		for (Proxy proxy: activeProxies.getAllProxies()) {
+		for (Proxy proxy: proxyStore.getAllProxies()) {
 			boolean hasAccess = userService.isOwner(proxy);
 			if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
 		}
@@ -324,7 +323,7 @@ public class ProxyService {
 		setupProxy(currentProxy);
 
 		log.info(String.format("Proxy activated [user: %s] [spec: %s] [id: %s]", currentProxy.getUserId(), spec.getId(), currentProxy.getContainers().get(0).getId()));
-		activeProxies.update(currentProxy);
+		proxyStore.updateProxy(currentProxy);
 
 		applicationEventPublisher.publishEvent(new ProxyStartEvent(currentProxy));
 
@@ -349,7 +348,7 @@ public class ProxyService {
 			try {
 				backend.stopProxy(proxy);
 				// TODO we may want to remove this
-				activeProxies.update(stoppedProxy);
+				proxyStore.updateProxy(stoppedProxy);
 				log.info(String.format("Proxy released [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				applicationEventPublisher.publishEvent(new ProxyStopEvent(proxy));
 			} catch (Exception e) {
@@ -365,7 +364,7 @@ public class ProxyService {
 		else releaser.run();
 
 		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
-		activeProxies.update(stoppingProxy);
+		proxyStore.updateProxy(stoppingProxy);
 		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
@@ -384,7 +383,7 @@ public class ProxyService {
 			try {
 				backend.pauseProxy(proxy);
 				Proxy stoppedProxy = proxy.withStatus(ProxyStatus.Paused);
-				activeProxies.update(stoppedProxy);
+				proxyStore.updateProxy(stoppedProxy);
 				log.info(String.format("Proxy paused [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
 				applicationEventPublisher.publishEvent(new ProxyPauseEvent(proxy));
 			} catch (Exception e){
@@ -395,7 +394,7 @@ public class ProxyService {
 		else releaser.run();
 
 		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);
-		activeProxies.update(stoppingProxy);
+		proxyStore.updateProxy(stoppingProxy);
 		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
@@ -448,7 +447,7 @@ public class ProxyService {
 		setupProxy(proxy);
 
 		log.info(String.format("Proxy resumed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId()));
-		activeProxies.update(proxy);
+		proxyStore.updateProxy(proxy);
 
 		applicationEventPublisher.publishEvent(new ProxyResumeEvent(proxy));
 	}
@@ -492,7 +491,7 @@ public class ProxyService {
 	 * @param proxy
 	 */
 	public void addExistingProxy(Proxy proxy) {
-		activeProxies.addProxy(proxy);
+		proxyStore.addProxy(proxy);
 
 		setupProxy(proxy);
 
@@ -511,12 +510,12 @@ public class ProxyService {
 	}
 
 	private void saveProxy(Proxy proxy) {
-		activeProxies.addProxy(proxy);
+		proxyStore.addProxy(proxy);
 		proxyStatusService.proxyCreated(proxy.getId());
 	}
 
 	private void removeProxy(Proxy proxy) {
-		activeProxies.removeProxy(proxy);
+		proxyStore.removeProxy(proxy);
 		proxyStatusService.proxyRemoved(proxy.getId());
 	}
 

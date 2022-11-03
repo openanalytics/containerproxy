@@ -25,9 +25,9 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import eu.openanalytics.containerproxy.event.BridgeableEvent;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.redis.RedisActiveProxies;
+import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
@@ -67,8 +67,8 @@ public class RedisStoreConfiguration {
     // Store beans
 
     @Bean
-    public IActiveProxies activeProxies() {
-        return new RedisActiveProxies();
+    public IProxyStore proxyStore() {
+        return new RedisProxyStore();
     }
 
     @Bean

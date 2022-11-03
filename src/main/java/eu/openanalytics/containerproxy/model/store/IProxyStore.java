@@ -27,7 +27,7 @@ import java.util.Collection;
 /**
  * Interface to manage Active Proxies in the ProxyService.
  */
-public interface IActiveProxies {
+public interface IProxyStore {
 
     public Collection<Proxy> getAllProxies();
 
@@ -35,7 +35,7 @@ public interface IActiveProxies {
 
     public void removeProxy(Proxy proxy);
 
-    public void update(Proxy proxy); // TODO rename to updateProxy
+    public void updateProxy(Proxy proxy); 
 
     public Proxy getProxy(String proxyId);
 }

@@ -22,7 +22,7 @@ package eu.openanalytics.containerproxy.model.store.redis;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.apache.logging.log4j.LogManager;
@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class RedisActiveProxies implements IActiveProxies {
+public class RedisProxyStore implements IProxyStore {
 
     @Inject
     private RedisTemplate<String, Proxy> redisTemplate;
@@ -48,7 +48,7 @@ public class RedisActiveProxies implements IActiveProxies {
     @Inject
     private IdentifierService identifierService;
 
-    private final Logger logger = LogManager.getLogger(RedisActiveProxies.class);
+    private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
 
     private String redisKey;
 
@@ -84,7 +84,7 @@ public class RedisActiveProxies implements IActiveProxies {
     }
 
     @Override
-    public void update(Proxy proxy) {
+    public void updateProxy(Proxy proxy) {
         logger.info("Update proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
         updateMappings(proxy);

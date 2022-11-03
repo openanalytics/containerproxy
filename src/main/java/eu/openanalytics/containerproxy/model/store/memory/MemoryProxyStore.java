@@ -21,11 +21,11 @@
 package eu.openanalytics.containerproxy.model.store.memory;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class MemoryActiveProxies implements IActiveProxies {
+public class MemoryProxyStore implements IProxyStore {
 
     private final ConcurrentHashMap<String, Proxy> activeProxies = new ConcurrentHashMap<>();
 
@@ -45,7 +45,7 @@ public class MemoryActiveProxies implements IActiveProxies {
     }
 
     @Override
-    public void update(Proxy proxy) {
+    public void updateProxy(Proxy proxy) {
         activeProxies.put(proxy.getId(), proxy);
     }
 

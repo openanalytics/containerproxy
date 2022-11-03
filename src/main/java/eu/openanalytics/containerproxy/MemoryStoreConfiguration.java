@@ -20,9 +20,9 @@
  */
 package eu.openanalytics.containerproxy;
 
-import eu.openanalytics.containerproxy.model.store.IActiveProxies;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.memory.MemoryActiveProxies;
+import eu.openanalytics.containerproxy.model.store.memory.MemoryProxyStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
 import eu.openanalytics.containerproxy.service.leader.memory.MemoryLeaderService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -34,8 +34,8 @@ import org.springframework.context.annotation.Configuration;
 public class MemoryStoreConfiguration {
 
     @Bean
-    public IActiveProxies activeProxies() {
-        return new MemoryActiveProxies();
+    public IProxyStore proxyStore() {
+        return new MemoryProxyStore();
     }
 
     @Bean

@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
+import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -81,11 +82,17 @@ public class RedisStoreConfiguration {
         return new RedisLeaderService();
     }
 
+    @Bean
+    public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate,
+                                            IdentifierService identifierService) {
+        return new RedisPortAllocator( porRedisTemplate, identifierService);
+    }
+
     // Beans used internally by Redis store
 
     @Bean
     public ExpirableLockRegistry expirableLockRegistry() {
-        return new RedisLockRegistry(connectionFactory, "shinyproxy_"  + identifierService.realmId + "__locks");
+        return new RedisLockRegistry(connectionFactory, "shinyproxy_" + identifierService.realmId + "__locks");
     }
 
     @Bean
@@ -95,7 +102,9 @@ public class RedisStoreConfiguration {
 
         Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Proxy.class);
         ObjectMapper om = new ObjectMapper();
+
         om.setConfig(om.getSerializationConfig().withView(Views.Internal.class));
+
         jackson2JsonRedisSerializer.setObjectMapper(om);
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
@@ -132,19 +141,7 @@ public class RedisStoreConfiguration {
 
     @Bean
     public RedisTemplate<String, BridgeableEvent> eventRedisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, BridgeableEvent> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-
-        Jackson2JsonRedisSerializer<BridgeableEvent> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(BridgeableEvent.class);
-        ObjectMapper om = new ObjectMapper();
-        om.registerModule(new JavaTimeModule());
-        jackson2JsonRedisSerializer.setObjectMapper(om);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(jackson2JsonRedisSerializer);
-        template.setHashValueSerializer(jackson2JsonRedisSerializer);
-
-        return template;
+        return createRedisTemplate(connectionFactory, BridgeableEvent.class);
     }
 
     @Bean
@@ -161,6 +158,27 @@ public class RedisStoreConfiguration {
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(new MessageListenerAdapter(redisEventBridge), topic());
         return container;
+    }
+
+    @Bean
+    public RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, RedisPortAllocator.PortList.class);
+    }
+
+    private <K,V> RedisTemplate<K,V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {
+        RedisTemplate<K, V> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        Jackson2JsonRedisSerializer<V> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(clazz);
+        ObjectMapper om = new ObjectMapper();
+        om.registerModule(new JavaTimeModule());
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        return template;
     }
 
 }

@@ -94,7 +94,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 			} else {
 				// Allocate ports on the docker host to proxy to.
 				for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping : spec.getPortMapping()) {
-					int hostPort = portAllocator.allocate(proxy.getId());
+					int hostPort = portAllocator.allocate(portRangeFrom, portRangeTo, proxy.getId());
 					dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
 					portBindings.put(portMapping.getPort(), hostPort);
 				}

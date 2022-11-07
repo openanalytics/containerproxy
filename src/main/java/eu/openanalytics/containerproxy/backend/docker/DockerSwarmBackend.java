@@ -164,7 +164,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 			} else {
 				// Access ports via port publishing on the service.
 				for (PortMapping portMapping : spec.getPortMapping()) {
-					int hostPort = portAllocator.allocate(proxy.getId());
+					int hostPort = portAllocator.allocate(portRangeFrom, portRangeTo, proxy.getId());
 					portsToPublish.add(PortConfig.builder().publishedPort(hostPort).targetPort(portMapping.getPort()).build());
 					portBindings.put(portMapping.getPort(), hostPort);
 				}

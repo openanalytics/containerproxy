@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryProxyStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
 import eu.openanalytics.containerproxy.service.leader.memory.MemoryLeaderService;
+import eu.openanalytics.containerproxy.service.portallocator.memory.MemoryPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +47,11 @@ public class MemoryStoreConfiguration {
     @Bean
     public MemoryLeaderService leaderService() {
         return new MemoryLeaderService();
+    }
+
+    @Bean
+    public MemoryPortAllocator portAllocator() {
+        return new MemoryPortAllocator();
     }
 
 }

@@ -217,8 +217,6 @@ public class LogService {
 	}
 
 	private void detach(Proxy proxy) {
-		log.info("detach");
-
 		LogStreams streams = proxyStreams.get(proxy.getId());
 		if (streams == null) {
 			log.warn("Cannot detach container logging: streams not found");

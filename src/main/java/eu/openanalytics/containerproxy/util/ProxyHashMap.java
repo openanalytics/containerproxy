@@ -20,10 +20,6 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
-import eu.openanalytics.containerproxy.event.ProxyStopEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -31,26 +27,19 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-public class ProxyHashMap {
+public class ProxyHashMap implements ICleanupStoppedProxies {
 
     private static final List<ConcurrentHashMap<String, ?>> maps = new ArrayList<>();
-
-    @Async
-    @EventListener
-    public void onProxyStopEvent(ProxyStopEvent event) {
-        maps.forEach(map -> map.remove(event.getProxyId()));
-    }
-
-    @Async
-    @EventListener
-    public void onProxyStopEvent(ProxyPauseEvent event) {
-        maps.forEach(map -> map.remove(event.getProxyId()));
-    }
 
     public static synchronized <V> ConcurrentHashMap<String, V> create() {
         ConcurrentHashMap<String, V> map = new ConcurrentHashMap<>();
         maps.add(map);
         return map;
+    }
+
+    @Override
+    public void cleanupProxy(String proxyId) {
+        maps.forEach(map -> map.remove(proxyId));
     }
 
 }

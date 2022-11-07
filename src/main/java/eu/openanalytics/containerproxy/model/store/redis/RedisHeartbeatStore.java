@@ -22,13 +22,14 @@ package eu.openanalytics.containerproxy.model.store.redis;
 
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.util.ICleanupStoppedProxies;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-public class RedisHeartbeatStore implements IHeartbeatStore {
+public class RedisHeartbeatStore implements IHeartbeatStore, ICleanupStoppedProxies {
 
     @Inject
     private RedisTemplate<String, Long> redisTemplate;
@@ -57,7 +58,7 @@ public class RedisHeartbeatStore implements IHeartbeatStore {
     }
 
     @Override
-    public void remove(String proxyId) {
+    public void cleanupProxy(String proxyId) {
         ops.delete(redisKey, proxyId);
     }
 

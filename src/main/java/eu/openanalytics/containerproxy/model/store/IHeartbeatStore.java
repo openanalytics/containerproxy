@@ -26,6 +26,4 @@ public interface IHeartbeatStore {
 
     public Long get(String proxyId);
 
-    public void remove(String proxyId);
-
 }

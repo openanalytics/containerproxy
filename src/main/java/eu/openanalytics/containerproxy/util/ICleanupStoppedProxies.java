@@ -18,25 +18,27 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.store.memory;
+package eu.openanalytics.containerproxy.util;
 
-import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.util.ProxyHashMap;
+import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 
-import java.util.concurrent.ConcurrentHashMap;
+public interface ICleanupStoppedProxies {
 
-public class MemoryHeartbeatStore implements IHeartbeatStore {
-
-    private final ConcurrentHashMap<String, Long> heartbeats = ProxyHashMap.create();
-
-    @Override
-    public void update(String proxyId, Long currentTimeMillis) {
-        heartbeats.put(proxyId, currentTimeMillis);
+    @Async
+    @EventListener
+    public default void onProxyStopEvent(ProxyStopEvent event) {
+        cleanupProxy(event.getProxyId());
     }
 
-    @Override
-    public Long get(String proxyId) {
-        return heartbeats.get(proxyId);
+    @Async
+    @EventListener
+    public default void onProxyPauseEvent(ProxyPauseEvent event) {
+        cleanupProxy(event.getProxyId());
     }
+
+    public void cleanupProxy(String proxyId);
 
 }

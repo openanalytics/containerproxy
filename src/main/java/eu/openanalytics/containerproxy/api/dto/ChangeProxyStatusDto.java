@@ -18,26 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service;
+package eu.openanalytics.containerproxy.api.dto;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import org.springframework.stereotype.Component;
+public class ChangeProxyStatusDto {
 
-/**
- * Releases a proxy by stopping it.
- */
-@Component
-public class StopProxyReleaseStrategy implements IProxyReleaseStrategy {
+    private String desiredState;
 
-    private final AsyncProxyService proxyService;
-
-    public StopProxyReleaseStrategy(AsyncProxyService proxyService) {
-        this.proxyService = proxyService;
+    public String getDesiredState() {
+        return desiredState;
     }
 
-    @Override
-    public void releaseProxy(Proxy proxy) {
-        proxyService.stopProxy(proxy, true);
+    public void setDesiredState(String desiredState) {
+        this.desiredState = desiredState;
     }
 
 }

@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.backend.strategy.impl;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.springframework.core.env.Environment;
@@ -43,6 +44,9 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	private ProxyService proxyService;
 
 	@Inject
+	private AsyncProxyService asyncProxyService;
+
+	@Inject
 	private Environment environment;
 
 	@Inject
@@ -59,7 +63,7 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	public void onLogout(String userId) {
 		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
 			if (shouldBeStopped(proxy)) {
-				proxyService.stopProxy(proxy, true, true);
+				asyncProxyService.stopProxy(proxy,  true);
 			}
 		}
 	}

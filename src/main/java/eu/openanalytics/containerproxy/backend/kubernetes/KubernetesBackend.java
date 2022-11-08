@@ -87,6 +87,7 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.security.core.Authentication;
 
 import javax.inject.Inject;
 import javax.json.JsonPatch;
@@ -166,7 +167,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
+	protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 		String containerId = UUID.randomUUID().toString();
 		rContainerBuilder.id(containerId);
@@ -291,7 +292,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 			}
 
-			JsonPatch patch = readPatchFromSpec(spec, proxy, proxySpec);
+			JsonPatch patch = readPatchFromSpec(user, spec, proxy, proxySpec);
 
 			Pod startupPod = podBuilder.withSpec(podSpec).build();
 			Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
@@ -300,7 +301,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
 
 			// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
-			createAdditionalManifests(proxy, proxySpec, effectiveKubeNamespace);
+			createAdditionalManifests(user,proxy, proxySpec, effectiveKubeNamespace);
 
 			// tell the status service we are starting the pod/container
 			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -372,17 +373,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private LocalDateTime getEventTime(Event event) {
 		if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
-//			return OffsetDateTime.parse(event.getEventTime().getTime()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
 			return ZonedDateTime.parse(event.getEventTime().getTime()).toLocalDateTime();
 		}
 
 		if (event.getFirstTimestamp() != null) {
-//			return OffsetDateTime.parse(event.getFirstTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
 			return ZonedDateTime.parse(event.getFirstTimestamp()).toLocalDateTime();
 		}
 
 		if (event.getLastTimestamp() != null) {
-//			return OffsetDateTime.parse(event.getLastTimestamp()).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
 			return ZonedDateTime.parse(event.getLastTimestamp()).toLocalDateTime();
 		}
 
@@ -433,7 +431,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
-	private JsonPatch readPatchFromSpec(ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonMappingException, JsonProcessingException {
+	private JsonPatch readPatchFromSpec(Authentication user, ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonMappingException, JsonProcessingException {
 		String patchAsString = proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
 		if (patchAsString == null) {
 			return null;
@@ -444,8 +442,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		SpecExpressionContext context = SpecExpressionContext.create(containerSpec,
 				proxy,
 				proxySpec,
-				userService.getCurrentAuth().getPrincipal(),
-				userService.getCurrentAuth().getCredentials());
+				user.getPrincipal(),
+				user.getCredentials());
 		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
 
 		if (StringUtils.isBlank(expressionAwarePatch)) {
@@ -462,11 +460,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 *
 	 * The resource will only be created if it does not already exist.
 	 */
-	private void createAdditionalManifests(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
+	private void createAdditionalManifests(Authentication user, Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
 		for (GenericKubernetesResource fullObject: getAdditionManifestsAsObjects(proxy, proxySpec, namespace)) {
 			applyAdditionalManifest(fullObject);
 		}
-		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(proxy, proxySpec, namespace)) {
+		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(user, proxy, proxySpec, namespace)) {
 			applyAdditionalManifest(fullObject);
 		}
 	}
@@ -477,10 +475,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalManifests());
 	}
 
-	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
+	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Authentication auth, Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
 		SpecExpressionContext context = SpecExpressionContext.create(
 				proxy, proxySpec,
-				userService.getCurrentAuth().getPrincipal(), userService.getCurrentAuth().getCredentials());
+				auth.getPrincipal(),
+				auth.getCredentials());
 		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalPersistentManifests());
 	}
 

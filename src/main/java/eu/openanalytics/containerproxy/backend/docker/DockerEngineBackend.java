@@ -49,6 +49,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
 
 import java.net.URI;
 import java.net.URL;
@@ -73,7 +74,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
+	protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 
 		try {

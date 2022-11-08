@@ -48,6 +48,7 @@ import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -78,9 +79,6 @@ public class RuntimeValueService {
     private Environment environment;
 
     @Inject
-    private UserService userService;
-
-    @Inject
     protected IdentifierService identifierService;
 
     @PostConstruct
@@ -89,7 +87,7 @@ public class RuntimeValueService {
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
-    public Proxy addRuntimeValuesBeforeSpel(ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
+    public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
         Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"), false);
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
@@ -105,12 +103,12 @@ public class RuntimeValueService {
             proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
         }
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
-        String[] groups = UserService.getGroups(userService.getCurrentAuth());
+        String[] groups = UserService.getGroups(user);
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 
         // parameters
-        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(userService.getCurrentAuth(), spec, parameters);
+        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(user, spec, parameters);
         if (providedParametersOptional.isPresent()) {
             proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
             proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);

@@ -94,14 +94,14 @@ public class TestIntegrationOnSwarm {
             String specId = environment.getProperty("proxy.specs[0].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
 
             List<Service> services = dockerClient.listServices();
             Assertions.assertEquals(1, services.size());
             Service service = services.get(0);
             Assertions.assertEquals("openanalytics/shinyproxy-demo", service.spec().taskTemplate().containerSpec().image());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
         }
     }
 
@@ -121,7 +121,7 @@ public class TestIntegrationOnSwarm {
             String specId = environment.getProperty("proxy.specs[1].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
 
             List<Service> services = dockerClient.listServices();
             Assertions.assertEquals(1, services.size());
@@ -146,7 +146,7 @@ public class TestIntegrationOnSwarm {
             Assertions.assertEquals("1000", secret2.file().uid());
             Assertions.assertEquals(384, secret2.file().mode()); // 0444 in decimal
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
             dockerClient.deleteSecret(secret1Id);
             dockerClient.deleteSecret(secret2Id);
         }
@@ -158,7 +158,9 @@ public class TestIntegrationOnSwarm {
         @Bean
         @Primary
         public ProxyMappingManager mappingManager() {
-            return new TestIntegrationOnKube.NoopMappingManager();
+            return null;
+
+//            return new TestIntegrationOnKube.NoopMappingManager();
         }
 
         @Bean

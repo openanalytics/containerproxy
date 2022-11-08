@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import org.springframework.security.core.Authentication;
 
 public interface IContainerBackend {
 
@@ -55,7 +56,7 @@ public interface IContainerBackend {
 	 * @param proxyStartupLog
 	 * @throws ContainerProxyException If the startup fails for any reason.
 	 */
-	public Proxy startProxy(Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
+	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
 
 	/**
 	 * Stop the given proxy. Any resources used by the proxy should be released.
@@ -108,7 +109,7 @@ public interface IContainerBackend {
 		return false;
 	}
 
-    default public Proxy addRuntimeValuesBeforeSpel(ProxySpec spec, Proxy proxy) throws ContainerProxyException {
+    default public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy) throws ContainerProxyException {
 		return proxy;
 	}
 

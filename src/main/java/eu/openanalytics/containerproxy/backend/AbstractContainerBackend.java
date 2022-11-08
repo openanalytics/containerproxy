@@ -36,13 +36,13 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
-import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -73,9 +73,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Inject
 	protected IProxyTargetMappingStrategy mappingStrategy;
-
-	@Inject
-	protected UserService userService;
 
 	@Inject
 	protected Environment environment;
@@ -110,7 +107,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public Proxy startProxy(Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
+	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
 			if (authBackend != null) authBackend.customizeContainer(spec);
 
@@ -121,7 +118,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			container = runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
 
 			try {
-				container = startContainer(container, spec, proxy, proxySpec, proxyStartupLogBuilder);
+				container = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
 				proxy = proxy.toBuilder().addContainer(container).build();
 				if (container.getIndex() == 0) {
 					proxyStartupLogBuilder.startingApplication();
@@ -134,7 +131,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return proxy;
 	}
 
-	protected abstract Container startContainer(Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
+	protected abstract Container startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {

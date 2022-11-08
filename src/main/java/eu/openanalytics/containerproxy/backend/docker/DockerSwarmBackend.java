@@ -55,6 +55,7 @@ import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
 import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.springframework.security.core.Authentication;
 
 import java.net.URI;
 import java.net.URL;
@@ -80,7 +81,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 	}
 
 	@Override
-	protected Container startContainer(Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException  {
+	protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException  {
 		Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 		try {
 			Mount[] mounts = spec.getVolumes()

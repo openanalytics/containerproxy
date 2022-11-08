@@ -28,6 +28,7 @@ public enum ProxyStatus {
 	Stopping,
 	Pausing,
 	Paused,
-	Stopped
+	Resuming,
+	Stopped;
 
 }

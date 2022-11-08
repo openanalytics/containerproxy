@@ -18,26 +18,11 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service;
+package eu.openanalytics.containerproxy.api.exception;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import org.springframework.stereotype.Component;
+public class ProxyNotFoundException extends RuntimeException {
 
-/**
- * Releases a proxy by stopping it.
- */
-@Component
-public class StopProxyReleaseStrategy implements IProxyReleaseStrategy {
-
-    private final AsyncProxyService proxyService;
-
-    public StopProxyReleaseStrategy(AsyncProxyService proxyService) {
-        this.proxyService = proxyService;
+    public ProxyNotFoundException(String proxyId) {
+        super(String.format("No proxy with id %s found", proxyId));
     }
-
-    @Override
-    public void releaseProxy(Proxy proxy) {
-        proxyService.stopProxy(proxy, true);
-    }
-
 }

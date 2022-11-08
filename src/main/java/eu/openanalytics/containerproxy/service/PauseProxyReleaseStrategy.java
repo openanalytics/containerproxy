@@ -21,24 +21,21 @@
 package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import org.springframework.stereotype.Component;
-
-import javax.inject.Inject;
 
 /**
  * Releases a proxy by stopping it.
  */
 public class PauseProxyReleaseStrategy implements IProxyReleaseStrategy {
 
-    private final ProxyService proxyService;
+    private final AsyncProxyService proxyService;
 
-    public PauseProxyReleaseStrategy(ProxyService proxyService) {
+    public PauseProxyReleaseStrategy(AsyncProxyService proxyService) {
         this.proxyService = proxyService;
     }
 
     @Override
     public void releaseProxy(Proxy proxy) {
-        proxyService.pauseProxy(proxy, true, true);
+        proxyService.pauseProxy(proxy, true);
     }
 
 }

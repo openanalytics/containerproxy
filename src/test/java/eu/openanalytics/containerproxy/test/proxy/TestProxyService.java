@@ -35,7 +35,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -62,8 +61,8 @@ public class TestProxyService {
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
 
-		Proxy proxy = proxyService.startProxy(baseSpec, true);
-		proxyService.stopProxy(proxy, false, true);
+		Proxy proxy = proxyService.startProxy(baseSpec);
+		proxyService.stopProxy(null, proxy, true).run();
 	}
 	
 	public static class TestConfiguration {

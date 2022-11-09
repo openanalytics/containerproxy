@@ -298,11 +298,9 @@ public class ProxyService {
 				throw new ContainerProxyException("Container failed to start", t);
 			}
 
-			// TODO
-//		if (proxyBuilder.getStatus().equals(ProxyStatus.Stopped) || proxyBuilder.getStatus().equals(ProxyStatus.Stopping)) {
-//			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxyBuilder.getUserId(), proxyBuilder.getSpecId(), proxyBuilder.getId()));
-//			return proxyBuilder;
-//		}
+			if (cleanupIfPendingAppWasStopped(startingProxy)) {
+				return;
+			}
 
 			if (!testStrategy.testProxy(startingProxy)) {
 				// TODO catch stopProxy errors
@@ -324,6 +322,9 @@ public class ProxyService {
 			proxyStore.updateProxy(startingProxy);
 
 			applicationEventPublisher.publishEvent(new ProxyStartEvent(startingProxy, proxyStartupLog.succeeded()));
+
+			// final check to see if the app was stopped
+			cleanupIfPendingAppWasStopped(startingProxy);
 		});
 	}
 
@@ -440,7 +441,9 @@ public class ProxyService {
 				throw new ContainerProxyException("Container failed to start", t);
 			}
 
-			// TODO handle stopped pending app
+			if (cleanupIfPendingAppWasStopped(result)) {
+				return;
+			}
 
 			if (!testStrategy.testProxy(result)) {
 				// TODO catch stopProxy errors
@@ -457,6 +460,9 @@ public class ProxyService {
 			proxyStore.updateProxy(result);
 
 			applicationEventPublisher.publishEvent(new ProxyResumeEvent(result));
+
+			// final check to see if the app was stopped
+			cleanupIfPendingAppWasStopped(result);
 		});
 	}
 
@@ -490,6 +496,18 @@ public class ProxyService {
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
 			throw new ContainerProxyException("Container failed to start", t);
 		}
+	}
+
+	private boolean cleanupIfPendingAppWasStopped(Proxy startingProxy) {
+		// fetch proxy from proxyStore in order to check if it was stopped
+		Proxy proxy = getProxy(startingProxy.getId());
+		if (proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
+				|| proxy.getStatus().equals(ProxyStatus.Stopping)) {
+			backend.stopProxy(startingProxy);
+			log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", startingProxy.getUserId(), startingProxy.getSpecId(), startingProxy.getId()));
+			return true;
+		}
+		return false;
 	}
 
 

@@ -20,9 +20,13 @@
  */
 package eu.openanalytics.containerproxy.api.dto;
 
+import java.util.Map;
+
 public class ChangeProxyStatusDto {
 
     private String desiredState;
+
+    private Map<String, String> parameters;
 
     public String getDesiredState() {
         return desiredState;
@@ -32,4 +36,11 @@ public class ChangeProxyStatusDto {
         this.desiredState = desiredState;
     }
 
+    public Map<String, String> getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(Map<String, String> parameters) {
+        this.parameters = parameters;
+    }
 }

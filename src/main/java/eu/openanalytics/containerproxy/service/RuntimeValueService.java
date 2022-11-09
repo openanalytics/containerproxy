@@ -87,7 +87,7 @@ public class RuntimeValueService {
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
     }
 
-    public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
+    public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy) {
         Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"), false);
         proxyBuilder.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()), false);
@@ -107,12 +107,6 @@ public class RuntimeValueService {
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 
-        // parameters
-        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(user, spec, parameters);
-        if (providedParametersOptional.isPresent()) {
-            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
-            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
-        }
         return proxyBuilder.build();
     }
 
@@ -141,4 +135,13 @@ public class RuntimeValueService {
         return containerBuilder.build();
     }
 
+    public Proxy processParameters(Authentication user, ProxySpec spec, Map<String, String> parameters, Proxy proxy) throws InvalidParametersException {
+        Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
+        Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(user, spec, parameters);
+        if (providedParametersOptional.isPresent()) {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
+        }
+        return proxyBuilder.build();
+    }
 }

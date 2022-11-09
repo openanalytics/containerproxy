@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
+import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import org.springframework.context.event.EventListener;
@@ -85,7 +86,11 @@ public class ProxyStatusController {
             if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
                 return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
             }
-            asyncProxyService.resumeProxy(proxy,false);
+            try {
+                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters(), false);
+            } catch (InvalidParametersException ex) {
+                return ApiResponse.fail(ex.getMessage());
+            }
         } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
             if (!proxy.getStatus().equals(ProxyStatus.Up) && !proxy.getStatus().equals(ProxyStatus.Paused)) {
                 return ApiResponse.fail(String.format("Cannot stop proxy because it is not in Up or Paused status (status is %s)", proxy.getStatus()));

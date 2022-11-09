@@ -158,9 +158,7 @@ public class TestIntegrationOnSwarm {
         @Bean
         @Primary
         public ProxyMappingManager mappingManager() {
-            return null;
-
-//            return new TestIntegrationOnKube.NoopMappingManager();
+            return new TestIntegrationOnKube.NoopMappingManager();
         }
 
         @Bean

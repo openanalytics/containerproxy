@@ -20,34 +20,26 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
+import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
 import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
-import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,13 +49,17 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.ContainerProxyException;
-import eu.openanalytics.containerproxy.backend.IContainerBackend;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.inject.Inject;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -111,6 +107,9 @@ public class ProxyService {
 
 	@Inject
 	protected IProxyTestStrategy testStrategy;
+
+	@Inject
+	private ParametersService parametersService;
 
 	private boolean stopAppsOnShutdown;
 
@@ -270,14 +269,12 @@ public class ProxyService {
 			proxyBuilder.addRuntimeValues(runtimeValues);
 		}
 
-		Proxy currentProxy = proxyBuilder.build();
+		Proxy currentProxy = runtimeValueService.processParameters(user, spec, parameters, proxyBuilder.build());
 		proxyStore.addProxy(currentProxy);
-
-		// TODO validate parameters first
 
 		return new Command(() -> {
 			ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLog = new ProxyStartupLog.ProxyStartupLogBuilder();
-			Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, currentProxy, spec, parameters);
+			Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, currentProxy, spec);
 			ProxySpec resolvedSpec = r.getKey();
 			Proxy startingProxy = r.getValue();
 
@@ -398,7 +395,7 @@ public class ProxyService {
 		});
 	}
 
-	public Command resumeProxy(Authentication user, Proxy proxy, boolean ignoreAccessControl) {
+	public Command resumeProxy(Authentication user, Proxy proxy, Map<String, String> parameters, boolean ignoreAccessControl) throws InvalidParametersException {
 		// TODO proxystartuplog?
 		// TODO admin should not have access?
 		if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
@@ -411,15 +408,16 @@ public class ProxyService {
 
 		// caller may or may not already mark proxy as starting
 		Proxy resumingProxy = proxy.withStatus(ProxyStatus.Resuming);
-		proxyStore.updateProxy(resumingProxy);
+		Proxy parameterizedProxy = runtimeValueService.processParameters(user, getProxySpec(proxy.getSpecId()), parameters, resumingProxy);
+		proxyStore.updateProxy(parameterizedProxy);
 
 		return new Command(() -> {
-			Proxy result = resumingProxy;
+			Proxy result = parameterizedProxy;
 
 			// When resuming the proxy, we *do* want to re-evaluate the environment variables
 			// therefore we fetch the latest version of the spec and evaluate SpeL
 			ProxySpec spec = baseSpecProvider.getSpec(result.getSpecId());
-			Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, result, spec, null); // TODO support parameters
+			Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, result, spec); // TODO support parameters
 			spec = r.getKey();
 			result = r.getValue();
 
@@ -462,9 +460,9 @@ public class ProxyService {
 		});
 	}
 
-	private Pair<ProxySpec, Proxy> prepareProxyForStart(Authentication user, Proxy proxy, ProxySpec spec, Map<String, String> parameters) {
+	private Pair<ProxySpec, Proxy> prepareProxyForStart(Authentication user, Proxy proxy, ProxySpec spec) {
 		try {
-			proxy = runtimeValueService.addRuntimeValuesBeforeSpel(user, spec, parameters, proxy);
+			proxy = runtimeValueService.addRuntimeValuesBeforeSpel(user, spec, proxy);
 			proxy = backend.addRuntimeValuesBeforeSpel(user, spec, proxy);
 
 			SpecExpressionContext context = SpecExpressionContext.create(

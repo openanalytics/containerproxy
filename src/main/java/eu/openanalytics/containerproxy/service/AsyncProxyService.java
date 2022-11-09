@@ -81,10 +81,10 @@ public class AsyncProxyService {
         });
     }
 
-    public void resumeProxy(Proxy proxy, boolean ignoreAccessControl) {
+    public void resumeProxy(Proxy proxy, Map<String, String> parameters, boolean ignoreAccessControl) throws InvalidParametersException {
         // access control check and state change must happen synchronously
         Authentication user = userService.getCurrentAuth();
-        ProxyService.Command command = proxyService.resumeProxy(user, proxy, ignoreAccessControl);
+        ProxyService.Command command = proxyService.resumeProxy(user, proxy, parameters,ignoreAccessControl);
         executor.submit(() -> {
             try {
                 command.run();

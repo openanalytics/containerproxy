@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.ChangeProxyStatusDto;
 import eu.openanalytics.containerproxy.api.exception.ProxyNotFoundException;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
+import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
@@ -144,7 +145,11 @@ public class ProxyStatusController {
             return res;
         }
 
-        // todo check timeout
+        if (timeout < 10 || timeout > 60) {
+            DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();
+            res.setResult(ApiResponse.fail("Timeout must be between 10 and 60 seconds (inclusive)."));
+            return res;
+        }
 
         DeferredResult<ResponseEntity<ApiResponse<Proxy>>> output = new DeferredResult<>(timeout * 1000, () -> {
             Proxy res = proxyService.getProxy(proxyId);
@@ -179,6 +184,11 @@ public class ProxyStatusController {
 
     @EventListener
     public void onProxyPauseEvent(ProxyPauseEvent event) {
+        completeWatchers(event.getProxyId());
+    }
+
+    @EventListener
+    public void onProxyPauseEvent(ProxyResumeEvent event) {
         completeWatchers(event.getProxyId());
     }
 

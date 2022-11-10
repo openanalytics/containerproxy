@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ import java.util.concurrent.Executors;
 @Service
 public class AsyncProxyService {
 
-    private final ExecutorService executor = Executors.newCachedThreadPool(); // TODO shutdown executor
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     @Inject
     private ProxyService proxyService;
@@ -67,6 +68,11 @@ public class AsyncProxyService {
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.resumeProxy(user, proxy, parameters);
         executor.submit(command);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        executor.shutdown();
     }
 
 }

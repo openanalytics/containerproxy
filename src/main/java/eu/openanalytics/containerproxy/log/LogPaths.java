@@ -24,7 +24,6 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.io.OutputStream;
 import java.nio.file.Path;
 
 @Value

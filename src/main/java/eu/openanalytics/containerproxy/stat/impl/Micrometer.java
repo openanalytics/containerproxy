@@ -72,6 +72,7 @@ public class Micrometer implements IStatCollector {
     private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
 
     // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<ProxyCounter> proxyCounters = new ArrayList<>();
 
     private Counter appStartFailedCounter;

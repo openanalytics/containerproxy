@@ -51,9 +51,10 @@ public interface IContainerBackend {
 	 * The proxy will be in the {@link ProxyStatus#New} state before entering this method.
 	 * When this method returns, the proxy should be in the {@link ProxyStatus#Up} state.
 	 *
-	 * @param proxy           The proxy to start up.
-	 * @param spec
-	 * @param proxyStartupLog
+	 * @param user the user starting the proxy
+	 * @param proxy the proxy to start
+	 * @param spec the spec of the proxy
+	 * @param proxyStartupLogBuilder the startupLog of this proxy
 	 * @throws ContainerProxyException If the startup fails for any reason.
 	 */
 	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;

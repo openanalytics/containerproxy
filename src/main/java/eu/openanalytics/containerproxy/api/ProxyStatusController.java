@@ -88,7 +88,7 @@ public class ProxyStatusController {
                 return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
             }
             try {
-                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters(), false);
+                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
             } catch (InvalidParametersException ex) {
                 return ApiResponse.fail(ex.getMessage());
             }

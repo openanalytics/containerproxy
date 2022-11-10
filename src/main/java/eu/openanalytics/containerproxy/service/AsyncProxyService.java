@@ -46,52 +46,27 @@ public class AsyncProxyService {
     public Proxy startProxy(ProxySpec spec, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) throws InvalidParametersException {
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.startProxy(user, spec, runtimeValues, proxyId, parameters);
-
-        executor.submit(() -> {
-            try {
-                command.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        });
+        executor.submit(command);
         return proxyService.getProxy(proxyId);
     }
 
     public void stopProxy(Proxy proxy, boolean ignoreAccessControl) {
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.stopProxy(user, proxy, ignoreAccessControl);
-        executor.submit(() -> {
-            try {
-                command.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        });
+        executor.submit(command);
     }
 
     public void pauseProxy(Proxy proxy, boolean ignoreAccessControl) {
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.pauseProxy(user, proxy, ignoreAccessControl);
-        executor.submit(() -> {
-            try {
-                command.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        });
+        executor.submit(command);
     }
 
-    public void resumeProxy(Proxy proxy, Map<String, String> parameters, boolean ignoreAccessControl) throws InvalidParametersException {
+    public void resumeProxy(Proxy proxy, Map<String, String> parameters) throws InvalidParametersException {
         // access control check and state change must happen synchronously
         Authentication user = userService.getCurrentAuth();
-        ProxyService.Command command = proxyService.resumeProxy(user, proxy, parameters,ignoreAccessControl);
-        executor.submit(() -> {
-            try {
-                command.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        });
+        ProxyService.Command command = proxyService.resumeProxy(user, proxy, parameters);
+        executor.submit(command);
     }
 
 }

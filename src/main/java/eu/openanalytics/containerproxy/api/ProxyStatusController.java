@@ -94,7 +94,6 @@ public class ProxyStatusController {
             }
         } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
             if (!proxy.getStatus().equals(ProxyStatus.New)
-                    && !proxy.getStatus().equals(ProxyStatus.Starting)
                     && !proxy.getStatus().equals(ProxyStatus.Up)
                     && !proxy.getStatus().equals(ProxyStatus.Resuming)
                     && !proxy.getStatus().equals(ProxyStatus.Paused)) {

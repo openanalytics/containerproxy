@@ -101,9 +101,7 @@ public class RedisProxyStore implements IProxyStore {
     }
 
     public void updateMappings(Proxy proxy) {
-        if (proxy.getStatus() == ProxyStatus.Stopping || proxy.getStatus() == ProxyStatus.Stopped
-                || proxy.getStatus() == ProxyStatus.Pausing || proxy.getStatus() == ProxyStatus.Paused) {
-
+        if (proxy.getStatus().isUnavailable()) {
             Map<String, URI> oldTargets = targetsCache.remove(proxy.getId());
             if (oldTargets != null) {
                 // there were still some old mappings -> remove them

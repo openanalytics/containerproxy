@@ -31,4 +31,11 @@ public enum ProxyStatus {
 	Resuming,
 	Stopped;
 
+	public boolean isUnavailable() {
+		return this.equals(Stopping)
+				|| this.equals(Stopped)
+				|| this.equals(Pausing)
+				|| this.equals(Paused);
+	}
+
 }

@@ -364,14 +364,13 @@ public class ProxyService {
 			throw new IllegalArgumentException("Trying to resume a proxy when the backend does not support pausing apps");
 		}
 
-		// caller may or may not already mark proxy as starting
 		Proxy resumingProxy = proxy.withStatus(ProxyStatus.Resuming);
 		Proxy parameterizedProxy = runtimeValueService.processParameters(user, getProxySpec(proxy.getSpecId()), parameters, resumingProxy);
 		proxyStore.updateProxy(parameterizedProxy);
 
 		return new Command(() -> {
 			// TODO proxystartuplog?
-			Proxy result = startOrResumeProxy(user, proxy, null);
+			Proxy result = startOrResumeProxy(user, parameterizedProxy, null);
 
 			if (result != null) {
 				log.info(formatLogMessage("Proxy resumed", result));

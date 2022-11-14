@@ -88,6 +88,15 @@ public abstract class RuntimeValueStore {
         return runtimeValue.getObject();
     }
 
+    public <T> T getRuntimeObjectOrDefault(RuntimeValueKey<T> key, T defaultValue) {
+        Objects.requireNonNull(key, "key may not be null");
+        RuntimeValue runtimeValue = getRuntimeValues().get(key);
+        if (runtimeValue == null) {
+            return defaultValue;
+        }
+        return runtimeValue.getObject();
+    }
+
     public <T> String getRuntimeValue(RuntimeValueKey<T> key) {
         Objects.requireNonNull(key, "key may not be null");
         RuntimeValue runtimeValue = getRuntimeValues().get(key);

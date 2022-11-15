@@ -195,7 +195,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 
 			List<EnvVar> envVars = new ArrayList<>();
-			for (Map.Entry<String, String> envVar : buildEnv(spec, proxy).entrySet()) {
+			for (Map.Entry<String, String> envVar : buildEnv(user, spec, proxy).entrySet()) {
 				if (envVar.getValue().toLowerCase().startsWith(SECRET_KEY_REF.toLowerCase())) {
 					String[] ref = envVar.getValue().split(":");
 					if (ref.length != 3) {

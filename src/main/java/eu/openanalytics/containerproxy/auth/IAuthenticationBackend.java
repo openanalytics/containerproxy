@@ -27,6 +27,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 
@@ -69,7 +70,7 @@ public interface IAuthenticationBackend {
 		// Default: do nothing.
 	}
 
-	public default void customizeContainerEnv(Map<String, String> env) {
+	public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
 		// Default: do nothing.
 	}
 

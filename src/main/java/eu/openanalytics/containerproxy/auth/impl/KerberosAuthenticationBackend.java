@@ -149,7 +149,7 @@ public class KerberosAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void customizeContainerEnv(Map<String, String> env) {
+	public void customizeContainerEnv(Authentication user, Map<String, String> env) {
 		String principal = getCurrentPrincipal();
 		env.put("REMOTE_USER", principal);
 		env.put("KRB5CCNAME", "FILE:/tmp/kerberos/ccache");

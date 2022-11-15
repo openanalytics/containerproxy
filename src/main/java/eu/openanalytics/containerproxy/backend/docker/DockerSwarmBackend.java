@@ -111,7 +111,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 							.image(spec.getImage().getValue())
 							.labels(labels)
 							.command(spec.getCmd().getValueOrNull())
-							.env(convertEnv(buildEnv(spec, proxy)))
+							.env(convertEnv(buildEnv(user, spec, proxy)))
 							.dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
 							.mounts(mounts)
 							.secrets(secretBinds)

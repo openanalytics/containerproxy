@@ -134,7 +134,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 					.labels(labels)
 					.exposedPorts(dockerPortBindings.keySet())
 					.cmd(spec.getCmd().getValueOrNull())
-					.env(convertEnv(buildEnv(spec, proxy)))
+					.env(convertEnv(buildEnv(user, spec, proxy)))
 					.build();
 
 			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());

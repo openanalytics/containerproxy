@@ -181,7 +181,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return mem;
 	}
 
-	protected Map<String, String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
+	protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {
         Map<String, String> env = new HashMap<>();
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
@@ -203,10 +203,10 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 					env.put(entry.getKey(), entry.getValue());
 				}
 			}
-
-			// Allow the authentication backend to add values to the environment, if needed.
-			if (authBackend != null) authBackend.customizeContainerEnv(env);
 		}
+
+		// Allow the authentication backend to add values to the environment, if needed.
+		if (authBackend != null) authBackend.customizeContainerEnv(user, env);
 
 		return env;
 	}

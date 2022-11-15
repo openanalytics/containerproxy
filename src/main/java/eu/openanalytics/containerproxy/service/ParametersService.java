@@ -45,7 +45,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class ParametersService {
@@ -206,7 +205,7 @@ public class ParametersService {
     private Optional<Pair<ParameterNames, ParameterValues>> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, Map<String, String> providedParameters) {
         Map<String, String> backendValues = new HashMap<>();
         Map<String, String> names = new HashMap<>();
-        for (ParameterDefinition parameter: parameters) {
+        for (ParameterDefinition parameter : parameters) {
             if (!providedParameters.containsKey(parameter.getId())) {
                 throw new IllegalStateException("Could not find value for parameter with id" + parameter.getId());
             }
@@ -239,7 +238,7 @@ public class ParametersService {
      * Creates ParamaterNames representation for the chosen parameters.
      * This is the public value which can be seen by the user (e.g. in API responses).
      *
-     * @param parameters parameter definitions
+     * @param parameters         parameter definitions
      * @param providedParameters values chosen by the user
      * @return
      */
@@ -251,7 +250,7 @@ public class ParametersService {
         return res;
     }
 
-    public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec) {
+    public AllowedParametersForUser calculateAllowedParametersForUser(Authentication auth, ProxySpec proxySpec, ParameterValues previousParameters) {
         Parameters parameters = proxySpec.getParameters();
         if (parameters == null) {
             return new AllowedParametersForUser(new HashMap<>(), new HashSet<>(), null);
@@ -293,7 +292,7 @@ public class ParametersService {
         }
 
         // 4. compute default value
-        List<Integer> defaultValue = getDefaultValue(parameters.getDefinitions(), allowedCombinations, valuesToIndex);
+        List<Integer> defaultValue = getDefaultValue(parameters.getDefinitions(), allowedCombinations, valuesToIndex, previousParameters);
 
         return new AllowedParametersForUser(values, allowedCombinations, defaultValue);
 
@@ -327,14 +326,19 @@ public class ParametersService {
         return newAllowedCombinations;
     }
 
-    private List<Integer> getDefaultValue(List<ParameterDefinition> definitions, HashSet<List<Integer>> allowedCombinations, Map<String, Map<String, Integer>> valuesToIndex) {
+    private List<Integer> getDefaultValue(List<ParameterDefinition> definitions, HashSet<List<Integer>> allowedCombinations, Map<String, Map<String, Integer>> valuesToIndex, ParameterValues previousParameters) {
         List<Integer> noDefault = new ArrayList<>(Collections.nCopies(definitions.size(), 0));
         List<Integer> result = new ArrayList<>();
+
+        List<Integer> previouslyUsedParameters = getPreviouslyUsedParameters(definitions, allowedCombinations, valuesToIndex, previousParameters);
+        if (previouslyUsedParameters != null) {
+            return previouslyUsedParameters;
+        }
 
         if (definitions.get(0).getDefaultValue() == null) {
             return noDefault; // no default values defined
         }
-        for (ParameterDefinition definition: definitions) {
+        for (ParameterDefinition definition : definitions) {
             Integer valueIndex = valuesToIndex.get(definition.getId()).get(definition.getDefaultValue());
             if (valueIndex == null) {
                 return noDefault; // default value cannot be used by this user
@@ -345,6 +349,27 @@ public class ParametersService {
             return result;
         }
         return noDefault; // this combination cannot be used by the user
+    }
+
+    private List<Integer> getPreviouslyUsedParameters(List<ParameterDefinition> definitions, HashSet<List<Integer>> allowedCombinations, Map<String, Map<String, Integer>> valuesToIndex, ParameterValues previousParameters) {
+        if (previousParameters == null || previousParameters.getBackendValues() == null) {
+            return null;
+        }
+
+        List<Integer> result = new ArrayList<>();
+        for (ParameterDefinition definition : definitions) {
+            Integer valueIndex = valuesToIndex.get(definition.getId()).get(previousParameters.getBackendValues().get(definition.getId()));
+            if (valueIndex == null) {
+                return null; // default value cannot be used by this user
+            }
+            result.add(valueIndex);
+        }
+
+        if (allowedCombinations.contains(result)) {
+            return result;
+        }
+
+        return null;
     }
 
 }

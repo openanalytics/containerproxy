@@ -64,7 +64,7 @@ public class TestParametersService {
     @Test
     public void testBigParameters() {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
 
@@ -161,21 +161,21 @@ public class TestParametersService {
         Authentication authJack = mock(Authentication.class);
         when(authJack.getName()).thenReturn("jack");
 
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(authJack, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(authJack, spec, null);
         // jack does not have access to a value of this set
         Assertions.assertEquals(Arrays.asList(0, 0, 0), allowedParametersForUser.getDefaultValue());
 
         Authentication authThomas = mock(Authentication.class);
         when(authThomas.getName()).thenReturn("thomas");
 
-        AllowedParametersForUser allowedParametersForUser2 = parametersService.calculateAllowedParametersForUser(authThomas, spec);
+        AllowedParametersForUser allowedParametersForUser2 = parametersService.calculateAllowedParametersForUser(authThomas, spec, null);
         // thomas does not have access to the combination of the default values
         Assertions.assertEquals(Arrays.asList(0, 0, 0), allowedParametersForUser2.getDefaultValue());
 
         Authentication authJeff = mock(Authentication.class);
         when(authJeff.getName()).thenReturn("jeff");
 
-        AllowedParametersForUser allowedParametersForUser3 = parametersService.calculateAllowedParametersForUser(authJeff, spec);
+        AllowedParametersForUser allowedParametersForUser3 = parametersService.calculateAllowedParametersForUser(authJeff, spec, null);
         // thomas does not have access to the combination of the default values
         Assertions.assertEquals(Arrays.asList(1, 2, 3), allowedParametersForUser3.getDefaultValue());
 

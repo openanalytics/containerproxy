@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.oidc;
 
+import eu.openanalytics.containerproxy.auth.impl.oidc.redis.RedisOAuth2AuthorizedClientService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,6 +51,9 @@ public class OpenIDConfiguration {
 
     @Bean
     public OAuth2AuthorizedClientService oAuth2AuthorizedClientService() {
+        if (environment.getProperty("proxy.store-mode", "None").equals("Redis")) {
+            return new RedisOAuth2AuthorizedClientService();
+        }
         return new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository());
     }
 

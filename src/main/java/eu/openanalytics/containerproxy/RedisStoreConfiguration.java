@@ -49,6 +49,7 @@ import org.springframework.integration.leader.event.DefaultLeaderEventPublisher;
 import org.springframework.integration.redis.util.RedisLockRegistry;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.integration.support.locks.ExpirableLockRegistry;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 
 import javax.inject.Inject;
 
@@ -163,6 +164,13 @@ public class RedisStoreConfiguration {
     @Bean
     public RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate(RedisConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, RedisPortAllocator.PortList.class);
+    }
+
+    @Bean
+    public RedisTemplate<String, OAuth2AuthorizedClient> oAuth2AuthorizedClientRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, OAuth2AuthorizedClient> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        return template;
     }
 
     private <K,V> RedisTemplate<K,V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {

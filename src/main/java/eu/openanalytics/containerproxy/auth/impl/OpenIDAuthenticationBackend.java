@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
 import eu.openanalytics.containerproxy.security.FixedDefaultOAuth2AuthorizationRequestResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -54,9 +55,13 @@ import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
+import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
@@ -83,15 +88,15 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	private ClientRegistrationRepository clientRegistrationRepo;
 
-	@Inject
-	private OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
-
-	private static OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
+	private static OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
 
 	@Autowired
-	public void setOAuth2AuthorizedClientManager(OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager) {
-		this.oAuth2AuthorizedClientManager = oAuth2AuthorizedClientManager;
+	public void setOAuth2AuthorizedClientService(OAuth2AuthorizedClientService oAuth2AuthorizedClientService)  {
+		OpenIDAuthenticationBackend.oAuth2AuthorizedClientService = oAuth2AuthorizedClientService;
 	}
+
+	@Inject
+	private OpenIdReAuthorizeFilter openIdReAuthorizeFilter;
 
 	@Override
 	public String getName() {
@@ -128,7 +133,10 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				})
 				.userInfoEndpoint()
 					.userAuthoritiesMapper(createAuthoritiesMapper())
-					.oidcUserService(createOidcUserService());
+					.oidcUserService(createOidcUserService())
+				.and()
+			.and()
+				.addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
 	}
 
 	@Override
@@ -275,12 +283,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	private static OAuth2AuthorizedClient refreshClient(String principalName) {
-		OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest.withClientRegistrationId(REG_ID)
-				.principal(principalName)
-				.build();
-
-		// refresh credentials if needed
-		return oAuth2AuthorizedClientManager.authorize(authorizeRequest);
+		return oAuth2AuthorizedClientService.loadAuthorizedClient(REG_ID, principalName);
 	}
 
 

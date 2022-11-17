@@ -25,14 +25,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 
 import javax.inject.Inject;
@@ -86,10 +87,18 @@ public class OpenIDConfiguration {
     }
 
     @Bean
+    public OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository() {
+        return new AuthenticatedPrincipalOAuth2AuthorizedClientRepository(oAuth2AuthorizedClientService());
+    }
+
+    @Bean
     public OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager() {
-        AuthorizedClientServiceOAuth2AuthorizedClientManager res = new AuthorizedClientServiceOAuth2AuthorizedClientManager(clientRegistrationRepository(), oAuth2AuthorizedClientService());
-        res.setAuthorizedClientProvider(OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build());
-        return res;
+        return new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository(), oAuth2AuthorizedClientRepository());
+    }
+
+    @Bean
+    public OpenIdReAuthorizeFilter openIdReAuthorizeFilter() {
+        return new OpenIdReAuthorizeFilter();
     }
 
 }

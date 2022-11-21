@@ -27,7 +27,6 @@ import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -74,7 +73,7 @@ public class ProxyMaxLifetimeService {
         for (Proxy proxy : proxyService.getProxies(null, true)) {
             if (mustBeReleased(proxy)) {
                 String uptime = DurationFormatUtils.formatDurationWords(
-                        System.currentTimeMillis() - proxy.getCreatedTimestamp(),
+                        System.currentTimeMillis() - proxy.getStartupTimestamp(),
                         true, false);
                 log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), uptime));
                 releaseStrategy.releaseProxy(proxy);
@@ -93,7 +92,7 @@ public class ProxyMaxLifetimeService {
         if (maxLifeTime > 0) {
             Instant notBeforeTime = Instant.now().minus(maxLifeTime, ChronoUnit.MINUTES);
 
-            return Instant.ofEpochMilli(proxy.getCreatedTimestamp()).isBefore(notBeforeTime);
+            return Instant.ofEpochMilli(proxy.getStartupTimestamp()).isBefore(notBeforeTime);
         }
 
         return false;

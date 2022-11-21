@@ -151,6 +151,7 @@ public class ProxyStatusController {
         }
 
         DeferredResult<ResponseEntity<ApiResponse<Proxy>>> output = new DeferredResult<>(timeout * 1000, () -> {
+            // note: no need to remove watcher on timeout, it will be cleaned up when proxy starts/fails/stops/...
             Proxy res = proxyService.getProxy(proxyId);
             if (res != null) {
                 return ApiResponse.success(res);

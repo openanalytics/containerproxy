@@ -22,9 +22,9 @@ package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.model.runtime.Container;
 
-public class ContainerFailedToStartException extends Exception {
+public class ContainerFailedToStartException extends RuntimeException {
 
-	private Container Container;
+	private final Container Container;
 
 	public ContainerFailedToStartException(String message, Throwable cause, Container container) {
 		super(message, cause);

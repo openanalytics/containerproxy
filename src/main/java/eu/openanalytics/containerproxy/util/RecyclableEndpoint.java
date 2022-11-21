@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.hearbeat.WebSocketCounterService;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
@@ -36,11 +37,15 @@ public class RecyclableEndpoint {
     @Inject
     private WebSocketCounterService webSocketCounterService;
 
+    @Inject
+    private ProxyService proxyService;
+
     @ReadOperation
     public Map<String, Object> health() {
+        boolean proxyActionInProgress = proxyService.isBusy();
         int count = webSocketCounterService.getCount();
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("isRecyclable", count == 0);
+        details.put("isRecyclable", count == 0 && !proxyActionInProgress);
         details.put("activeConnections", count);
         return details;
     }

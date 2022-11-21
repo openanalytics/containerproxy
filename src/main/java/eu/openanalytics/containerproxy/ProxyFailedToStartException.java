@@ -22,8 +22,9 @@ package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
-public class ProxyFailedToStartException extends Exception {
-	private Proxy proxy;
+public class ProxyFailedToStartException extends RuntimeException {
+
+	private final Proxy proxy;
 
 	public ProxyFailedToStartException(String message, Throwable cause, Proxy proxy) {
 		super(message, cause);

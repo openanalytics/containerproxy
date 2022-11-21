@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-public class InvalidParametersException extends Exception {
+public class InvalidParametersException extends RuntimeException {
 
     private final String error;
 

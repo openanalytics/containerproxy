@@ -53,10 +53,14 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -108,12 +112,12 @@ public class ProxyService {
 	@Inject
 	protected IProxyTestStrategy testStrategy;
 
-	@Inject
-	private ParametersService parametersService;
-
 	private boolean stopAppsOnShutdown;
 
 	private static final String PROPERTY_STOP_PROXIES_ON_SHUTDOWN = "proxy.stop-proxies-on-shutdown";
+
+	private final Set<String> actionsInProgress = new HashSet<>();
+	private Pair<String, Instant> lastStop = null;
 
 	@PostConstruct
 	public void init() {
@@ -232,9 +236,8 @@ public class ProxyService {
 	 *
 	 * @param spec The ProxySpec to base the new proxy on.
 	 * @return The newly launched proxy.
-	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Proxy startProxy(ProxySpec spec) throws ContainerProxyException, InvalidParametersException {
+	public Proxy startProxy(ProxySpec spec) {
 		String id = UUID.randomUUID().toString();
 	    startProxy(userService.getCurrentAuth(), spec,  null, id, null).run();
 		return getProxy(id);
@@ -245,34 +248,33 @@ public class ProxyService {
 	 *
 	 * @param spec The ProxySpec to base the new proxy on.
 	 * @return The newly launched proxy.
-	 * @throws ContainerProxyException If the proxy fails to start for any reason.
 	 */
-	public Command startProxy(Authentication user, ProxySpec spec, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) throws ContainerProxyException, InvalidParametersException {
-		if (!userService.canAccess(user, spec)) {
-			throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
-		}
+	public Command startProxy(Authentication user, ProxySpec spec, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) {
+		return action(proxyId, () -> {
+			if (!userService.canAccess(user, spec)) {
+				throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
+			}
+			Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
+			proxyBuilder.id(proxyId);
+			proxyBuilder.status(ProxyStatus.New);
+			proxyBuilder.userId(userService.getUserId(user));
+			proxyBuilder.specId(spec.getId());
+			proxyBuilder.createdTimestamp(System.currentTimeMillis());
 
-		Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
-		proxyBuilder.id(proxyId);
-		proxyBuilder.status(ProxyStatus.New);
-		proxyBuilder.userId(userService.getUserId(user));
-		proxyBuilder.specId(spec.getId());
-		proxyBuilder.createdTimestamp(System.currentTimeMillis());
+			if (spec.getDisplayName() != null) {
+				proxyBuilder.displayName(spec.getDisplayName());
+			} else {
+				proxyBuilder.displayName(spec.getId());
+			}
 
-		if (spec.getDisplayName() != null) {
-			proxyBuilder.displayName(spec.getDisplayName());
-		} else {
-			proxyBuilder.displayName(spec.getId());
-		}
+			if (runtimeValues != null) {
+				proxyBuilder.addRuntimeValues(runtimeValues);
+			}
 
-		if (runtimeValues != null) {
-			proxyBuilder.addRuntimeValues(runtimeValues);
-		}
-
-		Proxy currentProxy = runtimeValueService.processParameters(user, spec, parameters, proxyBuilder.build());
-		proxyStore.addProxy(currentProxy);
-
-		return new Command(() -> {
+			Proxy currentProxy = runtimeValueService.processParameters(user, spec, parameters, proxyBuilder.build());
+			proxyStore.addProxy(currentProxy);
+			return currentProxy;
+		}, (currentProxy) -> {
 			ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLog = new ProxyStartupLog.ProxyStartupLogBuilder();
 			Proxy result = startOrResumeProxy(user, currentProxy, proxyStartupLog);
 
@@ -286,7 +288,6 @@ public class ProxyService {
 		});
 	}
 
-
 	/**
 	 * Stop a running proxy.
 	 *
@@ -295,80 +296,83 @@ public class ProxyService {
 	 * @param ignoreAccessControl True to allow access to any proxy, regardless of the current security context.
 	 */
 	public Command stopProxy(Authentication user, Proxy proxy, boolean ignoreAccessControl) {
-		if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
-			throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
-		}
+		return action(proxy.getId(), () -> {
+			if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
+				throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
+			}
+			Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
+			proxyStore.updateProxy(stoppingProxy);
 
-		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
-		proxyStore.updateProxy(stoppingProxy);
-
-		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-			mappingManager.removeMapping(target.getKey());
-		}
-
-		return new Command(() -> {
-			Proxy stoppedProxy = proxy.withStatus(ProxyStatus.Stopped);
+			for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
+				mappingManager.removeMapping(target.getKey());
+			}
+			return stoppingProxy;
+		}, (stoppingProxy) -> {
+			Proxy stoppedProxy = stoppingProxy.withStatus(ProxyStatus.Stopped);
 			try {
-				backend.stopProxy(proxy);
+				backend.stopProxy(stoppedProxy);
 				proxyStore.updateProxy(stoppedProxy);
-				log.info(formatLogMessage("Proxy released", proxy));
-				applicationEventPublisher.publishEvent(new ProxyStopEvent(proxy));
+				log.info(formatLogMessage("Proxy released", stoppedProxy));
+				applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy));
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to release proxy", proxy), t);
+				log.error(formatLogMessage("Failed to release proxy", stoppedProxy), t);
 			}
 			try {
 				proxyStore.removeProxy(stoppedProxy);
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to remove proxy", proxy), t);
+				log.error(formatLogMessage("Failed to remove proxy", stoppedProxy), t);
 			}
 		});
 	}
 
 	public Command pauseProxy(Authentication user, Proxy proxy, boolean ignoreAccessControl) {
-		if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
-			throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
-		}
+		return action(proxy.getId(), () -> {
+			if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
+				throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
+			}
 
-		if (!backend.supportsPause()) {
-			log.warn("Trying to pause a proxy when the backend does not support pausing apps");
-			throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
-		}
+			if (!backend.supportsPause()) {
+				log.warn("Trying to pause a proxy when the backend does not support pausing apps");
+				throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
+			}
 
-		Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);
-		proxyStore.updateProxy(stoppingProxy);
+			Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);
+			proxyStore.updateProxy(stoppingProxy);
 
-		for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-			mappingManager.removeMapping(target.getKey());
-		}
+			for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
+				mappingManager.removeMapping(target.getKey());
+			}
+			return stoppingProxy;
 
-		return new Command(() -> {
+		}, (pausingProxy) -> {
 			try {
-				backend.pauseProxy(proxy);
-				Proxy stoppedProxy = proxy.withStatus(ProxyStatus.Paused);
-				proxyStore.updateProxy(stoppedProxy);
-				log.info(formatLogMessage("Proxy paused", stoppedProxy));
-				applicationEventPublisher.publishEvent(new ProxyPauseEvent(proxy));
+				backend.pauseProxy(pausingProxy);
+				Proxy pausedProxy = pausingProxy.withStatus(ProxyStatus.Paused);
+				proxyStore.updateProxy(pausedProxy);
+				log.info(formatLogMessage("Proxy paused", pausedProxy));
+				applicationEventPublisher.publishEvent(new ProxyPauseEvent(pausedProxy));
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to pause proxy ", proxy), t);
+				log.error(formatLogMessage("Failed to pause proxy ", pausingProxy), t);
 			}
 		});
 	}
 
-	public Command resumeProxy(Authentication user, Proxy proxy, Map<String, String> parameters) throws InvalidParametersException {
-		if (!userService.isOwner(user, proxy)) {
-			throw new AccessDeniedException(String.format("Cannot resume proxy %s: access denied", proxy.getId()));
-		}
+	public Command resumeProxy(Authentication user, Proxy proxy, Map<String, String> parameters) {
+		return action(proxy.getId(), () -> {
+			if (!userService.isOwner(user, proxy)) {
+				throw new AccessDeniedException(String.format("Cannot resume proxy %s: access denied", proxy.getId()));
+			}
 
-		if (!backend.supportsPause()) {
-			log.warn("Trying to resume a proxy when the backend does not support pausing apps");
-			throw new IllegalArgumentException("Trying to resume a proxy when the backend does not support pausing apps");
-		}
+			if (!backend.supportsPause()) {
+				log.warn("Trying to resume a proxy when the backend does not support pausing apps");
+				throw new IllegalArgumentException("Trying to resume a proxy when the backend does not support pausing apps");
+			}
 
-		Proxy resumingProxy = proxy.withStatus(ProxyStatus.Resuming);
-		Proxy parameterizedProxy = runtimeValueService.processParameters(user, getProxySpec(proxy.getSpecId()), parameters, resumingProxy);
-		proxyStore.updateProxy(parameterizedProxy);
-
-		return new Command(() -> {
+			Proxy resumingProxy = proxy.withStatus(ProxyStatus.Resuming);
+			Proxy parameterizedProxy = runtimeValueService.processParameters(user, getProxySpec(proxy.getSpecId()), parameters, resumingProxy);
+			proxyStore.updateProxy(parameterizedProxy);
+			return parameterizedProxy;
+		}, (parameterizedProxy) -> {
 			// TODO proxystartuplog?
 			Proxy result = startOrResumeProxy(user, parameterizedProxy, null);
 
@@ -525,19 +529,65 @@ public class ProxyService {
 		return String.format("%s [user: %s] [spec: %s] [id: %s]", message, proxy.getUserId(), proxy.getSpecId(), proxy.getId());
 	}
 
-	public static class Command implements Runnable {
-
-		private final Runnable r;
-
-		public Command(Runnable r ) {
-			this.r = r;
+	/**
+	 * @return whether any long during proxy actions are being executed.
+	 */
+	public synchronized boolean isBusy() {
+		if (!actionsInProgress.isEmpty()) {
+			// action in progress -> service is busy
+			return true;
 		}
+		// if last stop was less than 1 minute ago -> service is busy
+		return lastStop != null && Duration.between(lastStop.getRight(), Instant.now()).toMinutes() <= 1;
+	}
 
-		@Override
-		public void run() {
-			r.run();
+	/**
+	 * Called before a (long during) proxy action is executed.
+	 * Required in order to check whether such an action is in progress.
+	 * @param proxyId the proxyId for which the action is performed.
+	 */
+	private synchronized void actionStarted(String proxyId) {
+		actionsInProgress.add(proxyId);
+	}
+
+	/**
+	 * Called after a (long during) proxy action has finished.
+	 * Required in order to check whether such an action is in progress.
+	 * @param proxyId the proxyId for which the action has been performed.
+	 */
+	private synchronized void actionFinished(String proxyId) {
+		actionsInProgress.remove(proxyId);
+		lastStop = Pair.of(proxyId, Instant.now());
+	}
+
+	private Command action(String proxyId, BlockingAction blocking, AsyncAction async) {
+		try {
+			actionStarted(proxyId);
+			Proxy proxy = blocking.run();
+			return () -> {
+				try {
+					async.run(proxy);
+				} finally {
+					actionFinished(proxyId);
+				}
+			};
+		} catch(Throwable t) {
+			actionFinished(proxyId);
+			throw t;
 		}
+	}
 
+	public interface Command extends Runnable {
+	}
+
+	@FunctionalInterface
+	private interface AsyncAction {
+		void run(Proxy proxy);
+	}
+
+	@FunctionalInterface
+	private interface BlockingAction {
+		Proxy run();
 	}
 
 }

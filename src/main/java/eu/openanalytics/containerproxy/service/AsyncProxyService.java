@@ -44,7 +44,7 @@ public class AsyncProxyService {
     @Inject
     private UserService userService;
 
-    public Proxy startProxy(ProxySpec spec, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) throws InvalidParametersException {
+    public Proxy startProxy(ProxySpec spec, List<RuntimeValue> runtimeValues, String proxyId, Map<String, String> parameters) {
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.startProxy(user, spec, runtimeValues, proxyId, parameters);
         executor.submit(command);
@@ -63,7 +63,7 @@ public class AsyncProxyService {
         executor.submit(command);
     }
 
-    public void resumeProxy(Proxy proxy, Map<String, String> parameters) throws InvalidParametersException {
+    public void resumeProxy(Proxy proxy, Map<String, String> parameters) {
         // access control check and state change must happen synchronously
         Authentication user = userService.getCurrentAuth();
         ProxyService.Command command = proxyService.resumeProxy(user, proxy, parameters);

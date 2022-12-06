@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import io.undertow.io.Sender;
@@ -152,20 +154,30 @@ public class ProxyMappingManager {
 			return false;
 		}
 		if (responseExchange.getStatusCode() == StatusCodes.SERVICE_UNAVAILABLE) {
-			final String errorPage = "{\"status\":\"error\", \"message\":\"app_crashed\"}";
-			responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, "" + errorPage.length());
-			responseExchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-			Sender sender = responseExchange.getResponseSender();
-			sender.send(errorPage);
-
 			ProxyIdAttachment proxyIdAttachment = responseExchange.getAttachment(ATTACHMENT_KEY_PROXY_ID);
+			Proxy proxy = null;
 			if (proxyIdAttachment != null) {
 				try {
-					proxyService.stopCrashedProxy(proxyIdAttachment.proxyId);
+					proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
+					if (proxy != null) {
+						proxyService.stopCrashedProxy(proxy);
+					}
 				} catch (Throwable t) {
 					// ignore in order to complete request
 				}
 			}
+
+			String errorPage;
+			if (proxy != null && proxy.getStatus() != ProxyStatus.Stopped) {
+				errorPage = "{\"status\":\"error\", \"message\":\"app_crashed\"}";
+			} else {
+				// in-progress request got terminated because the app has been stopped (not crashed)
+				errorPage = "{\"status\":\"error\", \"message\":\"app_stopped_or_non_existent\"}";
+			}
+			responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, "" + errorPage.length());
+			responseExchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+			Sender sender = responseExchange.getResponseSender();
+			sender.send(errorPage);
 			return true;
 		}
 		return false;

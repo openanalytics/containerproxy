@@ -324,11 +324,7 @@ public class ProxyService {
 		}
 	}
 
-	public void stopCrashedProxy(String proxyId) {
-		Proxy proxy = getProxy(proxyId);
-		if (proxy == null) {
-			return;
-		}
+	public void stopCrashedProxy(Proxy proxy) {
 		log.warn(String.format("Proxy crashed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
 		stopProxy(proxy, true, true);
 	}

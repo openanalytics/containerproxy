@@ -500,7 +500,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (kubeClient.resource(resource).fromServer().get() == null) {
 				client.create(resource);
 			} else {
-				client.patch(PatchContext.of(PatchType.JSON_MERGE), resource);
+				client.withName(resource.getMetadata().getName()).patch(PatchContext.of(PatchType.JSON_MERGE), resource);
 			}
 		} else if (policy.equalsIgnoreCase("Delete")) {
 			if (kubeClient.resource(resource).fromServer().get() != null) {

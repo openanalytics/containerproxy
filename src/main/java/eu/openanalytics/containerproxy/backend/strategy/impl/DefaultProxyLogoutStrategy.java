@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -41,9 +42,11 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
 
 	@Inject
+	@Lazy
 	private ProxyService proxyService;
 
 	@Inject
+	@Lazy
 	private AsyncProxyService asyncProxyService;
 
 	@Inject

@@ -68,10 +68,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Inject
 	private IAuthenticationBackend auth;
-	
-	@Inject
-	private AuthenticationEventPublisher eventPublisher;
-	
+
 	@Inject
 	private Environment environment;
 
@@ -201,17 +198,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		// create session cookie even if there is no Authentication in order to support the None authentication backend
 		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
-	}
-
-	@Bean
-	public GlobalAuthenticationConfigurerAdapter authenticationConfiguration() {
-		return new GlobalAuthenticationConfigurerAdapter() {
-			@Override
-			public void init(AuthenticationManagerBuilder amb) throws Exception {
-				amb.authenticationEventPublisher(eventPublisher);
-				auth.configureAuthenticationManagerBuilder(amb);
-			}
-		};
 	}
 
 	@Bean(name="authenticationManager")

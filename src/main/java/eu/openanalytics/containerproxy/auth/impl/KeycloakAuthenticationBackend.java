@@ -88,9 +88,6 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	Environment environment;
 
 	@Inject
-	WebSecurityConfigurerAdapter webSecurityConfigurerAdapter;
-	
-	@Inject
 	ApplicationContext ctx;
 
 	@Inject

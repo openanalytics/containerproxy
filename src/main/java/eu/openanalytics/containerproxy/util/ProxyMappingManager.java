@@ -34,6 +34,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
@@ -64,6 +65,7 @@ public class ProxyMappingManager {
 	private final Map<String, String> mappings = new HashMap<>();
 	
 	@Inject
+	@Lazy
 	private HeartbeatService heartbeatService;
 	
 	public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {

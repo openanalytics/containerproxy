@@ -94,6 +94,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected IProxySpecProvider specProvider;
 
 	@Inject
+	@Lazy
 	private RuntimeValueService runtimeValueService;
 
 	@Inject

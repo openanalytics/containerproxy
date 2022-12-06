@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-import javax.ws.rs.HEAD;
 
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
@@ -323,6 +322,15 @@ public class ProxyService {
 		for (Entry<String, URI> target: proxy.getTargets().entrySet()) {
 			mappingManager.removeMapping(target.getKey());
 		}
+	}
+
+	public void stopCrashedProxy(String proxyId) {
+		Proxy proxy = getProxy(proxyId);
+		if (proxy == null) {
+			return;
+		}
+		log.warn(String.format("Proxy crashed [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
+		stopProxy(proxy, true, true);
 	}
 
 	/**

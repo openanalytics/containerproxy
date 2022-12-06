@@ -63,7 +63,7 @@ public class ProxyRouteController extends BaseController {
 			}
 			
 			if (hasAccess) {
-				mappingManager.dispatchAsync(mapping, request, response);
+				mappingManager.dispatchAsync(proxyId, mapping, request, response);
 			} else {
 				response.setStatus(403);
 				response.getWriter().write("Not authorized to access this proxy");

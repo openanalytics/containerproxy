@@ -535,6 +535,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				// therefore we overwrite this namespace with the namespace of the pod.
 				fullObject.getMetadata().setNamespace(namespace);
 			}
+			if (fullObject.getMetadata().getLabels() == null) {
+				fullObject.getMetadata().setLabels(new HashMap<>());
+			}
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-additional-manifest", "true");
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-realm", identifierService.realmId); // TODO
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-spec-id", specId);

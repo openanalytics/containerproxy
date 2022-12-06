@@ -20,23 +20,10 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.springframework.stereotype.Component;
-
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
+import io.undertow.io.Sender;
+import io.undertow.server.DefaultResponseListener;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;
@@ -47,7 +34,23 @@ import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
+import io.undertow.util.Headers;
 import io.undertow.util.PathMatcher;
+import io.undertow.util.StatusCodes;
+import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This component keeps track of which proxy mappings (i.e. URL endpoints) are currently registered,
@@ -58,14 +61,18 @@ public class ProxyMappingManager {
 
 	private static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
 	private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
-	
+	private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
+
 	private PathHandler pathHandler;
 	
 	private Map<String, String> mappings = new HashMap<>();
 	
 	@Inject
 	private HeartbeatService heartbeatService;
-	
+
+	@Inject
+	private ProxyService proxyService;
+
 	public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {
 		if (pathHandler == null) {
 			pathHandler = new ProxyPathHandler(defaultHandler);
@@ -118,24 +125,51 @@ public class ProxyMappingManager {
 	 * 
 	 * Note that clients can never access a proxy handler directly (for security reasons).
 	 * Dispatching is the only allowed method to access proxy handlers.
-	 * 
+	 *
+	 * @param proxyId The id of the proxy
 	 * @param mapping The target mapping to dispatch to.
 	 * @param request The request to dispatch.
 	 * @param response The response corresponding to the request.
 	 * @throws IOException If the dispatch fails for an I/O reason.
 	 * @throws ServletException If the dispatch fails for any other reason.
 	 */
-	public void dispatchAsync(String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public void dispatchAsync(String proxyId, String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
 		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, this);
+		exchange.putAttachment(ATTACHMENT_KEY_PROXY_ID, new ProxyIdAttachment(proxyId));
 		
 		String queryString = request.getQueryString();
 		queryString = (queryString == null) ? "" : "?" + queryString;
 		String targetPath = PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
-		
+
+		exchange.addDefaultResponseListener(defaultResponseListener);
 		request.startAsync();
 		request.getRequestDispatcher(targetPath).forward(request, response);
 	}
+
+	private final DefaultResponseListener defaultResponseListener = responseExchange -> {
+		if (!responseExchange.isResponseChannelAvailable()) {
+			return false;
+		}
+		if (responseExchange.getStatusCode() == StatusCodes.SERVICE_UNAVAILABLE) {
+			final String errorPage = "{\"status\":\"error\", \"message\":\"app_crashed\"}";
+			responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, "" + errorPage.length());
+			responseExchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+			Sender sender = responseExchange.getResponseSender();
+			sender.send(errorPage);
+
+			ProxyIdAttachment proxyIdAttachment = responseExchange.getAttachment(ATTACHMENT_KEY_PROXY_ID);
+			if (proxyIdAttachment != null) {
+				try {
+					proxyService.stopCrashedProxy(proxyIdAttachment.proxyId);
+				} catch (Throwable t) {
+					// ignore in order to complete request
+				}
+			}
+			return true;
+		}
+		return false;
+	};
 	
 	private static class ProxyPathHandler extends PathHandler {
 		
@@ -161,4 +195,13 @@ public class ProxyMappingManager {
 			}
 		}
 	}
+
+	private static class ProxyIdAttachment {
+		final String proxyId;
+
+		public ProxyIdAttachment(String proxyId) {
+			this.proxyId = proxyId;
+		}
+	}
+
 }

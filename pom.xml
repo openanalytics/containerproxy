@@ -155,16 +155,6 @@
 			<artifactId>spring-security-oauth2-jose</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.security.kerberos</groupId>
-			<artifactId>spring-security-kerberos-web</artifactId>
-			<version>1.0.1.RELEASE</version>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security.kerberos</groupId>
-			<artifactId>spring-security-kerberos-client</artifactId>
-			<version>1.0.1.RELEASE</version>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
@@ -230,18 +220,6 @@
 			<groupId>org.springframework.security.extensions</groupId>
 			<artifactId>spring-security-saml2-core</artifactId>
 			<version>1.0.10.RELEASE</version>
-		</dependency>
-
-		<!-- Kerberos -->
-		<dependency>
-			<groupId>org.apache.kerby</groupId>
-			<artifactId>kerb-client</artifactId>
-			<version>1.1.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kerby</groupId>
-			<artifactId>kerb-gssapi</artifactId>
-			<version>1.1.1</version>
 		</dependency>
 
 		<!-- Docker -->

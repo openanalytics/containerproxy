@@ -110,8 +110,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Override
 	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
-			if (authBackend != null) authBackend.customizeContainer(spec);
-
 			Container.ContainerBuilder containerBuilder = Container.builder();
 			containerBuilder.index(spec.getIndex());
 			Container container = containerBuilder.build();

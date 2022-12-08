@@ -201,7 +201,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	}
 
 	@Bean(name="authenticationManager")
-	@ConditionalOnExpression("'${proxy.authentication}' == 'kerberos' || '${proxy.authentication}' == 'saml' || '${proxy.authentication}' == 'keycloak'")
+	@ConditionalOnExpression("'${proxy.authentication}' == 'saml' || '${proxy.authentication}' == 'keycloak'")
 	@Override
 	public AuthenticationManager authenticationManagerBean() throws Exception {
 		return super.authenticationManagerBean();

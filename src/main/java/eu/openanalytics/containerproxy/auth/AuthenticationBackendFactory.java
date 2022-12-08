@@ -28,7 +28,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.auth.impl.KerberosAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.KeycloakAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
@@ -87,10 +86,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 			break;
 		case KeycloakAuthenticationBackend.NAME:
 			return keycloakBackend;			
-		case KerberosAuthenticationBackend.NAME:
-			backend = new KerberosAuthenticationBackend();
-			break;
-		case WebServiceAuthenticationBackend.NAME:			
+		case WebServiceAuthenticationBackend.NAME:
 			backend = new WebServiceAuthenticationBackend();
 			break;
 		case SAMLAuthenticationBackend.NAME:

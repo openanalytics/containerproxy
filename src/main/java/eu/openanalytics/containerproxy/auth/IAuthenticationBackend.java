@@ -66,10 +66,6 @@ public interface IAuthenticationBackend {
 		return "/logout";
 	}
 
-	public default void customizeContainer(ContainerSpec spec) {
-		// Default: do nothing.
-	}
-
 	public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
 		// Default: do nothing.
 	}

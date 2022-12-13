@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
@@ -109,7 +109,7 @@ public class ProxyAccessControlService {
     @EventListener
     public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
         // remove all entries in cache for this sessionId
-        authorizationCache.keySet().removeIf(it -> it.getLeft().equals(event.getId()));
+        authorizationCache.keySet().removeIf(it -> it.getFirst().equals(event.getId()));
     }
 
 }

@@ -59,7 +59,7 @@
 			<url>https://clojars.org/repo/</url>
 		</repository>
 		<repository>
-			<!-- Currently used only for the opensaml 2.6.6 dependency -->
+			<!-- Currently used only for the opensaml dependency -->
 			<id>shibboleth</id>
 			<url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
 		</repository>
@@ -215,18 +215,43 @@
 			<version>19.0.3</version>
 		</dependency>
 
-		<!-- SAML -->
+
 		<dependency>
-			<groupId>org.springframework.security.extensions</groupId>
-			<artifactId>spring-security-saml2-core</artifactId>
-			<version>1.0.10.RELEASE</version>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-saml2-service-provider</artifactId>
 		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.opensaml</groupId>-->
+<!--			<artifactId>opensaml-core</artifactId>-->
+<!--			<version>4.2.0</version>-->
+<!--		</dependency>-->
+<!--		<dependency>-->
+<!--			<groupId>org.opensaml</groupId>-->
+<!--			<artifactId>opensaml-saml-api</artifactId>-->
+<!--			<version>4.2.0</version>-->
+<!--		</dependency>-->
+<!--		<dependency>-->
+<!--			<groupId>org.opensaml</groupId>-->
+<!--			<artifactId>opensaml-saml-impl</artifactId>-->
+<!--			<version>4.2.0</version>-->
+<!--		</dependency>-->
 
 		<!-- Docker -->
 		<dependency>
 			<groupId>com.spotify</groupId>
 			<artifactId>docker-client</artifactId>
 			<version>8.16.0</version>
+		</dependency>
+		<!-- Jersey, a dependency of docker-client with wonky version constraints -->
+		<dependency>
+			<groupId>org.glassfish.jersey.inject</groupId>
+			<artifactId>jersey-hk2</artifactId>
+			<version>2.26</version>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.bundles.repackaged</groupId>
+			<artifactId>jersey-guava</artifactId>
+			<version>2.26-b03</version>
 		</dependency>
 
 		<!-- MonetDB, for gathering usage stats (optional) -->
@@ -331,31 +356,6 @@
 
 		<!-- Recursive dependencies which are upgraded for security -->
 		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-			<version>3.2.2</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-compress</artifactId>
-			<version>1.21</version>
-		</dependency>
-		<dependency>
-			<groupId>commons-beanutils</groupId>
-			<artifactId>commons-beanutils</artifactId>
-			<version>1.9.4</version>
-		</dependency>
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.11.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<version>4.5.13</version>
-		</dependency>
-		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>31.1-jre</version>
@@ -376,24 +376,9 @@
 			<version>1.70</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.velocity</groupId>
-			<artifactId>velocity-engine-core</artifactId>
-			<version>2.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.owasp.esapi</groupId>
-			<artifactId>esapi</artifactId>
-			<version>2.5.1.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.santuario</groupId>
-			<artifactId>xmlsec</artifactId>
-			<version>2.2.3</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.woodstox</groupId>
-			<artifactId>woodstox-core</artifactId>
-			<version>5.4.0</version>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.4</version>
 		</dependency>
 	</dependencies>
 

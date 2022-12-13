@@ -32,16 +32,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.authentication.configuration.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -160,6 +159,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		http.authorizeRequests().antMatchers("/actuator/prometheus").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/recyclable").permitAll();
 
+	http.authorizeRequests().antMatchers("/saml/metadata").permitAll();
 
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
@@ -201,7 +201,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	}
 
 	@Bean(name="authenticationManager")
-	@ConditionalOnExpression("'${proxy.authentication}' == 'saml' || '${proxy.authentication}' == 'keycloak'")
+	@ConditionalOnExpression("'${proxy.authentication}' == 'keycloak'")
 	@Override
 	public AuthenticationManager authenticationManagerBean() throws Exception {
 		return super.authenticationManagerBean();

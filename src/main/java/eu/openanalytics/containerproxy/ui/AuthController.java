@@ -21,10 +21,14 @@
 package eu.openanalytics.containerproxy.ui;
 
 import javax.inject.Inject;
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -33,8 +37,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import eu.openanalytics.containerproxy.api.BaseController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.view.RedirectView;
 
+import java.io.IOException;
 import java.util.Optional;
 
 @Controller
@@ -58,11 +64,20 @@ public class AuthController extends BaseController {
 		}
 
 		if (auth instanceof OpenIDAuthenticationBackend) {
-			return new RedirectView(((OpenIDAuthenticationBackend) auth).getLoginRedirectURI());
+            return new RedirectView(((OpenIDAuthenticationBackend) auth).getLoginRedirectURI());
+        } else if (auth instanceof SAMLAuthenticationBackend) {
+            return new RedirectView(((SAMLAuthenticationBackend) auth).getLoginRedirectURI());
 		} else {
 			return "login";
 		}
 	}
+
+    @RequestMapping(value = SAMLConfiguration.SAML_METADATA_PATH, method = RequestMethod.GET)
+    public void samlLogout(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String url = ServletUriComponentsBuilder
+                .fromCurrentContextPath().path(SAMLConfiguration.SAML_SPRING_METADATA_PATH).toUriString();
+        request.getRequestDispatcher(url).forward(request, response);
+    }
 
 	@RequestMapping(value = "/auth-error", method = RequestMethod.GET)
 	public String getAuthErrorPage(ModelMap map) {

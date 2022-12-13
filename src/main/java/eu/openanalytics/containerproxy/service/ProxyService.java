@@ -40,11 +40,11 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
+import org.springframework.data.util.Pair;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -422,8 +422,8 @@ public class ProxyService {
 	private Proxy startOrResumeProxy(Authentication user, Proxy proxy, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLog) {
 		ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
 		Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, proxy, spec);
-		spec = r.getKey();
-		proxy = r.getValue();
+		spec = r.getFirst();
+		proxy = r.getSecond();
 
 		try {
 			if (proxy.getStatus() == ProxyStatus.New) {
@@ -538,7 +538,7 @@ public class ProxyService {
 			return true;
 		}
 		// if last stop was less than 1 minute ago -> service is busy
-		return lastStop != null && Duration.between(lastStop.getRight(), Instant.now()).toMinutes() <= 1;
+		return lastStop != null && Duration.between(lastStop.getSecond(), Instant.now()).toMinutes() <= 1;
 	}
 
 	/**

@@ -46,8 +46,8 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.core.env.Environment;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -139,8 +139,8 @@ public class RuntimeValueService {
         Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
         Optional<Pair<ParameterNames, ParameterValues>> providedParametersOptional = parametersService.parseAndValidateRequest(user, spec, parameters);
         if (providedParametersOptional.isPresent()) {
-            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getKey()), true);
-            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getValue()), true);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterNamesKey.inst, providedParametersOptional.get().getFirst()), true);
+            proxyBuilder.addRuntimeValue(new RuntimeValue(ParameterValuesKey.inst, providedParametersOptional.get().getSecond()), true);
         }
         return proxyBuilder.build();
     }

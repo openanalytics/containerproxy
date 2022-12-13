@@ -86,7 +86,7 @@ import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 
 import javax.inject.Inject;
@@ -589,13 +589,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 
 			// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
-			kubeClient.pods().inNamespace(podInfo.get().getKey()).withName(podInfo.get().getValue()).withGracePeriod(0).delete();
-			kubeClient.services().inNamespace(podInfo.get().getKey()).withName(getServiceName(container)).delete();
+			kubeClient.pods().inNamespace(podInfo.get().getFirst()).withName(podInfo.get().getSecond()).withGracePeriod(0).delete();
+			kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(container)).delete();
 			
 			// delete additional manifests
 			// we retrieve the spec here, therefore this is not compatible with AppRecovery
 			ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getKey())) {
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getSecond())) {
 				kubeClient.resource(fullObject).withGracePeriod(0).delete();
 			}
 		}
@@ -610,7 +610,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				Container container = proxy.getContainers().get(0);
 				Optional<Pair<String, String>> pod = getPodInfo(container);
 				if (pod.isPresent()) {
-						watcher = kubeClient.pods().inNamespace(pod.get().getKey()).withName(pod.get().getValue()).watchLog();
+						watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
 						IOUtils.copy(watcher.getOutput(), stdOut);
 				} else {
 					log.error("Error while attaching to container output: pod info not found");
@@ -738,7 +738,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	private Optional<Pod> getPod(Pair<String, String> podInfo) {
-		return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getKey()).withName(podInfo.getValue()).get());
+		return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getFirst()).withName(podInfo.getSecond()).get());
 	}
 
 }

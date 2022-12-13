@@ -28,8 +28,8 @@ import eu.openanalytics.containerproxy.model.spec.ParameterDefinition;
 import eu.openanalytics.containerproxy.model.spec.Parameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 

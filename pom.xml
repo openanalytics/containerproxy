@@ -122,11 +122,6 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.junit.platform</groupId>
 			<artifactId>junit-platform-launcher</artifactId>
 			<scope>test</scope>
@@ -170,6 +165,25 @@
 		<dependency>
 			<groupId>io.lettuce</groupId>
 			<artifactId>lettuce-core</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-handler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-transport</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.4</version>
 		</dependency>
 
 		<!-- Spring social security components -->
@@ -220,21 +234,25 @@
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-saml2-service-provider</artifactId>
 		</dependency>
-<!--		<dependency>-->
-<!--			<groupId>org.opensaml</groupId>-->
-<!--			<artifactId>opensaml-core</artifactId>-->
-<!--			<version>4.2.0</version>-->
-<!--		</dependency>-->
-<!--		<dependency>-->
-<!--			<groupId>org.opensaml</groupId>-->
-<!--			<artifactId>opensaml-saml-api</artifactId>-->
-<!--			<version>4.2.0</version>-->
-<!--		</dependency>-->
-<!--		<dependency>-->
-<!--			<groupId>org.opensaml</groupId>-->
-<!--			<artifactId>opensaml-saml-impl</artifactId>-->
-<!--			<version>4.2.0</version>-->
-<!--		</dependency>-->
+		<dependency>
+			<!-- Dependency of SAML -> update to fix security issue -->
+			<groupId>com.fasterxml.woodstox</groupId>
+			<artifactId>woodstox-core</artifactId>
+			<version>5.4.0</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of SAML -> update to fix security issue -->
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
+			<version>3.2.2</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of SAML -> update to fix security issue -->
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>2.1.7</version>
+		</dependency>
+
 
 		<!-- Docker -->
 		<dependency>
@@ -242,8 +260,8 @@
 			<artifactId>docker-client</artifactId>
 			<version>8.16.0</version>
 		</dependency>
-		<!-- Jersey, a dependency of docker-client with wonky version constraints -->
 		<dependency>
+			<!-- Jersey, a dependency of docker-client with wonky version constraints -->
 			<groupId>org.glassfish.jersey.inject</groupId>
 			<artifactId>jersey-hk2</artifactId>
 			<version>2.26</version>
@@ -252,6 +270,18 @@
 			<groupId>org.glassfish.jersey.bundles.repackaged</groupId>
 			<artifactId>jersey-guava</artifactId>
 			<version>2.26-b03</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of Docker -> update to fix security issues -->
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<version>1.21</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of Docker -> update to fix security issues -->
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.7</version>
 		</dependency>
 
 		<!-- MonetDB, for gathering usage stats (optional) -->
@@ -303,7 +333,7 @@
 		<dependency>
 			<groupId>org.webjars</groupId>
 			<artifactId>jquery</artifactId>
-			<version>3.5.1</version>
+			<version>3.6.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars.bower</groupId>
@@ -331,6 +361,16 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-handler</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -375,10 +415,77 @@
 			<artifactId>bcpkix-jdk15on</artifactId>
 			<version>1.70</version>
 		</dependency>
+                <!-- Dependency of spring-security-oauth2-client -->
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-collections4</artifactId>
-			<version>4.4</version>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>lang-tag</artifactId>
+			<version>1.7</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-common</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-handler</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-resolver</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-buffer</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport-native-unix-common</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of lettuce - > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of aws sdk- > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec-http</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of aws sdk- > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec-http2</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of aws sdk- > update to fix security issue -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport-classes-epoll</artifactId>
+			<version>4.1.86.Final</version>
+		</dependency>
+		<dependency>
+			<!-- Dependency of Spring -->
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>1.33</version>
 		</dependency>
 	</dependencies>
 

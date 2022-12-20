@@ -304,6 +304,10 @@ public class ContainerProxyApplication {
 
 		properties.put("spring.config.use-legacy-processing", true);
 
+		// disable openapi docs and swagger ui
+		properties.put("springdoc.api-docs.enabled", false);
+		properties.put("springdoc.swagger-ui.enabled", false);
+
 		return properties;
 	}
 

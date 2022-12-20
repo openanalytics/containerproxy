@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.api;
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.ChangeProxyStatusDto;
+import eu.openanalytics.containerproxy.api.dto.SwaggerDto;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
 import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
@@ -152,12 +153,6 @@ public class ProxyStatusController {
         return ApiResponse.success();
     }
 
-    @JsonView(Views.UserApi.class)
-    private static class ProxyResponse {
-        public String status = "success";
-        public Proxy data;
-    }
-
     /**
      * Get the state of a proxy and optionally watches for the state to become in a final (i.e. non transitioning) state.
      */
@@ -169,7 +164,7 @@ public class ProxyStatusController {
                     content = {
                             @Content(
                                     mediaType = "application/json",
-                                    schema = @Schema(implementation = ProxyResponse.class),
+                                    schema = @Schema(implementation = SwaggerDto.ProxyResponse.class),
                                     examples = {
                                             @ExampleObject(name = "Up Proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\", \"status\": \"Up\", \"startupTimestamp\": 1234, " +
                                                     "\"createdTimestamp\": 1234, \"userId\": \"jack\", \"specId\": \"01_hello\", \"displayName\": \"01_hello\", \"containers\": [{\"index\": 0, \"id\": " +

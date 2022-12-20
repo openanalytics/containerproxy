@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
-@JsonView(Views.Internal.class)
 public class ProxySpec {
 
     @JsonView(Views.UserApi.class)

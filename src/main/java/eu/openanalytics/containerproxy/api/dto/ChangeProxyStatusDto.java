@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.api.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Map;
 
 public class ChangeProxyStatusDto {
@@ -28,6 +30,7 @@ public class ChangeProxyStatusDto {
 
     private Map<String, String> parameters;
 
+    @Schema(description = "The desired state for the proxy.", allowableValues =  {"Stopping", "Pausing","Resuming"})
     public String getDesiredState() {
         return desiredState;
     }
@@ -36,6 +39,7 @@ public class ChangeProxyStatusDto {
         this.desiredState = desiredState;
     }
 
+    @Schema(description = "Proxy parameters when resuming proxy.", example = "{}")
     public Map<String, String> getParameters() {
         return parameters;
     }

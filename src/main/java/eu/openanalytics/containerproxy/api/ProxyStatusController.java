@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.api;
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.ChangeProxyStatusDto;
-import eu.openanalytics.containerproxy.api.exception.ProxyNotFoundException;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
 import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
@@ -36,18 +35,21 @@ import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
 
@@ -70,19 +72,62 @@ public class ProxyStatusController {
 
     private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
 
+    @Operation(
+            summary = "Change the status of a proxy.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ChangeProxyStatusDto.class),
+                            examples = {
+                                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredStatus\": \"Stopping\"}"),
+                                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredStatus\": \"Pausing\"}"),
+                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\"}")
+                            }
+                    )
+            )
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Status of proxy changed.",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    examples = {@ExampleObject(value = "{\"status\": \"success\", \"data\": null}")}
+                            )
+                    }),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Proxy not found or no permission.",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"forbidden\"}")}
+                            )
+                    }),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Proxy is not in correct status to change status.",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"Cannot stop proxy because it is not in New, Up or Paused status (status is Stopping)\"}")}
+                            )
+                    })
+    })
     @ResponseBody
     @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
         Proxy proxy = proxyService.getProxy(proxyId);
         if (proxy == null) {
-            throw new ProxyNotFoundException(proxyId);
+            return ApiResponse.failForbidden();
         }
 
         if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
             if (!proxy.getStatus().equals(ProxyStatus.Up)) {
                 return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
             }
-            asyncProxyService.pauseProxy(proxy,false);
+            asyncProxyService.pauseProxy(proxy, false);
         } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
             if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
                 return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
@@ -99,7 +144,7 @@ public class ProxyStatusController {
                     && !proxy.getStatus().equals(ProxyStatus.Paused)) {
                 return ApiResponse.fail(String.format("Cannot stop proxy because it is not in New, Up or Paused status (status is %s)", proxy.getStatus()));
             }
-            asyncProxyService.stopProxy(proxy,false);
+            asyncProxyService.stopProxy(proxy, false);
         } else {
             return ApiResponse.fail("Invalid desiredStatus");
         }
@@ -107,14 +152,45 @@ public class ProxyStatusController {
         return ApiResponse.success();
     }
 
+    @JsonView(Views.UserApi.class)
+    private static class ProxyResponse {
+        public String status = "success";
+        public Proxy data;
+    }
+
     /**
      * Get the state of a proxy and optionally watches for the state to become in a final (i.e. non transitioning) state.
      */
+    @Operation(summary = "Get the status of a proxy and optionally wait for the status to change.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Proxy found and status returned.",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ProxyResponse.class),
+                                    examples = {
+                                            @ExampleObject(name = "Up Proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\", \"status\": \"Up\", \"startupTimestamp\": 1234, " +
+                                                    "\"createdTimestamp\": 1234, \"userId\": \"jack\", \"specId\": \"01_hello\", \"displayName\": \"01_hello\", \"containers\": [{\"index\": 0, \"id\": " +
+                                                    "\"96a9e43437e356a8bbd6abb5bd4aa9f1436db49d95b3de8abcf03bccb15e2254\", \"targets\": {\"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\": \"http://localhost:20000\"}, \"runtimeValues\": " +
+                                                    "{\"SHINYPROXY_CONTAINER_INDEX\": 0}}], \"runtimeValues\": {\"SHINYPROXY_DISPLAY_NAME\": \"01_hello\", \"SHINYPROXY_MAX_LIFETIME\": -1, \"SHINYPROXY_FORCE_FULL_RELOAD\": false, " +
+                                                    "\"SHINYPROXY_CREATED_TIMESTAMP\": \"1234\", \"SHINYPROXY_WEBSOCKET_RECONNECTION_MODE\": \"None\", \"SHINYPROXY_INSTANCE\": \"03bc19d7d1970f737815c2d27ece37496ddee6f0\", " +
+                                                    "\"SHINYPROXY_MAX_INSTANCES\": 1, \"SHINYPROXY_HEARTBEAT_TIMEOUT\": -1, \"SHINYPROXY_PUBLIC_PATH\": \"/app_proxy/5f39a7cf-c9ff-4a85-9313-d561ec79cca9/\", \"SHINYPROXY_APP_INSTANCE\": " +
+                                                    "\"_\"}}}"),
+                                            @ExampleObject(name = "Stopped proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"515a2e7e-ecf1-45b4-aebb-79d2029e1904\", \"status\": \"Stopped\", \"startupTimestamp\": 0, " +
+                                                    "\"createdTimestamp\": 0, \"userId\": null, \"specId\": null, \"displayName\": null, \"containers\": [], \"runtimeValues\": {}}}")
+                                    }
+                            )
+                    }),
+    })
     @JsonView(Views.UserApi.class)
     @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.GET)
     public DeferredResult<ResponseEntity<ApiResponse<Proxy>>> getProxyStatus(@PathVariable String proxyId,
-                                                                @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,
-                                                                @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
+                                                                             @Parameter(description = "Whether to watch for the status to change to Up, Stopped or Paused.")
+                                                                             @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,
+                                                                             @Parameter(description = "Time to wait for status to change, must be between 10 and 60 seconds (inclusive).")
+                                                                             @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
         Proxy proxy = proxyService.getProxy(proxyId);
         if (proxy == null) {
             // proxy not found -> assume it has been stopped
@@ -217,12 +293,6 @@ public class ProxyStatusController {
                         .build()));
             }
         }
-    }
-
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    @ExceptionHandler(ProxyNotFoundException.class)
-    public ApiResponse<Void> handleProxyNotFoundException(ProxyNotFoundException ex) {
-        return ApiResponse.errorBody(ex.getMessage());
     }
 
 }

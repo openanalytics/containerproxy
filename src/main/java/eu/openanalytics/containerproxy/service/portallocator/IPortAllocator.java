@@ -20,9 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.portallocator;
 
-import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
-
-import java.util.List;
+import java.util.Set;
 
 public interface IPortAllocator {
 
@@ -32,5 +30,5 @@ public interface IPortAllocator {
 
     public void release(String ownerId);
 
-    public List<Integer> getOwnedPorts(String ownerId);
+    public Set<Integer> getOwnedPorts(String ownerId);
 }

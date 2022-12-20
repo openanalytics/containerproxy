@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -191,7 +193,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("shinyproxy-volume-1", volumeMounts.get(1).getName());
             Assertions.assertEquals("/srv/myvolume2", volumeMounts.get(1).getMountPath());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -241,7 +243,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VAR3"));
             Assertions.assertEquals("VALUE3", env.get("VAR3").getValue());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -290,7 +292,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("username", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getKey());
             Assertions.assertEquals("mysecret", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getName());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -330,7 +332,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
             Assertions.assertEquals(new Quantity("2Gi"), req.getLimits().get("memory"));
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -365,7 +367,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -430,7 +432,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(1, service.getSpec().getPorts().size());
                 Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
 
-                proxyService.stopProxy(null, proxy, true);
+                proxyService.stopProxy(null, proxy, true).run();
 
                 // Give Kube the time to clean
                 Thread.sleep(2000);
@@ -490,7 +492,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("ADDED_VAR"));
             Assertions.assertEquals("VALUE", env.get("ADDED_VAR").getValue()); // value is a String "null"
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -545,7 +547,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -624,7 +626,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -686,7 +688,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("home-dir-pvc-jack", volume.getName());
             Assertions.assertEquals("home-dir-pvc-jack", volume.getPersistentVolumeClaim().getClaimName());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -744,7 +746,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -798,7 +800,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -851,7 +853,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -900,7 +902,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -961,7 +963,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1010,7 +1012,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1055,7 +1057,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1116,7 +1118,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1162,7 +1164,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1193,7 +1195,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1239,7 +1241,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1273,7 +1275,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1320,7 +1322,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1362,7 +1364,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1394,7 +1396,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1466,7 +1468,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), labels.get("custom_label_patch_instance"));
 
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1496,7 +1498,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                         put("environment", "base_r");
                         put("version", "4.0.5");
                         put("memory", "2G");
-                    }}).run();
+                    }})
+                    .run();
             Proxy proxy = proxyService.getProxy(proxyId);
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1519,7 +1522,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
             Assertions.assertEquals("the-first-value-set", env.get("VALUESET_NAME").getValue());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1546,7 +1549,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                         put("environment", "base_r");
                         put("version", "4.0.5");
                         put("memory", "2G");
-                    }});
+                    }})
+                    .run();
             Proxy proxy = proxyService.getProxy(proxyId);
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1563,7 +1567,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
             Assertions.assertNull( env.get("VALUESET_NAME").getValue());
 
-            proxyService.stopProxy(null, proxy, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1581,15 +1585,23 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             ProxySpec spec = proxyService.getProxySpec("parameters-error");
 
-            Assertions.assertThrows(ContainerProxyException.class, () -> {
+            ContainerProxyException ex = Assertions.assertThrows(ContainerProxyException.class, () -> {
                 proxyService.startProxy(userService.getCurrentAuth(), spec, null,
                         UUID.randomUUID().toString(),
                         new HashMap<String, String>() {{
                             put("environment", "base_r");
                             put("version", "4.0.5");
                             put("memory", "2G");
-                        }});
-            }, "The parameter with id \"non-existing-parameter\" does not exist!");
+                        }})
+                        .run();
+            }, "The parameter with id \"non-existing-parameter\" does not exist");
+
+            Assertions.assertEquals(ex.getMessage(), "Container failed to start");
+            Assertions.assertEquals(ex.getCause().getClass(), ProxyFailedToStartException.class);
+            Assertions.assertEquals(ex.getCause().getMessage(), "Container with index 0 failed to start");
+            Assertions.assertEquals(ex.getCause().getCause().getClass(), ContainerFailedToStartException.class);
+            Assertions.assertEquals(ex.getCause().getCause().getMessage(), "Kubernetes container failed to start");
+            Assertions.assertEquals(ex.getCause().getCause().getCause().getMessage(), "The parameter with id \"non-existing-parameter\" does not exist!");
 
             Thread.sleep(2000);
 

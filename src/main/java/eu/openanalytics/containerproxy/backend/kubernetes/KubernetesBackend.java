@@ -367,7 +367,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		} catch (ContainerFailedToStartException t) {
 			throw t;
 		} catch (Throwable throwable) {
-			throw new ContainerFailedToStartException("", throwable, rContainerBuilder.build());
+			throw new ContainerFailedToStartException("Kubernetes container failed to start", throwable, rContainerBuilder.build());
 		}
 	}
 
@@ -595,7 +595,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			// delete additional manifests
 			// we retrieve the spec here, therefore this is not compatible with AppRecovery
 			ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getSecond())) {
+			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getFirst())) {
 				kubeClient.resource(fullObject).withGracePeriod(0).delete();
 			}
 		}

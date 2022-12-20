@@ -153,7 +153,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 			return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
 		} catch (Throwable throwable) {
-			throw new ContainerFailedToStartException("", throwable, rContainerBuilder.build());
+			throw new ContainerFailedToStartException("Docker container failed to start", throwable, rContainerBuilder.build());
 		}
 	}
 

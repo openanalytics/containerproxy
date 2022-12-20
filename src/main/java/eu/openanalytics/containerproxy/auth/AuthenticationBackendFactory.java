@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth;
 
 import javax.inject.Inject;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Primary;
@@ -55,7 +56,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 	@Inject
 	private KeycloakAuthenticationBackend keycloakBackend;
 	
-	@Inject
+	@Autowired(required = false)
 	private SAMLAuthenticationBackend samlBackend;
 	
 	@Override

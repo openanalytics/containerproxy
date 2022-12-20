@@ -60,8 +60,8 @@ public class MemoryPortAllocator implements IPortAllocator {
     }
 
     @Override
-    public synchronized List<Integer> getOwnedPorts(String ownerId) {
-        return new ArrayList<>(ports.getOrDefault(ownerId, new HashSet<>()));
+    public synchronized Set<Integer> getOwnedPorts(String ownerId) {
+        return new HashSet<>(ports.getOrDefault(ownerId, new HashSet<>()));
     }
 
 }

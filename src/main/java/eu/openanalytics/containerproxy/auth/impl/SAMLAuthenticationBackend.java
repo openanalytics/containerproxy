@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.AuthenticationFailureHandler;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
@@ -58,6 +59,7 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.S
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_SERVICE_LOCATION_PATH;
 
 @Component
+@ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
 public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
     public static final String NAME = "saml";

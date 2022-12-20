@@ -34,6 +34,7 @@ import org.springframework.data.redis.core.SessionCallback;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,13 +100,13 @@ public class RedisPortAllocator implements IPortAllocator {
     }
 
     @Override
-    public List<Integer> getOwnedPorts(String ownerId) {
+    public Set<Integer> getOwnedPorts(String ownerId) {
         HashOperations<String, PortList, PortList> ops = portListRedisTemplate.opsForHash();
         List<Integer> res = ops.get(portOwnersKey, ownerId);
         if (res == null) {
-            return new ArrayList<>();
+            return new HashSet<>();
         }
-        return res;
+        return new HashSet<>(res);
     }
 
     public static class PortList extends ArrayList<Integer> {

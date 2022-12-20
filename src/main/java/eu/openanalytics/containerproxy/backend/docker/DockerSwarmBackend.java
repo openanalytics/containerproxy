@@ -217,7 +217,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 		} catch (ContainerFailedToStartException t) {
 			throw t;
 		} catch (Throwable t) {
-			throw new ContainerFailedToStartException("", t, rContainerBuilder.build());
+			throw new ContainerFailedToStartException("Docker swarm container failed to start", t, rContainerBuilder.build());
 		}
 	}
 

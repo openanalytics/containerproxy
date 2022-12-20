@@ -41,7 +41,7 @@ import org.springframework.test.context.support.TestPropertySourceUtils;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -81,8 +81,8 @@ public class TestIntegrationPortAllocator {
     @ParameterizedTest
     @MethodSource("parameters")
     public void testConcurrentAllocate(IPortAllocator portAllocator) throws InterruptedException {
-        List<Integer> portsThread1 = new ArrayList<>();
-        List<Integer> portsThread2 = new ArrayList<>();
+        HashSet<Integer> portsThread1 = new HashSet<>();
+        HashSet<Integer> portsThread2 = new HashSet<>();
         Thread thread1 = new Thread(() -> {
             for (int i = 0; i < 100; i++) {
                 portsThread1.add(portAllocator.allocate(100, 1000, "thread1"));
@@ -114,7 +114,7 @@ public class TestIntegrationPortAllocator {
 
     @ParameterizedTest
     @MethodSource("parameters")
-    public void testRelease(IPortAllocator portAllocator) throws InterruptedException {
+    public void testRelease(IPortAllocator portAllocator) {
         // allocate some ports
         for (int i = 0; i < 5; i++) {
             portAllocator.allocate(100, 1000, "owner1");
@@ -127,8 +127,8 @@ public class TestIntegrationPortAllocator {
         for (int i = 0; i < 5; i++) {
             portAllocator.allocate(100, 1000, "owner1");
         }
-        List<Integer> expectedOwner1 = new ArrayList<>();
-        List<Integer> expectedOwner2 = new ArrayList<>();
+        HashSet<Integer> expectedOwner1 = new HashSet<>();
+        HashSet<Integer> expectedOwner2 = new HashSet<>();
         expectedOwner1.add(100);
         expectedOwner1.add(101);
         expectedOwner1.add(102);
@@ -151,12 +151,12 @@ public class TestIntegrationPortAllocator {
 
         portAllocator.release("owner2");
         Assertions.assertEquals(expectedOwner1, portAllocator.getOwnedPorts("owner1"));
-        Assertions.assertEquals(new ArrayList<>(), portAllocator.getOwnedPorts("owner2"));
+        Assertions.assertEquals(new HashSet<>(), portAllocator.getOwnedPorts("owner2"));
         // re-allocate released ports
         for (int i = 0; i < 10; i++) {
             portAllocator.allocate(100, 1000, "owner3");
         }
-        List<Integer> expectedOwner3 = new ArrayList<>();
+        HashSet<Integer> expectedOwner3 = new HashSet<>();
         expectedOwner3.add(105);
         expectedOwner3.add(106);
         expectedOwner3.add(107);
@@ -200,8 +200,8 @@ public class TestIntegrationPortAllocator {
         thread2.start();
         thread1.join();
         thread2.join();
-        Assertions.assertEquals(new ArrayList<>(), portAllocator.getOwnedPorts("owner1_1"));
-        Assertions.assertEquals(new ArrayList<>(), portAllocator.getOwnedPorts("owner2_1"));
+        Assertions.assertEquals(new HashSet<>(), portAllocator.getOwnedPorts("owner1_1"));
+        Assertions.assertEquals(new HashSet<>(), portAllocator.getOwnedPorts("owner2_1"));
         Assertions.assertEquals(5, portAllocator.getOwnedPorts("owner1_2").size());
         Assertions.assertEquals(5, portAllocator.getOwnedPorts("owner2_2").size());
         List<Integer> allAllocatedPorts = Stream.concat(portAllocator.getOwnedPorts("owner1_2").stream(),
@@ -215,7 +215,7 @@ public class TestIntegrationPortAllocator {
 
     @ParameterizedTest
     @MethodSource("parameters")
-    public void testNoPortAvailable(IPortAllocator portAllocator) throws InterruptedException {
+    public void testNoPortAvailable(IPortAllocator portAllocator) {
         for (int i = 0; i < 5; i++) {
             portAllocator.allocate(100, 104, "owner1_1");
         }

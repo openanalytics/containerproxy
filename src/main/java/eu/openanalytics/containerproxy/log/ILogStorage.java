@@ -20,10 +20,9 @@
  */
 package eu.openanalytics.containerproxy.log;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+
+import java.io.IOException;
 
 public interface ILogStorage {
 

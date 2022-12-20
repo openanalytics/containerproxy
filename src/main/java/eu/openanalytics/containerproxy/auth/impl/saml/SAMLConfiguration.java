@@ -121,7 +121,7 @@ public class SAMLConfiguration {
 
     @Bean
     public RelyingPartyRegistrationRepository relyingPartyRegistration() throws IOException, GeneralSecurityException {
-        String baseUrl = environment.getProperty(PROP_BASE_URL); // TODO null check and end in /
+        String baseUrl = environment.getProperty(PROP_BASE_URL);
         String metadataUrl = environment.getProperty(PROP_METADATA_URL);
         String entityId = environment.getProperty(PROP_APP_ENTITY_ID);
 

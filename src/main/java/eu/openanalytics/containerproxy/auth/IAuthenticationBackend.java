@@ -20,16 +20,14 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import java.util.Map;
-
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
-
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+
+import java.util.Map;
 
 public interface IAuthenticationBackend {
 

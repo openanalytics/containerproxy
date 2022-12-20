@@ -199,7 +199,7 @@ public class S3LogStorage extends AbstractLogStorage {
 	/**
 	 * A {@link OutputStream} that wraps a {@link BufferedOutputStream} and ignores any calls to {@link #flush()}.
 	 */
-	private class IgnoreFlushOutputStream extends OutputStream {
+	private static class IgnoreFlushOutputStream extends OutputStream {
 
 		private final BufferedOutputStream bufferedOutputStream;
 

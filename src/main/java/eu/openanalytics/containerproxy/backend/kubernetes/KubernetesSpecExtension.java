@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import eu.openanalytics.containerproxy.model.spec.AbstractSpecExtension;
-import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 

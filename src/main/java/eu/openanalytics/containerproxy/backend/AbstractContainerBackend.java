@@ -198,9 +198,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 			}
 
 			if (containerSpec.getEnv().isPresent()) {
-				for (Map.Entry<String, String> entry : containerSpec.getEnv().getValue().entrySet()) {
-					env.put(entry.getKey(), entry.getValue());
-				}
+				env.putAll(containerSpec.getEnv().getValue());
 			}
 		}
 

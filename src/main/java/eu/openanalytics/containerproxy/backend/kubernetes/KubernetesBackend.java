@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
@@ -100,8 +99,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -431,7 +428,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
-	private JsonPatch readPatchFromSpec(Authentication user, ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonMappingException, JsonProcessingException {
+	private JsonPatch readPatchFromSpec(Authentication user, ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonProcessingException {
 		String patchAsString = proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
 		if (patchAsString == null) {
 			return null;

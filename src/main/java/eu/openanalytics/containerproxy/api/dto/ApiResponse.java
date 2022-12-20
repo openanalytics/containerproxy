@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import org.springframework.http.ResponseEntity;
 
 public class ApiResponse<T> {

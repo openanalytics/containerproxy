@@ -204,7 +204,6 @@ public class ParametersService {
      */
     private Optional<Pair<ParameterNames, ParameterValues>> convertParametersIfAllowed(List<ParameterDefinition> parameters, Parameters.ValueSet valueSet, Map<String, String> providedParameters) {
         Map<String, String> backendValues = new HashMap<>();
-        Map<String, String> names = new HashMap<>();
         for (ParameterDefinition parameter : parameters) {
             if (!providedParameters.containsKey(parameter.getId())) {
                 throw new IllegalStateException("Could not find value for parameter with id" + parameter.getId());
@@ -226,7 +225,6 @@ public class ParametersService {
                 return Optional.empty();
             }
             backendValues.put(parameter.getId(), backendValue);
-            names.put(parameter.getDisplayNameOrId(), providedValue); // TODO description?
         }
         // providedParameters contains an allowed value for every parameter
         ParameterNames parameterNames = new ParameterNames(getParameterNames(parameters, providedParameters));

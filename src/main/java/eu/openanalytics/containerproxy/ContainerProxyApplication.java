@@ -226,7 +226,7 @@ public class ContainerProxyApplication {
 	@Bean
 	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
 	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
-		return new SpringSessionBackedSessionRegistry<S>(sessionRepository);
+		return new SpringSessionBackedSessionRegistry<>(sessionRepository);
 	}
 
 	@Bean

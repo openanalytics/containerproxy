@@ -20,22 +20,17 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
+import org.apache.commons.io.IOUtils;
+import org.springframework.core.env.Environment;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Optional;
-
-import eu.openanalytics.containerproxy.event.*;
-import org.apache.commons.io.IOUtils;
-
-import eu.openanalytics.containerproxy.stat.IStatCollector;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 
 
 /**

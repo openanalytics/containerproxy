@@ -22,7 +22,9 @@ package eu.openanalytics.containerproxy.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.MappingJacksonValue;
 
 public class ApiResponse<T> {
 
@@ -38,8 +40,22 @@ public class ApiResponse<T> {
         return ResponseEntity.ok(new ApiResponse<>("success", data));
     }
 
+    public static <T> ResponseEntity<ApiResponse<T>> created(T data) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>("success", data));
+    }
+
+    public static ResponseEntity<MappingJacksonValue> success(MappingJacksonValue data) {
+        data.setValue(new ApiResponse<>("success", data.getValue()));
+        return ResponseEntity.ok(data);
+    }
+
     public static <T> ResponseEntity<ApiResponse<T>> success() {
         return ResponseEntity.ok(new ApiResponse<>("success", null));
+    }
+
+    // forbidden
+    public static <T> ResponseEntity<ApiResponse<T>> failForbidden() {
+        return ResponseEntity.status(403).body(new ApiResponse<>("fail", "forbidden"));
     }
 
     // invalid request

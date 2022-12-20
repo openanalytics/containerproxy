@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
@@ -43,11 +45,19 @@ import java.util.stream.Collectors;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+@JsonView(Views.Internal.class)
 public class ProxySpec {
 
+    @JsonView(Views.UserApi.class)
     String id;
+
+    @JsonView(Views.UserApi.class)
     String displayName;
+
+    @JsonView(Views.UserApi.class)
     String description;
+
+    @JsonView(Views.UserApi.class)
     String logoURL;
 
     AccessControl accessControl;
@@ -61,6 +71,7 @@ public class ProxySpec {
     SpelField.Long maxLifeTime = new SpelField.Long();
 
     Boolean stopOnLogout;
+
     @Builder.Default
     SpelField.Long heartbeatTimeout = new SpelField.Long();
 

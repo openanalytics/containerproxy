@@ -21,25 +21,22 @@
 package eu.openanalytics.containerproxy.api;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.inject.Inject;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 @RestController
@@ -49,46 +46,48 @@ public class ProxyController extends BaseController {
 	private ProxyService proxyService;
 
 	@Inject
-	private AsyncProxyService asyncProxyService;
-	
-	@RequestMapping(value="/api/proxyspec", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
-	public List<ProxySpec> listProxySpecs() {
-		return proxyService.getProxySpecs(null, false);
+	private ApiSecurityService apiSecurityService;
+
+    @RequestMapping(value="/api/proxyspec", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<MappingJacksonValue> listProxySpecs() {
+	   List<ProxySpec> specs = proxyService.getProxySpecs(null, false);
+	   return ApiResponse.success(apiSecurityService.protectSpecs(specs));
 	}
 	
 	@RequestMapping(value="/api/proxyspec/{proxySpecId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ProxySpec> getProxySpec(@PathVariable String proxySpecId) {
+	public ResponseEntity<MappingJacksonValue> getProxySpec(@PathVariable String proxySpecId) {
 		ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
-		if (spec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		return new ResponseEntity<>(spec, HttpStatus.OK);
+		if (spec == null) {
+			return ResponseEntity.status(403).body(new MappingJacksonValue(new ApiResponse<>("fail", "forbidden")));
+		}
+		return ApiResponse.success(apiSecurityService.protectSpecs(spec));
 	}
 
 	@JsonView(Views.UserApi.class)
 	@RequestMapping(value="/api/proxy", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
-	public List<Proxy> listProxies(@RequestParam(value = "only_owned_proxies", required = false, defaultValue = "false") boolean onlyOwnedProxies) {
-		if (onlyOwnedProxies) {
-			// even if the user is an admin this will only return proxies that the user owns
-			return proxyService.getProxiesOfCurrentUser(null);
-		}
-		// if the user is an admin this will return all proxies
-		return proxyService.getProxies(null, false);
+	public ResponseEntity<ApiResponse<List<Proxy>>> listProxies() {
+		return ApiResponse.success(proxyService.getProxiesOfCurrentUser(null));
 	}
 
 	@JsonView(Views.UserApi.class)
 	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> getProxy(@PathVariable String proxyId) {
+	public ResponseEntity<ApiResponse<Proxy>> getProxy(@PathVariable String proxyId) {
 		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
-		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		return new ResponseEntity<>(proxy, HttpStatus.OK);
+		if (proxy == null) {
+			return ApiResponse.failForbidden();
+		}
+		return ApiResponse.success(proxy);
 	}
 	
 	@RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Proxy> startProxy(@PathVariable String proxySpecId) throws InvalidParametersException {
+	public ResponseEntity<ApiResponse<Proxy>> startProxy(@PathVariable String proxySpecId) throws InvalidParametersException {
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
-		if (baseSpec == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		
+		if (baseSpec == null) {
+			return ApiResponse.failForbidden();
+		}
+
 		Proxy proxy = proxyService.startProxy(baseSpec);
-		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
+		return ApiResponse.created(proxy);
 	}
 
     // TODO disable this by default
@@ -97,17 +96,5 @@ public class ProxyController extends BaseController {
 //		Proxy proxy = proxyService.startProxy(proxySpec, false);
 //		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
 //	}
-	
-	@RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.DELETE, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, String>> stopProxy(@PathVariable String proxyId) {
-		Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
-		if (proxy == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		
-		asyncProxyService.stopProxy(proxy, false);
-		return ResponseEntity.ok(new HashMap<String, String>() {{
-			put("status", "success");
-			put("message", "proxy_stopped");
-		}});
-	}
 
 }

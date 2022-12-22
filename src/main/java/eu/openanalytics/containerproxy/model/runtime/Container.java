@@ -34,6 +34,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +91,24 @@ public class Container extends RuntimeValueStore {
     }
 
     public static class ContainerBuilder {
+
+        public ContainerBuilder runtimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
+            // take a copy of the map so that when using toBuilder a deep copy is returned
+            // otherwise, copies will have the same underlying map
+            if (runtimeValues != null) {
+                this.runtimeValues = new HashMap<>(runtimeValues);
+            }
+            return this;
+        }
+
+        public ContainerBuilder targets(Map<String, URI> targets) {
+            // take a copy of the map so that when using toBuilder a deep copy is returned
+            // otherwise, copies will have the same underlying map
+            if (targets != null) {
+                this.targets = new HashMap<>(targets);
+            }
+            return this;
+        }
 
         public Container.ContainerBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
             if (this.runtimeValues == null) {

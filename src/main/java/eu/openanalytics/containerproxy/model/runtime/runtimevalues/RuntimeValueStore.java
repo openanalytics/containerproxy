@@ -43,7 +43,7 @@ public abstract class RuntimeValueStore {
             if (value.getKey().getIncludeInApi()) {
                 result.put(value.getKey().getKeyAsEnvVar(), value.getObject());
             }
-          }
+        }
         return result;
     }
 

@@ -120,6 +120,24 @@ public class Proxy extends RuntimeValueStore {
 
 	public static class ProxyBuilder {
 
+		public ProxyBuilder runtimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
+			// take a copy of the map so that when using toBuilder a deep copy is returned
+			// otherwise, copies will have the same underlying map
+			if (runtimeValues != null) {
+				this.runtimeValues = new HashMap<>(runtimeValues);
+			}
+			return this;
+		}
+
+		public ProxyBuilder containers(List<Container> containers) {
+			// take a copy of the list so that when using toBuilder a deep copy is returned
+			// otherwise, copies will have the same underlying list
+			if (containers != null) {
+				this.containers = new ArrayList<>(containers);
+			}
+			return this;
+		}
+
 		public ProxyBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
 			if (this.runtimeValues == null) {
 				this.runtimeValues = new HashMap<>();

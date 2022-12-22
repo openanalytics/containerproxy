@@ -74,7 +74,7 @@ public class ProxyStatusController {
     private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
 
     @Operation(
-            summary = "Change the status of a proxy.",
+            summary = "Change the status of a proxy.", tags = "ContainerProxy",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     content = @Content(
                             mediaType = "application/json",
@@ -82,7 +82,8 @@ public class ProxyStatusController {
                             examples = {
                                     @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredStatus\": \"Stopping\"}"),
                                     @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredStatus\": \"Pausing\"}"),
-                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\"}")
+                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\"}"),
+                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
                             }
                     )
             )
@@ -156,7 +157,7 @@ public class ProxyStatusController {
     /**
      * Get the state of a proxy and optionally watches for the state to become in a final (i.e. non transitioning) state.
      */
-    @Operation(summary = "Get the status of a proxy and optionally wait for the status to change.")
+    @Operation(summary = "Get the status of a proxy and optionally wait for the status to change.", tags = "ContainerProxy")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",

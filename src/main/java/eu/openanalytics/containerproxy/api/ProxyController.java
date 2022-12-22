@@ -54,7 +54,7 @@ public class ProxyController extends BaseController {
 	@Inject
 	private ApiSecurityService apiSecurityService;
 
-	@Operation(summary = "Get configured proxy specs. A configuration property controls whether the full spec or a limited subset is returned.")
+	@Operation(summary = "Get configured proxy specs. A configuration property controls whether the full spec or a limited subset is returned.", tags = "ContainerProxy")
 	@ApiResponses(value = {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "200",
@@ -94,7 +94,7 @@ public class ProxyController extends BaseController {
 	   return ApiResponse.success(apiSecurityService.protectSpecs(specs));
 	}
 
-	@Operation(summary = "Get a configured proxy spec. A configuration property controls whether the full spec or a limited subset is returned.")
+	@Operation(summary = "Get a configured proxy spec. A configuration property controls whether the full spec or a limited subset is returned.", tags = "ContainerProxy")
 	@ApiResponses(value = {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "200",
@@ -128,7 +128,7 @@ public class ProxyController extends BaseController {
 		return ApiResponse.success(apiSecurityService.protectSpecs(spec));
 	}
 
-	@Operation(summary = "Get active proxies of logged in user.")
+	@Operation(summary = "Get active proxies of logged in user.", tags = "ContainerProxy")
 	@ApiResponses(value = {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "200",
@@ -160,7 +160,7 @@ public class ProxyController extends BaseController {
 		return ApiResponse.success(proxyService.getProxiesOfCurrentUser(null));
 	}
 
-	@Operation(summary = "Get an active proxy.")
+	@Operation(summary = "Get an active proxy.", tags = "ContainerProxy")
 	@ApiResponses(value = {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(
 					responseCode = "200",
@@ -199,7 +199,8 @@ public class ProxyController extends BaseController {
 		}
 		return ApiResponse.success(proxy);
 	}
-    @Operation(summary = "Create and start a proxy using the given spec id.")
+
+    @Operation(summary = "Create and start a proxy using the given spec id.", tags = "ContainerProxy")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",

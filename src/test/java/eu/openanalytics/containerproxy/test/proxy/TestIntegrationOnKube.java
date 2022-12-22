@@ -20,10 +20,8 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
-import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -511,11 +509,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
      * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
      */
     @Test
-    public void launchProxyWithAdditionalManifests() throws Exception {
+    public void launchProxyWithAdditionalManifests() {
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[8].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests");
             Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -770,9 +766,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithManifestPolicyCreateOnce() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[13].id");
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_policy_create_once");
 
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
             Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -813,19 +808,22 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
         });
-        // case 2: secret does already exist, check that it gets overridden
+        // case 2: secret does already exist, check that it does not get overridden
         setup((client, namespace, overriddenNamespace) -> {
             // first create secret
             client.secrets().inNamespace(namespace).create(new SecretBuilder()
                     .withNewMetadata()
                     .withName("manifests-secret")
+                    .withLabels(new HashMap<String, String>() {{
+                        put("openanalytics.eu/sp-additional-manifest", "true");
+                        put("openanalytics.eu/sp-persistent-manifest", "false");
+                        put("openanalytics.eu/sp-manifest-id", "4d1d0a831959477994c28330254195c1623c17fb");
+                    }})
                     .endMetadata()
                     .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
                     .build());
 
-            String specId = environment.getProperty("proxy.specs[13].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_policy_create_once");
             Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
@@ -1596,12 +1594,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                         .run();
             }, "The parameter with id \"non-existing-parameter\" does not exist");
 
-            Assertions.assertEquals(ex.getMessage(), "Container failed to start");
-            Assertions.assertEquals(ex.getCause().getClass(), ProxyFailedToStartException.class);
-            Assertions.assertEquals(ex.getCause().getMessage(), "Container with index 0 failed to start");
-            Assertions.assertEquals(ex.getCause().getCause().getClass(), ContainerFailedToStartException.class);
-            Assertions.assertEquals(ex.getCause().getCause().getMessage(), "Kubernetes container failed to start");
-            Assertions.assertEquals(ex.getCause().getCause().getCause().getMessage(), "The parameter with id \"non-existing-parameter\" does not exist!");
+            Assertions.assertEquals("Container failed to start", ex.getMessage());
+            Assertions.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+            Assertions.assertEquals("The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getMessage());
 
             Thread.sleep(2000);
 

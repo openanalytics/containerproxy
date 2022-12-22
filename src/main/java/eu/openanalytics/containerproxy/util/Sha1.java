@@ -26,11 +26,15 @@ import java.security.NoSuchAlgorithmException;
 
 public class Sha1 {
 
-    public static String hash(String value) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-1");
-        digest.reset();
-        digest.update(value.getBytes());
-        return String.format("%040x", new BigInteger(1, digest.digest()));
+    public static String hash(String value)  {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            digest.reset();
+            digest.update(value.getBytes());
+            return String.format("%040x", new BigInteger(1, digest.digest()));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
 }

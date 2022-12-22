@@ -35,7 +35,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.internal.SerializationUtils;
 
 @Component
 public class PodPatcher {
@@ -80,11 +79,11 @@ public class PodPatcher {
 	 */
 	public Pod patchWithDebug(Pod pod, JsonPatch patch) throws JsonProcessingException {
 		if (loggingEnabled) {
-			log.info("Original Pod: " + SerializationUtils.dumpAsYaml(pod));
+			log.info("Original Pod: " + mapper.writeValueAsString(pod));
 		}
 		Pod patchedPod = patch(pod, patch);
 		if (loggingEnabled) {
-			log.info("Patched Pod: " + SerializationUtils.dumpAsYaml(patchedPod));
+			log.info("Patched Pod: " + mapper.writeValueAsString(patchedPod));
 		}
 		return patchedPod;
 	}

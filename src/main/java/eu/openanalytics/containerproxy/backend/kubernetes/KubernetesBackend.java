@@ -42,7 +42,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -52,7 +51,6 @@ import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
@@ -81,7 +79,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
-import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -136,6 +134,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private KubernetesClient kubeClient;
 
+	private KubernetesManifestsRemover kubernetesManifestsRemover;
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
@@ -156,11 +156,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
+		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
 	}
 
 	public void initialize(KubernetesClient client) {
 		super.initialize();
 		kubeClient = client;
+		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
 	}
 
 	@Override
@@ -169,6 +171,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		String containerId = UUID.randomUUID().toString();
 		rContainerBuilder.id(containerId);
 
+		KubernetesSpecExtension specExtension = proxySpec.getSpecExtension(KubernetesSpecExtension.class);
 		try {
 			String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
 			String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
@@ -289,7 +292,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 			}
 
-			JsonPatch patch = readPatchFromSpec(user, spec, proxy, proxySpec);
+			JsonPatch patch = readPatchFromSpec(specExtension);
 
 			Pod startupPod = podBuilder.withSpec(podSpec).build();
 			Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
@@ -298,7 +301,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
 
 			// create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
-			createAdditionalManifests(user,proxy, proxySpec, effectiveKubeNamespace);
+			createAdditionalManifests(proxy, specExtension, effectiveKubeNamespace);
 
 			// tell the status service we are starting the pod/container
 			proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -428,28 +431,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 	}
 
-	private JsonPatch readPatchFromSpec(Authentication user, ContainerSpec containerSpec, Proxy proxy, ProxySpec proxySpec) throws JsonProcessingException {
-		String patchAsString = proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesPodPatches();
-		if (patchAsString == null) {
-			return null;
-		}
-
-		// TODO
-		// resolve expressions
-		SpecExpressionContext context = SpecExpressionContext.create(containerSpec,
-				proxy,
-				proxySpec,
-				user.getPrincipal(),
-				user.getCredentials());
-		String expressionAwarePatch = expressionResolver.evaluateToString(patchAsString, context);
-
-		if (StringUtils.isBlank(expressionAwarePatch)) {
+	private JsonPatch readPatchFromSpec(KubernetesSpecExtension specExtension) throws JsonProcessingException {
+		String patchAsString = specExtension.getKubernetesPodPatches();
+		if (patchAsString == null || StringUtils.isBlank(patchAsString)) {
 			return null;
 		}
 
 		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
 		yamlReader.registerModule(new JSR353Module());
-		return yamlReader.readValue(expressionAwarePatch, JsonPatch.class);
+		return yamlReader.readValue(patchAsString, JsonPatch.class);
 	}
 
 	/**
@@ -457,27 +447,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 *
 	 * The resource will only be created if it does not already exist.
 	 */
-	private void createAdditionalManifests(Authentication user, Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
-		for (GenericKubernetesResource fullObject: getAdditionManifestsAsObjects(proxy, proxySpec, namespace)) {
+	private void createAdditionalManifests(Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
+		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
 			applyAdditionalManifest(fullObject);
 		}
-		for (GenericKubernetesResource fullObject: getAdditionPersistentManifestsAsObjects(user, proxy, proxySpec, namespace)) {
+		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
 			applyAdditionalManifest(fullObject);
 		}
-	}
-
-	private List<GenericKubernetesResource> getAdditionManifestsAsObjects(Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
-		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy, proxySpec);
-		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalManifests());
-	}
-
-	private List<GenericKubernetesResource> getAdditionPersistentManifestsAsObjects(Authentication auth, Proxy proxy, ProxySpec proxySpec, String namespace) throws JsonProcessingException {
-		SpecExpressionContext context = SpecExpressionContext.create(
-				proxy, proxySpec,
-				auth.getPrincipal(),
-				auth.getCredentials());
-		return parseAdditionalManifests(proxySpec.getId(), context, namespace, proxySpec.getSpecExtension(KubernetesSpecExtension.class).getKubernetesAdditionalPersistentManifests());
 	}
 
 	private void applyAdditionalManifest(GenericKubernetesResource resource) {
@@ -518,15 +494,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<GenericKubernetesResource> parseAdditionalManifests(String specId, SpecExpressionContext context, String namespace, List<String> manifests) throws JsonProcessingException {
+	private List<GenericKubernetesResource> parseAdditionalManifests(String userId, String specId, String namespace, List<String> manifests, Boolean persistent) throws JsonProcessingException {
 		ArrayList<GenericKubernetesResource> result = new ArrayList<>();
 		for (String manifest : manifests) {
-			String expressionManifest = expressionResolver.evaluateToString(manifest, context);
-			GenericKubernetesResource object = Serialization.yamlMapper().readValue(expressionManifest, GenericKubernetesResource.class);
+			GenericKubernetesResource object = Serialization.yamlMapper().readValue(manifest, GenericKubernetesResource.class);
 
 			GenericKubernetesResource fullObject = kubeClient
 					.genericKubernetesResources(object.getApiVersion(), object.getKind())
-					.load(new ByteArrayInputStream(expressionManifest.getBytes())).get();
+					.load(new ByteArrayInputStream(manifest.getBytes())).get();
 			
 			if (object.getMetadata().getNamespace() == null) {
 				// the load method (in some cases) automatically sets a namespace when no namespace is provided
@@ -537,8 +512,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				fullObject.getMetadata().setLabels(new HashMap<>());
 			}
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-additional-manifest", "true");
-			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-realm", identifierService.realmId); // TODO
-			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-spec-id", specId);
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-persistent-manifest", persistent.toString());
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-manifest-id", kubernetesManifestsRemover.getManifestId(specId, userId));
+
+			// TODO annotations
+//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-realm", identifierService.realmId);
+//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-spec-id", specId);
+//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-uer-id", specId);
 			result.add(fullObject);
 		}
 		return result;
@@ -591,10 +571,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			
 			// delete additional manifests
 			// we retrieve the spec here, therefore this is not compatible with AppRecovery
-			ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-			for (HasMetadata fullObject: getAdditionManifestsAsObjects(proxy,  proxySpec, podInfo.get().getFirst())) {
-				kubeClient.resource(fullObject).withGracePeriod(0).delete();
-			}
+			kubernetesManifestsRemover.deleteAdditionalManifests(proxy.getSpecId(), proxy.getUserId());
 		}
 	}
 
@@ -628,18 +605,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		return PROPERTY_PREFIX;
 	}
 
-
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() {
-        HashSet<String> namespaces = new HashSet<>();
-		int i = 0;
-		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
-		while (appNamespace != null) {
-			namespaces.add(appNamespace);
-			i++;
-			appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
-		}
-		namespaces.add(getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE));
+        HashSet<String> namespaces = getAppNamespaces();
 
 		log.debug("Looking for existing pods in namespaces {}", namespaces);
 
@@ -736,6 +704,19 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private Optional<Pod> getPod(Pair<String, String> podInfo) {
 		return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getFirst()).withName(podInfo.getSecond()).get());
+	}
+
+	private HashSet<String> getAppNamespaces() {
+		HashSet<String> namespaces = new HashSet<>();
+		int i = 0;
+		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
+		while (appNamespace != null) {
+			namespaces.add(appNamespace);
+			i++;
+			appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
+		}
+		namespaces.add(getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE));
+		return namespaces;
 	}
 
 }

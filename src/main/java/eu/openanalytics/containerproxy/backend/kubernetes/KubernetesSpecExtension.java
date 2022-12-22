@@ -23,44 +23,42 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 import eu.openanalytics.containerproxy.model.spec.AbstractSpecExtension;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Setter
+@Getter
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class KubernetesSpecExtension extends AbstractSpecExtension {
 
-    private String kubernetesPodPatches;
+    String kubernetesPodPatches;
 
-    private List<String> kubernetesAdditionalManifests = new ArrayList<>();
+    @Builder.Default
+    List<String> kubernetesAdditionalManifests = new ArrayList<>();
 
-    private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
-
-    public String getKubernetesPodPatches() {
-        return kubernetesPodPatches;
-    }
-
-    public void setKubernetesPodPatches(String kubernetesPodPatches) {
-        this.kubernetesPodPatches = kubernetesPodPatches;
-    }
-
-    public List<String> getKubernetesAdditionalManifests() {
-        return kubernetesAdditionalManifests;
-    }
-
-    public void setKubernetesAdditionalManifests(List<String> kubernetesAdditionalManifests) {
-        this.kubernetesAdditionalManifests = kubernetesAdditionalManifests;
-    }
-
-    public List<String> getKubernetesAdditionalPersistentManifests() {
-        return kubernetesAdditionalPersistentManifests;
-    }
-
-    public void setKubernetesAdditionalPersistentManifests(List<String> kubernetesAdditionalPersistentManifests) {
-        this.kubernetesAdditionalPersistentManifests = kubernetesAdditionalPersistentManifests;
-    }
+    @Builder.Default
+    List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
     @Override
     public KubernetesSpecExtension resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
-        return this;
+        return toBuilder()
+                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
+                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
+                .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
+                .build();
     }
 }

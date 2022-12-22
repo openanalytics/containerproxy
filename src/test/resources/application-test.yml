@@ -19,6 +19,7 @@ proxy:
   docker:
     url: http://localhost:2375
 
+
   specs:
   - id: 01_hello
     container-specs:
@@ -610,3 +611,6 @@ proxy:
         value:
           name: ERROR
           value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}"
+
+appNamespaces:
+  - itest-overridden

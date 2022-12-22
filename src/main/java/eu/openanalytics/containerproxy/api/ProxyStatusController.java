@@ -233,8 +233,15 @@ public class ProxyStatusController {
                     .status(ProxyStatus.Stopped)
                     .build());
         });
-        watchers.putIfAbsent(proxyId, new ArrayList<>());
-        watchers.get(proxyId).add(output);
+
+        watchers.compute(proxyId, (key, oldValue) -> {
+            if (oldValue == null) {
+                oldValue = new ArrayList<>();
+            }
+            oldValue.add(output);
+            return oldValue;
+        });
+
         return output;
     }
 

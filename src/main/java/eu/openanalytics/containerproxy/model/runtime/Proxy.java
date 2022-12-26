@@ -41,6 +41,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Value
@@ -94,6 +96,13 @@ public class Proxy extends RuntimeValueStore {
 		}
 
 		return builder.build();
+	}
+
+	public Container getContainer(Integer containerIndex) {
+		return containers.stream()
+				.filter(c -> Objects.equals(c.getIndex(), containerIndex))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("No container found with this index"));
 	}
 
 	public List<Container> getContainers() {

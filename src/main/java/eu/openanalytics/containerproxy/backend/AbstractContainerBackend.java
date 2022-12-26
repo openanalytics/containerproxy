@@ -35,9 +35,6 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
-import eu.openanalytics.containerproxy.service.RuntimeValueService;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
@@ -51,7 +48,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.BiConsumer;
@@ -78,9 +77,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected Environment environment;
 
 	@Inject
-	protected SpecExpressionResolver expressionResolver;
-
-	@Inject
 	@Lazy
 	// Note: lazy needed to work around early initialization conflict
 	protected IAuthenticationBackend authBackend;
@@ -89,13 +85,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Lazy
 	// Note: lazy to prevent cyclic dependencies
 	protected AppRecoveryService appRecoveryService;
-
-	@Inject
-	protected IProxySpecProvider specProvider;
-
-	@Inject
-	@Lazy
-	private RuntimeValueService runtimeValueService;
 
 	@Inject
 	protected IdentifierService identifierService;
@@ -109,25 +98,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
 	@Override
 	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
+		List<Container> resultContainers = new ArrayList<>();
+
 		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
-			Container.ContainerBuilder containerBuilder = Container.builder();
-			containerBuilder.index(spec.getIndex());
-			Container container = containerBuilder.build();
-
-			container = runtimeValueService.addRuntimeValuesAfterSpel(spec, container);
-
 			try {
+				Container container = proxy.getContainer(spec.getIndex());
 				container = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
-				proxy = proxy.toBuilder().addContainer(container).build();
+				resultContainers.add(container);
 				if (container.getIndex() == 0) {
 					proxyStartupLogBuilder.startingApplication();
 				}
 			} catch (ContainerFailedToStartException t) {
-				proxy = proxy.toBuilder().addContainer(t.getContainer()).build();
-				throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", container.getIndex()), t, proxy);
+				resultContainers.add(t.getContainer());
+				throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
 			}
 		}
-		return proxy;
+
+		return proxy.toBuilder().containers(resultContainers).build();
 	}
 
 	protected abstract Container startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;

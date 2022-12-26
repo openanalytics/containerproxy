@@ -106,11 +106,10 @@ public class ContainerSpec {
         this.labels = new SpelField.StringMap(labels);
     }
 
-    public ContainerSpec resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+    public ContainerSpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
                 .image(image.resolve(resolver, context))
                 .cmd(cmd.resolve(resolver, context))
-                .env(env.resolve(resolver, context))
                 .envFile(envFile.resolve(resolver, context))
                 .network(network.resolve(resolver, context))
                 .networkConnections(networkConnections.resolve(resolver, context))
@@ -121,6 +120,12 @@ public class ContainerSpec {
                 .cpuRequest(cpuRequest.resolve(resolver, context))
                 .cpuLimit(cpuLimit.resolve(resolver, context))
                 .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+                .build();
+    }
+
+    public ContainerSpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .env(env.resolve(resolver, context))
                 .labels(labels.resolve(resolver, context))
                 .build();
     }

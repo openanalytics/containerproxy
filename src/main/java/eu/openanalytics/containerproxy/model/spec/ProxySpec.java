@@ -91,7 +91,7 @@ public class ProxySpec {
         return extensionClass.cast(specExtensions.get(extensionClass));
     }
 
-    public ProxySpec resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+    public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
                 .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
                 .maxLifeTime(maxLifeTime.resolve(resolver, context))
@@ -100,14 +100,30 @@ public class ProxySpec {
                                 .stream()
                                 .collect(Collectors.toMap(
                                         Map.Entry::getKey,
-                                        e -> e.getValue().resolve(resolver, context))))
+                                        e -> e.getValue().firstResolve(resolver, context))))
                 .containerSpecs(
                         containerSpecs
                                 .stream()
-                                .map(c -> c.resolve(resolver, context.copy(c)))
+                                .map(c -> c.firstResolve(resolver, context.copy(c)))
                                 .collect(Collectors.toList())
                 )
                 .build();
     }
 
+    public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .specExtensions(
+                        specExtensions.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        e -> e.getValue().finalResolve(resolver, context))))
+                .containerSpecs(
+                        containerSpecs
+                                .stream()
+                                .map(c -> c.finalResolve(resolver, context.copy(c)))
+                                .collect(Collectors.toList())
+                )
+                .build();
+    }
 }

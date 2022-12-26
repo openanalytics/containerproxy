@@ -29,5 +29,8 @@ public interface ISpecExtension {
 
     void setId(String id);
 
-    ISpecExtension resolve(SpecExpressionResolver resolver, SpecExpressionContext context);
+    ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context);
+
+    ISpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context);
+
 }

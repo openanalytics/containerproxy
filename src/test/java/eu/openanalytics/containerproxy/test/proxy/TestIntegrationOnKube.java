@@ -1608,6 +1608,72 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         });
     }
 
+    @Test
+    public void launchProxyWithParametersFinalResolve() {
+        setup((client, namespace, overriddenNamespace) -> {
+            ProxySpec spec = proxyService.getProxySpec("parameters-final-resolve");
+            String proxyId = UUID.randomUUID().toString();
+            proxyService.startProxy(
+                            userService.getCurrentAuth(),
+                            spec,
+                            null,
+                            proxyId,
+                            new HashMap<String, String>() {{
+                                put("environment", "base_r");
+                                put("version", "4.0.5");
+                                put("memory", "2G");
+                            }})
+                    .run();
+            Proxy proxy = proxyService.getProxy(proxyId);
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
+            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+
+            Assertions.assertTrue(env.containsKey("ENVIRONMENT"));
+            Assertions.assertEquals("ledfan/rstudio_base_r", env.get("ENVIRONMENT").getValue());
+            Assertions.assertTrue(env.containsKey("VERSION"));
+            Assertions.assertEquals("4_0_5", env.get("VERSION").getValue());
+            Assertions.assertTrue(env.containsKey("MEMORY"));
+            Assertions.assertEquals("2G", env.get("MEMORY").getValue());
+            Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
+            Assertions.assertEquals("the-first-value-set", env.get("VALUESET_NAME").getValue());
+
+            // env vars that should be resolved during the final resolve:
+            Assertions.assertTrue(env.containsKey("HEARTBEAT_TIMEOUT"));
+            Assertions.assertEquals("70", env.get("HEARTBEAT_TIMEOUT").getValue());
+            Assertions.assertTrue(env.containsKey("MAX_LIFETIME"));
+            Assertions.assertEquals("-1", env.get("MAX_LIFETIME").getValue());
+            Assertions.assertTrue(env.containsKey("MEMORY_LIMIT"));
+            Assertions.assertEquals("2G", env.get("MEMORY_LIMIT").getValue());
+            Assertions.assertTrue(env.containsKey("IMAGE"));
+            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", env.get("IMAGE").getValue());
+
+            // labels that should be resolved during the final resolve:
+            Map<String, String> labels = pod.getMetadata().getLabels();
+            Assertions.assertTrue(labels.containsKey("HEARTBEAT_TIMEOUT"));
+            Assertions.assertEquals("70", labels.get("HEARTBEAT_TIMEOUT"));
+
+            proxyService.stopProxy(null, proxy, true).run();
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
+
 
     public static class TestConfiguration {
         @Bean

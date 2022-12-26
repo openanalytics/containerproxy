@@ -54,11 +54,17 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
 
     @Override
-    public KubernetesSpecExtension resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+    public KubernetesSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return this;
+    }
+
+    @Override
+    public KubernetesSpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
                 .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
                 .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
                 .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
                 .build();
     }
+
 }

@@ -73,6 +73,20 @@ public abstract class SpelField<O, R> {
         return value;
     }
 
+    /**
+     * Can be used in SPeL expressions.
+     *
+     * @return string representation of the resolved value
+     */
+    @Override
+    public java.lang.String toString() {
+        R res = getValueOrNull();
+        if (res == null) {
+            return null;
+        }
+        return res.toString();
+    }
+
     public R getValueOrDefault(R defaultValue) {
         if (!resolved) {
             throw new IllegalStateException("Trying to retrieve a SpelField value which is not yet resolved.");

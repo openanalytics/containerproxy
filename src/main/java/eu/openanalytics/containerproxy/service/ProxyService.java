@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
@@ -398,10 +399,24 @@ public class ProxyService {
 					user.getCredentials());
 
 			// resolve SpEL expression in spec
-			spec = spec.resolve(expressionResolver, context);
+			spec = spec.firstResolve(expressionResolver, context);
 
 			// add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
 			proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
+
+			// create container objects
+			for (ContainerSpec containerSpec: spec.getContainerSpecs()) {
+				Container.ContainerBuilder containerBuilder = Container.builder();
+				containerBuilder.index(containerSpec.getIndex());
+				Container container = containerBuilder.build();
+
+				container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
+				proxy = proxy.toBuilder().addContainer(container).build();
+			}
+
+			context = context.copy(spec, proxy);
+
+			spec = spec.finalResolve(expressionResolver, context);
 
 			return Pair.of(spec, proxy);
 		} catch (Throwable t) {

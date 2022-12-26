@@ -467,11 +467,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		}
 		if (policy.equalsIgnoreCase("CreateOnce")) {
 			if (kubeClient.resource(resource).fromServer().get() == null) {
-				client.create(resource);
+				client.resource(resource).create();
 			}
 		} else if (policy.equalsIgnoreCase("Patch")) {
 			if (kubeClient.resource(resource).fromServer().get() == null) {
-				client.create(resource);
+				client.resource(resource).create();
 			} else {
 				client.withName(resource.getMetadata().getName()).patch(PatchContext.of(PatchType.JSON_MERGE), resource);
 			}
@@ -483,7 +483,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (kubeClient.resource(resource).fromServer().get() != null) {
 				kubeClient.resource(resource).withGracePeriod(0).delete();
 			}
-			client.create(resource);
+			client.resource(resource).create();
 		} else {
 			log.warn("Unknown manifest-policy: {}", policy);
 		}
@@ -567,7 +567,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 			// specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
 			kubeClient.pods().inNamespace(podInfo.get().getFirst()).withName(podInfo.get().getSecond()).withGracePeriod(0).delete();
-			kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(container)).delete();
+
+			if (!isUseInternalNetwork()) {
+				// delete service when not using internal network
+				Service service = kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(container)).get();
+				if (service != null) {
+					kubeClient.resource(service).withGracePeriod(0).delete();
+				}
+			}
 			
 			// delete additional manifests
 			// we retrieve the spec here, therefore this is not compatible with AppRecovery

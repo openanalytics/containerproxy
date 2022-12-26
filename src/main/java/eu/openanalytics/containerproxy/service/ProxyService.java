@@ -312,9 +312,6 @@ public class ProxyService {
 			Proxy stoppedProxy = stoppingProxy.withStatus(ProxyStatus.Stopped);
 			try {
 				backend.stopProxy(stoppedProxy);
-				proxyStore.updateProxy(stoppedProxy);
-				log.info(formatLogMessage("Proxy released", stoppedProxy));
-				applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy));
 			} catch (Throwable t) {
 				log.error(formatLogMessage("Failed to release proxy", stoppedProxy), t);
 			}
@@ -323,6 +320,8 @@ public class ProxyService {
 			} catch (Throwable t) {
 				log.error(formatLogMessage("Failed to remove proxy", stoppedProxy), t);
 			}
+			log.info(formatLogMessage("Proxy released", stoppedProxy));
+			applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy));
 		});
 	}
 

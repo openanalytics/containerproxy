@@ -1,3 +1,23 @@
+/**
+ * ContainerProxy
+ *
+ * Copyright (C) 2016-2021 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import com.google.common.collect.Streams;
@@ -6,6 +26,7 @@ import eu.openanalytics.containerproxy.util.Sha1;
 import io.fabric8.kubernetes.api.model.APIResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.Deletable;
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +104,9 @@ public class KubernetesManifestsRemover {
                         .withLabel("openanalytics.eu/sp-additional-manifest", "true")
                         .withLabel("openanalytics.eu/sp-persistent-manifest", "false")
                         .withLabel("openanalytics.eu/sp-manifest-id", manifestId)
-                        .delete();
+                        .resources()
+                        .forEach(Deletable::delete);
+
             }
         }
     }

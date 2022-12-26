@@ -704,6 +704,37 @@ proxy:
         value:
           name: VALUESET_NAME
           value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValueSetName()}"
+  - id: 01_hello_manifests_persistent_using_auth
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-pod-patches: |
+      - op: replace
+        path: /metadata/namespace
+        value: itest-overridden
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: configmap1
+        type: Opaque
+        data:
+          test.txt: |
+            #{groups}
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: configmap2
+        type: Opaque
+        data:
+          test.txt: |
+            #{groups}
 
 appNamespaces:
   - itest-overridden

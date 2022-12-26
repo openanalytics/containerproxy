@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube.TestConfiguration;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
@@ -233,7 +234,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
             Assertions.assertEquals("jack", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
             Assertions.assertTrue(env.containsKey("SHINYPROXY_USERGROUPS"));
-            Assertions.assertNull(env.get("SHINYPROXY_USERGROUPS").getValue());
+            Assertions.assertEquals("GROUP1,GROUP2", env.get("SHINYPROXY_USERGROUPS").getValue());
             Assertions.assertTrue(env.containsKey("VAR1"));
             Assertions.assertNull(env.get("VAR1").getValue());
             Assertions.assertTrue(env.containsKey("VAR2"));
@@ -1674,6 +1675,55 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         });
     }
 
+    /**
+     * Tests the creation and deleting of additional manifests (both persistent and non-persistent) using auth objects inside.
+     * See #26789
+     */
+    @Test
+    public void launchProxyWithAdditionalPersistentManifestsUsingAuthObjects() throws Exception {
+        setup((client, namespace, overriddenNamespace) -> {
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_persistent_using_auth");
+            Proxy proxy = proxyService.startProxy(spec);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            ConfigMap configMap1 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap1").get();
+            Assertions.assertTrue(configMap1.getData().containsKey("test.txt"));
+            Assertions.assertEquals("GROUP1,GROUP2\n", configMap1.getData().get("test.txt"));
+
+            ConfigMap configMap2 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap2").get();
+            Assertions.assertTrue(configMap2.getData().containsKey("test.txt"));
+            Assertions.assertEquals("GROUP1,GROUP2\n", configMap2.getData().get("test.txt"));
+
+            proxyService.stopProxy(null, proxy, true).run();
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+
+            // configmap 1 should have been deleted
+            configMap1 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap1").get();
+            Assertions.assertNull(configMap1);
+            // configmap 2 should not have been deleted
+            configMap2 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap2").get();
+            Assertions.assertTrue(configMap2.getData().containsKey("test.txt"));
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
 
     public static class TestConfiguration {
         @Bean

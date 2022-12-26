@@ -27,12 +27,11 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.DisplayNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -65,9 +64,6 @@ public class AppRecoveryService {
 	private IContainerBackend containerBackend;
 
 	@Inject
-	private IProxySpecProvider proxySpecProvider;
-
-	@Inject
 	private ProxyService proxyService;
 
 	@Inject
@@ -96,11 +92,6 @@ public class AppRecoveryService {
 			for (ExistingContainerInfo containerInfo: containerBackend.scanExistingContainers()) {
 			    String proxyId = containerInfo.getRuntimeValue(ProxyIdKey.inst).getObject();
 
-				ProxySpec proxySpec = proxySpecProvider.getSpec(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getObject());
-				if (proxySpec == null) {
-					log.warn(String.format("Found existing container (%s) but not corresponding proxy spec.", containerInfo.getContainerId()));
-					continue;
-				}
 				if (!proxies.containsKey(proxyId)) {
 					Proxy.ProxyBuilder proxy = Proxy.builder();
 					proxy.id(proxyId);
@@ -113,11 +104,7 @@ public class AppRecoveryService {
 					// and started is only important for the events (e.g. Prometheus) not for the whole application.
 					proxy.startupTimestamp(createdTimestamp);
 					proxy.userId(containerInfo.getRuntimeValue(UserIdKey.inst).getObject());
-					if (proxySpec.getDisplayName() != null) {
-						proxy.displayName(proxySpec.getDisplayName());
-					} else {
-						proxy.displayName(proxySpec.getId());
-					}
+					proxy.displayName(containerInfo.getRuntimeValue(DisplayNameKey.inst).getObject());
 
 					proxy.addRuntimeValues(containerInfo.getRuntimeValues()
 							.values()
@@ -151,7 +138,6 @@ public class AppRecoveryService {
 
 			for (Proxy.ProxyBuilder proxyBuilder: proxies.values()) {
 				Proxy proxy = proxyBuilder.build();
-				proxy = proxySpecProvider.postProcessRecoveredProxy(proxy);
 				proxyService.addExistingProxy(proxy);
 				heartbeatService.heartbeatReceived(HeartbeatService.HeartbeatSource.INTERNAL, proxy.getId(), null);
 			}

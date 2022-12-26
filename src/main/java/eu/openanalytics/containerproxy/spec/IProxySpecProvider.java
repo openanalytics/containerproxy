@@ -34,9 +34,4 @@ public interface IProxySpecProvider {
 	
 	public ProxySpec getSpec(String id);
 
-	default public Proxy postProcessRecoveredProxy(Proxy proxy) {
-		// no-op
-		return proxy;
-	}
-
 }

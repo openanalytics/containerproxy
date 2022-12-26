@@ -395,6 +395,7 @@ public class ProxyService {
 			SpecExpressionContext context = SpecExpressionContext.create(
 					proxy,
 					spec,
+					user,
 					user.getPrincipal(),
 					user.getCredentials());
 

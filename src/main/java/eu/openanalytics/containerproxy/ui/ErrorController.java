@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
+import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.api.BaseController;
 import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import org.keycloak.adapters.OIDCAuthenticationError;
@@ -75,6 +76,10 @@ public class ErrorController extends BaseController implements org.springframewo
 			shortError = "Bad Request";
 			description = "You are not allowed to send this request.";
 			response.setStatus(400);
+		}
+
+		if (exception.isPresent() && exception.get() instanceof ContainerProxyException) {
+			description = exception.get().getMessage();
 		}
 
 		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);

@@ -266,17 +266,6 @@
 			<version>8.16.0</version>
 		</dependency>
 		<dependency>
-			<!-- Jersey, a dependency of docker-client with wonky version constraints -->
-			<groupId>org.glassfish.jersey.inject</groupId>
-			<artifactId>jersey-hk2</artifactId>
-			<version>2.26</version>
-		</dependency>
-		<dependency>
-			<groupId>org.glassfish.jersey.bundles.repackaged</groupId>
-			<artifactId>jersey-guava</artifactId>
-			<version>2.26-b03</version>
-		</dependency>
-		<dependency>
 			<!-- Dependency of Docker -> update to fix security issues -->
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
@@ -500,6 +489,14 @@
 				<groupId>software.amazon.awssdk</groupId>
 				<artifactId>bom</artifactId>
 				<version>2.17.269</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<!-- Use a version that is compatible with Docker client -->
+				<groupId>org.glassfish.jersey</groupId>
+				<artifactId>jersey-bom</artifactId>
+				<version>2.26-b03</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>

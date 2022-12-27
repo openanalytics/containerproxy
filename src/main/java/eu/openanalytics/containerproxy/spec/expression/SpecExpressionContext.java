@@ -47,7 +47,7 @@ public class SpecExpressionContext {
     ContainerSpec containerSpec;
     ProxySpec proxySpec;
     Proxy proxy;
-    OpenIDAuthenticationBackend.CustomNameOidcUser oicdUser;
+    OpenIDAuthenticationBackend.CustomNameOidcUser oidcUser;
     KeycloakPrincipal keycloakUser;
 //    private SAMLCredential samlCredential;
     LdapUserDetails ldapUser;
@@ -124,7 +124,7 @@ public class SpecExpressionContext {
             } else if (o instanceof Proxy) {
                 builder.proxy = (Proxy) o;
             } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-                builder.oicdUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+                builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
             } else if (o instanceof KeycloakPrincipal) {
                 builder.keycloakUser = (KeycloakPrincipal) o;
 //            } else if (o instanceof SAMLCredential) {

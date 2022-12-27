@@ -92,30 +92,29 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
         AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 
         http
-                .saml2Login(saml -> {
-                    saml.loginPage("/login");
-                    saml.relyingPartyRegistrationRepository(relyingPartyRegistrationRepository);
-                    saml.loginProcessingUrl(SAML_SERVICE_LOCATION_PATH);
-                    saml.authenticationManager(new ProviderManager(samlAuthenticationProvider));
-                    saml.failureHandler(failureHandler);
-                })
-                .saml2Logout(c -> {
-                    c.logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH);
-                    c.logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH));
-                    c.logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver));
-                    c.addObjectPostProcessor(
-                            new ObjectPostProcessor<LogoutFilter>() {
-                                @Override
-                                public <O extends LogoutFilter> O postProcess(O object) {
-                                    // override method from POST to GET
-                                    RequestMatcher logout = new AntPathRequestMatcher(SAML_LOGOUT_SERVICE_LOCATION_PATH, "GET");
-                                    RequestMatcher samlRequestMatcher = new Saml2RequestMatcher();
-                                    object.setLogoutRequestMatcher(new AndRequestMatcher(logout, samlRequestMatcher));
-                                    return object;
+                .saml2Login(saml -> saml
+                        .loginPage("/login")
+                        .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
+                        .loginProcessingUrl(SAML_SERVICE_LOCATION_PATH)
+                        .authenticationManager(new ProviderManager(samlAuthenticationProvider))
+                        .failureHandler(failureHandler)
+                        .defaultSuccessUrl("/", true))
+                .saml2Logout(saml -> saml
+                        .logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
+                        .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))
+                        .logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver))
+                        .addObjectPostProcessor(
+                                new ObjectPostProcessor<LogoutFilter>() {
+                                    @Override
+                                    public <O extends LogoutFilter> O postProcess(O object) {
+                                        // override method from POST to GET
+                                        RequestMatcher logout = new AntPathRequestMatcher(SAML_LOGOUT_SERVICE_LOCATION_PATH, "GET");
+                                        RequestMatcher samlRequestMatcher = new Saml2RequestMatcher();
+                                        object.setLogoutRequestMatcher(new AndRequestMatcher(logout, samlRequestMatcher));
+                                        return object;
+                                    }
                                 }
-                            }
-                    );
-                })
+                        ))
                 .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class);
     }
 

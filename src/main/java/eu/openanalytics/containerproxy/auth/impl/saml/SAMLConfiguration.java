@@ -81,7 +81,6 @@ public class SAMLConfiguration {
     public static final String SAML_SERVICE_LOCATION_PATH = "/saml/SSO";
     public static final String SAML_LOGOUT_SERVICE_LOCATION_PATH = "/saml/logout";
     public static final String SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH = "/saml/SingleLogout";
-    public static final String SAML_SPRING_METADATA_PATH = "/saml2/service-provider-metadata/" + REG_ID;
     public static final String SAML_METADATA_PATH = "/saml/metadata";
 
     @Inject

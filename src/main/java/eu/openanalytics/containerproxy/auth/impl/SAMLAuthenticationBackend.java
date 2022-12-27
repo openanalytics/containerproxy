@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.AuthenticationFailureHandler;
+import eu.openanalytics.containerproxy.auth.impl.saml.Saml2MetadataFilter;
 import eu.openanalytics.containerproxy.util.SessionHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,9 +39,6 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter;
-import org.springframework.security.saml2.provider.service.web.DefaultRelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.Saml2MetadataFilter;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
@@ -89,8 +87,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
     @Override
     public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
-        RelyingPartyRegistrationResolver relyingPartyRegistrationResolver = new DefaultRelyingPartyRegistrationResolver(this.relyingPartyRegistrationRepository);
-        Saml2MetadataFilter metadataFilter = new Saml2MetadataFilter(relyingPartyRegistrationResolver, new OpenSamlMetadataResolver());
+        Saml2MetadataFilter metadataFilter = new Saml2MetadataFilter(relyingPartyRegistrationRepository.findByRegistrationId(REG_ID), new OpenSamlMetadataResolver());
 
         AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 

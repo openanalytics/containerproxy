@@ -30,6 +30,8 @@ import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +43,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.view.RedirectView;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @Controller
@@ -71,13 +75,6 @@ public class AuthController extends BaseController {
 			return "login";
 		}
 	}
-
-    @RequestMapping(value = SAMLConfiguration.SAML_METADATA_PATH, method = RequestMethod.GET)
-    public void samlLogout(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String url = ServletUriComponentsBuilder
-                .fromCurrentContextPath().path(SAMLConfiguration.SAML_SPRING_METADATA_PATH).toUriString();
-        request.getRequestDispatcher(url).forward(request, response);
-    }
 
 	@RequestMapping(value = "/auth-error", method = RequestMethod.GET)
 	public String getAuthErrorPage(ModelMap map) {

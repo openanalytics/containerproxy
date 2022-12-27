@@ -165,20 +165,6 @@
 		<dependency>
 			<groupId>io.lettuce</groupId>
 			<artifactId>lettuce-core</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-common</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-handler</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-transport</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -355,16 +341,6 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-common</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-handler</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -409,71 +385,11 @@
 			<artifactId>bcpkix-jdk15on</artifactId>
 			<version>1.70</version>
 		</dependency>
-                <!-- Dependency of spring-security-oauth2-client -->
+		<!-- Dependency of spring-security-oauth2-client -->
 		<dependency>
 			<groupId>com.nimbusds</groupId>
 			<artifactId>lang-tag</artifactId>
 			<version>1.7</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-common</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-handler</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-resolver</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-buffer</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-transport-native-unix-common</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-codec</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of lettuce - > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-transport</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of aws sdk- > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-codec-http</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of aws sdk- > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-codec-http2</artifactId>
-			<version>4.1.86.Final</version>
-		</dependency>
-		<dependency>
-			<!-- Dependency of aws sdk- > update to fix security issue -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-transport-classes-epoll</artifactId>
-			<version>4.1.86.Final</version>
 		</dependency>
 		<dependency>
 			<!-- Dependency of Spring -->
@@ -497,6 +413,14 @@
 				<groupId>org.glassfish.jersey</groupId>
 				<artifactId>jersey-bom</artifactId>
 				<version>2.26-b03</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<!-- Dependency of lettuce and AWS SDK -> update to fix security issue -->
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version> 4.1.86.Final</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>

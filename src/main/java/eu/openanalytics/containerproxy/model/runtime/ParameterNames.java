@@ -23,9 +23,12 @@ package eu.openanalytics.containerproxy.model.runtime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 
 import java.util.List;
 
+@JsonView(Views.Default.class)
 public class ParameterNames {
     private final List<ParameterName> values;
 
@@ -43,6 +46,7 @@ public class ParameterNames {
         return values;
     }
 
+    @JsonView(Views.Default.class)
     public static class ParameterName {
 
         private final String displayName;

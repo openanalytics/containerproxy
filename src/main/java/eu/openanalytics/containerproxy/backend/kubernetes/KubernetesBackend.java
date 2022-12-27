@@ -653,7 +653,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 				Map<Integer, Integer> portBindings = new HashMap<>();
 				if (!isUseInternalNetwork()) {
-						Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
+					Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
+					if (service == null) {
+						log.warn("Ignoring container {} because it has no associated service", containerId);
+						continue;
+					}
 					portBindings = service.getSpec().getPorts().stream()
 							.collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
 				}

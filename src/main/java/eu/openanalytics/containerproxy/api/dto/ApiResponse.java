@@ -55,22 +55,32 @@ public class ApiResponse<T> {
 
     // forbidden
     public static <T> ResponseEntity<ApiResponse<T>> failForbidden() {
-        return ResponseEntity.status(403).body(new ApiResponse<>("fail", "forbidden"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse<>("fail", "forbidden"));
+    }
+
+    // unauthorized
+    public static <T> ResponseEntity<ApiResponse<T>> failUnauthorized() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error", "unauthorized"));
+    }
+
+    public static <T> ResponseEntity<ApiResponse<T>> failNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>("error", "not found"));
     }
 
     // invalid request
     public static <T> ResponseEntity<ApiResponse<T>> fail(Object data) {
-        return ResponseEntity.status(400).body(new ApiResponse<>("fail", data));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>("fail", data));
     }
 
     // internal error
     public static <T> ResponseEntity<ApiResponse<T>> error(Object data) {
-        return ResponseEntity.status(500).body(new ApiResponse<>("error", data));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>("error", data));
     }
 
     public static <T> ApiResponse<T> errorBody(Object data) {
         return new ApiResponse<>("error", data);
     }
+
 
     @JsonView(Views.Default.class)
     public String getStatus() {

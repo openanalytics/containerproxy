@@ -184,6 +184,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	@Override
 	protected void doStopProxy(Proxy proxy) throws Exception {
 		for (Container container : proxy.getContainers()) {
+			if (container.getId() == null) {
+				continue;
+			}
 			ContainerInfo containerInfo = dockerClient.inspectContainer(container.getId());
 			if (containerInfo != null && containerInfo.networkSettings() != null
 					&& containerInfo.networkSettings().networks() != null) {

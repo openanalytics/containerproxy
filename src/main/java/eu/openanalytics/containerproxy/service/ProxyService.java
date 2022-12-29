@@ -489,12 +489,17 @@ public class ProxyService {
 			proxyStartupLog.applicationStarted();
 		}
 
+		if (cleanupIfPendingAppWasStopped(proxy)) {
+			return null;
+		}
+
 		proxy = proxy.toBuilder()
 				.startupTimestamp(System.currentTimeMillis())
 				.status(ProxyStatus.Up)
 				.build();
 
 		setupProxy(proxy);
+
 		proxyStore.updateProxy(proxy);
 
 		return proxy;

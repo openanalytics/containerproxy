@@ -110,6 +110,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 				}
 			} catch (ContainerFailedToStartException t) {
 				resultContainers.add(t.getContainer());
+				proxy = proxy.toBuilder().containers(resultContainers).build();
 				throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
 			}
 		}

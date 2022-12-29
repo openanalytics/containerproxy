@@ -75,6 +75,7 @@ public class Container extends RuntimeValueStore {
         return builder.build();
     }
 
+    @JsonView(Views.Internal.class)
     public Map<String, URI> getTargets() {
         if (targets == null) {
             return Collections.unmodifiableMap(new HashMap<>());

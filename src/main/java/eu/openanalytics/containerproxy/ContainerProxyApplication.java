@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
+import eu.openanalytics.containerproxy.util.LoggingConfigurer;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
 import io.undertow.server.handlers.SameSiteCookieHandler;
@@ -110,6 +111,8 @@ public class ContainerProxyApplication {
 
 	public static void main(String[] args) {
 		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
+
+		app.addListeners(new LoggingConfigurer());
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
 		if (!hasExternalConfig) app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);

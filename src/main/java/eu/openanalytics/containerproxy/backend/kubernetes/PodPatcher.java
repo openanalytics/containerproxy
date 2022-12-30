@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
@@ -43,6 +44,7 @@ public class PodPatcher {
 	private Environment environment;
 
 	private final ObjectMapper mapper = new ObjectMapper();
+	private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
 
 	private boolean loggingEnabled = false;
 
@@ -51,6 +53,7 @@ public class PodPatcher {
 	@PostConstruct
 	public void init() {
 		mapper.registerModule(new JSR353Module());
+		writer.registerModule(new JSR353Module());
 		loggingEnabled = Boolean.valueOf(environment.getProperty(DEBUG_PROPERTY, "false"));
 	}
 
@@ -79,11 +82,11 @@ public class PodPatcher {
 	public Pod patchWithDebug(Proxy proxy, Pod pod, JsonPatch patch) throws JsonProcessingException {
 		// TODO pretty print
 		if (loggingEnabled) {
-			log.info(proxy, "Original Pod: " + mapper.writeValueAsString(pod));
+			log.info(proxy, "Original Pod: \n" + writer.writeValueAsString(pod));
 		}
 		Pod patchedPod = patch(pod, patch);
 		if (loggingEnabled) {
-			log.info(proxy, "Patched Pod: " + mapper.writeValueAsString(patchedPod));
+			log.info(proxy, "Patched Pod: \n" + writer.writeValueAsString(patchedPod));
 		}
 		return patchedPod;
 	}

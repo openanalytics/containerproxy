@@ -199,7 +199,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				if (envVar.getValue().toLowerCase().startsWith(SECRET_KEY_REF.toLowerCase())) {
 					String[] ref = envVar.getValue().split(":");
 					if (ref.length != 3) {
-						log.warn(String.format("Invalid secret key reference: %s=%s. Expected format: '%s:<name>:<key>'", envVar.getKey(), envVar.getValue(), SECRET_KEY_REF));
+						slog.warn( proxy, String.format("Invalid secret key reference: %s=%s. Expected format: '%s:<name>:<key>'", envVar.getKey(), envVar.getValue(), SECRET_KEY_REF));
 						continue;
 					}
 					envVars.add(new EnvVar(envVar.getKey(), null, new EnvVarSourceBuilder()
@@ -295,7 +295,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			JsonPatch patch = readPatchFromSpec(specExtension);
 
 			Pod startupPod = podBuilder.withSpec(podSpec).build();
-			Pod patchedPod = podPatcher.patchWithDebug(startupPod, patch);
+			Pod patchedPod = podPatcher.patchWithDebug(proxy, startupPod, patch);
 			final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
 			// set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
 			rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
@@ -312,8 +312,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
 			boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
 				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-					if (currentAttempt > 10 && log != null)
-						log.info(String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+					if (currentAttempt > 10 && log != null) {
+						slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+					}
 					return false;
 				}
 				return true;
@@ -449,14 +450,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 */
 	private void createAdditionalManifests(Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
 		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
-			applyAdditionalManifest(fullObject);
+			applyAdditionalManifest(proxy, fullObject);
 		}
 		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
-			applyAdditionalManifest(fullObject);
+			applyAdditionalManifest(proxy, fullObject);
 		}
 	}
 
-	private void applyAdditionalManifest(GenericKubernetesResource resource) {
+	private void applyAdditionalManifest(Proxy proxy, GenericKubernetesResource resource) {
 		NonNamespaceOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client
 				= kubeClient.genericKubernetesResources(resource.getApiVersion(), resource.getKind()).inNamespace(resource.getMetadata().getNamespace());
 		String policy;
@@ -485,7 +486,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 			client.resource(resource).create();
 		} else {
-			log.warn("Unknown manifest-policy: {}", policy);
+			slog.warn(proxy, String.format("Unknown manifest-policy: %s", policy));
 		}
 	}
 
@@ -594,11 +595,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 						watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
 						IOUtils.copy(watcher.getOutput(), stdOut);
 				} else {
-					log.error("Error while attaching to container output: pod info not found");
+					slog.warn(proxy, "Error while attaching to container output: pod info not found");
 				}
 			} catch (ClosedChannelException ignored) {
 			} catch (IOException e) {
-				log.error("Error while attaching to container output", e);
+				slog.error(proxy, e, "Error while attaching to container output");
 			} finally {
 				if (watcher != null) {
 					watcher.close();

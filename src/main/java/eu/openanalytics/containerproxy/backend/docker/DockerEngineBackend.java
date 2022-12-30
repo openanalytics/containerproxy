@@ -47,8 +47,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 
 import java.net.URI;
@@ -65,7 +63,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 	private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
 
 	private ImagePullPolicy imagePullPolicy;
-	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Override
 	public void initialize() {
@@ -82,7 +79,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
 			if (imagePullPolicy == ImagePullPolicy.Always
 					|| (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
-				logger.info("Pulling image {}", spec.getImage());
+				slog.info(proxy, String.format("Pulling image %s", spec.getImage()));
 				proxyStartupLogBuilder.pullingImage(initialContainer.getIndex());
 				pullImage(spec);
 				proxyStartupLogBuilder.imagePulled(initialContainer.getIndex());

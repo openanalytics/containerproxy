@@ -41,8 +41,8 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
@@ -81,7 +81,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProxyService {
 		
-	private final Logger log = LogManager.getLogger(ProxyService.class);
+	private final StructuredLogger log = StructuredLogger.create(getClass());
 
 	@Inject
 	private IProxyStore proxyStore;
@@ -280,7 +280,7 @@ public class ProxyService {
 			Proxy result = startOrResumeProxy(user, currentProxy, proxyStartupLog);
 
 			if (result != null) {
-				log.info(formatLogMessage("Proxy activated", result));
+				log.info(result, "Proxy activated");
 				applicationEventPublisher.publishEvent(new ProxyStartEvent(result, proxyStartupLog.succeeded()));
 
 				// final check to see if the app was stopped
@@ -313,14 +313,15 @@ public class ProxyService {
 			try {
 				backend.stopProxy(stoppedProxy);
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to release proxy", stoppedProxy), t);
+				log.error( stoppedProxy, t, "Failed to remove proxy");
 			}
 			try {
 				proxyStore.removeProxy(stoppedProxy);
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to remove proxy", stoppedProxy), t);
+				log.error(stoppedProxy, t, "Failed to remove proxy");
 			}
-			log.info(formatLogMessage("Proxy released", stoppedProxy));
+			log.info(stoppedProxy, "Proxy released");
+
 			applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy));
 		});
 	}
@@ -332,7 +333,7 @@ public class ProxyService {
 			}
 
 			if (!backend.supportsPause()) {
-				log.warn("Trying to pause a proxy when the backend does not support pausing apps");
+				log.warn(proxy, "Trying to pause a proxy when the backend does not support pausing apps");
 				throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
 			}
 
@@ -349,10 +350,10 @@ public class ProxyService {
 				backend.pauseProxy(pausingProxy);
 				Proxy pausedProxy = pausingProxy.withStatus(ProxyStatus.Paused);
 				proxyStore.updateProxy(pausedProxy);
-				log.info(formatLogMessage("Proxy paused", pausedProxy));
+				log.info(pausedProxy, "Proxy paused");
 				applicationEventPublisher.publishEvent(new ProxyPauseEvent(pausedProxy));
 			} catch (Throwable t) {
-				log.error(formatLogMessage("Failed to pause proxy ", pausingProxy), t);
+				log.error(pausingProxy, t, "Failed to pause proxy ");
 			}
 		});
 	}
@@ -364,7 +365,7 @@ public class ProxyService {
 			}
 
 			if (!backend.supportsPause()) {
-				log.warn("Trying to resume a proxy when the backend does not support pausing apps");
+				log.warn(proxy, "Trying to resume a proxy when the backend does not support pausing apps");
 				throw new IllegalArgumentException("Trying to resume a proxy when the backend does not support pausing apps");
 			}
 
@@ -377,7 +378,7 @@ public class ProxyService {
 			Proxy result = startOrResumeProxy(user, parameterizedProxy, null);
 
 			if (result != null) {
-				log.info(formatLogMessage("Proxy resumed", result));
+				log.info(result, "Proxy resumed");
 				applicationEventPublisher.publishEvent(new ProxyResumeEvent(result));
 
 				// final check to see if the app was stopped
@@ -425,11 +426,11 @@ public class ProxyService {
 			} catch (Throwable t2) {
 				// log error, but ignore it otherwise
 				// most important is that we remove the proxy from memory
-				log.warn(formatLogMessage("Error while stopping failed proxy", proxy), t);
+				log.error(proxy, t, "Error while stopping failed proxy");
 			}
 			proxyStore.removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
-			log.warn(formatLogMessage("Failed to prepare proxy for start", proxy), t);
+			log.warn( proxy, t, "Failed to prepare proxy for start");
 			throw new ContainerProxyException("Container failed to start", t);
 		}
 	}
@@ -449,19 +450,19 @@ public class ProxyService {
 				throw new ContainerProxyException("Cannot start or resume proxy because status is invalid");
 			}
 		} catch (ProxyFailedToStartException t) {
-			log.warn("Proxy failed to start", t);
+			log.warn(t.getProxy(), t, "Proxy failed to start");
 			try {
 				backend.stopProxy(t.getProxy());
 			} catch (Throwable t2) {
 				// log error, but ignore it otherwise
 				// most important is that we remove the proxy from memory
-				log.warn(formatLogMessage("Error while stopping failed proxy", proxy), t2);
+				log.warn(t.getProxy(), t, "Error while stopping failed proxy");
 			}
 			proxyStore.removeProxy(t.getProxy());
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(t.getProxy()));
 			throw new ContainerProxyException("Container failed to start", t);
 		} catch (Throwable t) {
-			log.warn(formatLogMessage("Proxy failed to start", proxy), t);
+			log.warn(proxy, t, "Proxy failed to start");
 			proxyStore.removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
 			throw new ContainerProxyException("Container failed to start", t);
@@ -477,11 +478,11 @@ public class ProxyService {
 			} catch (Throwable t) {
 				// log error, but ignore it otherwise
 				// most important is that we remove the proxy from memory
-				log.warn(formatLogMessage("Error while stopping failed proxy", proxy), t);
+				log.warn(proxy, t, "Error while stopping failed proxy");
 			}
 			proxyStore.removeProxy(proxy);
 			applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
-			log.warn(formatLogMessage("Container did not respond in time", proxy));
+			log.warn(proxy, "Container did not respond in time");
 			throw new ContainerProxyException("Container did not respond in time");
 		}
 
@@ -511,7 +512,7 @@ public class ProxyService {
 		if (proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
 				|| proxy.getStatus().equals(ProxyStatus.Stopping)) {
 			backend.stopProxy(startingProxy);
-			log.info(formatLogMessage("Pending proxy cleaned up", startingProxy));
+			log.info(startingProxy, "Pending proxy cleaned up");
 			return true;
 		}
 		return false;
@@ -528,7 +529,7 @@ public class ProxyService {
 
 		setupProxy(proxy);
 
-		log.info(formatLogMessage("Existing Proxy re-activated", proxy));
+		log.info(proxy, "Existing Proxy re-activated");
 	}
 
 	/**

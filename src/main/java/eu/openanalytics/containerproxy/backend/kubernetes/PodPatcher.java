@@ -20,21 +20,19 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
+import io.fabric8.kubernetes.api.model.Pod;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.json.JsonPatch;
 import javax.json.JsonStructure;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-
-import io.fabric8.kubernetes.api.model.Pod;
 
 @Component
 public class PodPatcher {
@@ -48,7 +46,7 @@ public class PodPatcher {
 
 	private boolean loggingEnabled = false;
 
-	private final Logger log = LogManager.getLogger(getClass());
+	private final StructuredLogger log = StructuredLogger.create(getClass());
 
 	@PostConstruct
 	public void init() {
@@ -71,19 +69,21 @@ public class PodPatcher {
 		JsonStructure patchedPodAsJsonValue = patch.apply(podAsJsonValue);
 		// 3. convert back to a pod
 		return mapper.convertValue(patchedPodAsJsonValue, Pod.class);
+		// TODO catch exceptions
 	}
 
 	/**
 	 * Applies a JsonPatch to the given Pod. When proxy.kubernetes.debug-patches is
 	 * enabled the original and patched specification will be logged as YAML.
 	 */
-	public Pod patchWithDebug(Pod pod, JsonPatch patch) throws JsonProcessingException {
+	public Pod patchWithDebug(Proxy proxy, Pod pod, JsonPatch patch) throws JsonProcessingException {
+		// TODO pretty print
 		if (loggingEnabled) {
-			log.info("Original Pod: " + mapper.writeValueAsString(pod));
+			log.info(proxy, "Original Pod: " + mapper.writeValueAsString(pod));
 		}
 		Pod patchedPod = patch(pod, patch);
 		if (loggingEnabled) {
-			log.info("Patched Pod: " + mapper.writeValueAsString(patchedPod));
+			log.info(proxy, "Patched Pod: " + mapper.writeValueAsString(patchedPod));
 		}
 		return patchedPod;
 	}

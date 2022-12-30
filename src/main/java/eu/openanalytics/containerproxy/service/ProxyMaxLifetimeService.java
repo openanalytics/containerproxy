@@ -25,8 +25,8 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.commons.lang.time.DurationFormatUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -44,7 +44,8 @@ public class ProxyMaxLifetimeService {
 
     private static final Integer CLEANUP_INTERVAL = 5 * 60 * 1000;
 
-    private final Logger log = LogManager.getLogger(ProxyMaxLifetimeService.class);
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slog = new StructuredLogger(log);
 
     @Inject
     private ProxyService proxyService;
@@ -75,7 +76,7 @@ public class ProxyMaxLifetimeService {
                 String uptime = DurationFormatUtils.formatDurationWords(
                         System.currentTimeMillis() - proxy.getStartupTimestamp(),
                         true, false);
-                log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), uptime));
+                slog.info(proxy,  String.format("Forcefully releasing proxy because it reached the max lifetime [uptime: %s]",  uptime));
                 releaseStrategy.releaseProxy(proxy);
             }
         }

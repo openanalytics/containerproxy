@@ -26,9 +26,10 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTime
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 import javax.annotation.Nonnull;
@@ -47,7 +48,8 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
 
-    private final Logger log = LogManager.getLogger(getClass());
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slog = new StructuredLogger(log);
 
     @Inject
     protected IHeartbeatStore heartbeatStore;
@@ -125,7 +127,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
 
         long proxySilence = currentTimestamp - lastHeartbeat;
         if (proxySilence > heartbeatTimeout) {
-            log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpecId(), proxy.getId(), proxySilence));
+            slog.info(proxy, String.format("Releasing inactive proxy [silence: %dms]", proxySilence));
             releaseStrategy.releaseProxy(proxy);
         }
     }

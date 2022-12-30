@@ -35,8 +35,9 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -65,7 +66,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
 	protected static final String PROPERTY_PRIVILEGED = "privileged";
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
-	protected final Logger log = LogManager.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
+	protected final StructuredLogger slog = new StructuredLogger(log);
 
 	private boolean useInternalNetwork;
 	private boolean privileged;

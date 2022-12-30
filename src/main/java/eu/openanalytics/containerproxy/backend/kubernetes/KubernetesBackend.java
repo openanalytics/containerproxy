@@ -323,6 +323,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			if (!podReady) {
 				// check a final time whether the pod is ready
 				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
+					logKubernetesWarnings(proxy, startedPod);
 					throw new ContainerFailedToStartException("Container did not become ready in time", null, rContainerBuilder.build());
 				}
 			}
@@ -369,6 +370,28 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			throw t;
 		} catch (Throwable throwable) {
 			throw new ContainerFailedToStartException("Kubernetes container failed to start", throwable, rContainerBuilder.build());
+		}
+	}
+
+	private void logKubernetesWarnings(Proxy proxy, Pod pod) {
+		List<Event> events;
+		try {
+			events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+					.withKind("Pod")
+					.withName(pod.getMetadata().getName())
+					.withNamespace(pod.getMetadata().getNamespace())
+					.build()).list().getItems();
+		} catch (KubernetesClientException ex) {
+			if (ex.getCode() == 403) {
+				log.warn("Cannot parse events of pod because of insufficient permissions. Give the ShinyProxy ServiceAccount permission to get events of pods in order to show Kubernetes warnings in ShinyProxy logs.");
+				return;
+			}
+			throw ex;
+		}
+		for (Event event : events) {
+			if (event.getType().equals("Warning")) {
+				slog.warn(proxy, "Kubernetes warning: " +  event.getMessage());
+			}
 		}
 	}
 

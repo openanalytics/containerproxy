@@ -28,6 +28,7 @@ import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.RollingPolicy;
 import net.logstash.logback.encoder.LogstashEncoder;
+import net.logstash.logback.stacktrace.ShortenedThrowableConverter;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.impl.StaticLoggerBinder;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
@@ -60,9 +61,7 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
 
     private void setupConsoleAppender(LoggerContext context, Logger rootLogger) {
         ConsoleAppender<ILoggingEvent> appender = new ConsoleAppender<>();
-        LogstashEncoder encoder = new LogstashEncoder();
-        encoder.start();
-        appender.setEncoder(encoder);
+        appender.setEncoder(createEncoder());
         appender.setName("CONSOLE");
         appender.setContext(context);
 
@@ -79,9 +78,7 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
 
             RollingFileAppender<ILoggingEvent> oldFileAppender = (RollingFileAppender<ILoggingEvent>) oldAppender;
             RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<>();
-            LogstashEncoder encoder = new LogstashEncoder();
-            encoder.start();
-            appender.setEncoder(encoder);
+            appender.setEncoder(createEncoder());
             appender.setName("FILE");
             appender.setContext(context);
             appender.setFile(oldFileAppender.getFile());
@@ -99,6 +96,21 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
             rootLogger.addAppender(appender);
         }
 
+    }
+
+    private LogstashEncoder createEncoder() {
+        ShortenedThrowableConverter throwableConverter = new ShortenedThrowableConverter();
+        throwableConverter.addExclude("^java\\.util\\.concurrent\\..*");
+        throwableConverter.addExclude("^java\\.lang\\.Thread\\..*");
+        throwableConverter.addExclude("^io\\.fabric8\\.kubernetes\\.client\\.dsl\\..*");
+        throwableConverter.addExclude("^io\\.fabric8\\.kubernetes\\.client\\.http\\..*");
+        throwableConverter.addExclude("^io\\.fabric8\\.kubernetes\\.client\\.okhttp\\..*");
+        throwableConverter.addExclude("^org\\.glassfish\\..*");
+        throwableConverter.addExclude("^jersey\\.repackaged\\..*");
+        LogstashEncoder encoder = new LogstashEncoder();
+        encoder.setThrowableConverter(throwableConverter);
+        encoder.start();
+        return encoder;
     }
 
 }

@@ -38,7 +38,7 @@ import javax.json.JsonStructure;
 @Component
 public class PodPatcher {
 
-	private static final String DEBUG_PROPERTY = "proxy.kubernetes.debug-patches";
+	public static final String DEBUG_PROPERTY = "proxy.kubernetes.debug-patches";
 
 	@Inject
 	private Environment environment;
@@ -54,7 +54,7 @@ public class PodPatcher {
 	public void init() {
 		mapper.registerModule(new JSR353Module());
 		writer.registerModule(new JSR353Module());
-		loggingEnabled = Boolean.valueOf(environment.getProperty(DEBUG_PROPERTY, "false"));
+		loggingEnabled = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
 	}
 
 	/**
@@ -80,7 +80,6 @@ public class PodPatcher {
 	 * enabled the original and patched specification will be logged as YAML.
 	 */
 	public Pod patchWithDebug(Proxy proxy, Pod pod, JsonPatch patch) throws JsonProcessingException {
-		// TODO pretty print
 		if (loggingEnabled) {
 			log.info(proxy, "Original Pod: \n" + writer.writeValueAsString(pod));
 		}

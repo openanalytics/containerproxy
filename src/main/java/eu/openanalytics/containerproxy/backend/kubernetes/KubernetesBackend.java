@@ -111,6 +111,8 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static eu.openanalytics.containerproxy.backend.kubernetes.PodPatcher.DEBUG_PROPERTY;
+
 public class KubernetesBackend extends AbstractContainerBackend {
 
 	private static final String PROPERTY_PREFIX = "proxy.kubernetes.";
@@ -136,6 +138,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private KubernetesManifestsRemover kubernetesManifestsRemover;
 
+	private Boolean logManifests;
+
+	private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
+
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
@@ -157,6 +163,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		kubeClient = new DefaultKubernetesClient(configBuilder.build());
 		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
+		logManifests = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
 	}
 
 	public void initialize(KubernetesClient client) {
@@ -472,10 +479,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * The resource will only be created if it does not already exist.
 	 */
 	private void createAdditionalManifests(Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
-		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
+		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
 			applyAdditionalManifest(proxy, fullObject);
 		}
-		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy.getUserId(), proxy.getSpecId(), namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
+		for (GenericKubernetesResource fullObject: parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
 			applyAdditionalManifest(proxy, fullObject);
 		}
 	}
@@ -518,7 +525,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	 * When the resource has no namespace definition, the provided namespace
 	 * parameter will be used.
 	 */
-	private List<GenericKubernetesResource> parseAdditionalManifests(String userId, String specId, String namespace, List<String> manifests, Boolean persistent) throws JsonProcessingException {
+	private List<GenericKubernetesResource> parseAdditionalManifests(Proxy proxy, String namespace, List<String> manifests, Boolean persistent) throws JsonProcessingException {
 		ArrayList<GenericKubernetesResource> result = new ArrayList<>();
 		for (String manifest : manifests) {
 			GenericKubernetesResource object = Serialization.yamlMapper().readValue(manifest, GenericKubernetesResource.class);
@@ -537,12 +544,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-additional-manifest", "true");
 			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-persistent-manifest", persistent.toString());
-			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-manifest-id", kubernetesManifestsRemover.getManifestId(specId, userId));
+			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-manifest-id", kubernetesManifestsRemover.getManifestId(proxy.getSpecId(), proxy.getUserId()));
 
-			// TODO annotations
-//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-realm", identifierService.realmId);
-//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-spec-id", specId);
-//			fullObject.getMetadata().getLabels().put("openanalytics.eu/sp-uer-id", specId);
+			if (logManifests) {
+				slog.info(proxy, "Creating additional manifest: \n" + writer.writeValueAsString(fullObject));
+			}
+
 			result.add(fullObject);
 		}
 		return result;

@@ -81,7 +81,7 @@ public class OpenIDConfiguration {
                 .jwkSetUri(environment.getProperty("proxy.openid.jwks-url"))
                 .clientId(environment.getProperty("proxy.openid.client-id"))
                 .clientSecret(environment.getProperty("proxy.openid.client-secret"))
-                .userInfoUri(environment.getProperty("proxy.openid.userinfo-endpoint"))
+                .userInfoUri(environment.getProperty("proxy.openid.userinfo-url"))
                 .build();
 
         return new InMemoryClientRegistrationRepository(Collections.singletonList(client));

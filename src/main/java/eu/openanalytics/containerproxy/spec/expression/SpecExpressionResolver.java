@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import eu.openanalytics.containerproxy.ContainerProxyException;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -31,8 +32,11 @@ import org.springframework.context.expression.MapAccessor;
 import org.springframework.context.expression.StandardBeanExpressionResolver;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.expression.Expression;
+import org.springframework.expression.ExpressionException;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.ParseException;
 import org.springframework.expression.ParserContext;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.expression.spel.support.StandardTypeConverter;
@@ -78,27 +82,33 @@ public class SpecExpressionResolver {
 	public <T> T evaluate(String expression, SpecExpressionContext context, Class<T> resType) {
 		if (expression == null) return null;
 		if (expression.isEmpty()) return null;
-		
-		Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
-		
-		ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
-		
-		StandardEvaluationContext sec = evaluationCache.get(context);
-		if (sec == null) {
-			sec = new StandardEvaluationContext();
-			sec.setRootObject(context);
-			sec.addPropertyAccessor(new BeanExpressionContextAccessor());
-			sec.addPropertyAccessor(new BeanFactoryAccessor());
-			sec.addPropertyAccessor(new MapAccessor());
-			sec.addPropertyAccessor(new EnvironmentAccessor());
-			sec.setBeanResolver(new BeanFactoryResolver(appContext));
-			sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
-			ConversionService conversionService = beanFactory.getConversionService();
-			if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
-			evaluationCache.put(context, sec);
+
+		try {
+			Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
+
+			ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
+
+			StandardEvaluationContext sec = evaluationCache.get(context);
+			if (sec == null) {
+				sec = new StandardEvaluationContext();
+				sec.setRootObject(context);
+				sec.addPropertyAccessor(new BeanExpressionContextAccessor());
+				sec.addPropertyAccessor(new BeanFactoryAccessor());
+				sec.addPropertyAccessor(new MapAccessor());
+				sec.addPropertyAccessor(new EnvironmentAccessor());
+				sec.setBeanResolver(new BeanFactoryResolver(appContext));
+				sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
+				ConversionService conversionService = beanFactory.getConversionService();
+				if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
+				evaluationCache.put(context, sec);
+			}
+
+			return expr.getValue(sec, resType);
+		} catch (ExpressionException ex) {
+			throw new SpelException(ex, expression);
+		} catch (Throwable ex) {
+			throw new SpelException(ex, expression);
 		}
-		
-		return expr.getValue(sec, resType);
 	}
 	
 	public String evaluateToString(String expression, SpecExpressionContext context) {

@@ -81,7 +81,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
 	private static final String ENV_TOKEN_NAME = "SHINYPROXY_OIDC_ACCESS_TOKEN";
 	
-	private Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
+	private final Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
 	
 	@Inject
 	private Environment environment;
@@ -267,7 +267,11 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				try {
 					user = super.loadUser(userRequest);
 				} catch (IllegalArgumentException ex) {
+					log.warn("Error while loading user info: {}", ex.getMessage());
 					throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST), "Error while loading user info", ex);
+				} catch (OAuth2AuthenticationException ex) {
+					log.warn("Error while loading user info: {}", ex.getMessage());
+					throw ex;
 				}
 
 				String nameAttributeKey = environment.getProperty("proxy.openid.username-attribute", "email");

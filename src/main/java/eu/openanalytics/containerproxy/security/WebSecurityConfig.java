@@ -24,6 +24,8 @@ import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.UserLogoutHandler;
 import eu.openanalytics.containerproxy.util.AppRecoveryFilter;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
+import eu.openanalytics.containerproxy.util.OverridingHeaderWriter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,9 +45,9 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
+import org.springframework.security.web.header.Header;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
@@ -53,6 +55,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static eu.openanalytics.containerproxy.ui.TemplateResolverConfig.PROP_CORS_ALLOWED_ORIGINS;
@@ -77,7 +80,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
-	
+
+	public static final String PROP_DISABLE_NO_SNIFF_HEADER = "proxy.api-security.disable-no-sniff-header";
+	public static final String PROP_DISABLE_HSTS_HEADER = "proxy.api-security.disable-hsts-header";
+	public static final String PROP_DISABLE_XSS_PROTECTION_HEADER = "proxy.api-security.disable-xss-protection-header";
+	public static final String PROP_CUSTOM_HEADERS = "proxy.api-security.custom-headers";
+
 	@Override
 	public void configure(WebSecurity web) {
 //		web
@@ -110,7 +118,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		if (environment.getProperty(PROP_CORS_ALLOWED_ORIGINS + "[0]") != null) {
+		if (EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS) != null) {
 			// enable cors
 			http.cors();
 		}
@@ -136,8 +144,25 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			}
 		});
 
-		// Always set header: X-Content-Type-Options=nosniff
-		http.headers().contentTypeOptions();
+		if (environment.getProperty(PROP_DISABLE_NO_SNIFF_HEADER, Boolean.class, false)) {
+			http.headers().contentTypeOptions().disable();
+		} else {
+			// set header: X-Content-Type-Options=nosniff
+			http.headers().contentTypeOptions();
+		}
+
+		if (environment.getProperty(PROP_DISABLE_XSS_PROTECTION_HEADER, Boolean.class, false)) {
+			http.headers().xssProtection().disable();
+		} else {
+			http.headers().xssProtection();
+		}
+
+		if (environment.getProperty(PROP_DISABLE_HSTS_HEADER, Boolean.class, false)) {
+			http.headers().httpStrictTransportSecurity().disable();
+		} else {
+			http.headers().httpStrictTransportSecurity();
+		}
+
 
 		String frameOptions = environment.getProperty("server.frame-options", "disable");
 		switch (frameOptions.toUpperCase()) {
@@ -157,15 +182,19 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 						.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
 				}
 		}
-		
+
+		List<Header> headers = getCustomHeaders();
+		if (!headers.isEmpty()) {
+			http.headers().addHeaderWriter(new OverridingHeaderWriter(headers));
+		}
+
 		// Allow public access to health endpoint
 		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/health/readiness").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/health/liveness").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/prometheus").permitAll();
 		http.authorizeRequests().antMatchers("/actuator/recyclable").permitAll();
-
-	http.authorizeRequests().antMatchers("/saml/metadata").permitAll();
+		http.authorizeRequests().antMatchers("/saml/metadata").permitAll();
 
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
@@ -211,6 +240,26 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Override
 	public AuthenticationManager authenticationManagerBean() throws Exception {
 		return super.authenticationManagerBean();
+	}
+
+	private List<Header> getCustomHeaders() {
+		List<Header> headers = new ArrayList<>();
+
+		int i = 0;
+		String headerName = environment.getProperty(String.format(PROP_CUSTOM_HEADERS + "[%d].name", i));
+		while (headerName != null) {
+			String headerValue = environment.getProperty(String.format(PROP_CUSTOM_HEADERS + "[%d].value", i));
+			if (headerValue == null) {
+				logger.warn("Missing header value for header {}", headerName);
+				i++;
+				continue;
+			}
+			headers.add(new Header(headerName, headerValue));
+			i++;
+			headerName = environment.getProperty(String.format(PROP_CUSTOM_HEADERS + "[%d].name", i));
+		}
+
+		return headers;
 	}
 
 }

@@ -20,8 +20,11 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -63,16 +66,8 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
 
 	@Override
 	public void addCorsMappings(@Nonnull CorsRegistry registry) {
-		List<String> origins = new ArrayList<>();
-		int i = 0;
-		String origin = environment.getProperty(String.format(PROP_CORS_ALLOWED_ORIGINS + "[%d]", i));
-		while (origin != null) {
-			origins.add(origin);
-			i++;
-			origin = environment.getProperty(String.format(PROP_CORS_ALLOWED_ORIGINS + "[%d]", i));
-		}
-
-		if (origins.size() > 0) {
+		List<String> origins = EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS);
+		if (origins != null) {
 			registry.addMapping("/**")
 					.allowCredentials(true)
 					.allowedOrigins(origins.toArray(new String[0]));

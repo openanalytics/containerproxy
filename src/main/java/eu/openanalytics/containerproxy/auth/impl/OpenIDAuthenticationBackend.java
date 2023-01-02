@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
-import eu.openanalytics.containerproxy.security.FixedDefaultOAuth2AuthorizationRequestResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.SessionHelper;
@@ -120,9 +119,6 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.defaultSuccessUrl("/", true)
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(oAuth2AuthorizedClientService)
-				.authorizationEndpoint()
-					.authorizationRequestResolver(new FixedDefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI))
-				.and()
 				.failureHandler(new AuthenticationFailureHandler() {
 
 					@Override

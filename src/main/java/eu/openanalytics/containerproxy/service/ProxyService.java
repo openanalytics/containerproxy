@@ -443,8 +443,10 @@ public class ProxyService {
 
 		try {
 			if (proxy.getStatus() == ProxyStatus.New) {
+				log.info(proxy, "Starting proxy");
 				proxy = backend.startProxy(user, proxy, spec, proxyStartupLog);
 			} else if (proxy.getStatus() == ProxyStatus.Resuming) {
+				log.info(proxy, "Resuming proxy");
 				proxy = backend.resumeProxy(user, proxy, spec);
 			} else {
 				throw new ContainerProxyException("Cannot start or resume proxy because status is invalid");

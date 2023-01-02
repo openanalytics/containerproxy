@@ -109,6 +109,7 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
         throwableConverter.addExclude("^jersey\\.repackaged\\..*");
         LogstashEncoder encoder = new LogstashEncoder();
         encoder.setThrowableConverter(throwableConverter);
+        encoder.setShortenedLoggerNameLength(40);
         encoder.start();
         return encoder;
     }

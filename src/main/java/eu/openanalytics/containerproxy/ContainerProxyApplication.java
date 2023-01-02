@@ -45,6 +45,7 @@ import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -77,7 +78,7 @@ import java.util.concurrent.Executor;
 
 @EnableScheduling
 @EnableAsync
-@SpringBootApplication
+@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
 	public static final String CONFIG_FILENAME = "application.yml";

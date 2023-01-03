@@ -25,22 +25,26 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.ClientAuthorizationException;
 import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.RefreshTokenOAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.web.filter.GenericFilterBean;
+import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
 
 import static eu.openanalytics.containerproxy.auth.impl.oidc.OpenIDConfiguration.REG_ID;
 
@@ -52,7 +56,7 @@ import static eu.openanalytics.containerproxy.auth.impl.oidc.OpenIDConfiguration
  * This filter only applies to a limited set of requests and not to requests that are proxied to apps.
  * Otherwise, this filter would be called too much and cause too much overhead.
  */
-public class OpenIdReAuthorizeFilter extends GenericFilterBean {
+public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
 
     private static final RequestMatcher REQUEST_MATCHER = new OrRequestMatcher(
             new AntPathRequestMatcher("/app/**"),
@@ -63,31 +67,50 @@ public class OpenIdReAuthorizeFilter extends GenericFilterBean {
     @Inject
     private OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
 
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        if (REQUEST_MATCHER.matches((HttpServletRequest) request)) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth instanceof OAuth2AuthenticationToken) {
-                OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
-                        .withClientRegistrationId(REG_ID)
-                        .principal(auth)
-                        .attribute(HttpServletRequest.class.getName(), request)
-                        .attribute(HttpServletResponse.class.getName(), response)
-                        .build();
+    @Inject
+    private OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
 
-                // re-authorize
-                try {
-                    oAuth2AuthorizedClientManager.authorize(authorizeRequest);
-                } catch (ClientAuthorizationException ex) {
-                    if (ex.getError().getErrorCode().equals(OAuth2ErrorCodes.INVALID_GRANT)) {
-                        // if refresh token has expired or is invalid -> re-start authorization process
-                        throw new ClientAuthorizationRequiredException(ex.getClientRegistrationId());
+    private final Clock clock = Clock.systemUTC();
+
+    // use clock skew of 20 seconds instead of 60 seconds. Otherwise, if the access token is valid for 1 minute, it would get refreshed at each request.
+    private final Duration clockSkew = Duration.ofSeconds(20);
+
+    @Override
+    protected void doFilterInternal(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull FilterChain chain) throws ServletException, IOException {
+        if (REQUEST_MATCHER.matches(request)) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            if (auth instanceof OAuth2AuthenticationToken) {
+                OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientService.loadAuthorizedClient(REG_ID, auth.getName());
+
+                if (accessTokenExpired(authorizedClient)) {
+                    OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
+                            .withAuthorizedClient(authorizedClient)
+                            .principal(auth)
+                            .build();
+
+                    // re-authorize
+                    try {
+                        oAuth2AuthorizedClientManager.authorize(authorizeRequest);
+                    } catch (ClientAuthorizationException ex) {
+                        if (ex.getError().getErrorCode().equals(OAuth2ErrorCodes.INVALID_GRANT)) {
+                            // if refresh token has expired or is invalid -> re-start authorization process
+                            throw new ClientAuthorizationRequiredException(ex.getClientRegistrationId());
+                        }
+                        throw ex;
                     }
-                    throw ex;
                 }
             }
         }
         chain.doFilter(request, response);
+    }
+
+    /**
+     * See {@link RefreshTokenOAuth2AuthorizedClientProvider}
+     */
+    private boolean accessTokenExpired(OAuth2AuthorizedClient authorizedClient) {
+        return authorizedClient.getAccessToken().getExpiresAt() == null ||
+                clock.instant().isAfter(authorizedClient.getAccessToken().getExpiresAt().minus(this.clockSkew));
     }
 
 }

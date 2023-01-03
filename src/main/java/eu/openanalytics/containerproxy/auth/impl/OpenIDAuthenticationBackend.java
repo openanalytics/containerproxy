@@ -45,7 +45,10 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
@@ -119,6 +122,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.defaultSuccessUrl("/", true)
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(oAuth2AuthorizedClientService)
+				.authorizationEndpoint()
+					.authorizationRequestResolver(authorizationRequestResolver())
+				.and()
 				.failureHandler(new AuthenticationFailureHandler() {
 
 					@Override
@@ -135,6 +141,18 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.and()
 			.and()
 				.addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
+	}
+
+	private OAuth2AuthorizationRequestResolver authorizationRequestResolver() {
+		Boolean usePkce = environment.getProperty("proxy.openid.with-pkce", Boolean.class, false);
+		DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo,
+				OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+
+		if (usePkce) {
+			authorizationRequestResolver.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
+		}
+
+		return authorizationRequestResolver;
 	}
 
 	@Override

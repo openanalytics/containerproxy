@@ -39,15 +39,11 @@ import java.util.Optional;
  */
 public class InfluxDBCollector extends AbstractDbCollector {
 
-	private String destination;
+	private final String destination;
 
-	@PostConstruct
-	public void init() {
-		destination = environment.getProperty("proxy.usage-stats-url");
+	public InfluxDBCollector(String url) {
+		destination = url;
 	}
-
-	@Inject
-	private Environment environment;
 
 	@Override
 	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {

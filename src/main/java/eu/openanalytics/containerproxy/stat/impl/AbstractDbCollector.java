@@ -32,16 +32,12 @@ public abstract class AbstractDbCollector implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
-        if (event.getSource().equals(SOURCE_NOT_AVAILABLE)) {
-            writeToDb(event.getTimestamp(), event.getUserId(), "Logout", null);
-        }
+        writeToDb(event.getTimestamp(), event.getUserId(), "Logout", null);
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) throws IOException {
-        if (event.getSource().equals(SOURCE_NOT_AVAILABLE)) {
-            writeToDb(event.getTimestamp(), event.getUserId(), "Login", null);
-        }
+        writeToDb(event.getTimestamp(), event.getUserId(), "Login", null);
     }
 
     @EventListener

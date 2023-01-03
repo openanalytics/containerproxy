@@ -63,13 +63,20 @@ public class JDBCCollector extends AbstractDbCollector {
 	@Inject
 	private Environment environment;
 
+	private final String url;
+	private final String username;
+	private final String password;
+
+	public JDBCCollector(String url, String username, String password) {
+		this.url = url;
+		this.username = username;
+		this.password = password;
+	}
+
 	@PostConstruct
 	public void init() throws IOException {
-		String baseURL = environment.getProperty("proxy.usage-stats-url");
-		String username = environment.getProperty("proxy.usage-stats-username", "monetdb");
-		String password = environment.getProperty("proxy.usage-stats-password", "monetdb");
 		ds = new HikariDataSource();
-		ds.setJdbcUrl(baseURL);
+		ds.setJdbcUrl(url);
 		ds.setUsername(username);
 		ds.setPassword(password);
 

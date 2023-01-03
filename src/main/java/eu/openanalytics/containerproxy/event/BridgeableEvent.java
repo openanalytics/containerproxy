@@ -30,10 +30,12 @@ import org.springframework.context.ApplicationEvent;
 )
 public abstract class BridgeableEvent extends ApplicationEvent {
 
+    public static final String SOURCE_NOT_AVAILABLE = "SOURCE_NOT_AVAILABLE";
+
     public abstract BridgeableEvent withSource(String source);
 
     public BridgeableEvent() {
-        super("SOURCE_NOT_AVAILABLE");
+        super(SOURCE_NOT_AVAILABLE);
     }
 
 }

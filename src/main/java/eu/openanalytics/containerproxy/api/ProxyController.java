@@ -253,12 +253,4 @@ public class ProxyController extends BaseController {
         }
 	}
 
-
-    // TODO disable this by default
-//	@RequestMapping(value="/api/proxy", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-//	public ResponseEntity<Proxy> startProxy(@RequestBody ProxySpec proxySpec) {
-//		Proxy proxy = proxyService.startProxy(proxySpec, false);
-//		return new ResponseEntity<>(proxy, HttpStatus.CREATED);
-//	}
-
 }

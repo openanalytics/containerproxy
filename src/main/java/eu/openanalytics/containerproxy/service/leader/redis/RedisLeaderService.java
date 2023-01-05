@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.service.leader.redis;
 
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,6 +41,9 @@ public class RedisLeaderService implements Candidate, ILeaderService {
 
     @Inject
     private ExpirableLockRegistry lockRegistry;
+
+    @Inject
+    private IdentifierService identifierService;
 
     private volatile boolean isLeader;
 
@@ -65,13 +69,13 @@ public class RedisLeaderService implements Candidate, ILeaderService {
     @Override
     public void onGranted(@Nonnull Context context) {
         isLeader = true;
-        logger.info("This server is now the leader.");
+        logger.info("This server (runtimeId: {}) is now the leader.", identifierService.runtimeId);
     }
 
     @Override
     public void onRevoked(@Nonnull Context context) {
         isLeader = false;
-        logger.info("This server is no longer the leader.");
+        logger.info("This server (runtimeId: {}) is no longer the leader.", identifierService.runtimeId);
     }
 
     @Override

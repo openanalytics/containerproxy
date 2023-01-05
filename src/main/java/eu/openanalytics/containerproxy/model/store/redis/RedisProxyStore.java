@@ -70,21 +70,21 @@ public class RedisProxyStore implements IProxyStore {
 
     @Override
     public void addProxy(Proxy proxy) {
-        logger.info("Add proxy {}", proxy.getId());
+        logger.debug("Add proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
         updateMappings(proxy);
     }
 
     @Override
     public void removeProxy(Proxy proxy) {
-        logger.info("Remove proxy {}", proxy.getId());
+        logger.debug("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
         updateMappings(proxy);
     }
 
     @Override
     public void updateProxy(Proxy proxy) {
-        logger.info("Update proxy {}", proxy.getId());
+        logger.debug("Update proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
         updateMappings(proxy);
     }
@@ -104,7 +104,7 @@ public class RedisProxyStore implements IProxyStore {
             Map<String, URI> oldTargets = targetsCache.remove(proxy.getId());
             if (oldTargets != null) {
                 // there were still some old mappings -> remove them
-                logger.info("Redis: remove mappings for {}", proxy.getId());
+                logger.debug("Redis: remove mappings for {}", proxy.getId());
                 for (Map.Entry<String, URI> target : proxy.getTargets().entrySet()) {
                     mappingManager.removeMapping(target.getKey());
                 }

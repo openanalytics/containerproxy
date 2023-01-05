@@ -91,6 +91,8 @@ public class ErrorController extends BaseController implements org.springframewo
 			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
 				shortError = "Forbidden";
 				description = "You do not have access to this page";
+			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+				shortError = "Method not allowed";
 			}
 		}
 
@@ -121,8 +123,10 @@ public class ErrorController extends BaseController implements org.springframewo
 				return ApiResponse.failNotFound();
 			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
 				return ApiResponse.failForbidden();
+			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+				return ResponseEntity.status(HttpStatus.METHOD_FAILURE).body(new ApiResponse<>("fail", "method not allowed"));
 			}
-		}
+	}
 
 		return ApiResponse.error("unrecoverable error");
 	}

@@ -76,6 +76,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SECURITY_HIDE_SPEC_DETAILS;
 import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
 
 @EnableScheduling
@@ -161,6 +162,13 @@ public class ContainerProxyApplication {
 				// running in HA mode, but proxies are removed when shutting down
 				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
 			}
+		}
+
+		boolean hideSpecDetails = environment.getProperty(PROP_API_SECURITY_HIDE_SPEC_DETAILS, Boolean.class, true);
+		if (!hideSpecDetails) {
+			log.warn("WARNING: Insecure configuration detected: The API is configured to return the full spec of proxies, " +
+					"this may contain sensitive values such as the container image, secret environment variables etc. " +
+					"Remove the proxy.api-security.hide-spec-details property to enable API security.");
 		}
 
 	}

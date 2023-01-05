@@ -115,7 +115,7 @@ public class ProxyService {
 
 	private boolean stopAppsOnShutdown;
 
-	private static final String PROPERTY_STOP_PROXIES_ON_SHUTDOWN = "proxy.stop-proxies-on-shutdown";
+	public static final String PROPERTY_STOP_PROXIES_ON_SHUTDOWN = "proxy.stop-proxies-on-shutdown";
 
 	private final Set<String> actionsInProgress = new HashSet<>();
 	private Pair<String, Instant> lastStop = null;

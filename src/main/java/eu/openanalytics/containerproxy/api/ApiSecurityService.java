@@ -21,8 +21,6 @@
 package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.model.Views;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Service;
@@ -30,21 +28,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class ApiSecurityService {
 
-    private static final String PROP_API_SECURITY_HIDE_SPEC_DETAILS = "proxy.api-security.hide-spec-details";
+    public static final String PROP_API_SECURITY_HIDE_SPEC_DETAILS = "proxy.api-security.hide-spec-details";
 
     private final boolean hideSpecDetails;
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-
     public ApiSecurityService(Environment environment) {
         hideSpecDetails = environment.getProperty(PROP_API_SECURITY_HIDE_SPEC_DETAILS, Boolean.class, true);
-        if (!hideSpecDetails) {
-            logger.warn("WARNING!");
-            logger.warn("WARNING! The API is configured to return the full spec of proxies, " +
-                    "this may contain sensitive values such as the container image, secret environment variables etc. " +
-                    "Remove the proxy.api-security.hide-spec-details property to enable API security.");
-            logger.warn("WARNING!");
-        }
     }
 
     public MappingJacksonValue protectSpecs(Object specs) {

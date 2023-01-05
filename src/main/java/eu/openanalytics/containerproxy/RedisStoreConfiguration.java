@@ -137,7 +137,7 @@ public class RedisStoreConfiguration {
 
     @Bean
     public ChannelTopic topic() {
-        return new ChannelTopic("events");
+        return new ChannelTopic("shinyproxy_" + identifierService.realmId + "__events");
     }
 
     @Bean

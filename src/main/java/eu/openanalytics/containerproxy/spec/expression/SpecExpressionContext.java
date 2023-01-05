@@ -52,6 +52,7 @@ public class SpecExpressionContext {
 //    private SAMLCredential samlCredential;
     LdapUserDetails ldapUser;
     List<String> groups;
+    String userId;
 
     /**
      * Convert a {@see String} to a list of strings, by splitting according to the provided regex and trimming each result
@@ -134,6 +135,7 @@ public class SpecExpressionContext {
             }
             if (o instanceof Authentication) {
                 builder.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+                builder.userId = ((Authentication) o).getName();
             }
         }
         return builder.build();

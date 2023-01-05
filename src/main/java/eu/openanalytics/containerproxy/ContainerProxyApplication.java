@@ -76,6 +76,8 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
+
 @EnableScheduling
 @EnableAsync
 @SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
@@ -148,6 +150,19 @@ public class ContainerProxyApplication {
 		if (sameSiteCookiePolicy.equalsIgnoreCase("none") && !secureCookiesEnabled) {
 			log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
 		}
+
+
+		if (environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
+			if (!environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
+				// running in HA mode, but not using Redis sessions
+				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but you are not using Redis for user sessions!");
+			}
+			if (environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true)) {
+				// running in HA mode, but proxies are removed when shutting down
+				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
+			}
+		}
+
 	}
 
 	@Autowired(required = false)

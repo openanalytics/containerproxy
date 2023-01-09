@@ -20,23 +20,6 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
-
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -49,6 +32,22 @@ import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.PathMatcher;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * This component keeps track of which proxy mappings (i.e. URL endpoints) are currently registered,
@@ -82,7 +81,7 @@ public class ProxyMappingManager {
 		if (mappings.containsKey(mapping)) {
 			return;
 		}
-		
+
 		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
 			@Override
 			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
@@ -132,17 +131,24 @@ public class ProxyMappingManager {
 	 * @throws ServletException If the dispatch fails for any other reason.
 	 */
 	public void dispatchAsync(String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+		dispatchAsync(mapping, request, response, null);
+	}
+
+	public void dispatchAsync(String mapping, HttpServletRequest request, HttpServletResponse response, Consumer<HttpServerExchange> exchangeCustomizer) throws IOException, ServletException {
 		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
 		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, this);
-		
+
 		String queryString = request.getQueryString();
 		queryString = (queryString == null) ? "" : "?" + queryString;
 		String targetPath = PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
-		
+
+		if (exchangeCustomizer != null) {
+			exchangeCustomizer.accept(exchange);
+		}
 		request.startAsync();
 		request.getRequestDispatcher(targetPath).forward(request, response);
 	}
-	
+
 	private static class ProxyPathHandler extends PathHandler {
 		
 		public ProxyPathHandler(HttpHandler defaultHandler) {

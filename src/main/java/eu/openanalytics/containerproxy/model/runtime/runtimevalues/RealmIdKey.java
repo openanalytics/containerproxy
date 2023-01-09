@@ -29,9 +29,21 @@ public class RealmIdKey extends RuntimeValueKey<String> {
                 true,
                 true,
                 false, // no need to expose in API
-                false, String.class);
+                false,
+                false,
+                String.class);
     }
 
     public static RealmIdKey inst = new RealmIdKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

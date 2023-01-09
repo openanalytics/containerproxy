@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.log;
 
-import java.io.OutputStream;
-
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
 public class NoopLogStorage extends AbstractLogStorage {
@@ -32,12 +30,12 @@ public class NoopLogStorage extends AbstractLogStorage {
 	}
 	
 	@Override
-	public OutputStream[] createOutputStreams(Proxy proxy) {
+	public LogStreams createOutputStreams(Proxy proxy) {
 		return null;
 	}
 	
 	@Override
-	public String[] getLogs(Proxy proxy) {
+	public LogPaths getLogs(Proxy proxy) {
 		return null;
 	}
 

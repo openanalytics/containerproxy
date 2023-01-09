@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

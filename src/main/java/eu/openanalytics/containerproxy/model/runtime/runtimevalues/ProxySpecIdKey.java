@@ -29,9 +29,21 @@ public class ProxySpecIdKey extends RuntimeValueKey<String> {
                 true,
                 false,
                 false, // no need to expose in API
-                true, String.class);
+                true,
+                false,
+                String.class);
     }
 
     public static ProxySpecIdKey inst = new ProxySpecIdKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

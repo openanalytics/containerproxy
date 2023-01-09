@@ -75,6 +75,7 @@ public class UserService {
 	private ApplicationEventPublisher applicationEventPublisher;
 
 	@Inject
+	@Lazy
 	private ProxyAccessControlService accessControlService;
 
 	public Authentication getCurrentAuth() {
@@ -132,6 +133,10 @@ public class UserService {
 		return accessControlService.canAccess(getCurrentAuth(), spec);
 	}
 
+	public boolean canAccess(Authentication user, ProxySpec spec) {
+		return accessControlService.canAccess(user, spec);
+	}
+
 	public boolean isOwner(Proxy proxy) {
 		return isOwner(getCurrentAuth(), proxy);
 	}
@@ -149,7 +154,7 @@ public class UserService {
 		return false;
 	}
 
-	private String getUserId(Authentication auth) {
+	public String getUserId(Authentication auth) {
 		if (auth == null) return null;
 		if (auth instanceof AnonymousAuthenticationToken) {
 			// Anonymous authentication: use the session id instead of the user name.

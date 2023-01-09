@@ -44,8 +44,12 @@ public class RuntimeValue {
         return key;
     }
 
-    public String getValue() {
-        return value.toString();
+    /**
+     * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.
+     */
+    @Override
+    public String toString() {
+        return key.serializeToString(getObject());
     }
 
     public <T> T getObject() {

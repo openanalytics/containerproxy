@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 
 public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
@@ -28,13 +30,35 @@ public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
         super("openanalytics.eu/sp-parameters-names",
                 "SHINYPROXY_PARAMETER_NAMES",
                 false,
-                false,
+                true,
                 false,
                 true, // IMPORTANT: only the names of the values may be exposed through the API
-                false, ParameterNames.class);
+                false,
+                false,
+                ParameterNames.class);
     }
 
     public static ParameterNamesKey inst = new ParameterNamesKey();
 
+
+    @Override
+    public ParameterNames deserializeFromString(String value) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.readValue(value, ParameterNames.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public String serializeToString(ParameterNames value) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }

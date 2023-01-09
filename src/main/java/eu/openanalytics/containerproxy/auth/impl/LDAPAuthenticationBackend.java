@@ -176,10 +176,10 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 		@Override
 		public Set<GrantedAuthority> getGroupMembershipRoles(String userDn, String username) {
 			if (getGroupSearchBase() == null) {
-				return new HashSet<GrantedAuthority>();
+				return new HashSet<>();
 			}
 
-			Set<GrantedAuthority> authorities = new HashSet<GrantedAuthority>();
+			Set<GrantedAuthority> authorities = new HashSet<>();
 
 			if (logger.isDebugEnabled()) {
 				logger.debug("Searching for roles for user '" + username + "', DN = " + "'"

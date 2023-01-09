@@ -20,13 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
+import eu.openanalytics.containerproxy.ContainerProxyException;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -38,13 +32,22 @@ import org.springframework.context.expression.MapAccessor;
 import org.springframework.context.expression.StandardBeanExpressionResolver;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.expression.Expression;
+import org.springframework.expression.ExpressionException;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.ParseException;
 import org.springframework.expression.ParserContext;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.expression.spel.support.StandardTypeConverter;
 import org.springframework.expression.spel.support.StandardTypeLocator;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Note: inspired by org.springframework.context.expression.StandardBeanExpressionResolver
@@ -79,27 +82,33 @@ public class SpecExpressionResolver {
 	public <T> T evaluate(String expression, SpecExpressionContext context, Class<T> resType) {
 		if (expression == null) return null;
 		if (expression.isEmpty()) return null;
-		
-		Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
-		
-		ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
-		
-		StandardEvaluationContext sec = evaluationCache.get(context);
-		if (sec == null) {
-			sec = new StandardEvaluationContext();
-			sec.setRootObject(context);
-			sec.addPropertyAccessor(new BeanExpressionContextAccessor());
-			sec.addPropertyAccessor(new BeanFactoryAccessor());
-			sec.addPropertyAccessor(new MapAccessor());
-			sec.addPropertyAccessor(new EnvironmentAccessor());
-			sec.setBeanResolver(new BeanFactoryResolver(appContext));
-			sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
-			ConversionService conversionService = beanFactory.getConversionService();
-			if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
-			evaluationCache.put(context, sec);
+
+		try {
+			Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
+
+			ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
+
+			StandardEvaluationContext sec = evaluationCache.get(context);
+			if (sec == null) {
+				sec = new StandardEvaluationContext();
+				sec.setRootObject(context);
+				sec.addPropertyAccessor(new BeanExpressionContextAccessor());
+				sec.addPropertyAccessor(new BeanFactoryAccessor());
+				sec.addPropertyAccessor(new MapAccessor());
+				sec.addPropertyAccessor(new EnvironmentAccessor());
+				sec.setBeanResolver(new BeanFactoryResolver(appContext));
+				sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
+				ConversionService conversionService = beanFactory.getConversionService();
+				if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
+				evaluationCache.put(context, sec);
+			}
+
+			return expr.getValue(sec, resType);
+		} catch (ExpressionException ex) {
+			throw new SpelException(ex, expression);
+		} catch (Throwable ex) {
+			throw new SpelException(ex, expression);
 		}
-		
-		return expr.getValue(sec, resType);
 	}
 	
 	public String evaluateToString(String expression, SpecExpressionContext context) {
@@ -114,12 +123,24 @@ public class SpecExpressionResolver {
 		return evaluate(expression, context, Long.class);
 	}
 
+	public Integer evaluateToInteger(String expression, SpecExpressionContext context) {
+		return evaluate(expression, context, Integer.class);
+	}
+
 	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
 		return evaluate(expression, context, Boolean.class);
 	}
 
-    public List<String> evaluateToList(String[] expressions, SpecExpressionContext context) {
-		return Arrays.stream(expressions).flatMap(	 (el) ->
-				((List<String>) evaluate(el, context, List.class)).stream()).collect(Collectors.toList());
+    public List<String> evaluateToList(List<String> expressions, SpecExpressionContext context) {
+		if (expressions == null) return null;
+		return expressions.stream()
+				.flatMap((el) -> {
+					List<String> result = evaluate(el, context, List.class);
+					if (result == null) {
+						result = new ArrayList<>();
+					}
+					return result.stream();
+				})
+				.collect(Collectors.toList());
     }
 }

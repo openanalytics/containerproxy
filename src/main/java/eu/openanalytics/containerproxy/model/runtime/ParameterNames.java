@@ -20,40 +20,43 @@
  */
 package eu.openanalytics.containerproxy.model.runtime;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 
 import java.util.List;
-import java.util.Map;
 
+@JsonView(Views.Default.class)
 public class ParameterNames {
     private final List<ParameterName> values;
 
+    @JsonCreator
     public ParameterNames(List<ParameterName> values) {
         this.values = values;
     }
 
-    @Override
-    public String toString() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            return objectMapper.writeValueAsString(values);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+    @JsonValue
+    public List<ParameterName> jsonValue() {
+        return values;
     }
 
     public List<ParameterName> getParametersNames() {
         return values;
     }
 
+    @JsonView(Views.Default.class)
     public static class ParameterName {
 
         private final String displayName;
         private final String description;
         private final String value;
 
-        public ParameterName(String displayName, String description, String value) {
+        @JsonCreator
+        public ParameterName(@JsonProperty("displayName") String displayName,
+                             @JsonProperty("description") String description,
+                             @JsonProperty("value") String value) {
             this.displayName = displayName;
             this.description = description;
             this.value = value;

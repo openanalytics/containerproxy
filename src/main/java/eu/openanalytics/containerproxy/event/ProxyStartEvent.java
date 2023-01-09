@@ -20,32 +20,35 @@
  */
 package eu.openanalytics.containerproxy.event;
 
-import org.springframework.context.ApplicationEvent;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.With;
 
-import java.time.Duration;
+@Value
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+public class ProxyStartEvent extends BridgeableEvent {
 
-public class ProxyStartEvent extends ApplicationEvent {
+    @With
+    String source;
 
-    private final String proxyId;
-    private final String userId;
-    private final String specId;
+    String proxyId;
+    String userId;
+    String specId;
+    ProxyStartupLog proxyStartupLog;
 
-    public ProxyStartEvent(Object source, String proxyId, String userId, String specId) {
-        super(source);
-        this.proxyId = proxyId;
-        this.userId = userId;
-        this.specId = specId;
+    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
+        source = "SOURCE_NOT_AVAILABLE";
+        proxyId = proxy.getId();
+        userId = proxy.getUserId();
+        specId = proxy.getSpecId();
+        this.proxyStartupLog = proxyStartupLog;
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getSpecId() {
-        return specId;
-    }
-
-    public String getProxyId() {
-        return proxyId;
-    }
 }

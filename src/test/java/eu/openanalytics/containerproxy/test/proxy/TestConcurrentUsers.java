@@ -113,7 +113,7 @@ public class TestConcurrentUsers {
 
 		Proxy createdProxy = createProxyResponse.getBody();
 		Thread.sleep(1000);
-		String endpoint = createdProxy.getTargets().keySet().iterator().next().toString() + "/";
+		String endpoint = createdProxy.getContainers().get(0).getTargets().keySet().iterator().next() +  "/";
 		doGetEndpoint(endpoint, username, password);
 		
 		return createdProxy.getId();

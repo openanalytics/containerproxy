@@ -22,7 +22,9 @@ package eu.openanalytics.containerproxy.util;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import io.undertow.io.Sender;
 import io.undertow.server.DefaultResponseListener;
@@ -38,6 +40,7 @@ import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.Headers;
 import io.undertow.util.PathMatcher;
+import org.springframework.context.annotation.Lazy;
 import io.undertow.util.StatusCodes;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +56,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * This component keeps track of which proxy mappings (i.e. URL endpoints) are currently registered,
@@ -65,15 +69,23 @@ public class ProxyMappingManager {
 	private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
 	private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
 
+	private final StructuredLogger logger = StructuredLogger.create(getClass());
+
 	private PathHandler pathHandler;
 	
-	private Map<String, String> mappings = new HashMap<>();
+	private final Map<String, String> mappings = new HashMap<>();
 	
 	@Inject
+	@Lazy
 	private HeartbeatService heartbeatService;
 
 	@Inject
+	@Lazy
 	private ProxyService proxyService;
+
+	@Inject
+	@Lazy
+	private AsyncProxyService asyncProxyService;
 
 	public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {
 		if (pathHandler == null) {
@@ -85,7 +97,11 @@ public class ProxyMappingManager {
 	@SuppressWarnings("deprecation")
 	public synchronized void addMapping(String proxyId, String mapping, URI target) {
 		if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-		
+
+		if (mappings.containsKey(mapping)) {
+			return;
+		}
+
 		LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
 			@Override
 			public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
@@ -136,6 +152,10 @@ public class ProxyMappingManager {
 	 * @throws ServletException If the dispatch fails for any other reason.
 	 */
 	public void dispatchAsync(String proxyId, String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+		dispatchAsync(proxyId, mapping, request, response, null);
+	}
+
+	public void dispatchAsync(String proxyId, String mapping, HttpServletRequest request, HttpServletResponse response, Consumer<HttpServerExchange> exchangeCustomizer) throws IOException, ServletException {
 		HttpServerExchange exchange = ServletRequestContext.current().getExchange();
 		exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, this);
 		exchange.putAttachment(ATTACHMENT_KEY_PROXY_ID, new ProxyIdAttachment(proxyId));
@@ -144,6 +164,9 @@ public class ProxyMappingManager {
 		queryString = (queryString == null) ? "" : "?" + queryString;
 		String targetPath = PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
 
+		if (exchangeCustomizer != null) {
+			exchangeCustomizer.accept(exchange);
+		}
 		exchange.addDefaultResponseListener(defaultResponseListener);
 		request.startAsync();
 		request.getRequestDispatcher(targetPath).forward(request, response);
@@ -160,7 +183,8 @@ public class ProxyMappingManager {
 				try {
 					proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
 					if (proxy != null) {
-						proxyService.stopCrashedProxy(proxy);
+						logger.info(proxy, "Proxy unreachable/crashed, stopping it now");
+						asyncProxyService.stopProxy(proxy, true);
 					}
 				} catch (Throwable t) {
 					// ignore in order to complete request

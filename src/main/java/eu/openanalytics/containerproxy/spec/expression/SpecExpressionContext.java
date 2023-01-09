@@ -25,58 +25,34 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.UserService;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 import org.keycloak.KeycloakPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
-import org.springframework.security.saml.SAMLCredential;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Value
+@EqualsAndHashCode()
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class SpecExpressionContext {
 
-    private ContainerSpec containerSpec;
-    private ProxySpec proxySpec;
-    private Proxy proxy;
-    private OpenIDAuthenticationBackend.CustomNameOidcUser oicdUser;
-    private KeycloakPrincipal keycloakUser;
-    private SAMLCredential samlCredential;
-    private LdapUserDetails ldapUser;
-    private List<String> groups;
-
-    public ContainerSpec getContainerSpec() {
-        return containerSpec;
-    }
-
-    public ProxySpec getProxySpec() {
-        return proxySpec;
-    }
-
-    public Proxy getProxy() {
-        return proxy;
-    }
-
-    public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
-        return oicdUser;
-    }
-
-    public KeycloakPrincipal getKeycloakUser() {
-        return keycloakUser;
-    }
-
-    public SAMLCredential getSamlCredential() {
-        return samlCredential;
-    }
-
-    public LdapUserDetails getLdapUser() {
-        return ldapUser;
-    }
-
-    public List<String> getGroups() {
-        return groups;
-    }
+    ContainerSpec containerSpec;
+    ProxySpec proxySpec;
+    Proxy proxy;
+    OpenIDAuthenticationBackend.CustomNameOidcUser oidcUser;
+    KeycloakPrincipal keycloakUser;
+//    private SAMLCredential samlCredential;
+    LdapUserDetails ldapUser;
+    List<String> groups;
+    String userId;
 
     /**
      * Convert a {@see String} to a list of strings, by splitting according to the provided regex and trimming each result
@@ -114,8 +90,8 @@ public class SpecExpressionContext {
     }
 
     /**
-     *  Returns true when the provided value is in the list of allowed values.
-     *  Both the attribute and allowed values are trimmed.
+     * Returns true when the provided value is in the list of allowed values.
+     * Both the attribute and allowed values are trimmed.
      */
     public boolean isOneOf(String attribute, String... allowedValues) {
         if (attribute == null) {
@@ -125,8 +101,8 @@ public class SpecExpressionContext {
     }
 
     /**
-     *  Returns true when the provided value is in the list of allowed values.
-     *  Both the attribute and allowed values are trimmed and the comparison ignores casing of the values.
+     * Returns true when the provided value is in the list of allowed values.
+     * Both the attribute and allowed values are trimmed and the comparison ignores casing of the values.
      */
     public boolean isOneOfIgnoreCase(String attribute, String... allowedValues) {
         if (attribute == null) {
@@ -136,28 +112,37 @@ public class SpecExpressionContext {
     }
 
     public static SpecExpressionContext create(Object... objects) {
-        SpecExpressionContext ctx = new SpecExpressionContext();
+        SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
+        return create(builder, objects);
+    }
+
+    public static SpecExpressionContext create(SpecExpressionContextBuilder builder, Object... objects) {
         for (Object o : objects) {
             if (o instanceof ContainerSpec) {
-                ctx.containerSpec = (ContainerSpec) o;
+                builder.containerSpec = (ContainerSpec) o;
             } else if (o instanceof ProxySpec) {
-                ctx.proxySpec = (ProxySpec) o;
+                builder.proxySpec = (ProxySpec) o;
             } else if (o instanceof Proxy) {
-                ctx.proxy = (Proxy) o;
+                builder.proxy = (Proxy) o;
             } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-                ctx.oicdUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+                builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
             } else if (o instanceof KeycloakPrincipal) {
-                ctx.keycloakUser = (KeycloakPrincipal) o;
-            } else if (o instanceof SAMLCredential) {
-                ctx.samlCredential = (SAMLCredential) o;
+                builder.keycloakUser = (KeycloakPrincipal) o;
+//            } else if (o instanceof SAMLCredential) {
+//                ctx.samlCredential = (SAMLCredential) o;
             } else if (o instanceof LdapUserDetails) {
-                ctx.ldapUser = (LdapUserDetails) o;
+                builder.ldapUser = (LdapUserDetails) o;
             }
             if (o instanceof Authentication) {
-                ctx.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+                builder.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+                builder.userId = ((Authentication) o).getName();
             }
         }
-        return ctx;
+        return builder.build();
+    }
+
+    public SpecExpressionContext copy(Object... objects) {
+        return create(toBuilder(), objects);
     }
 
 }

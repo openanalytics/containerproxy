@@ -20,176 +20,114 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+@Data
+@Setter
+@Getter
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ContainerSpec {
 
-	/**
-	 * Index in the array of ContainerSpecs of the ProxySpec.
-	 */
-	private Integer index;
-	private String image;
-	private String[] cmd;
-	private Map<String, String> env;
-	private String envFile;
-	private String network;
-	private String[] networkConnections;
-	private String[] dns;
-	private String[] volumes;
-	private Map<String, Integer> portMapping = new HashMap<>();
-	private boolean privileged;
-	private String memoryRequest;
-	private String memoryLimit;
-	private String cpuRequest;
-	private String cpuLimit;
-	private String targetPath;
-	private Map<String, String> labels = new HashMap<>();
-	private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList();
-	private String dockerRegistryDomain;
-	private String dockerRegistryUsername;
-	private String dockerRegistryPassword;
+    /**
+     * Index in the array of ContainerSpecs of the ProxySpec.
+     */
+    private Integer index;
+    private SpelField.String image;
+    @Builder.Default
+    private SpelField.StringList cmd = new SpelField.StringList();
+    @Builder.Default
+    private SpelField.StringMap env = new SpelField.StringMap();
+    @Builder.Default
+    private SpelField.String envFile = new SpelField.String();
+    @Builder.Default
+    private SpelField.String network = new SpelField.String();
+    @Builder.Default
+    private SpelField.StringList networkConnections = new SpelField.StringList();
+    @Builder.Default
+    private SpelField.StringList dns = new SpelField.StringList();
+    @Builder.Default
+    private SpelField.StringList volumes = new SpelField.StringList(new ArrayList<>());
+    @Builder.Default
+    private List<PortMapping> portMapping = new ArrayList<>();
+    private boolean privileged;
+    @Builder.Default
+    private SpelField.String memoryRequest = new SpelField.String();
+    @Builder.Default
+    private SpelField.String memoryLimit = new SpelField.String();
+    @Builder.Default
+    private SpelField.String cpuRequest = new SpelField.String();
+    @Builder.Default
+    private SpelField.String cpuLimit = new SpelField.String();
+    @Builder.Default
+    private SpelField.StringMap labels = new SpelField.StringMap();
+    @Builder.Default
+    private List<DockerSwarmSecret> dockerSwarmSecrets = new ArrayList<>();
+    private String dockerRegistryDomain;
+    private String dockerRegistryUsername;
+    private String dockerRegistryPassword;
 
-	public String getImage() {
-		return image;
+	public void setCmd(List<String> cmd) {
+		this.cmd = new SpelField.StringList(cmd);
 	}
-	public void setImage(String image) {
-		this.image = image;
-	}
-	public String[] getCmd() {
-		return cmd;
-	}
-	public void setCmd(String[] cmd) {
-		this.cmd = cmd;
-	}
-	public Map<String, String> getEnv() {
-		return env;
-	}
+
 	public void setEnv(Map<String, String> env) {
-		this.env = env;
-	}
-	public String getEnvFile() {
-		return envFile;
-	}
-	public void setEnvFile(String envFile) {
-		this.envFile = envFile;
-	}
-	public String getNetwork() {
-		return network;
-	}
-	public void setNetwork(String network) {
-		this.network = network;
-	}
-	public String[] getNetworkConnections() {
-		return networkConnections;
-	}
-	public void setNetworkConnections(String[] networkConnections) {
-		this.networkConnections = networkConnections;
-	}
-	public String[] getDns() {
-		return dns;
-	}
-	public void setDns(String[] dns) {
-		this.dns = dns;
-	}
-	public String[] getVolumes() {
-		return volumes;
-	}
-	public void setVolumes(String[] volumes) {
-		this.volumes = volumes;
-	}
-	public Map<String, Integer> getPortMapping() {
-		return portMapping;
-	}
-	public void setPortMapping(Map<String, Integer> portMapping) {
-		this.portMapping = portMapping;
-	}
-	public boolean isPrivileged() {
-		return privileged;
-	}
-	public void setPrivileged(boolean privileged) {
-		this.privileged = privileged;
-	}
-	public String getMemoryRequest() {
-		return memoryRequest;
-	}
-	public void setMemoryRequest(String memoryRequest) {
-		this.memoryRequest = memoryRequest;
-	}
-	public String getMemoryLimit() {
-		return memoryLimit;
-	}
-	public void setMemoryLimit(String memoryLimit) {
-		this.memoryLimit = memoryLimit;
-	}
-	public String getCpuRequest() {
-		return cpuRequest;
-	}
-	public void setCpuRequest(String cpuRequest) {
-		this.cpuRequest = cpuRequest;
-	}
-	public String getCpuLimit() {
-		return cpuLimit;
-	}
-	public void setCpuLimit(String cpuLimit) {
-		this.cpuLimit = cpuLimit;
+		this.env = new SpelField.StringMap(env);
 	}
 
-	public Map<String, String> getLabels() {
-		return labels;
+	public void setNetworkConnections(List<String> networkConnections) {
+		this.networkConnections = new SpelField.StringList(networkConnections);
 	}
 
-	public void setLabels(Map<String, String> labels) {
-		this.labels = labels;
+	public void setDns(List<String> dns) {
+		this.dns = new SpelField.StringList(dns);
 	}
 
-	public String getTargetPath() {
-		return targetPath;
+	public void setVolumes(List<String> volumes) {
+		this.volumes = new SpelField.StringList(volumes);
 	}
 
-	public void setTargetPath(String targetPath) {
-		this.targetPath = targetPath;
-	}
+    public void setLabels(Map<String, String> labels) {
+        this.labels = new SpelField.StringMap(labels);
+    }
 
-	public List<DockerSwarmSecret> getDockerSwarmSecrets() {
-		return dockerSwarmSecrets;
-	}
+    public ContainerSpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .image(image.resolve(resolver, context))
+                .cmd(cmd.resolve(resolver, context))
+                .envFile(envFile.resolve(resolver, context))
+                .network(network.resolve(resolver, context))
+                .networkConnections(networkConnections.resolve(resolver, context))
+                .dns(dns.resolve(resolver, context))
+                .volumes(volumes.resolve(resolver, context))
+                .memoryRequest(memoryRequest.resolve(resolver, context))
+                .memoryLimit(memoryLimit.resolve(resolver, context))
+                .cpuRequest(cpuRequest.resolve(resolver, context))
+                .cpuLimit(cpuLimit.resolve(resolver, context))
+                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+                .build();
+    }
 
-	public void setDockerSwarmSecrets(List<DockerSwarmSecret> dockerSwarmSecrets) {
-		this.dockerSwarmSecrets = dockerSwarmSecrets;
-	}
+    public ContainerSpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .env(env.resolve(resolver, context))
+                .labels(labels.resolve(resolver, context))
+                .build();
+    }
 
-	public String getDockerRegistryDomain() {
-		return dockerRegistryDomain;
-	}
-
-	public void setDockerRegistryDomain(String dockerRegistryDomain) {
-		this.dockerRegistryDomain = dockerRegistryDomain;
-	}
-
-	public String getDockerRegistryUsername() {
-		return dockerRegistryUsername;
-	}
-
-	public void setDockerRegistryUsername(String dockerRegistryUsername) {
-		this.dockerRegistryUsername = dockerRegistryUsername;
-	}
-
-	public String getDockerRegistryPassword() {
-		return dockerRegistryPassword;
-	}
-
-	public void setDockerRegistryPassword(String dockerRegistryPassword) {
-		this.dockerRegistryPassword = dockerRegistryPassword;
-	}
-
-	public Integer getIndex() {
-		return index;
-	}
-
-	public void setIndex(Integer index) {
-		this.index = index;
-	}
 }

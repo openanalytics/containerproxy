@@ -25,13 +25,15 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
   - id: 01_hello_secret
     container-specs:
       - image: "openanalytics/shinyproxy-demo"
         cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
         docker-swarm-secrets:
           - name: my_secret
           - name: my_secret_2

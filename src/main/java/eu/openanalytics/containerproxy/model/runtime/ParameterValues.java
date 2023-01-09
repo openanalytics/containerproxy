@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime;
 
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
@@ -33,11 +33,12 @@ public class ParameterValues {
     private final String valueSetName;
 
     @JsonCreator
-    public ParameterValues(Map<String, String> backendValues, String valueSetName) {
+    public ParameterValues(@JsonProperty("backendValues") Map<String, String> backendValues, @JsonProperty("valueSetName") String valueSetName) {
         this.backendValues = backendValues;
         this.valueSetName = valueSetName;
     }
 
+    @JsonIgnore
     public int size() {
         return backendValues.size();
     }
@@ -49,14 +50,8 @@ public class ParameterValues {
         return backendValues.get(parameterId);
     }
 
-    @Override
-    public String toString() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            return objectMapper.writeValueAsString(backendValues);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+    public Map<String, String> getBackendValues() {
+        return backendValues;
     }
 
     public String getValueSetName() {

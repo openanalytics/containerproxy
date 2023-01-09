@@ -29,9 +29,21 @@ public class MaxLifetimeKey extends RuntimeValueKey<Long> {
                 true,
                 false,
                 true,
-                true, Long.class);
+                true,
+                false,
+                Long.class);
     }
 
     public static MaxLifetimeKey inst = new MaxLifetimeKey();
+
+    @Override
+    public Long deserializeFromString(String value) {
+        return Long.parseLong(value);
+    }
+
+    @Override
+    public String serializeToString(Long value) {
+        return value.toString();
+    }
 
 }

@@ -23,10 +23,10 @@ package eu.openanalytics.containerproxy.service;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.commons.lang.time.DurationFormatUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.core.env.Environment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -44,11 +44,17 @@ public class ProxyMaxLifetimeService {
 
     private static final Integer CLEANUP_INTERVAL = 5 * 60 * 1000;
 
-    private final Logger log = LogManager.getLogger(ProxyMaxLifetimeService.class);
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slog = new StructuredLogger(log);
 
     @Inject
     private ProxyService proxyService;
 
+    @Inject
+    private IProxyReleaseStrategy releaseStrategy;
+
+    @Inject
+    private ILeaderService leaderService;
 
     @PostConstruct
     public void init() {
@@ -61,13 +67,17 @@ public class ProxyMaxLifetimeService {
     }
 
     private void performCleanup() {
+        if (!leaderService.isLeader()) {
+            log.debug("Skipping checking max lifetimes because we are not the leader");
+            return;
+        }
         for (Proxy proxy : proxyService.getProxies(null, true)) {
             if (mustBeReleased(proxy)) {
                 String uptime = DurationFormatUtils.formatDurationWords(
-                        System.currentTimeMillis() - proxy.getCreatedTimestamp(),
+                        System.currentTimeMillis() - proxy.getStartupTimestamp(),
                         true, false);
-                log.info(String.format("Forcefully releasing proxy because it reached the max lifetime [user: %s] [spec: %s] [id: %s] [uptime: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), uptime));
-                proxyService.stopProxy(proxy, true, true);
+                slog.info(proxy,  String.format("Forcefully releasing proxy because it reached the max lifetime [uptime: %s]",  uptime));
+                releaseStrategy.releaseProxy(proxy);
             }
         }
 
@@ -83,7 +93,7 @@ public class ProxyMaxLifetimeService {
         if (maxLifeTime > 0) {
             Instant notBeforeTime = Instant.now().minus(maxLifeTime, ChronoUnit.MINUTES);
 
-            return Instant.ofEpochMilli(proxy.getCreatedTimestamp()).isBefore(notBeforeTime);
+            return Instant.ofEpochMilli(proxy.getStartupTimestamp()).isBefore(notBeforeTime);
         }
 
         return false;

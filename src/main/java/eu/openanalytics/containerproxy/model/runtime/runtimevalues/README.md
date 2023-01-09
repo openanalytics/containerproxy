@@ -42,8 +42,9 @@ The runtime-values can be used as follows in SpEL expressions:r
     container-specs:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-        port-mapping:
-          default: 3838
+      port-mapping:
+        - name: default
+          port: 3838
         env:
           TEST_PROXY_ID: "#{proxy.getRuntimeValue('SHINYPROXY_PROXY_ID')}"
           SHINYPROXY_USERNAME: "abc_xyz"
@@ -78,8 +79,9 @@ field and we cannot prevent duplicate values in a good way here. If you want to 
     container-specs:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-        port-mapping:
-          default: 3838
+      port-mapping:
+        - name: default
+          port: 3838
         env:
           TEST_PROXY_ID: "#{proxy.getRuntimeValue('SHINYPROXY_PROXY_ID')}"
     kubernetes-pod-patches: |
@@ -113,5 +115,3 @@ and not of the `Proxy` class, therefore we would have to add these values to eve
 ## SpEL
 
 The runtime-values can be used as follows in SpEL expressions:
-
-

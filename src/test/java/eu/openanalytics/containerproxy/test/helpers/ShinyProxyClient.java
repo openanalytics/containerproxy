@@ -95,7 +95,7 @@ public class ShinyProxyClient {
             JsonArray array = jsonReader.readArray();
             jsonReader.close();
 
-            HashSet<JsonObject> result = new HashSet();
+            HashSet<JsonObject> result = new HashSet<>();
 
             for (JsonValue v: array) {
                 JsonObject x = v.asJsonObject();

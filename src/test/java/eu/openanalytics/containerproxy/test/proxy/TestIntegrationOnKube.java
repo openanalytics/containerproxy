@@ -25,12 +25,14 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube.TestConfiguration;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
@@ -97,6 +99,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     @Inject
     private ProxyService proxyService;
 
+    @Inject
+    private UserService userService;
+
     /**
      * This test starts a Proxy with a very simple Spec and checks whether
      * everything is correctly configured in kube.
@@ -107,7 +112,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[0].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -131,7 +136,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, service.getSpec().getPorts().size());
             Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy,  true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -156,7 +161,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[1].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -187,7 +192,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("shinyproxy-volume-1", volumeMounts.get(1).getName());
             Assertions.assertEquals("/srv/myvolume2", volumeMounts.get(1).getMountPath());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -209,7 +214,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[2].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -229,7 +234,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
             Assertions.assertEquals("jack", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
             Assertions.assertTrue(env.containsKey("SHINYPROXY_USERGROUPS"));
-            Assertions.assertNull(env.get("SHINYPROXY_USERGROUPS").getValue());
+            Assertions.assertEquals("GROUP1,GROUP2", env.get("SHINYPROXY_USERGROUPS").getValue());
             Assertions.assertTrue(env.containsKey("VAR1"));
             Assertions.assertNull(env.get("VAR1").getValue());
             Assertions.assertTrue(env.containsKey("VAR2"));
@@ -237,7 +242,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VAR3"));
             Assertions.assertEquals("VALUE3", env.get("VAR3").getValue());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -265,7 +270,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[3].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -286,7 +291,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("username", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getKey());
             Assertions.assertEquals("mysecret", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getName());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -305,7 +310,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[4].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -326,7 +331,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
             Assertions.assertEquals(new Quantity("2Gi"), req.getLimits().get("memory"));
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -345,7 +350,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[5].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -361,7 +366,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
 
             Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -392,16 +397,16 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 String specId = environment.getProperty("proxy.specs[6].id");
 
                 ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-                Proxy proxy = proxyService.startProxy(spec, true);
+                Proxy proxy = proxyService.startProxy(spec);
                 String containerId = proxy.getContainers().get(0).getId();
 
-                // Check whether the effectively used namepsace is correct
-                Assertions.assertEquals(overriddenNamespace, proxy.getContainers().get(0).getParameters().get("namespace").toString());
-                // no pods should exists in the default namespace
+                // Check whether the effectively used namespace is correct
+                Assertions.assertEquals(overriddenNamespace, proxy.getContainers().get(0).getRuntimeValue(BackendContainerNameKey.inst).split("/")[0]);
+                // no pods should exist in the default namespace
                 PodList podList = client.pods().inNamespace(namespace).list();
                 Assertions.assertEquals(0, podList.getItems().size());
 
-                // no services should exists in the default namespace
+                // no services should exist in the default namespace
                 ServiceList serviceList = client.services().inNamespace(namespace).list();
                 Assertions.assertEquals(0, serviceList.getItems().size());
 
@@ -426,7 +431,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(1, service.getSpec().getPorts().size());
                 Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
 
-                proxyService.stopProxy(proxy, false, true);
+                proxyService.stopProxy(null, proxy, true).run();
 
                 // Give Kube the time to clean
                 Thread.sleep(2000);
@@ -456,7 +461,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[7].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -486,7 +491,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("ADDED_VAR"));
             Assertions.assertEquals("VALUE", env.get("ADDED_VAR").getValue()); // value is a String "null"
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -505,12 +510,10 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
      * The second manifest does not contain a namespace definition, but in the end should have the same namespace as the pod.
      */
     @Test
-    public void launchProxyWithAdditionalManifests() throws Exception {
+    public void launchProxyWithAdditionalManifests() {
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[8].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests");
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(overriddenNamespace).list();
@@ -541,7 +544,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -589,7 +592,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[8].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(overriddenNamespace).list();
@@ -620,7 +623,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -648,7 +651,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[9].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -682,7 +685,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("home-dir-pvc-jack", volume.getName());
             Assertions.assertEquals("home-dir-pvc-jack", volume.getPersistentVolumeClaim().getClaimName());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -709,7 +712,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[11].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(overriddenNamespace).list();
@@ -740,7 +743,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -764,10 +767,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithManifestPolicyCreateOnce() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[13].id");
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_policy_create_once");
 
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -794,7 +796,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -807,20 +809,23 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
         });
-        // case 2: secret does already exist, check that it gets overridden
+        // case 2: secret does already exist, check that it does not get overridden
         setup((client, namespace, overriddenNamespace) -> {
             // first create secret
             client.secrets().inNamespace(namespace).create(new SecretBuilder()
                     .withNewMetadata()
                     .withName("manifests-secret")
+                    .withLabels(new HashMap<String, String>() {{
+                        put("openanalytics.eu/sp-additional-manifest", "true");
+                        put("openanalytics.eu/sp-persistent-manifest", "false");
+                        put("openanalytics.eu/sp-manifest-id", "4d1d0a831959477994c28330254195c1623c17fb");
+                    }})
                     .endMetadata()
                     .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
                     .build());
 
-            String specId = environment.getProperty("proxy.specs[13].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_policy_create_once");
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -847,7 +852,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -869,7 +874,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[14].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -896,7 +901,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -928,7 +933,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[14].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -957,7 +962,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -987,7 +992,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[15].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1006,7 +1011,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1024,7 +1029,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[16].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1051,7 +1056,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1083,7 +1088,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[16].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1112,7 +1117,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1131,10 +1136,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithPersistentManifestPolicyCreateOnce() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[17].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_create_once");
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1160,7 +1163,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1175,7 +1178,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // step 2: secret does already exist, check that it gets overridden
-            proxy = proxyService.startProxy(spec, true);
+            proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
             secretList= client.secrets().inNamespace(namespace).list();
@@ -1191,7 +1194,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1211,7 +1214,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[18].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1237,7 +1240,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1254,7 +1257,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             // same spec, different value
             String specId2 = environment.getProperty("proxy.specs[19].id");
             spec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
-            proxy = proxyService.startProxy(spec, true);
+            proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
             secretList = client.secrets().inNamespace(namespace).list();
@@ -1271,7 +1274,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1299,7 +1302,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             String specId = environment.getProperty("proxy.specs[20].id");
 
             ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1318,7 +1321,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
                     .getItems().get(0).getMetadata().getName().startsWith("default-token"));
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1333,10 +1336,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithPersistentManifestPolicyReplace() {
         // case 1: secret does not exist yet
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[21].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_replace");
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1362,7 +1363,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1377,9 +1378,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // same spec, different value
-            String specId2 = environment.getProperty("proxy.specs[22].id");
-            spec = proxyService.findProxySpec(s -> s.getId().equals(specId2), true);
-            proxy = proxyService.startProxy(spec, true);
+            spec = proxyService.getProxySpec("01_hello_persistent_manifests_policy_replace2");
+            proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
             secretList = client.secrets().inNamespace(namespace).list();
@@ -1395,7 +1395,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
             }
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1415,10 +1415,8 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     @Test
     public void advancedRuntimeLabels() {
         setup((client, namespace, overriddenNamespace) -> {
-            String specId = environment.getProperty("proxy.specs[12].id");
-
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-            Proxy proxy = proxyService.startProxy(spec, true);
+            ProxySpec spec = proxyService.getProxySpec("01_hello_advanced_runtime_labels");
+            Proxy proxy = proxyService.startProxy(spec);
             String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = client.pods().inNamespace(namespace).list();
@@ -1469,7 +1467,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(proxy.getRuntimeValue("SHINYPROXY_INSTANCE"), labels.get("custom_label_patch_instance"));
 
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1489,13 +1487,19 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithParameters() {
         setup((client, namespace, overriddenNamespace) -> {
             ProxySpec spec = proxyService.getProxySpec("parameters");
-            Proxy proxy = proxyService.startProxy(spec, true, null,
-                    UUID.randomUUID().toString(),
+            String proxyId = UUID.randomUUID().toString();
+            proxyService.startProxy(
+                    userService.getCurrentAuth(),
+                    spec,
+                    null,
+                    proxyId,
                     new HashMap<String, String>() {{
                         put("environment", "base_r");
                         put("version", "4.0.5");
                         put("memory", "2G");
-                    }});
+                    }})
+                    .run();
+            Proxy proxy = proxyService.getProxy(proxyId);
 
             PodList podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
@@ -1517,7 +1521,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
             Assertions.assertEquals("the-first-value-set", env.get("VALUESET_NAME").getValue());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1534,13 +1538,19 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     public void launchProxyWithParametersWithNullValueSetName() {
         setup((client, namespace, overriddenNamespace) -> {
             ProxySpec spec = proxyService.getProxySpec("parameters-null");
-            Proxy proxy = proxyService.startProxy(spec, true, null,
-                    UUID.randomUUID().toString(),
+            String proxyId = UUID.randomUUID().toString();
+            proxyService.startProxy(
+                    userService.getCurrentAuth(),
+                    spec,
+                    null,
+                    proxyId,
                     new HashMap<String, String>() {{
                         put("environment", "base_r");
                         put("version", "4.0.5");
                         put("memory", "2G");
-                    }});
+                    }})
+                    .run();
+            Proxy proxy = proxyService.getProxy(proxyId);
 
             PodList podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
@@ -1556,7 +1566,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
             Assertions.assertNull( env.get("VALUESET_NAME").getValue());
 
-            proxyService.stopProxy(proxy, false, true);
+            proxyService.stopProxy(null, proxy, true).run();
 
             // Give Kube the time to clean
             Thread.sleep(2000);
@@ -1574,15 +1584,20 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         setup((client, namespace, overriddenNamespace) -> {
             ProxySpec spec = proxyService.getProxySpec("parameters-error");
 
-            Assertions.assertThrows(ContainerProxyException.class, () -> {
-                proxyService.startProxy(spec, true, null,
+            ContainerProxyException ex = Assertions.assertThrows(ContainerProxyException.class, () -> {
+                proxyService.startProxy(userService.getCurrentAuth(), spec, null,
                         UUID.randomUUID().toString(),
                         new HashMap<String, String>() {{
                             put("environment", "base_r");
                             put("version", "4.0.5");
                             put("memory", "2G");
-                        }});
-            }, "The parameter with id \"non-existing-parameter\" does not exist!");
+                        }})
+                        .run();
+            }, "The parameter with id \"non-existing-parameter\" does not exist");
+
+            Assertions.assertEquals("Container failed to start", ex.getMessage());
+            Assertions.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+            Assertions.assertEquals("The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getMessage());
 
             Thread.sleep(2000);
 
@@ -1594,6 +1609,121 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
         });
     }
 
+    @Test
+    public void launchProxyWithParametersFinalResolve() {
+        setup((client, namespace, overriddenNamespace) -> {
+            ProxySpec spec = proxyService.getProxySpec("parameters-final-resolve");
+            String proxyId = UUID.randomUUID().toString();
+            proxyService.startProxy(
+                            userService.getCurrentAuth(),
+                            spec,
+                            null,
+                            proxyId,
+                            new HashMap<String, String>() {{
+                                put("environment", "base_r");
+                                put("version", "4.0.5");
+                                put("memory", "2G");
+                            }})
+                    .run();
+            Proxy proxy = proxyService.getProxy(proxyId);
+
+            PodList podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
+            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+
+            Assertions.assertTrue(env.containsKey("ENVIRONMENT"));
+            Assertions.assertEquals("ledfan/rstudio_base_r", env.get("ENVIRONMENT").getValue());
+            Assertions.assertTrue(env.containsKey("VERSION"));
+            Assertions.assertEquals("4_0_5", env.get("VERSION").getValue());
+            Assertions.assertTrue(env.containsKey("MEMORY"));
+            Assertions.assertEquals("2G", env.get("MEMORY").getValue());
+            Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
+            Assertions.assertEquals("the-first-value-set", env.get("VALUESET_NAME").getValue());
+
+            // env vars that should be resolved during the final resolve:
+            Assertions.assertTrue(env.containsKey("HEARTBEAT_TIMEOUT"));
+            Assertions.assertEquals("70", env.get("HEARTBEAT_TIMEOUT").getValue());
+            Assertions.assertTrue(env.containsKey("MAX_LIFETIME"));
+            Assertions.assertEquals("-1", env.get("MAX_LIFETIME").getValue());
+            Assertions.assertTrue(env.containsKey("MEMORY_LIMIT"));
+            Assertions.assertEquals("2G", env.get("MEMORY_LIMIT").getValue());
+            Assertions.assertTrue(env.containsKey("IMAGE"));
+            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", env.get("IMAGE").getValue());
+
+            // labels that should be resolved during the final resolve:
+            Map<String, String> labels = pod.getMetadata().getLabels();
+            Assertions.assertTrue(labels.containsKey("HEARTBEAT_TIMEOUT"));
+            Assertions.assertEquals("70", labels.get("HEARTBEAT_TIMEOUT"));
+
+            proxyService.stopProxy(null, proxy, true).run();
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
+
+    /**
+     * Tests the creation and deleting of additional manifests (both persistent and non-persistent) using auth objects inside.
+     * See #26789
+     */
+    @Test
+    public void launchProxyWithAdditionalPersistentManifestsUsingAuthObjects() throws Exception {
+        setup((client, namespace, overriddenNamespace) -> {
+            ProxySpec spec = proxyService.getProxySpec("01_hello_manifests_persistent_using_auth");
+            Proxy proxy = proxyService.startProxy(spec);
+            String containerId = proxy.getContainers().get(0).getId();
+
+            PodList podList = client.pods().inNamespace(overriddenNamespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(overriddenNamespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+
+            ConfigMap configMap1 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap1").get();
+            Assertions.assertTrue(configMap1.getData().containsKey("test.txt"));
+            Assertions.assertEquals("GROUP1,GROUP2\n", configMap1.getData().get("test.txt"));
+
+            ConfigMap configMap2 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap2").get();
+            Assertions.assertTrue(configMap2.getData().containsKey("test.txt"));
+            Assertions.assertEquals("GROUP1,GROUP2\n", configMap2.getData().get("test.txt"));
+
+            proxyService.stopProxy(null, proxy, true).run();
+
+            // Give Kube the time to clean
+            Thread.sleep(2000);
+
+            // all pods should be deleted
+            podList = client.pods().inNamespace(namespace).list();
+            Assertions.assertEquals(0, podList.getItems().size());
+
+            // configmap 1 should have been deleted
+            configMap1 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap1").get();
+            Assertions.assertNull(configMap1);
+            // configmap 2 should not have been deleted
+            configMap2 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap2").get();
+            Assertions.assertTrue(configMap2.getData().containsKey("test.txt"));
+
+            Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
+        });
+    }
 
     public static class TestConfiguration {
         @Bean

@@ -26,17 +26,18 @@ import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.ProxyStatusService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.search.MeterNotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.event.EventListener;
@@ -44,7 +45,9 @@ import org.springframework.context.event.EventListener;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,15 +66,13 @@ public class Micrometer implements IStatCollector {
     @Inject
     private ISessionService sessionService;
 
-    @Inject
-    private ProxyStatusService proxyStatusService;
-
     private final Logger logger = LogManager.getLogger(getClass());
 
     // keeps track of the number of proxies per spec id
     private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
 
     // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<ProxyCounter> proxyCounters = new ArrayList<>();
 
     private Counter appStartFailedCounter;
@@ -84,7 +85,6 @@ public class Micrometer implements IStatCollector {
 
     @PostConstruct
     public void init() {
-
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
         appStartFailedCounter = registry.counter("startFailed");
@@ -99,11 +99,11 @@ public class Micrometer implements IStatCollector {
             proxyCounters.add(proxyCounter);
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
             registry.timer("startupTime", "spec.id", spec.getId());
+            registry.timer("applicationStartupTime", "spec.id", spec.getId());
             for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
                 registry.timer("imagePullTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
                 registry.timer("containerScheduleTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
                 registry.timer("containerStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
-                registry.timer("applicationStartupTime", "spec.id", spec.getId(), "container.idx", containerSpec.getIndex().toString());
             }
             registry.timer("usageTime", "spec.id", spec.getId());
         }
@@ -133,8 +133,7 @@ public class Micrometer implements IStatCollector {
         logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
 
-        ProxyStartupLog startupLog = proxyStatusService.getStartupLog(event.getProxyId());
-
+        ProxyStartupLog startupLog = event.getProxyStartupLog();
         startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
             registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);
         });
@@ -157,13 +156,9 @@ public class Micrometer implements IStatCollector {
             });
         });
 
-        startupLog.getStartApplication().forEach((idx, step) -> {
-            step.getStepDuration().ifPresent((d) -> {
-                registry.timer("applicationStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
-            });
+        startupLog.getStartApplication().getStepDuration().ifPresent((d) -> {
+            registry.timer("applicationStartupTime", "spec.id", event.getSpecId()).record(d);
         });
-
-
     }
 
     @EventListener
@@ -190,14 +185,35 @@ public class Micrometer implements IStatCollector {
     /**
      * Updates the cache containing the number of proxies running for each spec id.
      * We only update this value every CACHE_UPDATE_INTERVAL because this is a relative heavy computation to do.
-     * Therefore we don't want that this calculation is performed every time the guage is updated.
-     * Especially since could be called using an HTTP request.
+     * Therefore, we don't want that this calculation is performed every time the guage is updated.
+     * Especially since this could be called using an HTTP request.
      */
     private void updateCachedProxyCount() {
-        for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
-            Integer count = proxyService.getProxies(p -> p.getSpec().getId().equals(spec.getId()) && p.getStatus() == ProxyStatus.Up, true).size();
-            proxyCountCache.put(spec.getId(), count);
-            logger.debug(String.format("Running proxies count for spec %s: %s ", spec.getId(), count));
+        Map<String, Integer> intermediate = new HashMap<>();
+        for (Proxy proxy : proxyService.getProxies(p -> p.getStatus() == ProxyStatus.Up, true)) {
+            intermediate.put(proxy.getSpecId(), intermediate.getOrDefault(proxy.getSpecId(), 0) + 1);
+        }
+
+        for (Map.Entry<String, Integer> entry : intermediate.entrySet()) {
+            createMetersForExistingProxySpec(entry.getKey());
+            proxyCountCache.put(entry.getKey(), entry.getValue());
+            logger.debug(String.format("Running proxies count for spec %s: %s ", entry.getKey(), entry.getValue()));
+        }
+    }
+
+    /**
+     * Creates the meters for a given proxy spec in case this proxy is not part of our application.yml
+     * (e.g. app recovery, operator)
+     */
+    private void createMetersForExistingProxySpec(String specId) {
+        try {
+            registry.get("absolute_apps_running").tag("spec.id", specId).gauge();
+        } catch (MeterNotFoundException e) {
+            registry.counter("appStops", "spec.id", specId);
+            ProxyCounter proxyCounter = new ProxyCounter(specId);
+            proxyCounters.add(proxyCounter);
+            registry.gauge("absolute_apps_running", Tags.of("spec.id", specId), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
+            registry.timer("usageTime", "spec.id", specId);
         }
     }
 

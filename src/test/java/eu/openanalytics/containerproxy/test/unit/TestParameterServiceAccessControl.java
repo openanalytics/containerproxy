@@ -91,7 +91,7 @@ public class TestParameterServiceAccessControl {
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
 
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(10, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
@@ -161,7 +161,7 @@ public class TestParameterServiceAccessControl {
         when(auth.getName()).thenReturn("thomas");
         when(userService.isMember(auth, "breeding")).thenReturn(true);
 
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
@@ -222,7 +222,7 @@ public class TestParameterServiceAccessControl {
         when(auth.getName()).thenReturn("thomas");
         when(auth.getAuthorities()).thenReturn((Collection) Collections.singletonList(new SimpleGrantedAuthority("ROLE_DEV")));
 
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
@@ -292,7 +292,7 @@ public class TestParameterServiceAccessControl {
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("jeff");
 
-        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec);
+        AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(

@@ -29,9 +29,21 @@ public class UserGroupsKey extends RuntimeValueKey<String> {
                 true,
                 true,
                 false, // no need to expose in API
-                true, String.class);
+                true,
+                false,
+                String.class);
     }
 
     public static UserGroupsKey inst = new UserGroupsKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

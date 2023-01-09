@@ -54,6 +54,7 @@ public abstract class KubernetesTestBase {
             test.run(namespacedKubernetesClient, namespace, overriddenNamespace);
         } catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
             deleteNamespaces();
         }

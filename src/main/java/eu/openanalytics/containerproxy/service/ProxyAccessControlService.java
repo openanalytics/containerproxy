@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
@@ -36,6 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class ProxyAccessControlService {
+
+    private final ProxyService proxyService;
 
     private final IProxySpecProvider specProvider;
 
@@ -52,13 +54,29 @@ public class ProxyAccessControlService {
      */
     private final Map<Pair<String, String>, Boolean> authorizationCache = new ConcurrentHashMap<>();
 
-    public ProxyAccessControlService(IProxySpecProvider specProvider, AccessControlEvaluationService accessControlEvaluationService) {
+    public ProxyAccessControlService(ProxyService proxyService, IProxySpecProvider specProvider, AccessControlEvaluationService accessControlEvaluationService) {
+        this.proxyService = proxyService;
         this.specProvider = specProvider;
         this.accessControlEvaluationService = accessControlEvaluationService;
     }
 
     public boolean canAccess(Authentication auth, String specId) {
         return canAccess(auth, specProvider.getSpec(specId));
+    }
+
+    /**
+     *
+     * @param auth the current user
+     * @param specId the specId the user is trying to access
+     * @return whether the user can access the given specId or when this spec does not exist whether the user already
+     * has a proxy with this spec id
+     */
+    public boolean canAccessOrHasExistingProxy(Authentication auth, String specId) {
+        ProxySpec spec = specProvider.getSpec(specId);
+        if (spec != null) {
+            return canAccess(auth, spec);
+        }
+        return !proxyService.getProxiesOfCurrentUser(p -> p.getSpecId().equals(specId)).isEmpty();
     }
 
     public boolean canAccess(Authentication auth, ProxySpec spec) {
@@ -91,7 +109,7 @@ public class ProxyAccessControlService {
     @EventListener
     public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
         // remove all entries in cache for this sessionId
-        authorizationCache.keySet().removeIf(it -> it.getLeft().equals(event.getId()));
+        authorizationCache.keySet().removeIf(it -> it.getFirst().equals(event.getId()));
     }
 
 }

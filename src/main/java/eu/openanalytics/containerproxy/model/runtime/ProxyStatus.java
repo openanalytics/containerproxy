@@ -23,9 +23,18 @@ package eu.openanalytics.containerproxy.model.runtime;
 public enum ProxyStatus {
 
 	New,
-	Starting,
 	Up,
 	Stopping,
-	Stopped
+	Pausing,
+	Paused,
+	Resuming,
+	Stopped;
+
+	public boolean isUnavailable() {
+		return this.equals(Stopping)
+				|| this.equals(Stopped)
+				|| this.equals(Pausing)
+				|| this.equals(Paused);
+	}
 
 }

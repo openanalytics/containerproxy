@@ -608,7 +608,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			}
 			
 			// delete additional manifests
-			// we retrieve the spec here, therefore this is not compatible with AppRecovery
 			kubernetesManifestsRemover.deleteAdditionalManifests(proxy.getSpecId(), proxy.getUserId());
 		}
 	}

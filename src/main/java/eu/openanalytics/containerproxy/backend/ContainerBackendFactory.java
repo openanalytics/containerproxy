@@ -31,45 +31,48 @@ import org.springframework.stereotype.Service;
 
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
+import eu.openanalytics.containerproxy.backend.ecs.EcsBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 
 @Service
 public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBackend> implements ApplicationContextAware {
-	
+
 	private static final String PROPERTY_CONTAINER_BACKEND = "proxy.container-backend";
-	
+
 	private enum ContainerBackend {
-		
+
 		DockerEngine("docker", DockerEngineBackend.class),
 		DockerSwarm("docker-swarm", DockerSwarmBackend.class),
-		Kubernetes("kubernetes", KubernetesBackend.class);
-		
+		Kubernetes("kubernetes", KubernetesBackend.class),
+		ECS("ecs", EcsBackend.class);
+
 		private String name;
 		private Class<? extends IContainerBackend> type;
-		
+
 		private ContainerBackend(String name, Class<? extends IContainerBackend> type) {
 			this.name = name;
 			this.type = type;
 		}
-		
+
 		public static IContainerBackend createFor(String name) throws Exception {
-			for (ContainerBackend cb: values()) {
-				if (cb.name.equalsIgnoreCase(name)) return cb.type.newInstance();
+			for (ContainerBackend cb : values()) {
+				if (cb.name.equalsIgnoreCase(name))
+					return cb.type.newInstance();
 			}
 			return DockerEngine.type.newInstance();
 		}
 	}
-	
+
 	private ApplicationContext applicationContext;
-	
+
 	@Inject
 	protected Environment environment;
-	
+
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		this.applicationContext = applicationContext;
 	}
-	
+
 	@Override
 	public Class<?> getObjectType() {
 		return IContainerBackend.class;

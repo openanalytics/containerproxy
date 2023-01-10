@@ -73,4 +73,12 @@ public class StructuredLogger {
         }
     }
 
+    public void debug(Proxy proxy, String message) {
+        if (proxy == null) {
+            logger.debug(message);
+        } else {
+            logger.debug("[{} {} {}] " + message, kv("user", proxy.getUserId()), kv("proxyId", proxy.getId()), kv("specId", proxy.getSpecId()));
+        }
+    }
+
 }

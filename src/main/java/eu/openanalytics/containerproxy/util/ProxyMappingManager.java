@@ -182,7 +182,7 @@ public class ProxyMappingManager {
 			if (proxyIdAttachment != null) {
 				try {
 					proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
-					if (proxy != null) {
+					if (proxy != null && !proxy.getStatus().isUnavailable()) {
 						logger.info(proxy, "Proxy unreachable/crashed, stopping it now");
 						asyncProxyService.stopProxy(proxy, true);
 					}

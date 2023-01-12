@@ -244,7 +244,6 @@ public abstract class SpelField<O, R> {
             if (originalValue == null) {
                 return new SpelField.StringList(null, null);
             }
-            // TODO implementation is different from ExpressionAwareContainerSpec::resolve
             return new SpelField.StringList(originalValue, specExpressionResolver.evaluateToList(originalValue, specExpressionContext));
         }
 

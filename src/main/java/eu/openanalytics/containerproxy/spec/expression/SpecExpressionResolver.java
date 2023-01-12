@@ -112,11 +112,12 @@ public class SpecExpressionResolver {
 	}
 	
 	public String evaluateToString(String expression, SpecExpressionContext context) {
-		String res = evaluate(expression, context, String.class);
+		// use the toString() method and not the conversionService in order to maintain behaviour of ShinyProxy 2.6.1 and earlier
+		Object res = evaluate(expression, context, Object.class);
 		if (res == null) {
 			return "";
 		}
-		return res;
+		return res.toString();
 	}
 
 	public Long evaluateToLong(String expression, SpecExpressionContext context) {

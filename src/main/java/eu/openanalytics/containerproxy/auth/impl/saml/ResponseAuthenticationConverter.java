@@ -103,7 +103,7 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
         }
 
         return new Saml2Authentication(
-                new DefaultSaml2AuthenticatedPrincipal(nameValue.get(), principal.getAttributes()),
+                new Saml2AuthenticatedPrincipal(nameId, nameValue.get(), principal.getAttributes()),
                 authentication.getSaml2Response(),
                 grantedAuthorities);
     }
@@ -141,6 +141,21 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
                 .filter(c -> c.getKey().equalsIgnoreCase(attributeName))
                 .findAny()
                 .map(Map.Entry::getValue);
+    }
+
+    public static class Saml2AuthenticatedPrincipal extends DefaultSaml2AuthenticatedPrincipal {
+
+        private final String nameId;
+
+        public Saml2AuthenticatedPrincipal(String nameId, String principalName, Map<String, List<Object>> attributes) {
+            super(principalName, attributes);
+            this.nameId = nameId;
+        }
+
+        public String getNameId() {
+            return nameId;
+        }
+
     }
 
 }

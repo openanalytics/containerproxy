@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.spec.expression;
 
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.saml.ResponseAuthenticationConverter;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -49,7 +50,7 @@ public class SpecExpressionContext {
     Proxy proxy;
     OpenIDAuthenticationBackend.CustomNameOidcUser oidcUser;
     KeycloakPrincipal keycloakUser;
-//    private SAMLCredential samlCredential;
+    ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal samlCredential;
     LdapUserDetails ldapUser;
     List<String> groups;
     String userId;
@@ -128,8 +129,8 @@ public class SpecExpressionContext {
                 builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
             } else if (o instanceof KeycloakPrincipal) {
                 builder.keycloakUser = (KeycloakPrincipal) o;
-//            } else if (o instanceof SAMLCredential) {
-//                ctx.samlCredential = (SAMLCredential) o;
+            } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
+                builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
             } else if (o instanceof LdapUserDetails) {
                 builder.ldapUser = (LdapUserDetails) o;
             }

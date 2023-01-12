@@ -135,7 +135,7 @@ public class SpecExpressionContext {
             }
             if (o instanceof Authentication) {
                 builder.groups = Arrays.asList(UserService.getGroups((Authentication) o));
-                builder.userId = ((Authentication) o).getName();
+                builder.userId = UserService.getUserId(((Authentication) o));
             }
         }
         return builder.build();

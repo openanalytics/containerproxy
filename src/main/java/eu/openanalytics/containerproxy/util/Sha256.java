@@ -18,32 +18,23 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.event;
+package eu.openanalytics.containerproxy.util;
 
-import org.springframework.context.ApplicationEvent;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
-public class UserLogoutEvent extends ApplicationEvent {
-    
-    private final String userId;
-    private final Boolean wasExpired;
+public class Sha256 {
 
-    /**
-     *
-     * @param source
-     * @param userId
-     * @param wasExpired whether the user is logged automatically because the session has expired
-     */
-    public UserLogoutEvent(Object source, String userId, Boolean wasExpired) {
-        super(source);
-        this.userId = userId;
-        this.wasExpired = wasExpired;
+    public static String hash(String value)  {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.reset();
+            digest.update(value.getBytes());
+            return String.format("%040x", new BigInteger(1, digest.digest()));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public Boolean getWasExpired() {
-        return wasExpired;
-    }
 }

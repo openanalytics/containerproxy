@@ -118,13 +118,13 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
-        logger.debug("UserLogoutEvent [user: {}, sessionId: {}, expired: {}]", event.getUserId(), event.getSessionId(), event.getWasExpired());
+        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(),  event.getWasExpired());
         userLogouts.increment();
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) {
-        logger.debug("UserLoginEvent [user: {}, sessionId: {}]", event.getUserId(), event.getSessionId());
+        logger.debug("UserLoginEvent [user: {}]", event.getUserId());
         userLogins.increment();
     }
 
@@ -178,7 +178,7 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onAuthFailedEvent(AuthFailedEvent event) {
-        logger.debug("AuthFailedEvent [user: {}, sessionId: {}]", event.getUserId(), event.getSessionId());
+        logger.debug("AuthFailedEvent [user: {}]", event.getUserId());
         authFailedCounter.increment();
     }
 

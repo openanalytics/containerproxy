@@ -257,7 +257,7 @@ public class ProxyService {
 			Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
 			proxyBuilder.id(proxyId);
 			proxyBuilder.status(ProxyStatus.New);
-			proxyBuilder.userId(userService.getUserId(user));
+			proxyBuilder.userId(UserService.getUserId(user));
 			proxyBuilder.specId(spec.getId());
 			proxyBuilder.createdTimestamp(System.currentTimeMillis());
 

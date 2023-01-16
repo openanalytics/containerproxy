@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
@@ -117,14 +118,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 							.secrets(secretBinds)
 							.build();
 
-			NetworkAttachmentConfig[] networks = spec.getNetworkConnections().mapOrNull(nc ->
-					nc.stream()
-							.map(n -> NetworkAttachmentConfig.builder().target(n).build())
-							.toArray(i -> new NetworkAttachmentConfig[i]));
+			List<NetworkAttachmentConfig> networks = spec.getNetworkConnections()
+					.getValueOrDefault(new ArrayList<>())
+					.stream()
+					.map(n -> NetworkAttachmentConfig.builder().target(n).build())
+					.collect(Collectors.toList());
 
 			if (spec.getNetwork().isPresent()) {
-				networks = Arrays.copyOf(networks, networks.length + 1);
-				networks[networks.length - 1] = NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build();
+				networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
 			}
 
 			Resources.Builder reservationsBuilder = Resources.builder();

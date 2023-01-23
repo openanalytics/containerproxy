@@ -20,24 +20,37 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
 
-public class SessionHelper {
+@Component
+public class ContextPathHelper {
 
-	/**
-	 * Get the context path that has been configured for this instance.
-	 * 
-	 * @param environment The Spring environment containing the context-path setting.
-	 * @param endWithSlash True to always end the context path with a slash.
-	 * @return The instance's context path, may be empty, never null.
-	 */
-	public static String getContextPath(Environment environment, boolean endWithSlash) {
+	private static String contextPathWithoutSlash = null;
+	private static String contextPathWithSlash = null;
+
+	@Autowired
+	public void setEnvironment(Environment environment){
+		contextPathWithSlash = getContextPath(environment, true);
+		contextPathWithoutSlash = getContextPath(environment, false);
+	}
+
+	public static String withEndingSlash() {
+		return contextPathWithSlash;
+	}
+
+	public static String withoutEndingSlash() {
+		return contextPathWithoutSlash;
+	}
+
+	private static String getContextPath(Environment environment, boolean endWithSlash) {
 		String contextPath = environment.getProperty("server.servlet.context-path");
 		if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
-		
+
 		if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
 		if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
-		
+
 		return contextPath;
 	}
 

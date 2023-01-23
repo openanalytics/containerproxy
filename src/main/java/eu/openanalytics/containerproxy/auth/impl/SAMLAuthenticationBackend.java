@@ -23,7 +23,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.AuthenticationFailureHandler;
 import eu.openanalytics.containerproxy.auth.impl.saml.Saml2MetadataFilter;
-import eu.openanalytics.containerproxy.util.SessionHelper;
+import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
@@ -158,7 +158,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     }
 
     public String getLoginRedirectURI() {
-        return SessionHelper.getContextPath(environment, false)
+        return ContextPathHelper.withoutEndingSlash()
                 + "/saml2/authenticate/"
                 + REG_ID;
     }

@@ -24,7 +24,7 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.util.SessionHelper;
+import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
@@ -161,7 +161,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	public String getLoginRedirectURI() {
-		return SessionHelper.getContextPath(environment, false) 
+		return ContextPathHelper.withoutEndingSlash()
 				+ OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI 
 				+ "/" + REG_ID;
 	}

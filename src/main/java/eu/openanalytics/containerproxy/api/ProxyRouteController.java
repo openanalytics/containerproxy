@@ -24,8 +24,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import eu.openanalytics.containerproxy.util.SessionHelper;
-import org.springframework.core.env.Environment;
+import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -45,15 +44,12 @@ public class ProxyRouteController extends BaseController {
 	@Inject
 	private ProxyMappingManager mappingManager;
 	
-	@Inject
-	private Environment environment;
-	
 	@RequestMapping(value="/api/route/**")
 	public void route(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			// Ensure that the caller is the owner of the target proxy.
 			boolean hasAccess = false;
-			String baseURL = SessionHelper.getContextPath(environment, true) + "api/route/";
+			String baseURL = ContextPathHelper.withEndingSlash() + "api/route/";
 			String mapping = request.getRequestURI().substring(baseURL.length());
 			String proxyId = mappingManager.getProxyId(mapping);
 			if (proxyId != null) {

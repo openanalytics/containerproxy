@@ -20,11 +20,10 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -33,7 +32,6 @@ import org.thymeleaf.templateresolver.FileTemplateResolver;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
-import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -45,11 +43,21 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
 
 	@Inject
     private Environment environment;
+
+	@Inject
+	private IdentifierService identifierService;
 	
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
 		registry.addResourceHandler("/assets/**")
-			.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
+				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
+		// next line is to have versioned (based on shinyproxy instance) assets
+		registry.addResourceHandler("/" + identifierService.instanceId + "/**")
+				.addResourceLocations("classpath:/static/");
+		registry.addResourceHandler("/" + identifierService.instanceId + "/webjars/**")
+				.addResourceLocations("/webjars/");
+		registry.addResourceHandler("/" + identifierService.instanceId + "/assets/**")
+				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
 	}
 
 	@Bean

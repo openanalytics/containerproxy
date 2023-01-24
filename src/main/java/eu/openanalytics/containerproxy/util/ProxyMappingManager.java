@@ -42,6 +42,8 @@ import io.undertow.util.Headers;
 import io.undertow.util.PathMatcher;
 import org.springframework.context.annotation.Lazy;
 import io.undertow.util.StatusCodes;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
@@ -74,7 +76,9 @@ public class ProxyMappingManager {
 	private PathHandler pathHandler;
 	
 	private final Map<String, String> mappings = new HashMap<>();
-	
+
+	private volatile boolean isShuttingDown = false;
+
 	@Inject
 	@Lazy
 	private HeartbeatService heartbeatService;
@@ -172,6 +176,11 @@ public class ProxyMappingManager {
 		request.getRequestDispatcher(targetPath).forward(request, response);
 	}
 
+	@EventListener(ContextClosedEvent.class)
+	public void onApplicationEvent(ContextClosedEvent event) {
+		isShuttingDown = true;
+	}
+
 	private final DefaultResponseListener defaultResponseListener = responseExchange -> {
 		if (!responseExchange.isResponseChannelAvailable()) {
 			return false;
@@ -182,7 +191,7 @@ public class ProxyMappingManager {
 			if (proxyIdAttachment != null) {
 				try {
 					proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
-					if (proxy != null && !proxy.getStatus().isUnavailable()) {
+					if (proxy != null && !proxy.getStatus().isUnavailable() && !isShuttingDown) {
 						logger.info(proxy, "Proxy unreachable/crashed, stopping it now");
 						asyncProxyService.stopProxy(proxy, true);
 					}

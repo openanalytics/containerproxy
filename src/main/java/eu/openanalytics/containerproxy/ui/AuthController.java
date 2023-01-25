@@ -80,6 +80,7 @@ public class AuthController extends BaseController {
 	public String getAuthErrorPage(ModelMap map) {
 		prepareMap(map);
 		map.put("application_name", environment.getProperty("spring.application.name"));
+		map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
 		return "auth-error";
 	}
 

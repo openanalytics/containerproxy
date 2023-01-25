@@ -557,6 +557,11 @@
                       <goals>
                         <goal>check</goal>
                       </goals>
+						<configuration>
+							<nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+							<assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+							<nodeAuditAnalyzerEnabled>false</nodeAuditAnalyzerEnabled>
+						</configuration>
                     </execution>
                   </executions>
                 </plugin>

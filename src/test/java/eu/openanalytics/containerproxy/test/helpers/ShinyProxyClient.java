@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import okhttp3.*;
 
 import javax.json.*;
@@ -32,6 +34,7 @@ public class ShinyProxyClient {
     private final String baseUrl;
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     public ShinyProxyClient(String username, String password, int port) {
         this.baseUrl = "http://localhost:" + port;
@@ -40,6 +43,7 @@ public class ShinyProxyClient {
                 .callTimeout(Duration.ofSeconds(120))
                 .readTimeout(Duration.ofSeconds(120))
                 .build();
+        objectMapper.registerModule(new JSR353Module());
     }
 
     public ShinyProxyClient(String username, String password) {
@@ -57,7 +61,7 @@ public class ShinyProxyClient {
                 JsonReader jsonReader = Json.createReader(response.body().byteStream());
                 JsonObject object = jsonReader.readObject();
                 jsonReader.close();
-                return object.getString("id");
+                return object.getJsonObject("data").getString("id");
             } else {
                 System.out.println("BODY: " + response.body().string());
                 System.out.println("CODE: " + response.code());
@@ -71,8 +75,8 @@ public class ShinyProxyClient {
 
     public boolean stopProxy(String proxyId) {
         Request request = new Request.Builder()
-                .delete(RequestBody.create(null, new byte[0]))
-                .url(baseUrl + "/api/proxy/" + proxyId)
+                .put(RequestBody.create("{\"desiredState\":\"Stopping\"}", JSON))
+                .url(baseUrl + "/api/" + proxyId + "/status")
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
@@ -91,16 +95,13 @@ public class ShinyProxyClient {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            JsonReader jsonReader = Json.createReader(response.body().byteStream());
-            JsonArray array = jsonReader.readArray();
-            jsonReader.close();
+            JsonObject resp = objectMapper.readValue(response.body().byteStream(), JsonObject.class);
 
             HashSet<JsonObject> result = new HashSet<>();
 
-            for (JsonValue v: array) {
-                JsonObject x = v.asJsonObject();
+            for (JsonObject proxy : resp.getJsonArray("data").getValuesAs(JsonObject.class)) {
                 JsonObjectBuilder builder = Json.createObjectBuilder();
-                x.entrySet().forEach(e -> builder.add(e.getKey(), e.getValue()));
+                proxy.forEach(builder::add);
                 // remove startupTimestamp since it is different after app recovery
                 builder.add("startupTimestamp", "null");
                 result.add(builder.build());
@@ -112,17 +113,17 @@ public class ShinyProxyClient {
         }
     }
 
-    public String getProxyRequest(String id) {
+    public boolean getProxyRequest(String id) {
         Request request = new Request.Builder()
                 .get()
                 .url(baseUrl + "/api/route/" + id + "/")
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            return response.body().string();
+            return response.code() == 200;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return false;
         }
     }
 

@@ -29,6 +29,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContai
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.spec.expression.SpelException;
 import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube.TestConfiguration;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
@@ -1596,8 +1597,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             }, "The parameter with id \"non-existing-parameter\" does not exist");
 
             Assertions.assertEquals("Container failed to start", ex.getMessage());
-            Assertions.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-            Assertions.assertEquals("The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getMessage());
+            Assertions.assertEquals(SpelException.class, ex.getCause().getClass());
+            Assertions.assertEquals("Error while resolving expression: \"- op: add\n" +
+                    "  path: /spec/containers/0/env/-\n" +
+                    "  value:\n" +
+                    "    name: ERROR\n" +
+                    "    value: \"#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}\"\n" +
+                    "\", error: The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getMessage());
 
             Thread.sleep(2000);
 

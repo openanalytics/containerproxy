@@ -170,6 +170,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 		super.initialize();
 		kubeClient = client;
 		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
+		logManifests = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
 	}
 
 	@Override

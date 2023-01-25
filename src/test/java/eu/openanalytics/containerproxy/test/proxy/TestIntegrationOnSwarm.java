@@ -61,12 +61,10 @@ public class TestIntegrationOnSwarm {
     private ProxyService proxyService;
 
     private boolean checkEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
-        // Docker
         try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
 
-            // Docker swarm
             return dockerClient.listContainers().stream()
-                    .filter(it -> !(it.labels() != null && it.labels().containsKey("created_by.minikube.sigs.k8s.io") && it.labels().get("created_by.minikube.sigs.k8s.io").equals("true")))
+                    .filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app"))
                     .count() == 0
                     && dockerClient.listServices().size() == 0;
         }

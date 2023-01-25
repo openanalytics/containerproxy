@@ -59,7 +59,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         // Docker
         DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
         Assertions.assertEquals(0, dockerClient.listContainers().stream()
-                .filter(it -> !(it.labels() != null && it.labels().containsKey("created_by.minikube.sigs.k8s.io") && it.labels().get("created_by.minikube.sigs.k8s.io").equals("true")))
+                .filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app"))
                 .count());
 
         // Docker swarm
@@ -130,9 +130,18 @@ public class TestAppRecovery extends KubernetesTestBase {
         }
     }
 
+    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
+        return Stream.of(
+                Arguments.of("docker", ""),
+                Arguments.of("docker-swarm", ""),
+                Arguments.of("kubernetes", ""),
+                Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
+        );
+    }
+
     // note: this test only works with minikube running on the same local machine, because it uses the NodePort services
     @ParameterizedTest
-    @MethodSource("provideStringsForIsBlank")
+    @MethodSource("new_app_should_work_after_recovery_src")
     public void new_app_should_work_after_recovery(String backend, String extraArgs) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
         List<ShinyProxyInstance> instances = new ArrayList<>();
@@ -145,6 +154,9 @@ public class TestAppRecovery extends KubernetesTestBase {
             // 2. create a proxy
             String id1 = shinyProxyClient.startProxy("01_hello");
             Assertions.assertNotNull(id1);
+            Thread.sleep(10000); // give the app some time to get ready (we are not using ShinyProxyTestStrategy, so status is not reliable)
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id1));
+
 
             // 3. get defined proxies
             HashSet<JsonObject> originalProxies = shinyProxyClient.getProxies();
@@ -168,10 +180,11 @@ public class TestAppRecovery extends KubernetesTestBase {
             // 8. create a proxy
             String id2 = shinyProxyClient.startProxy("02_hello");
             Assertions.assertNotNull(id2);
+            Thread.sleep(10000); // give the app some time to get ready (we are not using ShinyProxyTestStrategy, so status is not reliable)
 
             // 9. test if both proxies are still reachable
-            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id1));
-            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id2));
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id1));
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id2));
 
             // 8. stop both proxy
             Assertions.assertTrue(shinyProxyClient.stopProxy(id1));

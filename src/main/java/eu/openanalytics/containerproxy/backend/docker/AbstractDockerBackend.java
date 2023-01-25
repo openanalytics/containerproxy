@@ -90,8 +90,8 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		if (confUrl != null) builder.uri(confUrl);
 
 		dockerClient = builder.build();
-		portRangeFrom = environment.getProperty(PROPERTY_PORT_RANGE_START, Integer.class, 20000);
-		portRangeTo= environment.getProperty(PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
+		portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
+		portRangeTo= environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
 	}
 
 	@Override

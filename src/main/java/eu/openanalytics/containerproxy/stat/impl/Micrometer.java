@@ -190,6 +190,11 @@ public class Micrometer implements IStatCollector {
      */
     private void updateCachedProxyCount() {
         Map<String, Integer> intermediate = new HashMap<>();
+        // for all specs, reset to zero
+        for (String specId : proxyCountCache.keySet()) {
+            intermediate.put(specId, 0);
+        }
+        // count number of running apps
         for (Proxy proxy : proxyService.getProxies(p -> p.getStatus() == ProxyStatus.Up, true)) {
             intermediate.put(proxy.getSpecId(), intermediate.getOrDefault(proxy.getSpecId(), 0) + 1);
         }

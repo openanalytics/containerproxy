@@ -579,7 +579,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				log.warn("Ignoring container {} because no label or annotation named {} is found", containerId, key.getKeyAsLabel());
 				return null;
 			}
+
 		}
+
 
 		return runtimeValues;
 	}

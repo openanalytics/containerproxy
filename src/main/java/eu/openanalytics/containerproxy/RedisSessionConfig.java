@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,63 +21,27 @@
 package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.autoconfigure.session.RedisSessionProperties;
-import org.springframework.boot.autoconfigure.session.SessionProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.session.data.redis.config.ConfigureNotifyKeyspaceEventsAction;
-import org.springframework.session.data.redis.config.ConfigureRedisAction;
-import org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration;
+import org.springframework.session.config.SessionRepositoryCustomizer;
+import org.springframework.session.data.redis.RedisIndexedSessionRepository;
 
-import javax.inject.Inject;
-import java.time.Duration;
-
-@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(RedisSessionProperties.class)
-public class RedisSessionConfig extends RedisHttpSessionConfiguration {
+public class RedisSessionConfig {
 
-    private String redisNamespace;
+    private final String redisNamespace;
 
-    @Inject
-    private IdentifierService identifierService;
-
-    @Bean
-    @ConditionalOnMissingBean
-    public ConfigureRedisAction configureRedisAction(RedisSessionProperties redisSessionProperties) {
-        switch (redisSessionProperties.getConfigureAction()) {
-            case NOTIFY_KEYSPACE_EVENTS:
-                return new ConfigureNotifyKeyspaceEventsAction();
-            case NONE:
-                return ConfigureRedisAction.NO_OP;
+    public RedisSessionConfig(IdentifierService identifierService) {
+        if (identifierService.realmId != null) {
+            redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
+        } else {
+            redisNamespace = String.format("shinyproxy__%s", RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         }
-        throw new IllegalStateException(
-                "Unsupported redis configure action '" + redisSessionProperties.getConfigureAction() + "'.");
-
     }
 
-    @Autowired
-    public void customize(SessionProperties sessionProperties, RedisSessionProperties redisSessionProperties) {
-        Duration timeout = sessionProperties.getTimeout();
-        if (timeout != null) {
-            setMaxInactiveIntervalInSeconds((int) timeout.getSeconds());
-        }
-        setFlushMode(redisSessionProperties.getFlushMode());
-        setSaveMode(redisSessionProperties.getSaveMode());
-        setCleanupCron(redisSessionProperties.getCleanupCron());
-
-        if (identifierService.realmId != null) {
-            redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, redisSessionProperties.getNamespace());
-        } else {
-            redisNamespace = String.format("shinyproxy__%s", redisSessionProperties.getNamespace());
-        }
-
-        setRedisNamespace(redisNamespace);
+    @Bean
+    public SessionRepositoryCustomizer<RedisIndexedSessionRepository> sessionRepositorySessionRepositoryCustomizer() {
+        return redisIndexedSessionRepository -> redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
     }
 
     public String getNamespace() {

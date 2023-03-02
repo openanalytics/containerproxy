@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,17 +20,20 @@
  */
 package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 
+import com.spotify.docker.client.DefaultDockerClient;
+import com.spotify.docker.client.exceptions.DockerCertificateException;
+import com.spotify.docker.client.exceptions.DockerException;
 import eu.openanalytics.containerproxy.test.helpers.KubernetesTestBase;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
 
 import javax.json.JsonObject;
 import java.io.IOException;
@@ -52,9 +55,34 @@ public class TestAppRecovery extends KubernetesTestBase {
         );
     }
 
+    private void assertEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
+        // Docker
+        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+        Assertions.assertEquals(0, dockerClient.listContainers().stream()
+                .filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app"))
+                .count());
+
+        // Docker swarm
+        Assertions.assertEquals(0, dockerClient.listServices().size());
+
+        // k8s
+        List<Pod> pods = client.pods().inNamespace(namespace).list().getItems();
+        Assertions.assertEquals(0, pods.size());
+        pods = client.pods().inNamespace(overriddenNamespace).list().getItems();
+        Assertions.assertEquals(0, pods.size());
+        pods = client.pods().inNamespace("default").list().getItems();
+        Assertions.assertEquals(0, pods.size());
+    }
+
     @AfterEach
-    public void waitForCleanup() throws InterruptedException {
+    public void waitForCleanup() throws InterruptedException, DockerException, DockerCertificateException {
         Thread.sleep(20_000);
+        assertEverythingCleanedUp();
+    }
+
+    @BeforeEach
+    public void beforeEach() throws DockerCertificateException, DockerException, InterruptedException {
+        assertEverythingCleanedUp();
     }
 
     @ParameterizedTest
@@ -64,7 +92,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("1", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -81,7 +109,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance1.stop();
 
             // 5. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("2", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -102,21 +130,33 @@ public class TestAppRecovery extends KubernetesTestBase {
         }
     }
 
+    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
+        return Stream.of(
+                Arguments.of("docker", ""),
+                Arguments.of("docker-swarm", ""),
+                Arguments.of("kubernetes", ""),
+                Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
+        );
+    }
+
     // note: this test only works with minikube running on the same local machine, because it uses the NodePort services
     @ParameterizedTest
-    @MethodSource("provideStringsForIsBlank")
+    @MethodSource("new_app_should_work_after_recovery_src")
     public void new_app_should_work_after_recovery(String backend, String extraArgs) throws IOException, InterruptedException {
         ShinyProxyClient shinyProxyClient = new ShinyProxyClient("demo", "demo");
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("3", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
             // 2. create a proxy
             String id1 = shinyProxyClient.startProxy("01_hello");
             Assertions.assertNotNull(id1);
+            Thread.sleep(10000); // give the app some time to get ready (we are not using ShinyProxyTestStrategy, so status is not reliable)
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id1));
+
 
             // 3. get defined proxies
             HashSet<JsonObject> originalProxies = shinyProxyClient.getProxies();
@@ -126,7 +166,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance1.stop();
 
             // 5. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("4", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -140,10 +180,11 @@ public class TestAppRecovery extends KubernetesTestBase {
             // 8. create a proxy
             String id2 = shinyProxyClient.startProxy("02_hello");
             Assertions.assertNotNull(id2);
+            Thread.sleep(10000); // give the app some time to get ready (we are not using ShinyProxyTestStrategy, so status is not reliable)
 
             // 9. test if both proxies are still reachable
-            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id1));
-            Assertions.assertNotNull(shinyProxyClient.getProxyRequest(id2));
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id1));
+            Assertions.assertTrue(shinyProxyClient.getProxyRequest(id2));
 
             // 8. stop both proxy
             Assertions.assertTrue(shinyProxyClient.stopProxy(id1));
@@ -166,7 +207,7 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("5", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
@@ -212,7 +253,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance1.stop();
 
             // 9. start the instance again
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("6", String.format("application-app-recovery_%s.yml", backend), extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -232,7 +273,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             Assertions.assertEquals(originalProxies2, newProxies2);
 
 
-            // 14. get defined proxies for user demo2
+            // 14. get defined proxies for user demo3
             HashSet<JsonObject> newProxies3 = shinyProxyClient3.getProxies();
             Assertions.assertNotNull(newProxies3);
 
@@ -263,12 +304,12 @@ public class TestAppRecovery extends KubernetesTestBase {
         List<ShinyProxyInstance> instances = new ArrayList<>();
         try {
             // 1. create the first instance
-            ShinyProxyInstance instance1 = new ShinyProxyInstance("7", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
+            ShinyProxyInstance instance1 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance1);
             Assertions.assertTrue(instance1.start());
 
             // 1. create the second instance
-            ShinyProxyInstance instance2 = new ShinyProxyInstance("8", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
+            ShinyProxyInstance instance2 = new ShinyProxyInstance(String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance2);
             Assertions.assertTrue(instance2.start());
 
@@ -293,11 +334,11 @@ public class TestAppRecovery extends KubernetesTestBase {
             instance2.stop();
 
             // 5. start both instances again
-            ShinyProxyInstance instance3 = new ShinyProxyInstance("9", String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
+            ShinyProxyInstance instance3 = new ShinyProxyInstance(String.format("application-app-recovery_%s.yml", backend), 7583, extraArgs);
             instances.add(instance3);
             Assertions.assertTrue(instance3.start());
 
-            ShinyProxyInstance instance4 = new ShinyProxyInstance("10", String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
+            ShinyProxyInstance instance4 = new ShinyProxyInstance(String.format("application-app-recovery_%s_2.yml", backend), 7584, extraArgs);
             instances.add(instance4);
             Assertions.assertTrue(instance4.start());
 
@@ -331,7 +372,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
                 // 1. create the instance
-                ShinyProxyInstance instance1 = new ShinyProxyInstance("11", "application-app-recovery_kubernetes_multi_ns.yml");
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("application-app-recovery_kubernetes_multi_ns.yml");
                 instances.add(instance1);
                 Assertions.assertTrue(instance1.start());
 
@@ -350,7 +391,7 @@ public class TestAppRecovery extends KubernetesTestBase {
                 instance1.stop();
 
                 // 5. start the instance again
-                ShinyProxyInstance instance2 = new ShinyProxyInstance("12", "application-app-recovery_kubernetes_multi_ns.yml");
+                ShinyProxyInstance instance2 = new ShinyProxyInstance("application-app-recovery_kubernetes_multi_ns.yml");
                 instances.add(instance2);
                 Assertions.assertTrue(instance2.start());
 
@@ -381,7 +422,7 @@ public class TestAppRecovery extends KubernetesTestBase {
             List<ShinyProxyInstance> instances = new ArrayList<>();
             try {
                 // 1. create the instance
-                ShinyProxyInstance instance1 = new ShinyProxyInstance("13", "application-app-recovery_kubernetes_normal_shutdown.yml");
+                ShinyProxyInstance instance1 = new ShinyProxyInstance("application-app-recovery_kubernetes_normal_shutdown.yml");
                 instances.add(instance1);
                 Assertions.assertTrue(instance1.start());
 

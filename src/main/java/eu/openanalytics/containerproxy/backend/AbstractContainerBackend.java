@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,51 +20,40 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.base.Charsets;
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
-import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AppRecoveryService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
-import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.spec.expression.ExpressionAwareContainerSpec;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.util.SuccessOrFailure;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
 
 import javax.inject.Inject;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigInteger;
+import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,9 +65,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected static final String PROPERTY_CERT_PATH = "cert-path";
 	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
 	protected static final String PROPERTY_PRIVILEGED = "privileged";
-
 	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
-	protected final Logger log = LogManager.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
+	protected final StructuredLogger slog = new StructuredLogger(log);
 
 	private boolean useInternalNetwork;
 	private boolean privileged;
@@ -87,16 +76,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected IProxyTargetMappingStrategy mappingStrategy;
 
 	@Inject
-	protected IProxyTestStrategy testStrategy;
-
-	@Inject
-	protected UserService userService;
-
-	@Inject
 	protected Environment environment;
-
-	@Inject
-	protected SpecExpressionResolver expressionResolver;
 
 	@Inject
 	@Lazy
@@ -104,12 +84,12 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	protected IAuthenticationBackend authBackend;
 
 	@Inject
-	protected IdentifierService identifierService;
-
-	@Inject
 	@Lazy
 	// Note: lazy to prevent cyclic dependencies
 	protected AppRecoveryService appRecoveryService;
+
+	@Inject
+	protected IdentifierService identifierService;
 
 	@Override
 	public void initialize() throws ContainerProxyException {
@@ -119,62 +99,33 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	@Override
-	public SuccessOrFailure<Proxy> startProxy(Proxy proxy) throws ContainerProxyException {
-		proxy.setId(UUID.randomUUID().toString());
-		proxy.setStatus(ProxyStatus.Starting);
-		proxy.setCreatedTimestamp(System.currentTimeMillis());
-		setRuntimeValues(proxy);
+	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
+		List<Container> resultContainers = new ArrayList<>();
 
-		try {
-			doStartProxy(proxy);
-
-			if (proxy.getStatus().equals(ProxyStatus.Stopped) || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-				log.info(String.format("Pending proxy cleaned up [user: %s] [spec: %s] [id: %s]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId()));
-				stopProxy(proxy);
-				return SuccessOrFailure.createSuccess(proxy);
+		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
+			try {
+				Container container = proxy.getContainer(spec.getIndex());
+				container = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
+				resultContainers.add(container);
+				if (container.getIndex() == 0) {
+					proxyStartupLogBuilder.startingApplication();
+				}
+			} catch (ContainerFailedToStartException t) {
+				resultContainers.add(t.getContainer());
+				proxy = proxy.toBuilder().containers(resultContainers).build();
+				throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
 			}
-
-			if (!testStrategy.testProxy(proxy)) {
-				stopProxy(proxy);
-				return SuccessOrFailure.createFailure(proxy, "Container did not respond in time");
-			}
-
-			proxy.setStartupTimestamp(System.currentTimeMillis());
-			proxy.setStatus(ProxyStatus.Up);
-
-			return SuccessOrFailure.createSuccess(proxy);
-		} catch (Throwable t) {
-			stopProxy(proxy);
-			return SuccessOrFailure.createFailure(proxy, "Container failed to start", t);
 		}
 
+		return proxy.toBuilder().containers(resultContainers).build();
 	}
 
-	protected void doStartProxy(Proxy proxy) throws Exception {
-		for (ContainerSpec spec: proxy.getSpec().getContainerSpecs()) {
-			if (authBackend != null) authBackend.customizeContainer(spec);
-
-			ExpressionAwareContainerSpec eSpec = new ExpressionAwareContainerSpec(spec,
-					proxy,
-					expressionResolver,
-					userService.getCurrentAuth()
-					);
-
-			Container c = startContainer(eSpec, proxy);
-			c.setSpec(spec);
-
-			proxy.getContainers().add(c);
-		}
-	}
-
-	protected abstract Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception;
+	protected abstract Container startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
 
 	@Override
 	public void stopProxy(Proxy proxy) throws ContainerProxyException {
 		try {
-			proxy.setStatus(ProxyStatus.Stopping);
 			doStopProxy(proxy);
-			proxy.setStatus(ProxyStatus.Stopped);
 		} catch (Exception e) {
 			throw new ContainerProxyException("Failed to stop container", e);
 		}
@@ -219,32 +170,30 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return mem;
 	}
 
-	protected Map<String, String> buildEnv(ContainerSpec containerSpec, Proxy proxy) throws IOException {
+	protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {
         Map<String, String> env = new HashMap<>();
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
 			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
-				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.getValue());
+				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.toString());
 			}
 
-			String envFile = containerSpec.getEnvFile();
-			if (envFile != null && Files.isRegularFile(Paths.get(envFile))) {
+			Path envFile = containerSpec.getEnvFile().mapOrNull(Paths::get);
+			if (envFile != null && Files.isRegularFile(envFile)) {
 				Properties envProps = new Properties();
-				envProps.load(new FileInputStream(envFile));
+				envProps.load(Files.newInputStream(envFile));
 				for (Object key : envProps.keySet()) {
 					env.put(key.toString(), envProps.get(key).toString());
 				}
 			}
 
-			if (containerSpec.getEnv() != null) {
-				for (Map.Entry<String, String> entry : containerSpec.getEnv().entrySet()) {
-					env.put(entry.getKey(), entry.getValue());
-				}
+			if (containerSpec.getEnv().isPresent()) {
+				env.putAll(containerSpec.getEnv().getValue());
 			}
-
-			// Allow the authentication backend to add values to the environment, if needed.
-			if (authBackend != null) authBackend.customizeContainerEnv(env);
 		}
+
+		// Allow the authentication backend to add values to the environment, if needed.
+		if (authBackend != null) authBackend.customizeContainerEnv(user, env);
 
 		return env;
 	}
@@ -265,7 +214,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	 *  - Ensures the path is empty when not path is defined (or when a single / is defined)
 	 */
 	public static String computeTargetPath(String targetPath) {
-		if (targetPath == null) {
+		if (targetPath == null || targetPath.equals("")) {
 			return "";
 		}
 
@@ -283,20 +232,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		return targetPath;
 	}
 
-	private void setRuntimeValues(Proxy proxy) {
-		proxy.addRuntimeValue(new RuntimeValue(ProxiedAppKey.inst, "true"));
-		proxy.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, proxy.getId()));
-		proxy.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId));
-		proxy.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxy.getSpec().getId()));
+	abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
 
-		if (identifierService.realmId != null) {
-			proxy.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId));
+	public Container setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+		Container.ContainerBuilder containerBuilder = container.toBuilder();
+		for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
+
+			Integer boundPort = null; // in case of internal networking
+			if (!isUseInternalNetwork()) {
+				// in case of non-internal networking
+				boundPort = portBindings.get(portMapping.getPort());
+			}
+
+			String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
+			URI target = calculateTarget(container, portMapping, boundPort);
+			containerBuilder.addTarget(mapping, target);
 		}
-
-		proxy.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()));
-		String[] groups = userService.getGroups(userService.getCurrentAuth());
-		proxy.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)));
-		proxy.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())));
+		return containerBuilder.build();
 	}
 
 }

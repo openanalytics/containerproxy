@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,32 +20,40 @@
  */
 package eu.openanalytics.containerproxy.event;
 
-import org.springframework.context.ApplicationEvent;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.With;
 
 import java.time.Duration;
 
-public class ProxyStopEvent extends ApplicationEvent {
+@Value
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+public class ProxyStopEvent extends BridgeableEvent {
 
-    private final String userId;
-    private final String specId;
-    private final Duration usageTime;
+    @With
+    String source;
 
-    public ProxyStopEvent(Object source, String userId, String specId, Duration usageTime) {
-        super(source);
-        this.userId = userId;
-        this.specId = specId;
-        this.usageTime = usageTime;
+    String proxyId;
+    String userId;
+    String specId;
+    Duration usageTime;
+
+    public ProxyStopEvent(Proxy proxy) {
+        source = "SOURCE_NOT_AVAILABLE";
+        proxyId = proxy.getId();
+        userId = proxy.getUserId();
+        specId = proxy.getSpecId();
+        if (proxy.getStartupTimestamp() == 0) {
+            usageTime = null;
+        } else {
+            usageTime = Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp());
+        }
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getSpecId() {
-        return specId;
-    }
-
-    public Duration getUsageTime() {
-        return usageTime;
-    }
 }

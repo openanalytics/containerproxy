@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,7 +22,11 @@ package eu.openanalytics.containerproxy.backend.strategy.impl;
 
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -38,10 +42,18 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
 
 	@Inject
+	@Lazy
 	private ProxyService proxyService;
 
 	@Inject
+	@Lazy
+	private AsyncProxyService asyncProxyService;
+
+	@Inject
 	private Environment environment;
+
+	@Inject
+	private IProxySpecProvider specProvider;
 
 	private boolean defaultStopProxyOnLogout;
 
@@ -54,14 +66,16 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 	public void onLogout(String userId) {
 		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
 			if (shouldBeStopped(proxy)) {
-				proxyService.stopProxy(proxy, true, true);
+				asyncProxyService.stopProxy(proxy,  true);
 			}
 		}
 	}
 
 	public boolean shouldBeStopped(Proxy proxy) {
-		if (proxy.getSpec().stopOnLogout() != null) {
-			return proxy.getSpec().stopOnLogout();
+		// we retrieve the spec here, therefore this is not compatible with AppRecovery
+		ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
+		if (proxySpec != null && proxySpec.getStopOnLogout() != null) {
+			return proxySpec.getStopOnLogout();
 		}
 		return defaultStopProxyOnLogout;
 	}

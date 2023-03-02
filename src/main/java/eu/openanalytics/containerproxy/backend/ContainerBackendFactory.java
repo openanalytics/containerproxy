@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
-import javax.inject.Inject;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.context.ApplicationContext;
@@ -29,47 +27,42 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
-import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
-import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
+import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBackend> implements ApplicationContextAware {
-	
+
 	private static final String PROPERTY_CONTAINER_BACKEND = "proxy.container-backend";
-	
-	private enum ContainerBackend {
-		
-		DockerEngine("docker", DockerEngineBackend.class),
-		DockerSwarm("docker-swarm", DockerSwarmBackend.class),
-		Kubernetes("kubernetes", KubernetesBackend.class);
-		
-		private String name;
-		private Class<? extends IContainerBackend> type;
-		
-		private ContainerBackend(String name, Class<? extends IContainerBackend> type) {
-			this.name = name;
-			this.type = type;
+
+    private static final Map<String, Class<? extends IContainerBackend>> BACKENDS = new HashMap<>();
+
+    public static void addBackend(String name, Class<? extends IContainerBackend> backend) {
+		if (BACKENDS.containsKey(name)) {
+			throw new IllegalArgumentException(String.format("Cannot register duplicate backend with name %s not found", name));
 		}
-		
-		public static IContainerBackend createFor(String name) throws Exception {
-			for (ContainerBackend cb: values()) {
-				if (cb.name.equalsIgnoreCase(name)) return cb.type.newInstance();
-			}
-			return DockerEngine.type.newInstance();
-		}
-	}
-	
+		BACKENDS.put(name, backend);
+    }
+
+    private static IContainerBackend createFor(String name) throws Exception {
+        if (!BACKENDS.containsKey(name)) {
+			throw new IllegalArgumentException(String.format("Backend with name %s not found", name));
+        }
+        return BACKENDS.get(name).newInstance();
+    }
+
 	private ApplicationContext applicationContext;
-	
+
 	@Inject
 	protected Environment environment;
-	
+
 	@Override
-	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+	public void setApplicationContext(@Nonnull ApplicationContext applicationContext) throws BeansException {
 		this.applicationContext = applicationContext;
 	}
-	
+
 	@Override
 	public Class<?> getObjectType() {
 		return IContainerBackend.class;
@@ -77,8 +70,8 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
 
 	@Override
 	protected IContainerBackend createInstance() throws Exception {
-		String backendName = environment.getProperty(PROPERTY_CONTAINER_BACKEND);
-		IContainerBackend backend = ContainerBackend.createFor(backendName);
+		String backendName = environment.getProperty(PROPERTY_CONTAINER_BACKEND, "docker");
+		IContainerBackend backend = createFor(backendName);
 		applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
 		backend.initialize();
 		return backend;

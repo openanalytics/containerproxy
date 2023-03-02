@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,22 +20,17 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
+import org.apache.commons.io.IOUtils;
+import org.springframework.core.env.Environment;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Optional;
-
-import eu.openanalytics.containerproxy.event.*;
-import org.apache.commons.io.IOUtils;
-
-import eu.openanalytics.containerproxy.stat.IStatCollector;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 
 
 /**
@@ -44,15 +39,11 @@ import javax.inject.Inject;
  */
 public class InfluxDBCollector extends AbstractDbCollector {
 
-	private String destination;
+	private final String destination;
 
-	@PostConstruct
-	public void init() {
-		destination = environment.getProperty("proxy.usage-stats-url");
+	public InfluxDBCollector(String url) {
+		destination = url;
 	}
-
-	@Inject
-	private Environment environment;
 
 	@Override
 	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {

@@ -7,8 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ 8, 11 ]
-        kubernetes: [ 'v1.21.6', 'v1.20.12', 'v1.19.16', 'v1.18.20', 'v1.17.17', 'v1.16.15']
+        java:
+          - 8
+          - 11
+        kubernetes:
+          - 'v1.21.6'
+          - 'v1.22.17'
+          - 'v1.23.15'
+          - 'v1.24.9'
+          - 'v1.25.5'
 
     steps:
       - uses: actions/checkout@v2
@@ -23,20 +30,27 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.3.0
+        uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: 'v1.16.0'
+          minikube version: 'v1.28.0'
           kubernetes version:  ${{ matrix.kubernetes }}
+          github token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Docker
         run: sudo apt-get -qq -y install conntrack socat ; nohup socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock &
       - name: Setup Docker Swarm
         run: docker swarm init
       - name: Pull Image
         run: docker pull openanalytics/shinyproxy-demo:latest
+      - name: Run redis
+        run: docker run -d -p 6379:6379 redis
       - name: Build with Maven
         run: mvn -B -U clean install -DskipTests
       - name: Copy Artifact
         run: cp target/containerproxy-*-exec.jar target/containerproxy-app-recovery.jar
+      - name: debug
+        run: |
+          docker ps -a
+          kubectl get pod -A
       - name: Run Tests
         run: mvn -B test
 
@@ -52,4 +66,3 @@ jobs:
         with:
           name: dependency-check-report
           path: target/dependency-check-report.html
-

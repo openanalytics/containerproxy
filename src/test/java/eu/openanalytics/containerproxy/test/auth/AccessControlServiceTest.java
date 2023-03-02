@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,17 +21,23 @@
 package eu.openanalytics.containerproxy.test.auth;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.model.spec.ProxyAccessControl;
+import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.AccessControlService;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
+import eu.openanalytics.containerproxy.service.ProxyAccessControlService;
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.Collection;
+import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,14 +47,16 @@ public class AccessControlServiceTest {
     private final IAuthenticationBackend authBackend;
     private final UserService userService;
     private final IProxySpecProvider specProvider;
-    private final AccessControlService accessControlService;
+    private final ProxyAccessControlService accessControlService;
+    private final ProxyService proxyService;
 
     public AccessControlServiceTest() {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         specProvider = mock(IProxySpecProvider.class);
-        SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(mock(ApplicationContext.class));
-        accessControlService = new AccessControlService(authBackend, userService, specProvider, specExpressionResolver);
+        proxyService = mock(ProxyService.class);
+        SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(new GenericApplicationContext());
+        accessControlService = new ProxyAccessControlService(proxyService, specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver));
     }
 
     @Test
@@ -65,7 +73,7 @@ public class AccessControlServiceTest {
     @Test
     public void usingSpecId() {
         when(authBackend.hasAuthorization()).thenReturn(true);
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
         when(specProvider.getSpec("myId")).thenReturn(createProxySpec(proxyAccessControl));
 
         Authentication auth = mock(Authentication.class);
@@ -77,7 +85,7 @@ public class AccessControlServiceTest {
     public void specHasNoAccessControlTest() {
         when(authBackend.hasAuthorization()).thenReturn(true);
         Authentication auth = mock(Authentication.class);
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
 
         Assertions.assertTrue(accessControlService.canAccess(auth, createProxySpec(proxyAccessControl)));
     }
@@ -94,7 +102,7 @@ public class AccessControlServiceTest {
     public void anonymousAccessTest() {
         when(authBackend.hasAuthorization()).thenReturn(false);
 
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setGroups(new String[]{"myGroup"});
 
         // when anonymous -> has access
@@ -112,7 +120,7 @@ public class AccessControlServiceTest {
     @Test
     public void hasGroupAccessTest() {
         when(authBackend.hasAuthorization()).thenReturn(true);
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setGroups(new String[]{"myGroup1", "myGroupAbc", "xxy"});
 
         // user is not part of any group -> no access
@@ -132,7 +140,7 @@ public class AccessControlServiceTest {
     @Test
     public void hasUserAccessTest() {
         when(authBackend.hasAuthorization()).thenReturn(true);
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
 
         // user is not part of the user access list -> no access
@@ -150,7 +158,7 @@ public class AccessControlServiceTest {
     @Test
     public void combinationOfGroupAndUserTest() {
         when(authBackend.hasAuthorization()).thenReturn(true);
-        ProxyAccessControl proxyAccessControl = new ProxyAccessControl();
+        AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
         proxyAccessControl.setGroups(new String[]{"myGroup1", "myGroupAbc", "xxy"});
 
@@ -181,11 +189,28 @@ public class AccessControlServiceTest {
         Assertions.assertTrue(accessControlService.canAccess(auth4, createProxySpec(proxyAccessControl)));
     }
 
-    private ProxySpec createProxySpec(ProxyAccessControl proxyAccessControl) {
-        ProxySpec proxySpec = new ProxySpec();
-        proxySpec.setId("myId");
-        proxySpec.setAccessControl(proxyAccessControl);
-        return proxySpec;
+    @Test
+    public void expressionTest() {
+        when(authBackend.hasAuthorization()).thenReturn(true);
+        AccessControl proxyAccessControl = new AccessControl();
+        proxyAccessControl.setExpression("#{groups.contains('DEV')}");
+
+        // user is not part of the DEV group-> no access
+        Authentication auth1 = mock(Authentication.class);
+        when(auth1.getAuthorities()).thenReturn((Collection) Collections.singletonList(new SimpleGrantedAuthority("ROLE_PROD")));
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // user is part of the DEV group -> has access
+        Authentication auth2 = mock(Authentication.class);
+        when(auth2.getAuthorities()).thenReturn((Collection) Collections.singletonList(new SimpleGrantedAuthority("ROLE_DEV")));
+        Assertions.assertTrue(accessControlService.canAccess(auth2, createProxySpec(proxyAccessControl)));
+    }
+
+    private ProxySpec createProxySpec(AccessControl proxyAccessControl) {
+        return ProxySpec.builder()
+                .id("myId")
+                .accessControl(proxyAccessControl)
+                .build();
     }
 
 }

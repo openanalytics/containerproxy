@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,11 +35,12 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
-import eu.openanalytics.containerproxy.util.PortAllocator;
+import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,16 +59,16 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
 	protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
 
-	protected PortAllocator portAllocator;
+	@Inject
+	protected IPortAllocator portAllocator;
 	protected DockerClient dockerClient;
+
+	protected Integer portRangeFrom;
+	protected Integer portRangeTo;
 
 	@Override
 	public void initialize() throws ContainerProxyException {
 		super.initialize();
-
-		int startPort = Integer.valueOf(getProperty(PROPERTY_PORT_RANGE_START, "20000"));
-		int maxPort = Integer.valueOf(getProperty(PROPERTY_PORT_RANGE_MAX, "-1"));
-		portAllocator = new PortAllocator(startPort, maxPort);
 
 		DefaultDockerClient.Builder builder = null;
 		try {
@@ -89,6 +90,8 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 		if (confUrl != null) builder.uri(confUrl);
 
 		dockerClient = builder.build();
+		portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
+		portRangeTo= environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
 	}
 
 	@Override
@@ -100,6 +103,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			try {
 				LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
 				logStream.attach(stdOut, stdErr);
+			} catch (ClosedChannelException ignored) {
 			} catch (IOException | InterruptedException | DockerException e) {
 				log.error("Error while attaching to container output", e);
 			}
@@ -113,24 +117,6 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
 	protected Container getPrimaryContainer(Proxy proxy) {
 		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
-	}
-
-	abstract protected URI calculateTarget(Container container, int containerPort, int hostPort) throws Exception;
-
-	public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		for (String mappingKey : container.getSpec().getPortMapping().keySet()) {
-			int containerPort = container.getSpec().getPortMapping().get(mappingKey);
-
-			int hostPort = -1; // in case of internal networking
-			if (portBindings.containsKey(containerPort) && portBindings.get(containerPort) != 0) {
-				// in case of non internal networking
-				hostPort = portBindings.get(containerPort);
-			}
-
-			String mapping = mappingStrategy.createMapping(mappingKey, container, proxy);
-			URI target = calculateTarget(container, containerPort, hostPort);
-			proxy.getTargets().put(mapping, target);
-		}
 	}
 
 	protected List<String> convertEnv(Map<String, String> env) {
@@ -155,7 +141,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
 				String value = labels.get(key.getKeyAsLabel());
 				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, value));
+					runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
 				} else if (key.isRequired()) {
 					// value is null but is required
 					log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());

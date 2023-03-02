@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,9 +33,5 @@ public interface IProxySpecProvider {
 	public List<ProxySpec> getSpecs();
 	
 	public ProxySpec getSpec(String id);
-
-	default public void postProcessRecoveredProxy(Proxy proxy) {
-		// no-op
-	}
 
 }

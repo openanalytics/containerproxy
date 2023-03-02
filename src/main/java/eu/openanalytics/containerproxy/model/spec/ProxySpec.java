@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,216 +20,110 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Data
+@Setter
+@Getter
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxySpec {
 
-	private String id;
-	private String displayName;
-	private String description;
-	private String logoURL;
+    @JsonView(Views.UserApi.class)
+    String id;
 
-	private ProxyAccessControl accessControl;
-	private List<ContainerSpec> containerSpecs;
-	private List<RuntimeSettingSpec> runtimeSettingSpecs;
+    @JsonView(Views.UserApi.class)
+    String displayName;
 
-	private Map<String, String> settings = new HashMap<>();
-	
-	private String kubernetesPodPatches;
-	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
-	private List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
+    @JsonView(Views.UserApi.class)
+    String description;
 
-	private Long maxLifeTime;
-	private Boolean stopOnLogout;
-	private Long heartbeatTimeout;
+    @JsonView(Views.UserApi.class)
+    String logoURL;
 
-	public ProxySpec() {
-		settings = new HashMap<>();
-	}
-	
-	public String getId() {
-		return id;
-	}
+    AccessControl accessControl;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    @Builder.Default
+    List<ContainerSpec> containerSpecs = new ArrayList<>();
 
-	public String getDisplayName() {
-		return displayName;
-	}
+    Parameters parameters;
 
-	public void setDisplayName(String displayName) {
-		this.displayName = displayName;
-	}
+    @Builder.Default
+    SpelField.Long maxLifeTime = new SpelField.Long();
 
-	public String getDescription() {
-		return description;
-	}
+    Boolean stopOnLogout;
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    @Builder.Default
+    SpelField.Long heartbeatTimeout = new SpelField.Long();
 
-	public String getLogoURL() {
-		return logoURL;
-	}
+    @Builder.Default
+    Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
-	public void setLogoURL(String logoURL) {
-		this.logoURL = logoURL;
-	}
+    public void setContainerIndex() {
+        for (int i = 0; i < this.containerSpecs.size(); i++) {
+            this.containerSpecs.get(i).setIndex(i);
+        }
+    }
 
-	public ProxyAccessControl getAccessControl() {
-		return accessControl;
-	}
+    public void addSpecExtension(ISpecExtension specExtension) {
+        specExtensions.put(specExtension.getClass(), specExtension);
+    }
 
-	public void setAccessControl(ProxyAccessControl accessControl) {
-		this.accessControl = accessControl;
-	}
+    public <T> T getSpecExtension(Class<T> extensionClass) {
+        return extensionClass.cast(specExtensions.get(extensionClass));
+    }
 
-	public List<ContainerSpec> getContainerSpecs() {
-		return containerSpecs;
-	}
-	
-	public ContainerSpec getContainerSpec(String image) {
-		if (image == null || image.isEmpty()) return null;
-		return containerSpecs.stream().filter(s -> {
-			if (image.endsWith(":latest") && !s.getImage().contains(":")) {
-				// if we query for the latest image and the spec does not contain a tag -> then add :latest to the
-                // image name of the spec.
-				// e.g. querying for "debian:latest" while "debian" is specified in the spec
-				return image.equals(s.getImage() + ":latest");
-			} else {
-				return image.equals(s.getImage());
-			}
-		}).findAny().orElse(null);
-	}
-	
-	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
-		this.containerSpecs = containerSpecs;
-	}
-	
-	public List<RuntimeSettingSpec> getRuntimeSettingSpecs() {
-		return runtimeSettingSpecs;
-	}
-	
-	public void setRuntimeSettingSpecs(List<RuntimeSettingSpec> runtimeSettingSpecs) {
-		this.runtimeSettingSpecs = runtimeSettingSpecs;
-	}
-	
-	public Map<String, String> getSettings() {
-		return settings;
-	}
+    public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
+                .maxLifeTime(maxLifeTime.resolve(resolver, context))
+                .specExtensions(
+                        specExtensions.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        e -> e.getValue().firstResolve(resolver, context))))
+                .containerSpecs(
+                        containerSpecs
+                                .stream()
+                                .map(c -> c.firstResolve(resolver, context.copy(c)))
+                                .collect(Collectors.toList())
+                )
+                .build();
+    }
 
-	public void setSettings(Map<String, String> settings) {
-		this.settings = settings;
-	}
-
-	/**
-	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
-	 */
-	public String getKubernetesPodPatch() {
-		return kubernetesPodPatches;
-	}
-
-	public void setKubernetesPodPatches(String kubernetesPodPatches) {
-		this.kubernetesPodPatches = kubernetesPodPatches;
-	}
-
-	public void setKubernetesAdditionalManifests(List<String> manifests) {
-		this.kubernetesAdditionalManifests = manifests;
-	}
-
-	public List<String> getKubernetesAdditionalManifests() {
-		return kubernetesAdditionalManifests;
-	}
-
-	public void setKubernetesAdditionalPersistentManifests(List<String> manifests) {
-		this.kubernetesAdditionalPersistentManifests = manifests;
-	}
-
-	public List<String> getKubernetesAdditionalPersistentManifests() {
-		return kubernetesAdditionalPersistentManifests;
-	}
-
-	public Long getMaxLifeTime() {
-		return maxLifeTime;
-	}
-
-	public void setMaxLifeTime(Long maxLifeTime) {
-		this.maxLifeTime = maxLifeTime;
-	}
-
-	public Boolean stopOnLogout() {
-		return stopOnLogout;
-	}
-
-	public void setStopOnLogout(Boolean stopOnLogout) {
-		this.stopOnLogout = stopOnLogout;
-	}
-
-	public Long getHeartbeatTimeout() {
-		return heartbeatTimeout;
-	}
-
-	public void setHeartbeatTimeout(Long heartbeatTimeout) {
-		this.heartbeatTimeout = heartbeatTimeout;
-	}
-
-	public void copy(ProxySpec target) {
-		target.setId(id);
-		target.setDisplayName(displayName);
-		target.setDescription(description);
-		target.setLogoURL(logoURL);
-		target.setMaxLifeTime(maxLifeTime);
-		target.setStopOnLogout(stopOnLogout);
-		target.setHeartbeatTimeout(heartbeatTimeout);
-
-		if (accessControl != null) {
-			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
-			accessControl.copy(target.getAccessControl());
-		}
-		
-		if (containerSpecs != null) {
-			if (target.getContainerSpecs() == null) target.setContainerSpecs(new ArrayList<>());
-			for (ContainerSpec spec: containerSpecs) {
-				ContainerSpec copy = new ContainerSpec();
-				spec.copy(copy);
-				target.getContainerSpecs().add(copy);
-			}
-		}
-		
-		if (runtimeSettingSpecs != null) {
-			if (target.getRuntimeSettingSpecs() == null) target.setRuntimeSettingSpecs(new ArrayList<>());
-			for (RuntimeSettingSpec spec: runtimeSettingSpecs) {
-				RuntimeSettingSpec copy = new RuntimeSettingSpec();
-				spec.copy(copy);
-				target.getRuntimeSettingSpecs().add(copy);
-			}
-		}
-		
-		if (settings != null) {
-			if (target.getSettings() == null) target.setSettings(new HashMap<>());
-			target.getSettings().putAll(settings);
-		}
-		
-		
-		if (kubernetesPodPatches != null) {
-			target.setKubernetesPodPatches(kubernetesPodPatches);
-		}
-		
-		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(new ArrayList<>(kubernetesAdditionalManifests));
-		}
-
-		if (kubernetesAdditionalPersistentManifests != null) {
-			target.setKubernetesAdditionalPersistentManifests(new ArrayList<>(kubernetesAdditionalPersistentManifests));
-		}
-
-	}
-
+    public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .specExtensions(
+                        specExtensions.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        e -> e.getValue().finalResolve(resolver, context))))
+                .containerSpecs(
+                        containerSpecs
+                                .stream()
+                                .map(c -> c.finalResolve(resolver, context.copy(c)))
+                                .collect(Collectors.toList())
+                )
+                .build();
+    }
 }

@@ -1,0 +1,36 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  container-backend: docker
+
+
+  users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
+
+  docker:
+    url: http://localhost:2375
+
+  specs:
+    - id: big-parameters
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      parameters:
+        definitions:
+          - id: parameter1
+            description:
+        value-sets:
+          - values:
+              parameter1: a

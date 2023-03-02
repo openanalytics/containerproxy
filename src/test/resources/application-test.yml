@@ -19,19 +19,22 @@ proxy:
   docker:
     url: http://localhost:2375
 
+
   specs:
   - id: 01_hello
     container-specs:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
   - id: 01_hello_volume
     container-specs:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       volumes:
        - "/srv/myvolume1:/srv/myvolume1"
        - "/srv/myvolume2:/srv/myvolume2"
@@ -40,7 +43,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       env:
         VAR1:
         VAR2: VALUE2
@@ -50,7 +54,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       env:
         MY_SECRET: secretKeyRef:mysecret:username
   - id: 01_hello_limits
@@ -58,7 +63,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       cpu-request: 1
       cpu-limit: 2
       memory-request: "1Gi"
@@ -68,14 +74,16 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       privileged: true
   - id: 01_hello_patches1
     container-specs:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
@@ -95,7 +103,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
       volumes:
        - "/srv/myvolume1:/srv/myvolume1"
       env:
@@ -121,7 +130,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: replace
         path: /metadata/namespace
@@ -153,7 +163,8 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
     kubernetes-pod-patches: |
       - op: add
         path: /spec/containers/0/env/-
@@ -193,13 +204,15 @@ proxy:
     - image: "openanalytics/shinyproxy-demo"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
-        default: 3838
+        - name: default
+          port: 3838
   - id: 01_hello_manifests_persistent # 11
     container-specs:
        - image: "openanalytics/shinyproxy-demo"
          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
          port-mapping:
-           default: 3838
+           - name: default
+             port: 3838
     kubernetes-pod-patches: |
        - op: replace
          path: /metadata/namespace
@@ -232,7 +245,8 @@ proxy:
       - image: "openanalytics/shinyproxy-demo"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
-          default: 3838
+          - name: default
+            port: 3838
         env:
           TEST_PROXY_ID: "#{proxy.getRuntimeValue('SHINYPROXY_PROXY_ID')}"
           SHINYPROXY_USERNAME: "abc_xyz"
@@ -248,3 +262,479 @@ proxy:
      - op: add
        path: /metadata/labels/custom_label_patch_instance
        value: "#{proxy.getRuntimeValue('SHINYPROXY_INSTANCE')}"
+  - id: 01_hello_manifests_policy_create_once # 13
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: CreateOnce
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_patch # 14
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_delete # 15
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Delete
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_manifests_policy_replace # 16
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_create_once
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: CreateOnce
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_patch # 18
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_patch2 # 19
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Patch
+        type: Opaque
+        data:
+          password: b2xkX3Bhc3N3b3Jk
+  - id: 01_hello_persistent_manifests_policy_delete #20
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Delete
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_replace #21
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+        data:
+          password: cGFzc3dvcmQ=
+  - id: 01_hello_persistent_manifests_policy_replace2 # 22
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: manifests-secret
+          annotations:
+            openanalytics.eu/sp-additional-manifest-policy: Replace
+        type: Opaque
+        data:
+          password: b2xkX3Bhc3N3b3Jk
+  - id: parameters
+    container-specs:
+      - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+        memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+        port-mapping:
+          - name: default
+            port: 8787
+    parameters:
+      definitions:
+        - id: environment
+          value-names:
+            - value: ledfan/rstudio_base_r
+              name: base_r
+            - value: ledfan/rstudio_breeding_r
+              name: breeding_r
+            - value: ledfan/rstudio_biogrid_r
+              name: biogrid_r
+        - id: version
+          value-names:
+            - value: "3_0_6"
+              name: 3.0.6
+            - value: "4_0_5"
+              name: 4.0.5
+            - value: "4_1_3"
+              name: 4.1.3
+        - id: memory
+      value-sets:
+        - name: the-first-value-set
+          values:
+            environment: ledfan/rstudio_base_r
+            version:
+              - "3_0_6"
+              - "4_0_5"
+              - "4_1_3"
+            memory:
+              - 2G
+              - 4G
+              - 8G
+        - values:
+            environment: ledfan/rstudio_breeding_r
+            version: "4_0_3"
+            memory: 5G
+          access-control:
+            groups: breeding
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_1_13"
+            memory: 8G
+          access-control:
+            expression: "#{groups.contains('DEV')}"
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_0_3"
+            memory: 8G
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_0_3"
+            memory: 25G
+          access-control:
+            users:
+              - jack
+              - jeff
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: ENVIRONMENT
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: VERSION
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: MEMORY
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: VALUESET_NAME
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValueSetName()}"
+  - id: parameters-null
+    container-specs:
+      - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+        memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+        port-mapping:
+          - name: default
+            port: 3838
+    parameters:
+      definitions:
+        - id: environment
+          value-names:
+            - value: ledfan/rstudio_base_r
+              name: base_r
+            - value: ledfan/rstudio_breeding_r
+              name: breeding_r
+            - value: ledfan/rstudio_biogrid_r
+              name: biogrid_r
+        - id: version
+          value-names:
+            - value: "3_0_6"
+              name: 3.0.6
+            - value: "4_0_5"
+              name: 4.0.5
+            - value: "4_1_3"
+              name: 4.1.3
+        - id: memory
+      value-sets:
+        - values:
+            environment: ledfan/rstudio_base_r
+            version:
+              - "3_0_6"
+              - "4_0_5"
+              - "4_1_3"
+            memory:
+              - 2G
+              - 4G
+              - 8G
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: VALUESET_NAME
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValueSetName()}"
+  - id: parameters-error
+    container-specs:
+      - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+        memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+        port-mapping:
+          - name: default
+            port: 3838
+    parameters:
+      definitions:
+        - id: environment
+          value-names:
+            - value: ledfan/rstudio_base_r
+              name: base_r
+            - value: ledfan/rstudio_breeding_r
+              name: breeding_r
+            - value: ledfan/rstudio_biogrid_r
+              name: biogrid_r
+        - id: version
+          value-names:
+            - value: "3_0_6"
+              name: 3.0.6
+            - value: "4_0_5"
+              name: 4.0.5
+            - value: "4_1_3"
+              name: 4.1.3
+        - id: memory
+      value-sets:
+        - values:
+            environment: ledfan/rstudio_base_r
+            version:
+              - "3_0_6"
+              - "4_0_5"
+              - "4_1_3"
+            memory:
+              - 2G
+              - 4G
+              - 8G
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: ERROR
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}"
+  - id: parameters-final-resolve
+    heartbeat-timeout: "#{10 + 60}"
+    container-specs:
+      - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+        memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+        port-mapping:
+          - name: default
+            port: 8787
+        env:
+          # The following expression should be resolved in the "final" resolve phase
+          HEARTBEAT_TIMEOUT: "#{proxy.getRuntimeValue('SHINYPROXY_HEARTBEAT_TIMEOUT')}"
+          MAX_LIFETIME: "#{proxy.getRuntimeValue('SHINYPROXY_MAX_LIFETIME')}"
+          MEMORY_LIMIT: "#{containerSpec.memoryLimit}"
+          IMAGE: "#{proxy.containers[0].getRuntimeValue('SHINYPROXY_CONTAINER_IMAGE')}"
+        labels:
+          # The following expression should be resolved in the "final" resolve phase
+          HEARTBEAT_TIMEOUT: "#{proxy.getRuntimeValue('SHINYPROXY_HEARTBEAT_TIMEOUT')}"
+    parameters:
+      definitions:
+        - id: environment
+          value-names:
+            - value: ledfan/rstudio_base_r
+              name: base_r
+            - value: ledfan/rstudio_breeding_r
+              name: breeding_r
+            - value: ledfan/rstudio_biogrid_r
+              name: biogrid_r
+        - id: version
+          value-names:
+            - value: "3_0_6"
+              name: 3.0.6
+            - value: "4_0_5"
+              name: 4.0.5
+            - value: "4_1_3"
+              name: 4.1.3
+        - id: memory
+      value-sets:
+        - name: the-first-value-set
+          values:
+            environment: ledfan/rstudio_base_r
+            version:
+              - "3_0_6"
+              - "4_0_5"
+              - "4_1_3"
+            memory:
+              - 2G
+              - 4G
+              - 8G
+        - values:
+            environment: ledfan/rstudio_breeding_r
+            version: "4_0_3"
+            memory: 5G
+          access-control:
+            groups: breeding
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_1_13"
+            memory: 8G
+          access-control:
+            expression: "#{groups.contains('DEV')}"
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_0_3"
+            memory: 8G
+        - values:
+            environment: ledfan/rstudio_biogrid_r
+            version: "4_0_3"
+            memory: 25G
+          access-control:
+            users:
+              - jack
+              - jeff
+    kubernetes-pod-patches: |
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: ENVIRONMENT
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: VERSION
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: MEMORY
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
+      - op: add
+        path: /spec/containers/0/env/-
+        value:
+          name: VALUESET_NAME
+          value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValueSetName()}"
+  - id: 01_hello_manifests_persistent_using_auth
+    container-specs:
+      - image: "openanalytics/shinyproxy-demo"
+        cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        port-mapping:
+          - name: default
+            port: 3838
+    kubernetes-pod-patches: |
+      - op: replace
+        path: /metadata/namespace
+        value: itest-overridden
+    kubernetes-additional-manifests:
+      - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: configmap1
+        type: Opaque
+        data:
+          test.txt: |
+            #{groups}
+    kubernetes-additional-persistent-manifests:
+      - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: configmap2
+        type: Opaque
+        data:
+          test.txt: |
+            #{groups}
+
+appNamespaces:
+  - itest-overridden

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,6 +33,9 @@ public class RuntimeValue {
     private final Object value;
 
     public RuntimeValue(RuntimeValueKey<?> key, Object value) {
+        if (!key.isInstance(value)) {
+            throw new IllegalArgumentException("Provided value is not of the correct type!");
+        }
         this.key = Objects.requireNonNull(key, "key may not be null");
         this.value = Objects.requireNonNull(value, "value may not be null for key " + key.getKeyAsEnvVar());
     }
@@ -41,8 +44,12 @@ public class RuntimeValue {
         return key;
     }
 
-    public String getValue() {
-        return value.toString();
+    /**
+     * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.
+     */
+    @Override
+    public String toString() {
+        return key.serializeToString(getObject());
     }
 
     public <T> T getObject() {
@@ -57,4 +64,3 @@ public class RuntimeValue {
     }
 
 }
-

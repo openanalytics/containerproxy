@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,6 +29,8 @@ import org.springframework.stereotype.Component;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 
+import javax.annotation.PostConstruct;
+
 @Component
 @ConfigurationProperties(prefix = "proxy")
 public class DefaultSpecProvider implements IProxySpecProvider {
@@ -46,6 +48,11 @@ public class DefaultSpecProvider implements IProxySpecProvider {
 	
 	public void setSpecs(List<ProxySpec> specs) {
 		this.specs = specs;
+	}
+
+	@PostConstruct
+	public void init() {
+		specs.forEach(ProxySpec::setContainerIndex);
 	}
 	
 }

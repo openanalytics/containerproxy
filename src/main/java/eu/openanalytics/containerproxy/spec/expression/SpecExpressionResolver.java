@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
-import eu.openanalytics.containerproxy.ContainerProxyException;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -34,9 +33,7 @@ import org.springframework.core.convert.ConversionService;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionException;
 import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.ParseException;
 import org.springframework.expression.ParserContext;
-import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.expression.spel.support.StandardTypeConverter;
@@ -48,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Note: inspired by org.springframework.context.expression.StandardBeanExpressionResolver
@@ -136,11 +134,14 @@ public class SpecExpressionResolver {
 		if (expressions == null) return null;
 		return expressions.stream()
 				.flatMap((el) -> {
-					List<String> result = evaluate(el, context, List.class);
+					Object result = evaluate(el, context, Object.class);
 					if (result == null) {
 						result = new ArrayList<>();
 					}
-					return result.stream();
+					if (result instanceof List) {
+						return ((List<Object>) result).stream().map(Object::toString);
+					}
+					return Stream.of(result.toString());
 				})
 				.collect(Collectors.toList());
     }

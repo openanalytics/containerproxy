@@ -79,6 +79,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 		// method 1: single property with comma seperated groups
 		String[] groups = environment.getProperty(String.format("proxy.users[%d].groups", index), String[].class);
 		if (groups != null) {
+			groups = Arrays.stream(groups).map(String::toUpperCase).toArray(String[]::new);
 			return new SimpleUser(userName, password, groups);
 		} else {
 			// method 2: YAML array
@@ -86,7 +87,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 			int groupIndex = 0;
 			String group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
 			while (group != null) {
-				groupsList.add(group);
+				groupsList.add(group.toUpperCase());
 				groupIndex++;
 				group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
 			}

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,10 +20,9 @@
  */
 package eu.openanalytics.containerproxy.log;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+
+import java.io.IOException;
 
 public interface ILogStorage {
 
@@ -31,8 +30,10 @@ public interface ILogStorage {
 	
 	public String getStorageLocation();
 	
-	public OutputStream[] createOutputStreams(Proxy proxy) throws IOException;
+	public LogStreams createOutputStreams(Proxy proxy) throws IOException;
 	
-	public String[] getLogs(Proxy proxy) throws IOException;
+	public LogPaths getLogs(Proxy proxy) throws IOException;
+
+	public void stopService();
 
 }

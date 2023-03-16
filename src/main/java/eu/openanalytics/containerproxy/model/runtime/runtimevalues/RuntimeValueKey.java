@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,16 +38,22 @@ public abstract class RuntimeValueKey<T> {
 
     private final Boolean includeAsEnvironmentVariable;
 
+    private final Boolean includeInApi;
+
+    private final Boolean isContainerSpecific;
+
     private final Boolean isRequired;
 
     private final Class<T> clazz;
 
-    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean isRequired, Class<T> clazz) {
+    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific, Class<T> clazz) {
         this.keyAsLabel = Objects.requireNonNull(keyAsLabel, "keyAsLabel may not be null");
         this.keyAsEnvVar = Objects.requireNonNull(keyAsEnvVar, "keyAsEnvVar may not be null");
         this.includeAsLabel = includeAsLabel;
         this.includeAsAnnotation = includeAsAnnotation;
         this.includeAsEnvironmentVariable = includeAsEnvironmentVariable;
+        this.includeInApi = includeInApi;
+        this.isContainerSpecific = isContainerSpecific;
         this.isRequired = isRequired;
         this.clazz = clazz;
     }
@@ -72,6 +78,14 @@ public abstract class RuntimeValueKey<T> {
         return includeAsEnvironmentVariable;
     }
 
+    public Boolean getIncludeInApi() {
+        return includeInApi;
+    }
+
+    public Boolean isContainerSpecific() {
+        return isContainerSpecific;
+    }
+
     public Boolean isRequired() {
         return isRequired;
     }
@@ -79,4 +93,21 @@ public abstract class RuntimeValueKey<T> {
     public Class<T> getClazz() {
         return clazz;
     }
+
+    public boolean isInstance(Object object) {
+        return clazz.isInstance(object);
+    }
+
+    public abstract T deserializeFromString(String value);
+
+    public abstract String serializeToString(T value);
+
+    /**
+     * ToString is only used for debugging/logging purposes, should not be used to work with the value in the code.
+     */
+    @Override
+    public String toString() {
+        return keyAsEnvVar;
+    }
+
 }

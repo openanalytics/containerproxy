@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,20 @@ package eu.openanalytics.containerproxy.service.hearbeat;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
+import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -42,30 +43,32 @@ import java.util.TimerTask;
  * Service which 1) keeps track of active proxies by listening for heartbeats (created by {@link HeartbeatService})
  * and 2) kills proxies which where inactive for too long.
  */
-@Service
 public class ActiveProxiesService implements IHeartbeatProcessor {
 
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
-    public static final String PROP_TIMEOUT = "proxy.heartbeat-timeout";
-    public static final Long DEFAULT_TIMEOUT = 60000L;
 
-    private final Logger log = LogManager.getLogger(HeartbeatService.class);
-
-    private final Map<String, Long> proxyHeartbeats = Collections.synchronizedMap(new HashMap<>());
-
-    private long defaultHeartbeatTimeout;
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slog = new StructuredLogger(log);
 
     @Inject
-    private Environment environment;
+    protected IHeartbeatStore heartbeatStore;
 
     @Inject
-    private ProxyService proxyService;
+    protected Environment environment;
+
+    @Inject
+    protected ProxyService proxyService;
+
+    @Inject
+    private IProxyReleaseStrategy releaseStrategy;
+
+    @Inject
+    private ILeaderService leaderService;
 
     @PostConstruct
     public void init() {
         long cleanupInterval = 2 * environment.getProperty(PROP_RATE, Long.class, DEFAULT_RATE);
-        defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -78,15 +81,23 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
         if (proxyService.getProxy(proxyId) != null) {
             if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxyId);
-            proxyHeartbeats.put(proxyId, System.currentTimeMillis());
+            heartbeatStore.update(proxyId, System.currentTimeMillis());
         }
     }
 
     public Long getLastHeartBeat(String proxyId) {
-        return proxyHeartbeats.get(proxyId);
+        return heartbeatStore.get(proxyId);
+    }
+
+    public void setLastHeartBeat(String proxyId, Long time) {
+        heartbeatStore.update(proxyId, time);
     }
 
     private void performCleanup() {
+        if (!leaderService.isLeader()) {
+            log.debug("Skipping checking heartbeats because we are not the leader");
+            return;
+        }
         try {
             long currentTimestamp = System.currentTimeMillis();
             for (Proxy proxy : proxyService.getProxies(null, true)) {
@@ -102,28 +113,22 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
             return;
         }
 
-        Long heartbeatTimeout;
-        if (proxy.getSpec().getHeartbeatTimeout() != null) {
-            heartbeatTimeout = proxy.getSpec().getHeartbeatTimeout();
-        } else {
-            heartbeatTimeout = defaultHeartbeatTimeout;
-        }
+        Long heartbeatTimeout = proxy.getRuntimeObject(HeartbeatTimeoutKey.inst);
 
         if (heartbeatTimeout <= 0) {
             // heartbeats disabled for this app (or globally)
             return;
         }
 
-        Long lastHeartbeat = proxyHeartbeats.get(proxy.getId());
+        Long lastHeartbeat = heartbeatStore.get(proxy.getId());
         if (lastHeartbeat == null) {
             lastHeartbeat = proxy.getStartupTimestamp();
         }
 
         long proxySilence = currentTimestamp - lastHeartbeat;
         if (proxySilence > heartbeatTimeout) {
-            log.info(String.format("Releasing inactive proxy [user: %s] [spec: %s] [id: %s] [silence: %dms]", proxy.getUserId(), proxy.getSpec().getId(), proxy.getId(), proxySilence));
-            proxyHeartbeats.remove(proxy.getId());
-            proxyService.stopProxy(proxy, true, true);
+            slog.info(proxy, String.format("Releasing inactive proxy [silence: %dms]", proxySilence));
+            releaseStrategy.releaseProxy(proxy);
         }
     }
 

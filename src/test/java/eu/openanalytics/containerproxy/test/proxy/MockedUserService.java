@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,7 +23,9 @@ package eu.openanalytics.containerproxy.test.proxy;
 import eu.openanalytics.containerproxy.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -37,7 +39,7 @@ public class MockedUserService extends UserService {
         return new Authentication() {
             @Override
             public Collection<? extends GrantedAuthority> getAuthorities() {
-                return Collections.emptyList();
+                return Arrays.asList(new SimpleGrantedAuthority("ROLE_GROUP1"), new SimpleGrantedAuthority("ROLE_GROUP2"));
             }
 
             @Override

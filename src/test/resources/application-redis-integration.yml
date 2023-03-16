@@ -1,0 +1,11 @@
+spring:
+  redis:
+    localhost
+proxy:
+  store-mode: Redis
+  authentication: simple
+  container-backend: docker
+
+  users: []
+
+  specs: []

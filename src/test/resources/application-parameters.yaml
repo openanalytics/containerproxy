@@ -1,0 +1,271 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  container-backend: docker
+
+
+  users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
+
+  docker:
+    url: http://localhost:2375
+
+  specs:
+    - id: big-parameters
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      parameters:
+        definitions:
+          - id: parameter1
+            value-names:
+              - value: A
+                name: "The letter A"
+              - value: Z
+                name: "The letter Z"
+          - id: parameter2
+            value-names:
+              - value: 1
+                name: "The number 1"
+              - value: 20
+                name: "The number 20"
+          - id: parameter3
+            value-names:
+              - value: foo
+                name: "Foo"
+              - value: bar
+                name: "Bar"
+          - id: parameter4
+            value-names:
+              - value: "yes"
+                name: "YES"
+              - value: "no"
+                name: "NO"
+        value-sets:
+          - name: the-first-value-set
+            values:
+              parameter1:
+                - A
+                - B
+                - C
+                - D
+                - E
+                - F
+                - G
+                - H
+                - I
+                - J
+              parameter2:
+                - 1
+                - 2
+                - 3
+                - 4
+                - 5
+                - 6
+                - 7
+                - 8
+                - 9
+                - 10
+                - 11
+                - 12
+                - 13
+                - 14
+                - 15
+                - 16
+                - 17
+                - 18
+                - 19
+                - 20
+              parameter3:
+                - foo
+                - bar
+                - foobar
+                - barfoo
+                - bazz
+                - fozz
+              parameter4:
+                - "yes"
+                - "no"
+                - maybe
+                - well
+          - values:
+              parameter1:
+                - A
+                - B
+                - C
+                - D
+                - E
+                - F
+                - G
+                - H
+                - I
+                - J
+              parameter2:
+                - 1
+                - 2
+                - 3
+                - 4
+                - 5
+                - 6
+                - 7
+                - 8
+                - 9
+                - 10
+                - 11
+                - 12
+                - 13
+                - 14
+                - 15
+                - 16
+                - 17
+                - 18
+                - 19
+                - 20
+              parameter3:
+                - foobarfoo
+              parameter4:
+                - "no"
+          - name: the-last-value-set
+            values:
+              parameter1:
+                - A
+                - B
+                - C
+                - D
+                - E
+                - F
+                - G
+                - H
+                - I
+                - J
+              parameter2:
+                - 1
+                - 2
+                - 3
+                - 4
+                - 5
+                - 6
+                - 7
+                - 8
+                - 9
+                - 10
+                - 11
+                - 12
+                - 13
+                - 14
+                - 15
+                - 16
+                - 17
+                - 18
+                - 19
+                - 20
+              parameter3:
+                - barfoobar
+              parameter4:
+                - "yes"
+    - id: no-parameters
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+    - id: with-access-control
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      parameters:
+        definitions:
+          - id: environment
+          - id: version
+          - id: memory
+        value-sets:
+          - values:
+              environment: base_r
+              version:
+                - 3.0.6
+                - 4.0.5
+                - 4.1.3
+              memory:
+                - 2G
+                - 4G
+                - 8G
+          - values:
+              environment: breeding_r
+              version: 4.0.3
+              memory: 5G
+            access-control:
+              groups: breeding
+          - values:
+              environment: biogrid_r
+              version: 4.1.13
+              memory: 8G
+            access-control:
+              expression: "#{groups.contains('DEV')}"
+          - values:
+              environment: biogrid_r
+              version: 4.0.3
+              memory: 8G
+          - values:
+              environment: biogrid_r
+              version: 4.0.3
+              memory: 25G
+            access-control:
+              users:
+                - jack
+                - jeff
+    - id: default-values
+      container-specs:
+        - image: "openanalytics/shinyproxy-demo"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      parameters:
+        definitions:
+          - id: parameter1
+            default-value: value1
+          - id: parameter2
+            default-value: value2
+          - id: parameter3
+            default-value: value3
+        value-sets:
+          - values:
+              parameter1:
+              - value1
+              - value2
+              parameter2:
+              - value1
+              - value2
+              parameter3:
+               - value1
+               - value2
+          - values:
+              parameter1: value1
+              parameter2: value2
+              parameter3: value3
+            access-control:
+              users:
+                - jeff
+          - values:
+              parameter1: value1
+              parameter2: value3
+              parameter3: value3
+            access-control:
+              users:
+                - thomas

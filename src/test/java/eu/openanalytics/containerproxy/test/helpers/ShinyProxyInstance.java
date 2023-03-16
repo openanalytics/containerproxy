@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.test.helpers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,10 +35,16 @@ public class ShinyProxyInstance {
     private Process process;
     private int port;
 
-    public ShinyProxyInstance(String id, String configFileName, int port, String extraArgs) {
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    public ShinyProxyInstance(String configFileName, int port, String extraArgs) {
         this.port = port;
 
         int mgmtPort = port % 1000 + 9000;
+
+        String uuid = java.util.UUID.randomUUID().toString();
+
+        logger.info("Starting ShinyProxy server, with output in {}", uuid);
 
         processBuilder = new ProcessBuilder("java", "-jar",
                 "target/containerproxy-app-recovery.jar",
@@ -44,20 +52,16 @@ public class ShinyProxyInstance {
                 "--server.port=" + port,
                 "--management.server.port=" + mgmtPort,
                 extraArgs)
-                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_%s_stdout.log", id, configFileName)))
-                .redirectError(new File(String.format("shinyproxy_recovery_%s_%s_stderr.log", id, configFileName)));
+                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", uuid)))
+                .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", uuid)));
     }
 
-    public ShinyProxyInstance(String id, String configFileName, String extraArgs) {
-        this(id, configFileName, 7583, extraArgs);
+    public ShinyProxyInstance(String configFileName, String extraArgs) {
+        this(configFileName, 7583, extraArgs);
     }
 
-    public ShinyProxyInstance(String id, String configFileName, int port) {
-        this(id, configFileName, port, "");
-    }
-
-    public ShinyProxyInstance(String id, String configFileName) {
-        this(id, configFileName, 7583, "");
+    public ShinyProxyInstance(String configFileName) {
+        this(configFileName, 7583, "");
     }
 
     public boolean start() throws IOException, InterruptedException {

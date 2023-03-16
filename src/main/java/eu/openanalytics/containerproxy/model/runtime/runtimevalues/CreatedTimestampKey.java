@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
+// TODO convert to long?
 public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
     private CreatedTimestampKey() {
@@ -28,9 +29,22 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 false,
-                true, String.class);
+                true,
+                true,
+                false,
+                String.class);
     }
 
     public static CreatedTimestampKey inst = new CreatedTimestampKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

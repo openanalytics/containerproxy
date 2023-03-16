@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,9 +28,22 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
                 true,
                 false,
                 false,
-                true, String.class);
+                true,
+                true,
+                false,
+                String.class);
     }
 
     public static InstanceIdKey inst = new InstanceIdKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

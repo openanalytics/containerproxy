@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,26 +20,24 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintWriter;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import eu.openanalytics.containerproxy.util.BadRequestException;
+import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.api.BaseController;
+import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import org.keycloak.adapters.OIDCAuthenticationError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.util.NestedServletException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import eu.openanalytics.containerproxy.api.BaseController;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Optional;
 
 import static eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler.SP_KEYCLOAK_ERROR_REASON;
 
@@ -66,67 +64,71 @@ public class ErrorController extends BaseController implements org.springframewo
 			}
 		}
 
-		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
-		if (exception == null) {
-			exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
-		}
-
-		String[] msg = createMsgStack(exception);
-		if (exception == null) {
-			msg[0] = HttpStatus.valueOf(response.getStatus()).getReasonPhrase();
-		}
-
-		if (response.getStatus() == 200 && (exception != null) && isAccountStatusException(exception)) {
+		Optional<Throwable> exception = getException(request);
+		if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
 			return "redirect:/";
 		}
 
-		prepareMap(map);
-		map.put("message", msg[0]);
-		map.put("stackTrace", msg[1]);
+		String shortError = "ShinyProxy experienced an unrecoverable error.";
+		String description = "";
 
-		if (exception != null && exception.getCause() instanceof BadRequestException) {
-			map.put("status", 400);
-		} else {
-			map.put("status", response.getStatus());
+		if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
+			shortError = "Bad Request";
+			description = "You are not allowed to send this request.";
+			response.setStatus(400);
 		}
+
+		if (exception.isPresent() && exception.get() instanceof ContainerProxyException) {
+			description = exception.get().getMessage();
+		}
+
+		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+		if (status != null) {
+			int statusCode = Integer.parseInt(status.toString());
+			if (statusCode == HttpStatus.NOT_FOUND.value()) {
+				shortError = "Not found";
+				description = "The requested page was not found";
+			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
+				shortError = "Forbidden";
+				description = "You do not have access to this page";
+			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+				shortError = "Method not allowed";
+			}
+		}
+
+		prepareMap(map);
+		map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
+		map.put("shortError", shortError);
+		map.put("description", description);
 		
 		return "error";
 	}
 	
-	@RequestMapping(consumes = "application/json", produces = "application/json")
+	@RequestMapping(produces = "application/json")
 	@ResponseBody
-	public ResponseEntity<Map<String, Object>> error(HttpServletRequest request, HttpServletResponse response) {
-		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
-		String[] msg = createMsgStack(exception);
-		
-		Map<String, Object> map = new HashMap<>();
-		map.put("message", msg[0]);
-		map.put("stackTrace", msg[1]);
-		
-		return new ResponseEntity<>(map, HttpStatus.valueOf(response.getStatus()));
+	public ResponseEntity<ApiResponse<Object>> error(HttpServletRequest request, HttpServletResponse response) {
+		Optional<Throwable> exception = getException(request);
+		if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
+			return ApiResponse.failUnauthorized();
+		}
+
+		if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
+			return ApiResponse.fail("bad request");
+		}
+
+		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+		if (status != null) {
+			int statusCode = Integer.parseInt(status.toString());
+			if (statusCode == HttpStatus.NOT_FOUND.value()) {
+				return ApiResponse.failNotFound();
+			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
+				return ApiResponse.failForbidden();
+			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+				return ResponseEntity.status(HttpStatus.METHOD_FAILURE).body(new ApiResponse<>("fail", "method not allowed"));
+			}
 	}
 
-	private String[] createMsgStack(Throwable exception) {
-		String message = "";
-		String stackTrace = "";
-		
-		if (exception instanceof NestedServletException && exception.getCause() instanceof Exception) {
-			exception = (Exception) exception.getCause();
-		}
-		if (exception != null) {
-			if (exception.getMessage() != null) message = exception.getMessage();
-			ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			try (PrintWriter writer = new PrintWriter(bos)) {
-				exception.printStackTrace(writer);
-			}
-			stackTrace = bos.toString();
-			stackTrace = stackTrace.replace(System.getProperty("line.separator"), "<br/>");
-		}
-		
-		if (message == null || message.isEmpty()) message = "An unexpected server error occurred";
-		if (stackTrace == null || stackTrace.isEmpty()) stackTrace = "n/a";
-		
-		return new String[] { message, stackTrace };
+		return ApiResponse.error("unrecoverable error");
 	}
 
 	private boolean isAccountStatusException(Throwable exception) {
@@ -134,4 +136,13 @@ public class ErrorController extends BaseController implements org.springframewo
 		if (exception.getCause() != null) return isAccountStatusException(exception.getCause());
 		return false;
 	}
+
+	private Optional<Throwable> getException(HttpServletRequest request) {
+		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
+		if (exception == null) {
+			exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+		}
+		return Optional.ofNullable(exception);
+	}
+
 }

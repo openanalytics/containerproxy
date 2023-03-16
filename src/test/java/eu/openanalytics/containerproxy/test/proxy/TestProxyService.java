@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,6 +24,7 @@ import java.net.URI;
 
 import javax.inject.Inject;
 
+import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +35,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -56,14 +56,13 @@ public class TestProxyService {
 	private ProxyService proxyService;
 	
 	@Test
-	public void launchProxy() {
+	public void launchProxy() throws InvalidParametersException {
 		String specId = environment.getProperty("proxy.specs[0].id");
 
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
-		ProxySpec spec = proxyService.resolveProxySpec(baseSpec, null, null);
 
-		Proxy proxy = proxyService.startProxy(spec, true);
-		proxyService.stopProxy(proxy, false, true);
+		Proxy proxy = proxyService.startProxy(baseSpec);
+		proxyService.stopProxy(null, proxy, true).run();
 	}
 	
 	public static class TestConfiguration {

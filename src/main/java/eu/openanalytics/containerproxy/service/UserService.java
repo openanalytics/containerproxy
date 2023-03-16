@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.Sha256;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -40,6 +41,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.session.HttpSessionCreatedEvent;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
@@ -75,7 +77,8 @@ public class UserService {
 	private ApplicationEventPublisher applicationEventPublisher;
 
 	@Inject
-	private AccessControlService accessControlService;
+	@Lazy
+	private ProxyAccessControlService accessControlService;
 
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
@@ -132,6 +135,10 @@ public class UserService {
 		return accessControlService.canAccess(getCurrentAuth(), spec);
 	}
 
+	public boolean canAccess(Authentication user, ProxySpec spec) {
+		return accessControlService.canAccess(user, spec);
+	}
+
 	public boolean isOwner(Proxy proxy) {
 		return isOwner(getCurrentAuth(), proxy);
 	}
@@ -149,11 +156,11 @@ public class UserService {
 		return false;
 	}
 
-	private String getUserId(Authentication auth) {
+	public static String getUserId(Authentication auth) {
 		if (auth == null) return null;
 		if (auth instanceof AnonymousAuthenticationToken) {
-			// Anonymous authentication: use the session id instead of the user name.
-			return RequestContextHolder.currentRequestAttributes().getSessionId();
+			// Anonymous authentication: use the session id instead of the username.
+			return Sha256.hash(((WebAuthenticationDetails) auth.getDetails()).getSessionId());
 		}
 		return auth.getName();
 	}
@@ -162,13 +169,12 @@ public class UserService {
 	public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
 		Authentication source = event.getAuthentication();
 		Exception e = event.getException();
-		log.info(String.format("Authentication failure [user: %s] [error: %s]", source.getName(), e.getMessage()));
+		log.info(String.format("Authentication failure [user: %s] [error: %s]", getUserId(source), e.getMessage()));
 		String userId = getUserId(source);
 
 		applicationEventPublisher.publishEvent(new AuthFailedEvent(
 				this,
-				userId,
-				RequestContextHolder.currentRequestAttributes().getSessionId()));
+				userId));
 	}
 
 	public void logout(Authentication auth) {
@@ -181,26 +187,23 @@ public class UserService {
 		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
 		session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
 
-		String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
 		applicationEventPublisher.publishEvent(new UserLogoutEvent(
 				this,
 				userId,
-				sessionId,
 				false));
 	}
 
 	@EventListener
 	public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
 		Authentication auth = event.getAuthentication();
-		String userName = auth.getName();
+		String userName = getUserId(auth);
 
 		log.info(String.format("User logged in [user: %s]", userName));
 
 		String userId = getUserId(auth);
 		applicationEventPublisher.publishEvent(new UserLoginEvent(
 				this,
-				userId,
-				RequestContextHolder.currentRequestAttributes().getSessionId()));
+				userId));
 	}
 
 	@EventListener
@@ -217,21 +220,20 @@ public class UserService {
 				SecurityContext securityContext = event.getSecurityContexts().get(0);
 				if (securityContext == null) return;
 
-				String userId = securityContext.getAuthentication().getName();
+				String userId = getUserId(securityContext.getAuthentication());
 
 				log.info(String.format("User logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,
 						userId,
-						event.getSession().getId(),
 						true
 				));
 			} else if (authBackend.getName().equals("none")) {
-				log.info(String.format("Anonymous user logged out [user: %s]", event.getSession().getId()));
+				String userId = Sha256.hash(event.getSession().getId());
+				log.info(String.format("Anonymous user logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,
-						event.getSession().getId(),
-						event.getSession().getId(),
+						userId,
 						true
 				));
 			}
@@ -241,11 +243,11 @@ public class UserService {
 	@EventListener
 	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
 		if (authBackend.getName().equals("none")) {
-			log.info(String.format("Anonymous user logged in [user: %s]", event.getSession().getId()));
+			String userId = Sha256.hash(event.getSession().getId());
+			log.info(String.format("Anonymous user logged in [user: %s]", userId));
 			applicationEventPublisher.publishEvent(new UserLoginEvent(
 					this,
-					event.getSession().getId(),
-					event.getSession().getId()));
+					userId));
 		}
 	}
 

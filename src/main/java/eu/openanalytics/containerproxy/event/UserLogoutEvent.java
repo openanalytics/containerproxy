@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,25 +25,18 @@ import org.springframework.context.ApplicationEvent;
 public class UserLogoutEvent extends ApplicationEvent {
     
     private final String userId;
-    private final String sessionId;
     private final Boolean wasExpired;
 
     /**
      *
      * @param source
      * @param userId
-     * @param sessionId
      * @param wasExpired whether the user is logged automatically because the session has expired
      */
-    public UserLogoutEvent(Object source, String userId, String sessionId, Boolean wasExpired) {
+    public UserLogoutEvent(Object source, String userId, Boolean wasExpired) {
         super(source);
         this.userId = userId;
-        this.sessionId = sessionId;
         this.wasExpired = wasExpired;
-    }
-
-    public String getSessionId() {
-        return sessionId;
     }
 
     public String getUserId() {
@@ -54,5 +47,3 @@ public class UserLogoutEvent extends ApplicationEvent {
         return wasExpired;
     }
 }
-
-

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,9 +28,22 @@ public class ProxyIdKey extends RuntimeValueKey<String> {
                 false,
                 true,
                 false,
-                true, String.class);
+                false, // no need to expose in API
+                true,
+                false,
+                String.class);
     }
 
     public static ProxyIdKey inst = new ProxyIdKey();
+
+    @Override
+    public String deserializeFromString(String value) {
+        return value;
+    }
+
+    @Override
+    public String serializeToString(String value) {
+        return value;
+    }
 
 }

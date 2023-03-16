@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -59,6 +59,15 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(RealmIdKey.inst);
         addRuntimeValueKey(UserGroupsKey.inst);
         addRuntimeValueKey(UserIdKey.inst);
+        addRuntimeValueKey(ParameterNamesKey.inst);
+        addRuntimeValueKey(ParameterValuesKey.inst);
+        addRuntimeValueKey(HeartbeatTimeoutKey.inst);
+        addRuntimeValueKey(MaxLifetimeKey.inst);
+        addRuntimeValueKey(ContainerIndexKey.inst);
+        addRuntimeValueKey(ContainerImageKey.inst);
+        addRuntimeValueKey(BackendContainerNameKey.inst);
+        addRuntimeValueKey(PortMappingsKey.inst);
+        addRuntimeValueKey(DisplayNameKey.inst);
     }
 
 }

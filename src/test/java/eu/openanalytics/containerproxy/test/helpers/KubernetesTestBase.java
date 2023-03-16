@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -54,6 +54,7 @@ public abstract class KubernetesTestBase {
             test.run(namespacedKubernetesClient, namespace, overriddenNamespace);
         } catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
             deleteNamespaces();
         }

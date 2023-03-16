@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,22 +33,34 @@ public class ExistingContainerInfo {
     public ExistingContainerInfo(String containerId,
                                  Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues,
                                  String image,
-                                 Map<Integer, Integer> portBindings,
-                                 Map<String, Object> parameters
+                                 Map<Integer, Integer> portBindings
     ) {
         this.containerId = containerId;
         this.runtimeValues = runtimeValues;
         this.image = image;
         this.portBindings = portBindings;
-        this.parameters = parameters;
+        this.proxyStatus = null;
+    }
 
+    public ExistingContainerInfo(String containerId,
+                                 Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues,
+                                 String image,
+                                 Map<Integer, Integer> portBindings,
+                                 ProxyStatus proxyStatus
+    ) {
+        this.containerId = containerId;
+        this.runtimeValues = runtimeValues;
+        this.image = image;
+        this.portBindings = portBindings;
+        this.proxyStatus = proxyStatus;
     }
 
     private final String containerId;
     private final Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
     private final String image;
     private final Map<Integer, Integer> portBindings;
-    private final Map<String, Object> parameters;
+
+    private final ProxyStatus proxyStatus;
 
     public String getContainerId() {
         return containerId;
@@ -62,17 +74,15 @@ public class ExistingContainerInfo {
         return image;
     }
 
-
     public Map<Integer, Integer> getPortBindings() {
         return portBindings;
-    }
-
-    public Map<String, Object> getParameters() {
-        return parameters;
     }
 
     public RuntimeValue getRuntimeValue(RuntimeValueKey<?> key) {
         return runtimeValues.get(key);
     }
 
+    public ProxyStatus getProxyStatus() {
+        return proxyStatus;
+    }
 }

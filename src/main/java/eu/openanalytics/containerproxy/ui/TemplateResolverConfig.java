@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,25 +20,44 @@
  */
 package eu.openanalytics.containerproxy.ui;
 
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.thymeleaf.templateresolver.FileTemplateResolver;
 
+import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import java.util.List;
+
 @Configuration
 public class TemplateResolverConfig implements WebMvcConfigurer {
 
+	private static final String PROP_TEMPLATE_PATH = "proxy.template-path";
+
+	public static final String PROP_CORS_ALLOWED_ORIGINS = "proxy.api-security.cors-allowed-origins";
+
 	@Inject
     private Environment environment;
+
+	@Inject
+	private IdentifierService identifierService;
 	
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
 		registry.addResourceHandler("/assets/**")
-			.addResourceLocations("file:" + environment.getProperty("proxy.template-path") + "/assets/");
+				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
+		// next line is to have versioned (based on shinyproxy instance) assets
+		registry.addResourceHandler("/" + identifierService.instanceId + "/**")
+				.addResourceLocations("classpath:/static/");
+		registry.addResourceHandler("/" + identifierService.instanceId + "/webjars/**")
+				.addResourceLocations("/webjars/");
+		registry.addResourceHandler("/" + identifierService.instanceId + "/assets/**")
+				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
 	}
 
 	@Bean
@@ -52,4 +71,15 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
 		resolver.setOrder(1);
 		return resolver;
 	}
+
+	@Override
+	public void addCorsMappings(@Nonnull CorsRegistry registry) {
+		List<String> origins = EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS);
+		if (origins != null) {
+			registry.addMapping("/**")
+					.allowCredentials(true)
+					.allowedOrigins(origins.toArray(new String[0]));
+		}
+	}
+
 }

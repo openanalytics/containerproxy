@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,15 +20,14 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import java.util.Map;
-
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
-
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
+
+import java.util.Map;
 
 public interface IAuthenticationBackend {
 
@@ -65,11 +64,7 @@ public interface IAuthenticationBackend {
 		return "/logout";
 	}
 
-	public default void customizeContainer(ContainerSpec spec) {
-		// Default: do nothing.
-	}
-
-	public default void customizeContainerEnv(Map<String, String> env) {
+	public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
 		// Default: do nothing.
 	}
 

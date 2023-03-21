@@ -25,6 +25,8 @@ public class ContainerImageKey extends RuntimeValueKey<String> {
     private ContainerImageKey() {
         super("openanalytics.eu/sp-container-image",
                 "SHINYPROXY_CONTAINER_IMAGE",
+                "openanalytics.eu/sp-container-image",
+                false,
                 false,
                 false,
                 false,

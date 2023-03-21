@@ -24,6 +24,7 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
 import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
 import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
+import eu.openanalytics.containerproxy.backend.ecs.EcsBackend;
 import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
@@ -111,6 +112,7 @@ public class ContainerProxyApplication {
 		ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
 		ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
 		ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
+		ContainerBackendFactory.addBackend("ecs", EcsBackend.class);
 	}
 
 	public static void main(String[] args) {

@@ -122,7 +122,7 @@ public class RuntimeValueService {
     public Container addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         Container.ContainerBuilder containerBuilder = container.toBuilder();
         containerBuilder.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
-        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
+//        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
 
         PortMappings portMappings = new PortMappings();
         for (PortMapping portMapping : containerSpec.getPortMapping()) {

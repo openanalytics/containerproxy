@@ -32,9 +32,13 @@ public abstract class RuntimeValueKey<T> {
     private final String keyAsLabel;
     private final String keyAsEnvVar;
 
+    private final String keyAsTag;
+
     private final Boolean includeAsLabel;
 
     private final Boolean includeAsAnnotation;
+
+    private final Boolean includeAsTag;
 
     private final Boolean includeAsEnvironmentVariable;
 
@@ -46,11 +50,13 @@ public abstract class RuntimeValueKey<T> {
 
     private final Class<T> clazz;
 
-    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific, Class<T> clazz) {
+    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, String keyAsTag,  Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsTag, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific, Class<T> clazz) {
         this.keyAsLabel = Objects.requireNonNull(keyAsLabel, "keyAsLabel may not be null");
         this.keyAsEnvVar = Objects.requireNonNull(keyAsEnvVar, "keyAsEnvVar may not be null");
+        this.keyAsTag = Objects.requireNonNull(keyAsTag, "keyAsTag may not be null");
         this.includeAsLabel = includeAsLabel;
         this.includeAsAnnotation = includeAsAnnotation;
+        this.includeAsTag = includeAsTag;
         this.includeAsEnvironmentVariable = includeAsEnvironmentVariable;
         this.includeInApi = includeInApi;
         this.isContainerSpecific = isContainerSpecific;
@@ -66,8 +72,16 @@ public abstract class RuntimeValueKey<T> {
         return keyAsEnvVar;
     }
 
+    public String getKeyAsTag() {
+        return keyAsTag;
+    }
+
     public Boolean getIncludeAsLabel() {
         return includeAsLabel;
+    }
+
+    public Boolean getIncludeAsTag() {
+        return includeAsTag;
     }
 
     public Boolean getIncludeAsAnnotation() {

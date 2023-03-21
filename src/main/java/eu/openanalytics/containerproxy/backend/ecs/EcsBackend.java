@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,31 +20,24 @@
  */
 package eu.openanalytics.containerproxy.backend.ecs;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.model.runtime.*;
 import eu.openanalytics.containerproxy.model.runtime.Container;
-import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.*;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import org.springframework.security.core.Authentication;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
-import software.amazon.awssdk.services.ecs.model.CapacityProviderStrategyItem;
-import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
-import software.amazon.awssdk.services.ecs.model.DescribeServicesResponse;
-import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
-import software.amazon.awssdk.services.ecs.model.ListServicesResponse;
-import software.amazon.awssdk.services.ecs.model.ListTaskDefinitionFamiliesResponse;
-import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
-import software.amazon.awssdk.services.ecs.model.NetworkBinding;
-import software.amazon.awssdk.services.ecs.model.RegisterTaskDefinitionResponse;
-import software.amazon.awssdk.services.ecs.model.TaskDefinition;
+import software.amazon.awssdk.services.ecs.model.*;
 
 public class EcsBackend extends AbstractContainerBackend {
 
@@ -72,10 +65,30 @@ public class EcsBackend extends AbstractContainerBackend {
   }
 
 
-  private Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,
-                                                                                         Map<String, String> labels,
-                                                                                         Map<String, String> annotations) {
+  private Map<RuntimeValueKey<?>, RuntimeValue> parseTagsAsRuntimeValues(Task task, String containerId) {
     Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
+
+    // tags to map
+//    log.info("Getting tags for container {}", containerArn);
+    Map<String, String> tags = task.tags().stream().collect(
+        HashMap::new,
+        (m, v) -> m.put(v.key(), v.value()),
+        HashMap::putAll
+    );
+
+    for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+      if (key.getIncludeAsTag()) {
+        String value = tags.get(key.getKeyAsTag());
+        if (value != null) {
+          runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
+        }
+      } else if (key.isRequired()) {
+        // value is null but is required
+        log.warn("Ignoring container {} because no label or annotation named {} is found", containerId, key.getKeyAsLabel());
+        return null;
+      }
+    }
+
     return runtimeValues;
   }
 
@@ -93,8 +106,21 @@ public class EcsBackend extends AbstractContainerBackend {
     tasks.tasks().forEach(task -> {
       task.containers().forEach(container -> {
 
-        Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAndAnnotationsAsRuntimeValues(
-            container.runtimeId(), null, null);
+        Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseTagsAsRuntimeValues(
+            task, container.runtimeId());
+
+        if (runtimeValues == null) {
+          return;
+        }
+
+        runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, container.image()));
+        runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, getProperty(PROPERTY_CLUSTER) + "/" + container.name()));
+
+
+        if (!appRecoveryService.canRecoverProxy(container.runtimeId())) {
+          log.warn("Ignoring container {} because instanceId {} is not correct", container.name(), container.runtimeId());
+          return;
+        }
 
         Map<Integer, Integer> portBindings = new HashMap<>();
         for (NetworkBinding binding : container.networkBindings()) {
@@ -103,88 +129,35 @@ public class EcsBackend extends AbstractContainerBackend {
           portBindings.put(containerPort, hostPort);
         }
 
-        HashMap<String, Object> parameters = new HashMap<String, Object>();
-//        parameters.put(PARAM_NAMESPACE, pod.getMetadata().getNamespace());
-//        parameters.put(PARAM_POD, pod);
-
-//        if (!isUseInternalNetwork()) {
-//          Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
-//          parameters.put(PARAM_SERVICE, service);
-//        }
-
         containers.add(new ExistingContainerInfo(
             container.runtimeId(),
             runtimeValues,
             container.image(),
-            portBindings,
-            parameters));
+            portBindings));
       });
     });
 
     return containers;
   }
 
-  @Override
-  public void setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings)
-      throws Exception {
-
-
-  }
 
   @Override
-  protected Container startContainer(ContainerSpec spec, Proxy proxy) throws Exception {
+  protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
     // TODO Auto-generated method stub
     // Needs to know when a service, task definition for the container spec already
     // exists and modifies that.
 
-    Container container = new Container();
-    container.setSpec(spec);
-    container.setId(UUID.randomUUID().toString());
+    Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
+    String containerId = UUID.randomUUID().toString();
+    rContainerBuilder.id(containerId);
 
-    String family = getProperty(PROPERTY_CLUSTER) + "-" + proxy.getId();
-
-    // get the task family if it exists
-    ListTaskDefinitionFamiliesResponse listTaskDefinitionFamiliesResponse = ecsClient
-        .listTaskDefinitionFamilies(builder -> builder.familyPrefix(family));
-    List<String> families = listTaskDefinitionFamiliesResponse.families();
-
-    TaskDefinition taskDefinition;
-
-    // Figure out if the task definition has been created already
-    if (families.size() > 1) {
-      // This shouldn't happen unless someone manually creates a task definition with
-      // the same properties.
-      throw new Exception("More than one task definition family found for proxy " + proxy.getId());
-    } else if (families.size() == 1) {
-      taskDefinition = ecsClient.describeTaskDefinition(builder -> builder.taskDefinition(family)).taskDefinition();
-    } else {
-      ContainerDefinition containerDefinition = ContainerDefinition.builder()
-              .name(container.getId())
-              .image(spec.getImage())
-              .cpu(Integer.parseInt(spec.getCpuLimit()) * 1024)
-              .memory(Integer.parseInt(spec.getMemoryLimit()))
-              .privileged(spec.isPrivileged())
-              .build();
-
-      RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient
-          .registerTaskDefinition(builder -> builder.containerDefinitions(containerDefinition).family(family));
-      taskDefinition = registerTaskDefinitionResponse.taskDefinition();
-    }
-
-//    ListServicesResponse services = ecsClient.listServices(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)));
-//    DescribeServicesResponse serviceData = ecsClient
-//        .describeServices(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).services(services.serviceArns()));
-
-//    for (String service : services.serviceArns()) {
-//
-//    }
 
     ecsClient.createService(builder -> builder
         .cluster(getProperty(PROPERTY_CLUSTER))
-        .desiredCount(1).serviceName("sp-service-" + container.getId() + "-" + proxy.getId())
-        .taskDefinition(taskDefinition.taskDefinitionArn()));
+        .desiredCount(1).serviceName("sp-service-" + containerId + "-" + proxy.getId())
+        .taskDefinition(spec.getTaskDefinition().toString()));
 
-    return container;
+    return rContainerBuilder.build();
   }
 
   @Override
@@ -217,6 +190,11 @@ public class EcsBackend extends AbstractContainerBackend {
   @Override
   protected String getPropertyPrefix() {
     return PROPERTY_PREFIX;
+  }
+
+  @Override
+  protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
+    return null;
   }
 
 }

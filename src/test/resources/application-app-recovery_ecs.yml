@@ -3,7 +3,7 @@ proxy:
   stop-proxies-on-shutdown: false
 
   authentication: simple
-  container-backend: docker
+  container-backend: ecs
 
   users:
     - name: demo
@@ -15,7 +15,7 @@ proxy:
 
   ecs:
     name: "shinyproxy"
-    region: "ap-southeast-4"
+    region: "ap-southeast-2"
 
   specs:
     - id: 01_hello
@@ -32,7 +32,7 @@ proxy:
             default: 3838
     - id: 03_hello
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - task-definition: "shinyproxy:1"
           cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
           port-mapping:
             default: 3838

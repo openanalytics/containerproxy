@@ -719,7 +719,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 				}
 			} else if (key.isRequired()) {
 				// value is null but is required
-				log.warn("Ignoring container {} because no label or annotation named {} is found!", containerId, key.getKeyAsLabel());
+				log.warn("Ignoring container {} because no label or annotation named {} is found", containerId, key.getKeyAsLabel());
 				return null;
 			}
 		}

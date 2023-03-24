@@ -185,8 +185,8 @@ public class EcsBackend extends AbstractContainerBackend {
             securityGroup = environment.getProperty(String.format("proxy.ecs.security-groups[%d]", index));
         }
 
-        log.info(Arrays.toString(securityGroups.toArray()));
-        log.info(Arrays.toString(subnets.toArray()));
+//        log.info(Arrays.toString(securityGroups.toArray()));
+//        log.info(Arrays.toString(subnets.toArray()));
 
         List<Tag> tags = new ArrayList<>();
 
@@ -233,8 +233,10 @@ public class EcsBackend extends AbstractContainerBackend {
         }, totalWaitMs);
 
         String taskArn = ecsClient.listTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).serviceName("sp-service-" + containerId + "-" + proxy.getId())).taskArns().get(0);
+        String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
 
         rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
+        rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
 
         if (!serviceReady) {
             throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());

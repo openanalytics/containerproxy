@@ -101,6 +101,10 @@ public class ContainerSpec {
 		this.dns = new SpelField.StringList(dns);
 	}
 
+    public void setTaskDefinition(String taskDefinition) {
+        this.taskDefinition = new SpelField.String(taskDefinition);
+    }
+
 	public void setVolumes(List<String> volumes) {
 		this.volumes = new SpelField.StringList(volumes);
 	}

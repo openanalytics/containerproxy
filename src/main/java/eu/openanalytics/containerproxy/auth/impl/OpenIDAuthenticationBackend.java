@@ -77,6 +77,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static eu.openanalytics.containerproxy.auth.impl.oidc.OpenIDConfiguration.REG_ID;
+import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
@@ -119,7 +120,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 		http
 			.oauth2Login()
 				.loginPage("/login")
-				.defaultSuccessUrl("/", true)
+				.defaultSuccessUrl(AUTH_SUCCESS_URL, true)
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(oAuth2AuthorizedClientService)
 				.authorizationEndpoint()

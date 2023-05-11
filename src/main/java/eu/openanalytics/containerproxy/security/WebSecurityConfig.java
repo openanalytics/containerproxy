@@ -75,6 +75,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 import static eu.openanalytics.containerproxy.ui.TemplateResolverConfig.PROP_CORS_ALLOWED_ORIGINS;
 
 @Configuration
@@ -232,7 +233,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			http
 				.formLogin()
 					.loginPage("/login")
-					.defaultSuccessUrl("/", true)
+					.defaultSuccessUrl(AUTH_SUCCESS_URL, true) // TODO
 					.and()
 				.logout()
 					.logoutUrl(auth.getLogoutURL())

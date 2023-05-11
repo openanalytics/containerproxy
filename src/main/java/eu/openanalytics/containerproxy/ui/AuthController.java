@@ -50,6 +50,8 @@ import java.util.Optional;
 @Controller
 public class AuthController extends BaseController {
 
+	public static final String AUTH_SUCCESS_URL = "/auth-success";
+
 	@Inject
 	private Environment environment;
 
@@ -74,6 +76,13 @@ public class AuthController extends BaseController {
 		} else {
 			return "login";
 		}
+	}
+
+	@RequestMapping(value = AUTH_SUCCESS_URL, method = RequestMethod.GET)
+	public String authSuccess(ModelMap map) {
+		prepareMap(map);
+		map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
+		return "auth-success";
 	}
 
 	@RequestMapping(value = "/auth-error", method = RequestMethod.GET)

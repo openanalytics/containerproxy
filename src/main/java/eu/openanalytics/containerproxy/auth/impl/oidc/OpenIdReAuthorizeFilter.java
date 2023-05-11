@@ -109,8 +109,10 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
      * See {@link RefreshTokenOAuth2AuthorizedClientProvider}
      */
     private boolean accessTokenExpired(OAuth2AuthorizedClient authorizedClient) {
-        return authorizedClient.getAccessToken().getExpiresAt() == null ||
-                clock.instant().isAfter(authorizedClient.getAccessToken().getExpiresAt().minus(this.clockSkew));
+        if (authorizedClient == null || authorizedClient.getAccessToken() == null || authorizedClient.getAccessToken().getExpiresAt() == null) {
+            return true;
+        }
+        return clock.instant().isAfter(authorizedClient.getAccessToken().getExpiresAt().minus(this.clockSkew));
     }
 
 }

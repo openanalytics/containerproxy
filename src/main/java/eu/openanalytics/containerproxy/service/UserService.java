@@ -221,6 +221,7 @@ public class UserService {
 				if (securityContext == null) return;
 
 				String userId = getUserId(securityContext.getAuthentication());
+				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 
 				log.info(String.format("User logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
@@ -230,6 +231,8 @@ public class UserService {
 				));
 			} else if (authBackend.getName().equals("none")) {
 				String userId = Sha256.hash(event.getSession().getId());
+				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+
 				log.info(String.format("Anonymous user logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,

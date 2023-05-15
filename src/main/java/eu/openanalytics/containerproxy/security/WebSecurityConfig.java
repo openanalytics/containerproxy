@@ -34,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
@@ -57,6 +58,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.security.web.header.Header;
@@ -101,6 +103,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired(required=false)
 	private List<ICustomSecurityConfig> customConfigs;
+
+	@Inject
+	@Lazy
+	private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
 	public static final String PROP_DISABLE_NO_SNIFF_HEADER = "proxy.api-security.disable-no-sniff-header";
 	public static final String PROP_DISABLE_HSTS_HEADER = "proxy.api-security.disable-hsts-header";
@@ -233,7 +239,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			http
 				.formLogin()
 					.loginPage("/login")
-					.defaultSuccessUrl(AUTH_SUCCESS_URL, true) // TODO
+					.successHandler(successHandler)
 					.and()
 				.logout()
 					.logoutUrl(auth.getLogoutURL())
@@ -321,6 +327,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Override
 	public AuthenticationManager authenticationManagerBean() throws Exception {
 		return super.authenticationManagerBean();
+	}
+
+	@Bean
+	public SavedRequestAwareAuthenticationSuccessHandler SavedRequestAwareAuthenticationSuccessHandler() {
+		SavedRequestAwareAuthenticationSuccessHandler savedRequestAwareAuthenticationSuccessHandler = new SavedRequestAwareAuthenticationSuccessHandler();
+		savedRequestAwareAuthenticationSuccessHandler.setDefaultTargetUrl(AUTH_SUCCESS_URL);
+		return savedRequestAwareAuthenticationSuccessHandler;
 	}
 
 	private List<Header> getCustomHeaders() {

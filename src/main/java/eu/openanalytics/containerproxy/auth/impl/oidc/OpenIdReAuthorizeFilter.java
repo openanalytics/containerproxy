@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.oidc;
 
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.ClientAuthorizationException;
@@ -36,6 +37,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.annotation.Nonnull;
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -79,10 +81,20 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
     @Inject
     private OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
 
+    @Inject
+    private Environment environment;
+
     private final Clock clock = Clock.systemUTC();
 
     // use clock skew of 40 seconds instead of 60 seconds. Otherwise, if the access token is valid for 1 minute, it would get refreshed at each request.
     private final Duration clockSkew = Duration.ofSeconds(40);
+
+    private boolean ignoreLogout;
+
+    @PostConstruct
+    public void init() {
+        ignoreLogout = environment.getProperty("proxy.openid.ignore-session-expire", Boolean.class, false);
+    }
 
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull FilterChain chain) throws ServletException, IOException {
@@ -93,8 +105,10 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
                 OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientService.loadAuthorizedClient(REG_ID, auth.getName());
 
                 if (authorizedClient == null) {
-                    invalidateSession(request, response);
-                    return;
+                    if (!ignoreLogout) {
+                        invalidateSession(request, response, auth);
+                        return;
+                    }
                 } else {
                     if (accessTokenExpired(authorizedClient)) {
                         OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
@@ -104,10 +118,14 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
 
                         try {
                             oAuth2AuthorizedClientManager.authorize(authorizeRequest);
-                            logger.info("Refresh");
+                            logger.debug(String.format("OpenID access token refreshed [user: %s]", auth.getName()));
                         } catch (ClientAuthorizationException ex) {
-                            invalidateSession(request, response);
-                            return;
+                            if (!ignoreLogout) {
+                                invalidateSession(request, response, auth);
+                                return;
+                            } else {
+                                logger.debug(String.format("OpenID access token expired, internal session stays active [user: %s]", auth.getName()));
+                            }
                         }
                     }
                 }
@@ -131,7 +149,8 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
         return clock.instant().isAfter(authorizedClient.getAccessToken().getExpiresAt().minus(this.clockSkew));
     }
 
-    private void invalidateSession(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response) throws IOException {
+    private void invalidateSession(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, Authentication auth) throws IOException {
+        logger.debug(String.format("OpenID access token expired, invalidating internal session [user: %s]", auth.getName()));
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();

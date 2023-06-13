@@ -37,6 +37,7 @@ import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springdoc.core.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.health.Health;
@@ -71,9 +72,12 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SECURITY_HIDE_SPEC_DETAILS;
@@ -343,6 +347,26 @@ public class ContainerProxyApplication {
 		app.setDefaultProperties(getDefaultProperties());
 		// See: https://github.com/keycloak/keycloak/pull/7053
 		System.setProperty("jdk.serialSetFilterAfterRead", "true");
+	}
+
+	@Bean
+	public GroupedOpenApi groupOpenApi() {
+		return GroupedOpenApi.builder()
+				.group("v1")
+				.addOpenApiCustomiser(openApi -> {
+					Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
+					openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
+							.forEach(p -> {
+								p.getValue().setHead(null);
+								p.getValue().setPost(null);
+								p.getValue().setDelete(null);
+								p.getValue().setParameters(null);
+								p.getValue().setOptions(null);
+								p.getValue().setPut(null);
+								p.getValue().setPatch(null);
+							});
+				})
+				.build();
 	}
 
 }

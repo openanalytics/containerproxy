@@ -58,7 +58,8 @@ import org.springframework.social.connect.jdbc.JdbcUsersConnectionRepository;
 import org.springframework.social.connect.web.ProviderSignInController;
 import org.springframework.social.connect.web.SignInAdapter;
 import org.springframework.social.facebook.connect.FacebookConnectionFactory;
-import org.springframework.social.github.connect.GitHubConnectionFactory;
+//import org.springframework.social.github.connect.GitHubConnectionFactory;
+//import org.springframework.social.github.connect.GitHubConnectionFactory;
 import org.springframework.social.google.connect.GoogleConnectionFactory;
 import org.springframework.social.linkedin.connect.LinkedInConnectionFactory;
 import org.springframework.social.twitter.connect.TwitterConnectionFactory;
@@ -152,8 +153,8 @@ public class SocialSecurityConfig implements SocialConfigurer {
 				return factory;
 			case linkedin:
 				return new LinkedInConnectionFactory(appId, appSecret);
-			case github:
-				return new GitHubConnectionFactory(appId, appSecret);
+////			case github:
+//				return new GitHubConnectionFactory(appId, appSecret);
 			default:
 				return null;
 			}

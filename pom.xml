@@ -58,16 +58,16 @@
 			<id>clojars</id>
 			<url>https://clojars.org/repo/</url>
 		</repository>
-		<repository>
-			<!-- Currently used only for the opensaml dependency -->
-			<id>shibboleth</id>
-			<url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
-		</repository>
-		<repository>
-			<!-- Currently used only for the spring-social-github 1.0.0.M4 dependency -->
-			<id>spring</id>
-			<url>https://repo.spring.io/plugins-release/</url>
-		</repository>
+<!--		<repository>-->
+<!--			&lt;!&ndash; Currently used only for the opensaml dependency &ndash;&gt;-->
+<!--			<id>shibboleth</id>-->
+<!--			<url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>-->
+<!--		</repository>-->
+<!--		<repository>-->
+<!--			&lt;!&ndash; Currently used only for the spring-social-github 1.0.0.M4 dependency &ndash;&gt;-->
+<!--			<id>spring</id>-->
+<!--			<url>https://repo.spring.io/ui/plugins-release/</url>-->
+<!--		</repository>-->
 	</repositories>
 
 	<dependencies>
@@ -212,11 +212,11 @@
 			<artifactId>spring-social-linkedin</artifactId>
 			<version>1.0.2.RELEASE</version>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.social</groupId>
-			<artifactId>spring-social-github</artifactId>
-			<version>1.0.0.M4</version>
-		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.springframework.social</groupId>-->
+<!--			<artifactId>spring-social-github</artifactId>-->
+<!--			<version>1.0.0.M4</version>-->
+<!--		</dependency>-->
 		<dependency>
 			<groupId>com.github.spring-social</groupId>
 			<artifactId>spring-social-google</artifactId>

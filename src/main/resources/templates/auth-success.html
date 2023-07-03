@@ -27,7 +27,9 @@
         <title th:text="${title}"></title>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
         <script type="text/javascript" th:inline="javascript">
+            history.forward();
             history.pushState({}, "", new URL(location));
+            history.pushState({}, "", new URL([[${url}]]));
             window.location.href = [[${url}]];
         </script>
     </head>

@@ -135,7 +135,7 @@ public class SpecExpressionContext {
                 builder.ldapUser = (LdapUserDetails) o;
             }
             if (o instanceof Authentication) {
-                builder.groups = Arrays.asList(UserService.getGroups((Authentication) o));
+                builder.groups = UserService.getGroups((Authentication) o);
                 builder.userId = UserService.getUserId(((Authentication) o));
             }
         }

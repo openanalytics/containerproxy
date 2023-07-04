@@ -88,7 +88,7 @@ public class UserService {
 		return getUserId(getCurrentAuth());
 	}
 	
-	public String[] getAdminGroups() {
+	public Set<String> getAdminGroups() {
 		Set<String> adminGroups = new HashSet<>();
 		
 		// Support for old, non-array notation
@@ -105,10 +105,10 @@ public class UserService {
 			adminGroups.add(groupName.toUpperCase());
 		}
 
-		return adminGroups.toArray(new String[adminGroups.size()]);
+		return adminGroups;
 	}
 
-	public String[] getAdminUsers() {
+	public Set<String> getAdminUsers() {
 		Set<String> adminUsers = new HashSet<>();
 
 		// Support for old, non-array notation
@@ -125,14 +125,14 @@ public class UserService {
 			adminUsers.add(userName);
 		}
 
-		return adminUsers.toArray(new String[adminUsers.size()]);
+		return adminUsers;
 	}
 	
-	public String[] getGroups() {
+	public List<String> getGroups() {
 		return getGroups(getCurrentAuth());
 	}
 	
-	public static String[] getGroups(Authentication auth) {
+	public static List<String> getGroups(Authentication auth) {
 		List<String> groups = new ArrayList<>();
 		if (auth != null) {
 			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {
@@ -141,7 +141,7 @@ public class UserService {
 				groups.add(authName);
 			}
 		}
-		return groups.toArray(new String[groups.size()]);
+		return groups;
 	}
 	
 	public boolean isAdmin() {
@@ -149,7 +149,7 @@ public class UserService {
 	}
 	
 	public boolean isAdmin(Authentication auth) {
-		if (!authBackend.hasAuthorization()) {
+		if (!authBackend.hasAuthorization() || auth == null) {
 			return false;
 		}
 
@@ -161,7 +161,7 @@ public class UserService {
 
 		String userName = getUserId(auth);
 		for (String adminUser: getAdminUsers()) {
-			if (userName != null && userName.equals(adminUser)) {
+			if (userName != null && userName.equalsIgnoreCase(adminUser)) {
 				return true;
 			}
 		}

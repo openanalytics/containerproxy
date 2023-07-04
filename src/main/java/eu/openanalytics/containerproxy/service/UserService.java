@@ -48,6 +48,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -80,23 +81,18 @@ public class UserService {
 	@Lazy
 	private ProxyAccessControlService accessControlService;
 
-	public Authentication getCurrentAuth() {
-		return SecurityContextHolder.getContext().getAuthentication();
-	}
-	
-	public String getCurrentUserId() {
-		return getUserId(getCurrentAuth());
-	}
-	
-	public Set<String> getAdminGroups() {
-		Set<String> adminGroups = new HashSet<>();
-		
+	private final Set<String> adminGroups = new HashSet<>();
+	private final Set<String> adminUsers = new HashSet<>();
+
+	@PostConstruct
+	public void init() {
+		// load admin groups
 		// Support for old, non-array notation
 		String singleGroup = environment.getProperty("proxy.admin-groups");
 		if (singleGroup != null && !singleGroup.isEmpty()) {
 			adminGroups.add(singleGroup.toUpperCase());
 		}
-		
+
 		for (int i=0 ;; i++) {
 			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
 			if (groupName == null || groupName.isEmpty()) {
@@ -105,12 +101,7 @@ public class UserService {
 			adminGroups.add(groupName.toUpperCase());
 		}
 
-		return adminGroups;
-	}
-
-	public Set<String> getAdminUsers() {
-		Set<String> adminUsers = new HashSet<>();
-
+		// load admin users
 		// Support for old, non-array notation
 		String singleUser = environment.getProperty("proxy.admin-users");
 		if (singleUser != null && !singleUser.isEmpty()) {
@@ -124,7 +115,21 @@ public class UserService {
 			}
 			adminUsers.add(userName);
 		}
+	}
 
+	public Set<String> getAdminGroups() {
+		return adminGroups;
+	}
+
+	public Authentication getCurrentAuth() {
+		return SecurityContextHolder.getContext().getAuthentication();
+	}
+	
+	public String getCurrentUserId() {
+		return getUserId(getCurrentAuth());
+	}
+	
+	public Set<String> getAdminUsers() {
 		return adminUsers;
 	}
 	

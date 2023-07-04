@@ -103,6 +103,22 @@ public class UserService {
 
 		return adminGroups.toArray(new String[adminGroups.size()]);
 	}
+
+	public String[] getAdminUsers() {
+		Set<String> adminUsers = new HashSet<>();
+
+		// Support for old, non-array notation
+		String singleUser = environment.getProperty("proxy.admin-users");
+		if (singleUser != null && !singleUser.isEmpty()) adminUsers.add(singleUser);
+
+		for (int i=0 ;; i++) {
+			String userName = environment.getProperty(String.format("proxy.admin-users[%s]", i));
+			if (userName == null || userName.isEmpty()) break;
+			adminUsers.add(userName);
+		}
+
+		return adminUsers.toArray(new String[adminUsers.size()]);
+	}
 	
 	public String[] getGroups() {
 		return getGroups(getCurrentAuth());
@@ -125,8 +141,17 @@ public class UserService {
 	}
 	
 	public boolean isAdmin(Authentication auth) {
+		if (!authBackend.hasAuthorization()) {
+			return false;
+		}
+
 		for (String adminGroup: getAdminGroups()) {
 			if (isMember(auth, adminGroup)) return true;
+		}
+
+		String userName = getUserId(auth);
+		for (String adminUser: getAdminUsers()) {
+			if (userName != null && userName.equals(adminUser)) return true;
 		}
 		return false;
 	}

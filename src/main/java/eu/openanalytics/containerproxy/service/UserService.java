@@ -93,11 +93,15 @@ public class UserService {
 		
 		// Support for old, non-array notation
 		String singleGroup = environment.getProperty("proxy.admin-groups");
-		if (singleGroup != null && !singleGroup.isEmpty()) adminGroups.add(singleGroup.toUpperCase());
+		if (singleGroup != null && !singleGroup.isEmpty()) {
+			adminGroups.add(singleGroup.toUpperCase());
+		}
 		
 		for (int i=0 ;; i++) {
 			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
-			if (groupName == null || groupName.isEmpty()) break;
+			if (groupName == null || groupName.isEmpty()) {
+				break;
+			}
 			adminGroups.add(groupName.toUpperCase());
 		}
 
@@ -109,11 +113,15 @@ public class UserService {
 
 		// Support for old, non-array notation
 		String singleUser = environment.getProperty("proxy.admin-users");
-		if (singleUser != null && !singleUser.isEmpty()) adminUsers.add(singleUser);
+		if (singleUser != null && !singleUser.isEmpty()) {
+			adminUsers.add(singleUser);
+		}
 
 		for (int i=0 ;; i++) {
 			String userName = environment.getProperty(String.format("proxy.admin-users[%s]", i));
-			if (userName == null || userName.isEmpty()) break;
+			if (userName == null || userName.isEmpty()) {
+				break;
+			}
 			adminUsers.add(userName);
 		}
 
@@ -146,12 +154,16 @@ public class UserService {
 		}
 
 		for (String adminGroup: getAdminGroups()) {
-			if (isMember(auth, adminGroup)) return true;
+			if (isMember(auth, adminGroup)) {
+				return true;
+			}
 		}
 
 		String userName = getUserId(auth);
 		for (String adminUser: getAdminUsers()) {
-			if (userName != null && userName.equals(adminUser)) return true;
+			if (userName != null && userName.equals(adminUser)) {
+				return true;
+			}
 		}
 		return false;
 	}

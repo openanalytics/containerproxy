@@ -44,6 +44,7 @@ import org.springframework.context.annotation.Lazy;
 import io.undertow.util.StatusCodes;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.web.header.Header;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
@@ -171,6 +172,13 @@ public class ProxyMappingManager {
 		if (exchangeCustomizer != null) {
 			exchangeCustomizer.accept(exchange);
 		}
+		// see #31010
+		// by default Undertow adds a Headers.X_FORWARDED_HOST header using exchange.getHost(), this never includes the server port
+		// however, the original Host header includes the port if using a non-standard port (i.e. not 80 and 443)
+		// this causes problems for applications comparing the Host and/or Origin header
+		// therefore we set the header here using exchange.getHostAndPort(), which only includes the port if non-standard port such that it matches the Host header
+		// note: if we set the header here, undertow does not override it
+		exchange.getRequestHeaders().put(Headers.X_FORWARDED_HOST, exchange.getHostAndPort());
 		exchange.addDefaultResponseListener(defaultResponseListener);
 		request.startAsync();
 		request.getRequestDispatcher(targetPath).forward(request, response);

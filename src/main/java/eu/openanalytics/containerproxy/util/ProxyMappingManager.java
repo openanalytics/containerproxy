@@ -190,6 +190,7 @@ public class ProxyMappingManager {
 	}
 
 	private final DefaultResponseListener defaultResponseListener = responseExchange -> {
+		// note: if ShinyProxy was restarted it can take up to one minute for the request to timeout/fail
 		if (!responseExchange.isResponseChannelAvailable()) {
 			return false;
 		}

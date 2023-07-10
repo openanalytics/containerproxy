@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.oidc;
 
+import eu.openanalytics.containerproxy.util.ImmediateJsonResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -132,8 +133,7 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
             }
         }
         if (REFRESH_OPENID_MATCHER.matches(request)) {
-            response.getWriter().write("{\"status\":\"success\"}");
-            response.setStatus(200);
+            ImmediateJsonResponse.write(response, 200, "{\"status\":\"success\"}");
             return;
         }
         chain.doFilter(request, response);
@@ -156,8 +156,7 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
             session.invalidate();
         }
         if (REFRESH_OPENID_MATCHER.matches(request)) {
-            response.getWriter().write("{\"status\":\"success\"}");
-            response.setStatus(200);
+            ImmediateJsonResponse.write(response, 200, "{\"status\":\"success\"}");
         } else {
             throw new ClientAuthorizationRequiredException(REG_ID);
         }

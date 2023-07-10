@@ -140,11 +140,8 @@ public class ProxyStatusController {
                 return ApiResponse.fail(ex.getMessage());
             }
         } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-            if (!proxy.getStatus().equals(ProxyStatus.New)
-                    && !proxy.getStatus().equals(ProxyStatus.Up)
-                    && !proxy.getStatus().equals(ProxyStatus.Resuming)
-                    && !proxy.getStatus().equals(ProxyStatus.Paused)) {
-                return ApiResponse.fail(String.format("Cannot stop proxy because it is not in New, Up or Paused status (status is %s)", proxy.getStatus()));
+            if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                return ApiResponse.fail("Cannot stop proxy because it is already stopped");
             }
             asyncProxyService.stopProxy(proxy, false);
         } else {

@@ -123,7 +123,11 @@ public class ContainerProxyApplication {
 		app.addListeners(new LoggingConfigurer());
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
-		if (!hasExternalConfig) app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
+		if (!hasExternalConfig) {
+			app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
+			Logger log = LogManager.getLogger(ContainerProxyApplication.class);
+			log.warn("WARNING: Did not found configuration, using fallback configuration!");
+		}
 
 		setDefaultProperties(app);
 

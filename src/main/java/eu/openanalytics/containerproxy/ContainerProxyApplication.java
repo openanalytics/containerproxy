@@ -81,6 +81,8 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SECURITY_HIDE_SPEC_DETAILS;
+import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES;
+import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG;
 import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
 
 @EnableScheduling
@@ -169,6 +171,10 @@ public class ContainerProxyApplication {
 			if (environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true)) {
 				// running in HA mode, but proxies are removed when shutting down
 				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
+			}
+			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+				environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
+				log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
 			}
 		}
 

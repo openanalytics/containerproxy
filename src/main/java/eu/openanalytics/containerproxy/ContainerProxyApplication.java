@@ -162,7 +162,6 @@ public class ContainerProxyApplication {
 			log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
 		}
 
-
 		if (environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
 			if (!environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
 				// running in HA mode, but not using Redis sessions
@@ -175,6 +174,20 @@ public class ContainerProxyApplication {
 			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
 				environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
 				log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
+			}
+		}
+
+		if (environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
+			if (!environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
+				// using Redis sessions, but not running in HA mode -> this does not make sense
+				// even with one replica, the HA mode should be used in order for the server to survive restarts (which is the reason Redis sessions are used)
+				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis, but store-more is not set to Redis. Change store-mode so that app sessions are stored in Redis!");
+			}
+			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+					environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
+				// using Redis sessions together with app recovery -> this does not make sense
+				// if already using Redis for sessions there is no reason to not store app sessions
+				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
 			}
 		}
 

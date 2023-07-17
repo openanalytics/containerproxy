@@ -64,30 +64,22 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 	}
 
 	@Override
-	protected IAuthenticationBackend createInstance() throws Exception {
+	protected IAuthenticationBackend createInstance() {
 		IAuthenticationBackend backend = null;
 
 		String type = environment.getProperty("proxy.authentication", "none");
 		switch (type) {
-		case NoAuthenticationBackend.NAME:
-			backend = new NoAuthenticationBackend();
-			break;
-		case SimpleAuthenticationBackend.NAME:
-			backend = new SimpleAuthenticationBackend();
-			break;
-		case LDAPAuthenticationBackend.NAME:
-			backend = new LDAPAuthenticationBackend();
-			break;
-		case OpenIDAuthenticationBackend.NAME:
-			backend = new OpenIDAuthenticationBackend();
-			break;
-		case KeycloakAuthenticationBackend.NAME:
-			return keycloakBackend;			
-		case WebServiceAuthenticationBackend.NAME:
-			backend = new WebServiceAuthenticationBackend();
-			break;
-		case SAMLAuthenticationBackend.NAME:
-			return samlBackend;
+			case NoAuthenticationBackend.NAME -> backend = new NoAuthenticationBackend();
+			case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
+			case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
+			case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
+			case KeycloakAuthenticationBackend.NAME -> {
+				return keycloakBackend;
+			}
+			case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend();
+			case SAMLAuthenticationBackend.NAME -> {
+				return samlBackend;
+			}
 		}
 		if (backend == null) throw new RuntimeException("Unknown authentication type:" + type);
 		

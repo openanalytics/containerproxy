@@ -34,8 +34,8 @@ import org.xnio.conduits.StreamSourceConduit;
 
 public class DelegatingStreamSourceConduit implements StreamSourceConduit {
 
-	private StreamSourceConduit delegate;
-	private Consumer<byte[]> readListener;
+	private final StreamSourceConduit delegate;
+	private final Consumer<byte[]> readListener;
 	
 	public DelegatingStreamSourceConduit(StreamSourceConduit delegate, Consumer<byte[]> readListener) {
 		this.delegate = delegate;

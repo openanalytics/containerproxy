@@ -284,9 +284,7 @@ public abstract class SpelField<O, R> {
             }
 
             Map<java.lang.String, java.lang.String> newValue = new HashMap<>();
-            originalValue.forEach((key, mapValue) -> {
-                newValue.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext));
-            });
+            originalValue.forEach((key, mapValue) -> newValue.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext)));
             return new SpelField.StringMap(originalValue, newValue);
         }
 

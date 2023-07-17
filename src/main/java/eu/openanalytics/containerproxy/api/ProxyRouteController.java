@@ -23,9 +23,8 @@ package eu.openanalytics.containerproxy.api;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.util.ImmediateJsonResponse;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 

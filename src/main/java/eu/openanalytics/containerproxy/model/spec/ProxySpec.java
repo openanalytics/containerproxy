@@ -119,7 +119,7 @@ public class ProxySpec {
                         containerSpecs
                                 .stream()
                                 .map(c -> c.firstResolve(resolver, context.copy(c)))
-                                .collect(Collectors.toList())
+                                .toList()
                 )
                 .build();
     }
@@ -136,7 +136,7 @@ public class ProxySpec {
                         containerSpecs
                                 .stream()
                                 .map(c -> c.finalResolve(resolver, context.copy(c)))
-                                .collect(Collectors.toList())
+                                .toList()
                 )
                 .build();
     }

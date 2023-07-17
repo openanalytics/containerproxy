@@ -44,7 +44,6 @@ import javax.inject.Inject;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -105,9 +104,9 @@ public class TestIntegrationPortAllocator {
 
         List<Integer> allAllocatedPorts = Stream.concat(portsThread1.stream(), portsThread2.stream())
                 .sorted()
-                .collect(Collectors.toList());
+                .toList();
 
-        List<Integer> expectedPorts = IntStream.range(100, 300).boxed().collect(Collectors.toList());
+        List<Integer> expectedPorts = IntStream.range(100, 300).boxed().toList();
 
         Assertions.assertEquals(expectedPorts, allAllocatedPorts);
     }
@@ -207,9 +206,9 @@ public class TestIntegrationPortAllocator {
         List<Integer> allAllocatedPorts = Stream.concat(portAllocator.getOwnedPorts("owner1_2").stream(),
                         portAllocator.getOwnedPorts("owner2_2").stream())
                 .sorted()
-                .collect(Collectors.toList());
+                .toList();
 
-        List<Integer> expectedPorts = IntStream.range(100, 110).boxed().collect(Collectors.toList());
+        List<Integer> expectedPorts = IntStream.range(100, 110).boxed().toList();
         Assertions.assertEquals(expectedPorts, allAllocatedPorts);
     }
 

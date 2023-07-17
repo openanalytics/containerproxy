@@ -34,7 +34,7 @@ public class ProxyIdKey extends RuntimeValueKey<String> {
                 String.class);
     }
 
-    public static ProxyIdKey inst = new ProxyIdKey();
+    public static final ProxyIdKey inst = new ProxyIdKey();
 
     @Override
     public String deserializeFromString(String value) {

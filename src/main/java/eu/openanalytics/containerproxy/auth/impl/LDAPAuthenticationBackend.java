@@ -68,7 +68,7 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
 		// Nothing to do.
 	}
 
@@ -92,7 +92,7 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 				contextSource.setPassword(cfg.managerPassword);
 			}
 			
-			if (Boolean.valueOf(cfg.startTLS) || STARTTLS_SIMPLE.equalsIgnoreCase(cfg.startTLS)) {
+			if (Boolean.parseBoolean(cfg.startTLS) || STARTTLS_SIMPLE.equalsIgnoreCase(cfg.startTLS)) {
 				// Explicitly disable connection pooling, or Spring may attempt to StartTLS twice on the same connection.
 				contextSource.setPooled(false);
 				contextSource.setAuthenticationStrategy(new DefaultTlsDirContextAuthenticationStrategy());
@@ -139,7 +139,7 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 				if (cfg == null) break;
 				else providers.add(cfg);
 			}
-			return providers.toArray(new LDAPProviderConfig[providers.size()]);
+			return providers.toArray(new LDAPProviderConfig[0]);
 		}
 		
 		public static LDAPProviderConfig load(Environment env, int index) {

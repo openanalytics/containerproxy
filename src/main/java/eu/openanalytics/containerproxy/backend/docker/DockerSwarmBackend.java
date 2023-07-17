@@ -60,13 +60,11 @@ import org.springframework.security.core.Authentication;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DockerSwarmBackend extends AbstractDockerBackend {
@@ -89,7 +87,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					.mapOrNull(volumes -> volumes.stream()
 							.map(b -> b.split(":"))
 							.map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
-							.toArray(i -> new Mount[i]));
+							.toArray(Mount[]::new));
 
 			Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
@@ -122,7 +120,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 					.getValueOrDefault(new ArrayList<>())
 					.stream()
 					.map(n -> NetworkAttachmentConfig.builder().target(n).build())
-					.collect(Collectors.toList());
+					.toList();
 
 			if (spec.getNetwork().isPresent()) {
 				networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
@@ -147,7 +145,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 				limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
 			}
 
-			String serviceName = "sp-service-" + UUID.randomUUID().toString();
+			String serviceName = "sp-service-" + UUID.randomUUID();
 			ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
 					.networks(networks)
 					.name(serviceName)

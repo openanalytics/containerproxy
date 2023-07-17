@@ -169,13 +169,8 @@ public class RedisSessionService extends AbstractSessionService {
     private Authentication extractAuthenticationIfAuthenticated(Session session) {
         Object object = session.getAttribute("SPRING_SECURITY_CONTEXT");
 
-        if (object instanceof SecurityContext) {
-            SecurityContext securityContext = (SecurityContext) object;
-
-            if (securityContext.getAuthentication().isAuthenticated()) {
-
-                return securityContext.getAuthentication();
-            }
+        if (object instanceof SecurityContext securityContext && securityContext.getAuthentication().isAuthenticated()) {
+            return securityContext.getAuthentication();
         }
 
         return null;

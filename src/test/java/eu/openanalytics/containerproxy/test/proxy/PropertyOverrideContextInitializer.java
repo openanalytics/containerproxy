@@ -29,7 +29,6 @@ import org.springframework.core.env.PropertySource;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 
 import javax.annotation.Nonnull;
-import java.util.stream.Collectors;
 
 public class PropertyOverrideContextInitializer
         implements ApplicationContextInitializer<ConfigurableApplicationContext> {
@@ -49,7 +48,7 @@ public class PropertyOverrideContextInitializer
                 .stream()
                 .map(PropertySource::getName)
                 .filter(p -> p.contains("Config resource 'file ") && p.contains("via location 'optional:file:./'"))
-                .collect(Collectors.toList())
+                .toList()
                 .forEach(propertySources::remove);
 
     }

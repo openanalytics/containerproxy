@@ -59,7 +59,7 @@ public class TestParametersService {
     @Inject
     private ParametersService parametersService;
 
-    private Authentication auth = mock(Authentication.class);
+    private final Authentication auth = mock(Authentication.class);
 
     @Test
     public void testBigParameters() {
@@ -182,7 +182,7 @@ public class TestParametersService {
     }
 
     private Pair<ParameterNames, ParameterValues> testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", parameter1);
             put("parameter2", parameter2);
             put("parameter3", parameter3);
@@ -195,7 +195,7 @@ public class TestParametersService {
     }
 
     private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", parameter1);
             put("parameter2", parameter2);
             put("parameter3", parameter3);
@@ -277,7 +277,7 @@ public class TestParametersService {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
 
         // too many parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
@@ -290,7 +290,7 @@ public class TestParametersService {
                 "Invalid number of parameters provided");
 
         // too few parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
@@ -305,7 +305,7 @@ public class TestParametersService {
     public void testInvalidParameterIds() {
         ProxySpec spec = proxyService.getProxySpec("big-parameters");
 
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", "The letter A");
             put("parameter2", "The number 1");
             put("parameter3", "Foo");
@@ -316,7 +316,7 @@ public class TestParametersService {
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
                 "Missing value for parameter parameter4");
 
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("parameterABC", "The letter A");
             put("parameter#$#$", "The number 1");
             put("parameter3343434", "Foo");

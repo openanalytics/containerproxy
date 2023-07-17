@@ -75,9 +75,8 @@ public class AuthController extends BaseController {
 		map.put("url", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString()); // default url
 
 		Object redirectUrl = request.getSession().getAttribute(AUTH_SUCCESS_URL_SESSION_ATTR);
-		if (redirectUrl instanceof String) {
+		if (redirectUrl instanceof String sRedirectUrl) {
 			request.getSession().removeAttribute(AUTH_SUCCESS_URL_SESSION_ATTR);
-			String sRedirectUrl = (String) redirectUrl;
 			// sanity check: does the redirect url start with the url of this current request
 			if (sRedirectUrl.startsWith(ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString())) {
 				map.put("url", redirectUrl);

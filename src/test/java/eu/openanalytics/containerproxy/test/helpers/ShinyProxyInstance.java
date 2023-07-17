@@ -31,9 +31,9 @@ import java.io.IOException;
 
 public class ShinyProxyInstance {
 
-    private ProcessBuilder processBuilder;
+    private final ProcessBuilder processBuilder;
     private Process process;
-    private int port;
+    private final int port;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 

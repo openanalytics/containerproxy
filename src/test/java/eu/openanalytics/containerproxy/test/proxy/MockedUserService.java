@@ -27,7 +27,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 public class MockedUserService extends UserService {
 

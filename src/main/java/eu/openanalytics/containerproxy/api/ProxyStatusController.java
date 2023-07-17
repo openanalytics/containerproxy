@@ -125,27 +125,32 @@ public class ProxyStatusController {
             return ApiResponse.failForbidden();
         }
 
-        if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Up)) {
-                return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+        switch (changeProxyStateDto.getDesiredState()) {
+            case "Pausing" -> {
+                if (!proxy.getStatus().equals(ProxyStatus.Up)) {
+                    return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+                }
+                asyncProxyService.pauseProxy(proxy, false);
             }
-            asyncProxyService.pauseProxy(proxy, false);
-        } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
-                return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+            case "Resuming" -> {
+                if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
+                    return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+                }
+                try {
+                    asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
+                } catch (InvalidParametersException ex) {
+                    return ApiResponse.fail(ex.getMessage());
+                }
             }
-            try {
-                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
-            } catch (InvalidParametersException ex) {
-                return ApiResponse.fail(ex.getMessage());
+            case "Stopping" -> {
+                if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                    return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+                }
+                asyncProxyService.stopProxy(proxy, false);
             }
-        } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-            if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
-                return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+            default -> {
+                return ApiResponse.fail("Invalid desiredState");
             }
-            asyncProxyService.stopProxy(proxy, false);
-        } else {
-            return ApiResponse.fail("Invalid desiredState");
         }
 
         return ApiResponse.success();

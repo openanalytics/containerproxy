@@ -40,11 +40,10 @@ import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.Headers;
 import io.undertow.util.PathMatcher;
-import org.springframework.context.annotation.Lazy;
 import io.undertow.util.StatusCodes;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.security.web.header.Header;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
@@ -216,7 +215,7 @@ public class ProxyMappingManager {
 				// in-progress request got terminated because the app has been stopped (not crashed)
 				errorPage = "{\"status\":\"error\", \"message\":\"app_stopped_or_non_existent\"}";
 			}
-			responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, "" + errorPage.length());
+			responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, String.valueOf(errorPage.length()));
 			responseExchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
 			Sender sender = responseExchange.getResponseSender();
 			sender.send(errorPage);

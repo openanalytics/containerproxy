@@ -66,7 +66,7 @@ public class TestExecutionListener extends SummaryGeneratingListener {
     }
 
     private String identifier(TestIdentifier testIdentifier) {
-        if (!testIdentifier.getSource().isPresent()) {
+        if (testIdentifier.getSource().isEmpty()) {
             return testIdentifier.getDisplayName();
         }
         MethodSource methodSource = (MethodSource) testIdentifier.getSource().get();

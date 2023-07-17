@@ -34,7 +34,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -61,8 +60,8 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     @Override
     public KubernetesSpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
-                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
+                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
+                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
                 .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
                 .build();
     }

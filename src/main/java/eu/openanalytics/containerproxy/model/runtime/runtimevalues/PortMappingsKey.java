@@ -38,7 +38,7 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
                 PortMappings.class);
     }
 
-    public static PortMappingsKey inst = new PortMappingsKey();
+    public static final PortMappingsKey inst = new PortMappingsKey();
 
     @Override
     public PortMappings deserializeFromString(String value) {

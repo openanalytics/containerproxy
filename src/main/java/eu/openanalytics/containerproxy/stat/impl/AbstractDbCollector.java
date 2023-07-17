@@ -55,12 +55,12 @@ public abstract class AbstractDbCollector implements IStatCollector {
     }
 
     @EventListener
-    public void onProxyStartFailedEvent(ProxyStartFailedEvent event) throws IOException {
+    public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
         // TODO
     }
 
     @EventListener
-    public void onAuthFailedEvent(AuthFailedEvent event) throws IOException {
+    public void onAuthFailedEvent(AuthFailedEvent event) {
         // TODO
     }
 

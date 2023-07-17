@@ -44,7 +44,7 @@ public class NoAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
 		// Nothing to do.
 	}
 

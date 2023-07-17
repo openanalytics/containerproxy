@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.AllowedParametersForUser;
-import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
+import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.spec.ParameterDefinition;
 import eu.openanalytics.containerproxy.model.spec.Parameters;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -44,7 +44,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 public class ParametersService {
@@ -102,7 +101,7 @@ public class ParametersService {
         }
 
         // Check that either no defaults are provided or that all parameters has a default value
-        List<String> defaults = spec.getParameters().getDefinitions().stream().map(ParameterDefinition::getDefaultValue).collect(Collectors.toList());
+        List<String> defaults = spec.getParameters().getDefinitions().stream().map(ParameterDefinition::getDefaultValue).toList();
         if (!defaults.stream().allMatch(Objects::isNull) && !defaults.stream().allMatch(Objects::nonNull)) {
             throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: not every parameter has a default value. Either define no defaults, or defaults for all parameters.", spec.getId()));
         }
@@ -258,7 +257,7 @@ public class ParametersService {
         // 1. check which ValueSets are allowed for this user
         List<Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
                 .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
-                .collect(Collectors.toList());
+                .toList();
 
         // 2. compute a unique (per parameter id) index for every value
         // mapping of parameter id to a mapping of an allowed value and its index

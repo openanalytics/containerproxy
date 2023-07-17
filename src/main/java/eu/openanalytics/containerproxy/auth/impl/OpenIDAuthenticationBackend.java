@@ -37,7 +37,6 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
@@ -58,7 +57,6 @@ import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
@@ -66,10 +64,6 @@ import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuc
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -131,15 +125,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 				.authorizationEndpoint()
 					.authorizationRequestResolver(authorizationRequestResolver())
 				.and()
-				.failureHandler(new AuthenticationFailureHandler() {
-
-					@Override
-					public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
-							AuthenticationException exception) throws IOException, ServletException {
-						log.error(exception);
-						response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/auth-error").build().toUriString());
-					}
-					
+				.failureHandler((request, response, exception) -> {
+					log.error(exception);
+					response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/auth-error").build().toUriString());
 				})
 				.userInfoEndpoint()
 					.userAuthoritiesMapper(createAuthoritiesMapper())
@@ -162,7 +150,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
 		// Nothing to do.
 	}
 
@@ -266,8 +254,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 			List<String> result = new ArrayList<>();
 			try {
 				Object value = new JSONParser(JSONParser.MODE_PERMISSIVE).parse((String) claimValue);
-				if (value instanceof List) {
-					List<?> valueList = (List<?>) value;
+				if (value instanceof List<?> valueList) {
 					valueList.forEach(o -> result.add(o.toString()));
 				}
 			} catch (ParseException e) {

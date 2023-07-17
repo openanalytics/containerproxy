@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.model.spec;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Parameters {
 
@@ -36,7 +35,7 @@ public class Parameters {
     }
 
     public List<String> getIds() {
-        return definitions.stream().map(ParameterDefinition::getId).collect(Collectors.toList());
+        return definitions.stream().map(ParameterDefinition::getId).toList();
     }
 
     public void setDefinitions(List<ParameterDefinition> definitions) {

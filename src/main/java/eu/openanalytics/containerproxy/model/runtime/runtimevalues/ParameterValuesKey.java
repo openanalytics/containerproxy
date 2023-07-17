@@ -38,7 +38,7 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
                 ParameterValues.class);
     }
 
-    public static ParameterValuesKey inst = new ParameterValuesKey();
+    public static final ParameterValuesKey inst = new ParameterValuesKey();
 
     @Override
     public ParameterValues deserializeFromString(String value) {

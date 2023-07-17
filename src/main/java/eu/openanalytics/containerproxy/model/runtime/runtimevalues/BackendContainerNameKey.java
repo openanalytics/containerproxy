@@ -34,7 +34,7 @@ public class BackendContainerNameKey extends RuntimeValueKey<String> {
                 String.class);
     }
 
-    public static BackendContainerNameKey inst = new BackendContainerNameKey();
+    public final static BackendContainerNameKey inst = new BackendContainerNameKey();
 
     @Override
     public String deserializeFromString(String value) {

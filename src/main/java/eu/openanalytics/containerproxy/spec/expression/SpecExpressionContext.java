@@ -37,7 +37,6 @@ import org.springframework.security.ldap.userdetails.LdapUserDetails;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Value
 @EqualsAndHashCode()
@@ -62,7 +61,7 @@ public class SpecExpressionContext {
         if (attribute == null) {
             return Collections.emptyList();
         }
-        return Arrays.stream(attribute.split(regex)).map(String::trim).collect(Collectors.toList());
+        return Arrays.stream(attribute.split(regex)).map(String::trim).toList();
     }
 
     /**
@@ -80,7 +79,7 @@ public class SpecExpressionContext {
         if (attribute == null) {
             return Collections.emptyList();
         }
-        return Arrays.stream(attribute.split(regex)).map(it -> it.trim().toLowerCase()).collect(Collectors.toList());
+        return Arrays.stream(attribute.split(regex)).map(it -> it.trim().toLowerCase()).toList();
     }
 
     /**

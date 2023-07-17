@@ -42,7 +42,6 @@ import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.security.access.AccessDeniedException;
@@ -63,7 +62,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -173,7 +171,7 @@ public class ProxyService {
 		return baseSpecProvider.getSpecs().stream()
 				.filter(spec -> ignoreAccessControl || userService.canAccess(spec))
 				.filter(spec -> filter == null || filter.test(spec))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	/**

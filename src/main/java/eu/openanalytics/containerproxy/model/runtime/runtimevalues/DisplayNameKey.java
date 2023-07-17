@@ -34,7 +34,7 @@ public class DisplayNameKey extends RuntimeValueKey<String> {
                 String.class);
     }
 
-    public static DisplayNameKey inst = new DisplayNameKey();
+    public static final DisplayNameKey inst = new DisplayNameKey();
 
     @Override
     public String deserializeFromString(String value) {

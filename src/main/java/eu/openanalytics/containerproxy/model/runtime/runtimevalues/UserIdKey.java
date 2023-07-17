@@ -34,7 +34,7 @@ public class UserIdKey extends RuntimeValueKey<String> {
                 String.class);
     }
 
-    public static UserIdKey inst = new UserIdKey();
+    public static final UserIdKey inst = new UserIdKey();
 
     @Override
     public String deserializeFromString(String value) {

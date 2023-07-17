@@ -90,7 +90,7 @@ public class AppRecoveryFilter extends GenericFilterBean {
                 throw new IllegalStateException("Application name should be available"); // we provide a default so this should not happen
             }
 
-            renderedTemplate = IOUtils.toString(template, StandardCharsets.UTF_8.name());
+            renderedTemplate = IOUtils.toString(template, StandardCharsets.UTF_8);
             renderedTemplate = renderedTemplate.replace("${application_name}", applicationName);
         }
 
@@ -101,4 +101,3 @@ public class AppRecoveryFilter extends GenericFilterBean {
     }
 
 }
-

@@ -21,15 +21,13 @@
 package eu.openanalytics.containerproxy.stat.impl;
 
 import org.apache.commons.io.IOUtils;
-import org.springframework.core.env.Environment;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 
@@ -56,7 +54,7 @@ public class InfluxDBCollector extends AbstractDbCollector {
 		conn.setRequestMethod("POST");
 		conn.setDoOutput(true);
 		try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
-			dos.write(body.getBytes("UTF-8"));
+			dos.write(body.getBytes(StandardCharsets.UTF_8));
 			dos.flush();
 		}
 		int responseCode = conn.getResponseCode();
@@ -65,7 +63,7 @@ public class InfluxDBCollector extends AbstractDbCollector {
 		} else {
 			ByteArrayOutputStream bos = new ByteArrayOutputStream();
 			IOUtils.copy(conn.getErrorStream(), bos);
-			throw new IOException(new String(bos.toByteArray()));
+			throw new IOException(bos.toString());
 		}
 	}
 }

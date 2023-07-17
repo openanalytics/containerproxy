@@ -190,21 +190,16 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 		String frameOptions = environment.getProperty("server.frame-options", "disable");
 		switch (frameOptions.toUpperCase()) {
-			case "DISABLE":
-				http.headers().frameOptions().disable();
-				break;
-			case "DENY":
-				http.headers().frameOptions().deny();
-				break;
-			case "SAMEORIGIN":
-				http.headers().frameOptions().sameOrigin();
-				break;
-			default:
+			case "DISABLE" -> http.headers().frameOptions().disable();
+			case "DENY" -> http.headers().frameOptions().deny();
+			case "SAMEORIGIN" -> http.headers().frameOptions().sameOrigin();
+			default -> {
 				if (frameOptions.toUpperCase().startsWith("ALLOW-FROM")) {
 					http.headers()
-						.frameOptions().disable()
-						.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
+							.frameOptions().disable()
+							.addHeaderWriter(new StaticHeadersWriter("X-Frame-Options", frameOptions));
 				}
+			}
 		}
 
 		List<Header> headers = getCustomHeaders();

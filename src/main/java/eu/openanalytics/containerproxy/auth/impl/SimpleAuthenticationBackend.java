@@ -56,7 +56,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 	}
 	
 	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
+	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
 		// Nothing to do.
 	}
 
@@ -97,9 +97,9 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 	
 	private static class SimpleUser {
 		
-		public String name;
-		public String password;
-		public String[] roles;
+		public final String name;
+		public final String password;
+		public final String[] roles;
 		
 		public SimpleUser(String name, String password, String[] roles) {
 			this.name = name;

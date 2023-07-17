@@ -44,11 +44,11 @@ public interface IStatCollector {
     }
 
     @EventListener
-    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) throws IOException {
+    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
     }
 
     @EventListener
-    default public void onAuthFailedEvent(AuthFailedEvent event) throws IOException {
+    default public void onAuthFailedEvent(AuthFailedEvent event) {
     }
 
 }

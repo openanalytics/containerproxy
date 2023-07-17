@@ -23,10 +23,8 @@ package eu.openanalytics.containerproxy.auth.impl;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler;
 import org.keycloak.adapters.AdapterDeploymentContext;
-import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
-import org.keycloak.adapters.spi.HttpFacade.Request;
 import org.keycloak.adapters.spi.KeycloakAccount;
 import org.keycloak.adapters.springsecurity.AdapterDeploymentContextFactoryBean;
 import org.keycloak.adapters.springsecurity.account.KeycloakRole;
@@ -75,7 +73,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Component
 public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
@@ -121,7 +118,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	}
 
 	@Override
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
 		 auth.authenticationProvider(keycloakAuthenticationProvider());
 	}
 
@@ -132,7 +129,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	
 	@Bean
 	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() throws Exception {
+	protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() {
 		// Possible solution for issue #21037, create a custom RequestMatcher that doesn't include a QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) request matcher.
 		// The QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) caused the HTTP requests to be changed before they where processed.
 		// Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
@@ -192,17 +189,12 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		cfg.setAuthServerUrl(environment.getProperty("proxy.keycloak.auth-server-url"));
 		cfg.setResource(environment.getProperty("proxy.keycloak.resource"));
 		cfg.setSslRequired(environment.getProperty("proxy.keycloak.ssl-required", "external"));
-		cfg.setUseResourceRoleMappings(Boolean.valueOf(environment.getProperty("proxy.keycloak.use-resource-role-mappings", "false")));
+		cfg.setUseResourceRoleMappings(environment.getProperty("proxy.keycloak.use-resource-role-mappings", Boolean.class, false));
 		Map<String,Object> credentials = new HashMap<>();
 		credentials.put("secret", environment.getProperty("proxy.keycloak.credentials-secret"));
 		cfg.setCredentials(credentials);
 		KeycloakDeployment dep = KeycloakDeploymentBuilder.build(cfg);
-		AdapterDeploymentContextFactoryBean factoryBean = new AdapterDeploymentContextFactoryBean(new KeycloakConfigResolver() {
-			@Override
-			public KeycloakDeployment resolve(Request facade) {
-				return dep;
-			}
-		});
+		AdapterDeploymentContextFactoryBean factoryBean = new AdapterDeploymentContextFactoryBean(facade -> dep);
 		factoryBean.afterPropertiesSet();
 		return factoryBean.getObject();
 	}
@@ -216,11 +208,11 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 			@Override
 			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 				KeycloakAuthenticationToken token = (KeycloakAuthenticationToken) super.authenticate(authentication);
-				List<GrantedAuthority> auth = token.getAuthorities().stream()
+				List<KeycloakRole> auth = token.getAuthorities().stream()
 						.map(t -> t.getAuthority().toUpperCase())
 						.map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
-						.map(a -> new KeycloakRole(a))
-						.collect(Collectors.toList());
+						.map(KeycloakRole::new)
+						.toList();
 				String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
 				return new KeycloakAuthenticationToken2(token.getAccount(), token.isInteractive(), nameAttribute, auth);
 			}
@@ -235,7 +227,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		
 		private static final long serialVersionUID = -521347733024996150L;
 
-		private String nameAttribute;
+		private final String nameAttribute;
 		
 		public KeycloakAuthenticationToken2(KeycloakAccount account, boolean interactive, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
 			super(account, interactive, authorities);
@@ -251,12 +243,12 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 				// can safely fall back to them.
 				token = getAccount().getKeycloakSecurityContext().getToken();
 			}
-			switch (nameAttribute) {
-			case IDToken.PREFERRED_USERNAME: return token.getPreferredUsername();
-			case IDToken.NICKNAME: return token.getNickName();
-			case IDToken.EMAIL: return token.getEmail();
-			default: return token.getName();
-			}
+			return switch (nameAttribute) {
+				case IDToken.PREFERRED_USERNAME -> token.getPreferredUsername();
+				case IDToken.NICKNAME -> token.getNickName();
+				case IDToken.EMAIL -> token.getEmail();
+				default -> token.getName();
+			};
 		}
 	}
 }

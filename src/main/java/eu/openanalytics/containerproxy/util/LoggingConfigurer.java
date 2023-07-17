@@ -73,10 +73,9 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
 
     private void setupFileAppender(LoggerContext context, Logger rootLogger) {
         Appender<ILoggingEvent> oldAppender = rootLogger.getAppender("FILE");
-        if (oldAppender instanceof RollingFileAppender) {
+        if (oldAppender instanceof RollingFileAppender<ILoggingEvent> oldFileAppender) {
             oldAppender.stop();
 
-            RollingFileAppender<ILoggingEvent> oldFileAppender = (RollingFileAppender<ILoggingEvent>) oldAppender;
             RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<>();
             appender.setEncoder(createEncoder());
             appender.setName("FILE");

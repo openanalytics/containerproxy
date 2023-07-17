@@ -233,7 +233,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 			List<ContainerPort> containerPorts = spec.getPortMapping().stream()
 					.map(p -> new ContainerPortBuilder().withContainerPort(p.getPort()).build())
-					.collect(Collectors.toList());
+					.toList();
 
 			ContainerBuilder containerBuilder = new ContainerBuilder()
 					.withImage(spec.getImage().getValue())
@@ -292,8 +292,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			PodSpec podSpec = new PodSpec();
 			podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
 			podSpec.setVolumes(volumes);
-			podSpec.setImagePullSecrets(Arrays.stream(imagePullSecrets)
-					.map(LocalObjectReference::new).collect(Collectors.toList()));
+			podSpec.setImagePullSecrets(Arrays.stream(imagePullSecrets).map(LocalObjectReference::new).toList());
 
 			String nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
 			if (nodeSelectorString != null) {
@@ -348,7 +347,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			} else {
 				List<ServicePort> servicePorts = spec.getPortMapping().stream()
 						.map(p -> new ServicePortBuilder().withPort(p.getPort()).build())
-						.collect(Collectors.toList());
+						.toList();
 
 				Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace)
 						.create(new ServiceBuilder()
@@ -590,10 +589,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	@Override
-	protected void doStopProxy(Proxy proxy) throws Exception {
+	protected void doStopProxy(Proxy proxy) {
 		for (Container container: proxy.getContainers()) {
 			Optional<Pair<String, String>> podInfo = getPodInfo(container);
-			if (!podInfo.isPresent()) {
+			if (podInfo.isEmpty()) {
 				// container was not yet fully created
 				continue;
 			}

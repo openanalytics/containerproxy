@@ -156,7 +156,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
      * This test starts a Proxy with a Spec containing two volumes.
      */
     @Test
-    public void launchProxyWithVolumes() throws Exception {
+    public void launchProxyWithVolumes() {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[1].id");
 
@@ -209,7 +209,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
      * This test starts a Proxy with a Spec containing env variables.
      */
     @Test
-    public void launchProxyWithEnv() throws Exception {
+    public void launchProxyWithEnv() {
         setup((client, namespace, overriddenNamespace) -> {
             String specId = environment.getProperty("proxy.specs[2].id");
 
@@ -256,7 +256,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
     }
 
     @Test
-    public void launchProxyWithSecretRef() throws Exception {
+    public void launchProxyWithSecretRef() {
         setup((client, namespace, overriddenNamespace) -> {
             // first create the required secret
             client.secrets().inNamespace(namespace).create(
@@ -783,7 +783,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             client.secrets().inNamespace(namespace).create(new SecretBuilder()
                     .withNewMetadata()
                     .withName("manifests-secret")
-                    .withLabels(new HashMap<String, String>() {{
+                    .withLabels(new HashMap<>() {{
                         put("openanalytics.eu/sp-additional-manifest", "true");
                         put("openanalytics.eu/sp-persistent-manifest", "false");
                         put("openanalytics.eu/sp-manifest-id", "4d1d0a831959477994c28330254195c1623c17fb");
@@ -1381,11 +1381,11 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                     spec,
                     null,
                     proxyId,
-                    new HashMap<String, String>() {{
-                        put("environment", "base_r");
-                        put("version", "4.0.5");
-                        put("memory", "2G");
-                    }})
+                            new HashMap<>() {{
+                                put("environment", "base_r");
+                                put("version", "4.0.5");
+                                put("memory", "2G");
+                            }})
                     .run();
             Proxy proxy = proxyService.getProxy(proxyId);
 
@@ -1432,11 +1432,11 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                     spec,
                     null,
                     proxyId,
-                    new HashMap<String, String>() {{
-                        put("environment", "base_r");
-                        put("version", "4.0.5");
-                        put("memory", "2G");
-                    }})
+                            new HashMap<>() {{
+                                put("environment", "base_r");
+                                put("version", "4.0.5");
+                                put("memory", "2G");
+                            }})
                     .run();
             Proxy proxy = proxyService.getProxy(proxyId);
 
@@ -1475,11 +1475,11 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             ContainerProxyException ex = Assertions.assertThrows(ContainerProxyException.class, () -> {
                 proxyService.startProxy(userService.getCurrentAuth(), spec, null,
                         UUID.randomUUID().toString(),
-                        new HashMap<String, String>() {{
-                            put("environment", "base_r");
-                            put("version", "4.0.5");
-                            put("memory", "2G");
-                        }})
+                                new HashMap<>() {{
+                                    put("environment", "base_r");
+                                    put("version", "4.0.5");
+                                    put("memory", "2G");
+                                }})
                         .run();
             }, "The parameter with id \"non-existing-parameter\" does not exist");
 
@@ -1512,7 +1512,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                             spec,
                             null,
                             proxyId,
-                            new HashMap<String, String>() {{
+                            new HashMap<>() {{
                                 put("environment", "base_r");
                                 put("version", "4.0.5");
                                 put("memory", "2G");

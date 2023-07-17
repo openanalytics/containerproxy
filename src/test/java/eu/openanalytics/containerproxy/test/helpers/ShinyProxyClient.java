@@ -34,7 +34,7 @@ public class ShinyProxyClient {
     private final String baseUrl;
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ShinyProxyClient(String username, String password, int port) {
         this.baseUrl = "http://localhost:" + port;

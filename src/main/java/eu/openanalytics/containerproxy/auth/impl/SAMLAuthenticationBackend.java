@@ -57,7 +57,6 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.R
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_SERVICE_LOCATION_PATH;
-import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 
 @Component
 @ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
@@ -139,7 +138,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
     }
 
     @Override

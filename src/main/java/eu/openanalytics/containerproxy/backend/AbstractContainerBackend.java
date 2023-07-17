@@ -94,8 +94,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	@Override
 	public void initialize() throws ContainerProxyException {
 		// If this application runs as a container itself, things like port publishing can be omitted.
-		useInternalNetwork = Boolean.valueOf(getProperty(PROPERTY_INTERNAL_NETWORKING, "false"));
-		privileged = Boolean.valueOf(getProperty(PROPERTY_PRIVILEGED, "false"));
+		useInternalNetwork = getProperty(PROPERTY_INTERNAL_NETWORKING, false);
+		privileged = getProperty(PROPERTY_PRIVILEGED, false);
 	}
 
 	@Override
@@ -140,7 +140,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 	}
 
 	protected String getProperty(String key) {
-		return getProperty(key, null);
+		return environment.getProperty(getPropertyPrefix() + key);
+	}
+
+	protected Boolean getProperty(String key, Boolean defaultValue) {
+		return environment.getProperty(getPropertyPrefix() + key, Boolean.class, defaultValue);
 	}
 
 	protected String getProperty(String key, String defaultValue) {
@@ -156,16 +160,11 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 		long mem = Long.parseLong(matcher.group(1));
 		String unit = matcher.group(2);
 		switch (unit) {
-		case "k":
-			mem *= 1024;
-			break;
-		case "m":
-			mem *= 1024*1024;
-			break;
-		case "g":
-			mem *= 1024*1024*1024;
-			break;
-		default:
+			case "k" -> mem *= 1024;
+			case "m" -> mem *= 1024 * 1024;
+			case "g" -> mem *= 1024 * 1024 * 1024;
+			default -> {
+			}
 		}
 		return mem;
 	}

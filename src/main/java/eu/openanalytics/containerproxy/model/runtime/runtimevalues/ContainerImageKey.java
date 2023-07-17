@@ -34,7 +34,7 @@ public class ContainerImageKey extends RuntimeValueKey<String> {
                 String.class);
     }
 
-    public static ContainerImageKey inst = new ContainerImageKey();
+    public static final ContainerImageKey inst = new ContainerImageKey();
 
     @Override
     public String deserializeFromString(String value) {

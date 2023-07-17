@@ -120,7 +120,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "base_r");
             put("version", "4.0.5");
             put("memory", "8G");
@@ -129,7 +129,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -140,7 +140,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -192,7 +192,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -201,7 +201,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -252,7 +252,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.1.13");
             put("memory", "8G");
@@ -261,7 +261,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -272,7 +272,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -323,7 +323,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -332,7 +332,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -343,7 +343,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.1.13");
             put("memory", "8G");

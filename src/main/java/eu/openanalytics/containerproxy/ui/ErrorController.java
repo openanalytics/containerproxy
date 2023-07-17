@@ -50,10 +50,9 @@ public class ErrorController extends BaseController implements org.springframewo
 
 		// handle keycloak errors
 	    Object obj = request.getSession().getAttribute(SP_KEYCLOAK_ERROR_REASON);
-	    if (obj instanceof OIDCAuthenticationError.Reason) {
+	    if (obj instanceof OIDCAuthenticationError.Reason reason) {
 	    	request.getSession().removeAttribute(SP_KEYCLOAK_ERROR_REASON);
-			OIDCAuthenticationError.Reason reason = (OIDCAuthenticationError.Reason) obj;
-	    	if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
+			if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
 				reason == OIDCAuthenticationError.Reason.STALE_TOKEN) {
 	    		// These errors are typically caused by users using wrong bookmarks (e.g. bookmarks with states in)
 				// or when some cookies got stale. However, the user is logged into the IDP, therefore it's enough to

@@ -33,10 +33,8 @@ import java.util.concurrent.TimeUnit;
 
 public class DelegatingStreamSinkConduit implements StreamSinkConduit {
 
-	private StreamSinkConduit delegate;
-	private Runnable writeListener;
-	
-
+	private final StreamSinkConduit delegate;
+	private final Runnable writeListener;
 	
 	public DelegatingStreamSinkConduit(StreamSinkConduit delegate, Runnable writeListener) {
 		this.delegate = delegate;

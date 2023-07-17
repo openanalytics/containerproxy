@@ -34,7 +34,6 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Data
 @Setter
@@ -119,7 +118,7 @@ public class ContainerSpec {
                 .memoryLimit(memoryLimit.resolve(resolver, context))
                 .cpuRequest(cpuRequest.resolve(resolver, context))
                 .cpuLimit(cpuLimit.resolve(resolver, context))
-                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
                 .build();
     }
 

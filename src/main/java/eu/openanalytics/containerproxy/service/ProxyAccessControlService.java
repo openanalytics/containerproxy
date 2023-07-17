@@ -84,7 +84,7 @@ public class ProxyAccessControlService {
             return false;
         }
         Optional<String> sessionId = getSessionId();
-        if (!sessionId.isPresent()) {
+        if (sessionId.isEmpty()) {
             return checkAccess(auth, spec);
         }
         // we got a sessionId -> use the cache

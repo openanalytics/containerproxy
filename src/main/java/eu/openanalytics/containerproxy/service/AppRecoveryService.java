@@ -42,7 +42,6 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Service to recover running apps after restart.
@@ -110,7 +109,7 @@ public class AppRecoveryService {
 							.values()
 							.stream()
 							.filter(r -> !r.getKey().isContainerSpecific())
-							.collect(Collectors.toList())
+							.toList()
 					);
 
 					proxies.put(proxyId, proxy);
@@ -122,7 +121,7 @@ public class AppRecoveryService {
 						.values()
 						.stream()
 						.filter(r -> r.getKey().isContainerSpecific())
-						.collect(Collectors.toList())
+						.toList()
 				);
 				containerBuilder.index(containerInfo.getRuntimeValue(ContainerIndexKey.inst).getObject());
 

@@ -20,15 +20,6 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import javax.inject.Inject;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.AbstractFactoryBean;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Primary;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
 import eu.openanalytics.containerproxy.auth.impl.KeycloakAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
@@ -36,55 +27,63 @@ import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.AbstractFactoryBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+
+import javax.inject.Inject;
 
 /**
  * Instantiates an appropriate authentication backend depending on the application configuration.
  */
-@Service(value="authenticationBackend")
+@Service(value = "authenticationBackend")
 @Primary
 public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthenticationBackend> {
 
-	@Inject
-	private Environment environment;
-	
-	@Inject
-	private ApplicationContext applicationContext;
-	
-	// These backends register some beans of their own, so must be instantiated here.
-	
-	@Inject
-	private KeycloakAuthenticationBackend keycloakBackend;
-	
-	@Autowired(required = false)
-	private SAMLAuthenticationBackend samlBackend;
-	
-	@Override
-	public Class<?> getObjectType() {
-		return IAuthenticationBackend.class;
-	}
+    @Inject
+    private Environment environment;
 
-	@Override
-	protected IAuthenticationBackend createInstance() {
-		IAuthenticationBackend backend = null;
+    @Inject
+    private ApplicationContext applicationContext;
 
-		String type = environment.getProperty("proxy.authentication", "none");
-		switch (type) {
-			case NoAuthenticationBackend.NAME -> backend = new NoAuthenticationBackend();
-			case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
-			case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
-			case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
-			case KeycloakAuthenticationBackend.NAME -> {
-				return keycloakBackend;
-			}
-			case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend();
-			case SAMLAuthenticationBackend.NAME -> {
-				return samlBackend;
-			}
-		}
-		if (backend == null) throw new RuntimeException("Unknown authentication type:" + type);
-		
-		applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
-		return backend;
-	}
+    // These backends register some beans of their own, so must be instantiated here.
+
+    @Inject
+    private KeycloakAuthenticationBackend keycloakBackend;
+
+    @Autowired(required = false)
+    private SAMLAuthenticationBackend samlBackend;
+
+    @Override
+    public Class<?> getObjectType() {
+        return IAuthenticationBackend.class;
+    }
+
+    @Override
+    protected IAuthenticationBackend createInstance() {
+        IAuthenticationBackend backend = null;
+
+        String type = environment.getProperty("proxy.authentication", "none");
+        switch (type) {
+            case NoAuthenticationBackend.NAME -> backend = new NoAuthenticationBackend();
+            case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
+            case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
+            case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
+            case KeycloakAuthenticationBackend.NAME -> {
+                return keycloakBackend;
+            }
+            case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend();
+            case SAMLAuthenticationBackend.NAME -> {
+                return samlBackend;
+            }
+        }
+        if (backend == null) throw new RuntimeException("Unknown authentication type:" + type);
+
+        applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
+        return backend;
+    }
 
 }

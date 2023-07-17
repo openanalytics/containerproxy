@@ -90,306 +90,300 @@ import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP
 @SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
-	public static final String CONFIG_FILENAME = "application.yml";
-	public static final String CONFIG_DEMO_PROFILE = "demo";
+    public static final String CONFIG_FILENAME = "application.yml";
+    public static final String CONFIG_DEMO_PROFILE = "demo";
+    private static final String PROP_PROXY_SAME_SITE_COOKIE = "proxy.same-site-cookie";
+    private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
+    private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
+    private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
+    public static Boolean secureCookiesEnabled;
+    public static String sameSiteCookiePolicy;
 
-	@Inject
-	private Environment environment;
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+        ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
+        ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
+        ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
+    }
 
-	@Inject
-	private ProxyMappingManager mappingManager;
+    private final Logger log = LogManager.getLogger(getClass());
+    @Inject
+    private Environment environment;
+    @Inject
+    private ProxyMappingManager mappingManager;
+    @Inject
+    private DefaultCookieSerializer defaultCookieSerializer;
+    @Autowired(required = false)
+    private SessionManagerFactory sessionManagerFactory;
 
-	@Inject
-	private DefaultCookieSerializer defaultCookieSerializer;
+    public static void main(String[] args) {
+        SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
 
-	private final Logger log = LogManager.getLogger(getClass());
+        app.addListeners(new LoggingConfigurer());
 
-	private static final String PROP_PROXY_SAME_SITE_COOKIE = "proxy.same-site-cookie";
-	private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
-	private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
-	private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
+        boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
+        if (!hasExternalConfig) {
+            app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
+            Logger log = LogManager.getLogger(ContainerProxyApplication.class);
+            log.warn("WARNING: Did not found configuration, using fallback configuration!");
+        }
 
-	public static Boolean secureCookiesEnabled;
-	public static String sameSiteCookiePolicy;
+        setDefaultProperties(app);
 
-	static {
-		Security.addProvider(new BouncyCastleProvider());
-		ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
-		ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
-		ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
-	}
+        try {
+            app.setLogStartupInfo(false);
+            app.run(args);
+        } catch (Exception e) {
+            // Workaround for bug in UndertowEmbeddedServletContainer.start():
+            // If undertow.start() fails, started remains false which prevents undertow.stop() from ever being called.
+            // Undertow's (non-daemon) XNIO worker threads will then prevent the JVM from exiting.
+            if (e instanceof PortInUseException) System.exit(-1);
+        }
+    }
 
-	public static void main(String[] args) {
-		SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
+    public static Properties getDefaultProperties() {
+        Properties properties = new Properties();
 
-		app.addListeners(new LoggingConfigurer());
+        // use in-memory session storage by default. Can be overwritten in application.yml
+        properties.put("spring.session.store-type", "none");
+        // required for proper working of the SP_USER_INITIATED_LOGOUT session attribute in the UserService
+        properties.put("spring.session.redis.flush-mode", "IMMEDIATE");
 
-		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
-		if (!hasExternalConfig) {
-			app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
-			Logger log = LogManager.getLogger(ContainerProxyApplication.class);
-			log.warn("WARNING: Did not found configuration, using fallback configuration!");
-		}
+        // disable multi-part handling by Spring. We don't need this anywhere in the application.
+        // When enabled this will cause problems when proxying file-uploads to the shiny apps.
+        properties.put("spring.servlet.multipart.enabled", "false");
 
-		setDefaultProperties(app);
+        // disable logging of requests, since this reads part of the requests and therefore undertow is unable to correctly handle those requests
+        properties.put("logging.level.org.springframework.web.servlet.DispatcherServlet", "INFO");
+        properties.put("logging.level.io.fabric8.kubernetes.client.dsl.internal.VersionUsageUtils", "ERROR");
 
-		try {
-			app.setLogStartupInfo(false);
-			app.run(args);
-		} catch (Exception e) {
-			// Workaround for bug in UndertowEmbeddedServletContainer.start():
-			// If undertow.start() fails, started remains false which prevents undertow.stop() from ever being called.
-			// Undertow's (non-daemon) XNIO worker threads will then prevent the JVM from exiting.
-			if (e instanceof PortInUseException) System.exit(-1);
-		}
-	}
+        properties.put("spring.application.name", "ContainerProxy");
 
+        // Metrics configuration
+        // ====================
 
-	@PostConstruct
-	public void init() {
-		if (environment.getProperty("server.use-forward-headers") != null) {
-			log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on how to change your configuration.");
-		}
+        // disable all supported exporters by default
+        // Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
+        properties.put("management.metrics.export.prometheus.enabled", "false");
+        properties.put("management.metrics.export.influx.enabled", "false");
+        // set actuator to port 9090 (can be overwritten)
+        properties.put("management.server.port", "9090");
+        // enable prometheus endpoint by default (but not the exporter)
+        properties.put("management.endpoint.prometheus.enabled", "true");
+        properties.put("management.endpoint.recyclable.enabled", "true");
+        // include prometheus and health endpoint in exposure
+        properties.put("management.endpoints.web.exposure.include", "health,prometheus,recyclable");
 
-		sameSiteCookiePolicy = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
-		secureCookiesEnabled = environment.getProperty(PROP_SERVER_SECURE_COOKIES, Boolean.class, SECURE_COOKIES_DEFAULT_VALUE);
+        // ====================
 
-		log.debug("Setting sameSiteCookie policy to {}" , sameSiteCookiePolicy);
-		defaultCookieSerializer.setSameSite(sameSiteCookiePolicy);
-		defaultCookieSerializer.setUseSecureCookie(secureCookiesEnabled);
+        // Health configuration
+        // ====================
 
-		if (sameSiteCookiePolicy.equalsIgnoreCase("none") && !secureCookiesEnabled) {
-			log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
-		}
+        // enable redisSession check for the readiness probe
+        properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
+        // disable ldap health endpoint
+        properties.put("management.health.ldap.enabled", false);
+        // disable default redis health endpoint since it's managed by redisSession
+        properties.put("management.health.redis.enabled", "false");
+        // enable Kubernetes probes
+        properties.put("management.endpoint.health.probes.enabled", true);
 
-		if (environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
-			if (!environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
-				// running in HA mode, but not using Redis sessions
-				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but you are not using Redis for user sessions!");
-			}
-			if (environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true)) {
-				// running in HA mode, but proxies are removed when shutting down
-				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
-			}
-			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
-				environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
-				log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
-			}
-		}
+        // ====================
 
-		if (environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
-			if (!environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
-				// using Redis sessions, but not running in HA mode -> this does not make sense
-				// even with one replica, the HA mode should be used in order for the server to survive restarts (which is the reason Redis sessions are used)
-				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis, but store-more is not set to Redis. Change store-mode so that app sessions are stored in Redis!");
-			}
-			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
-					environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
-				// using Redis sessions together with app recovery -> this does not make sense
-				// if already using Redis for sessions there is no reason to not store app sessions
-				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
-			}
-		}
+        properties.put("spring.config.use-legacy-processing", true);
 
-		boolean hideSpecDetails = environment.getProperty(PROP_API_SECURITY_HIDE_SPEC_DETAILS, Boolean.class, true);
-		if (!hideSpecDetails) {
-			log.warn("WARNING: Insecure configuration detected: The API is configured to return the full spec of proxies, " +
-					"this may contain sensitive values such as the container image, secret environment variables etc. " +
-					"Remove the proxy.api-security.hide-spec-details property to enable API security.");
-		}
+        // disable openapi docs and swagger ui
+        properties.put("springdoc.api-docs.enabled", false);
+        properties.put("springdoc.swagger-ui.enabled", false);
 
-	}
+        return properties;
+    }
 
-	@Autowired(required = false)
-	private SessionManagerFactory sessionManagerFactory;
+    private static void setDefaultProperties(SpringApplication app) {
+        app.setDefaultProperties(getDefaultProperties());
+        // See: https://github.com/keycloak/keycloak/pull/7053
+        System.setProperty("jdk.serialSetFilterAfterRead", "true");
+    }
 
-	@Bean
-	public UndertowServletWebServerFactory servletContainer() {
-		UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-		factory.addDeploymentInfoCustomizers(info -> {
-			info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
-			if (Boolean.parseBoolean(environment.getProperty("logging.requestdump", "false"))) {
-				info.addOuterHandlerChainWrapper(Handlers::requestDump);
-			}
-			info.addInnerHandlerChainWrapper(defaultHandler -> mappingManager.createHttpHandler(defaultHandler));
+    // Disable specific Spring filters that parse the request body, preventing it from being proxied.
 
-		 	log.debug("Setting sameSiteCookie policy for session cookies to {}" , sameSiteCookiePolicy);
-		 	info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookiePolicy, null, true, true, false));
+    @PostConstruct
+    public void init() {
+        if (environment.getProperty("server.use-forward-headers") != null) {
+            log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on" +
+                    " how to change your configuration.");
+        }
 
-			ServletSessionConfig sessionConfig = new ServletSessionConfig();
-			sessionConfig.setHttpOnly(true);
-			sessionConfig.setSecure(secureCookiesEnabled);
-			info.setServletSessionConfig(sessionConfig);
-			if (sessionManagerFactory != null) {
-				info.setSessionManagerFactory(sessionManagerFactory);
-			}
-		});
-		try {
-			factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
-		} catch (UnknownHostException e) {
-			throw new IllegalArgumentException("Invalid bind address specified", e);
-		}
-		factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
-		return factory;
-	}
+        sameSiteCookiePolicy = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
+        secureCookiesEnabled = environment.getProperty(PROP_SERVER_SECURE_COOKIES, Boolean.class, SECURE_COOKIES_DEFAULT_VALUE);
 
-	// Disable specific Spring filters that parse the request body, preventing it from being proxied.
+        log.debug("Setting sameSiteCookie policy to {}", sameSiteCookiePolicy);
+        defaultCookieSerializer.setSameSite(sameSiteCookiePolicy);
+        defaultCookieSerializer.setUseSecureCookie(secureCookiesEnabled);
 
-	@Bean
-	public FilterRegistrationBean<FormContentFilter> registration2(FormContentFilter filter) {
-		FilterRegistrationBean<FormContentFilter> registration = new FilterRegistrationBean<>(filter);
-		registration.setEnabled(false);
-		return registration;
-	}
+        if (sameSiteCookiePolicy.equalsIgnoreCase("none") && !secureCookiesEnabled) {
+            log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
+        }
 
-	/**
-	 * Register the Jackson module which implements compatibility between javax.json and Jackson.
-	 *
-	 * @return
-	 */
-	@Bean
-	public JSR353Module jsr353Module() {
-		return new JSR353Module();
-	}
+        if (environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
+            if (!environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
+                // running in HA mode, but not using Redis sessions
+                log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but you are not using Redis for user sessions!");
+            }
+            if (environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true)) {
+                // running in HA mode, but proxies are removed when shutting down
+                log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
+            }
+            if (environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+                    environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
+                log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
+            }
+        }
 
-	@Bean
-	public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
-		if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
-			// if we are using redis for session -> use a proper health check for redis
-			return new RedisHealthIndicator(rdeRedisConnectionFactory);
-		} else {
-			// not using redis for session -> just pretend it's always online
-			return new HealthIndicator() {
+        if (environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
+            if (!environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
+                // using Redis sessions, but not running in HA mode -> this does not make sense
+                // even with one replica, the HA mode should be used in order for the server to survive restarts (which is the reason Redis sessions are used)
+                log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis, but store-more is not set to Redis. Change store-mode so that app sessions are stored in Redis!");
+            }
+            if (environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+                    environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
+                // using Redis sessions together with app recovery -> this does not make sense
+                // if already using Redis for sessions there is no reason to not store app sessions
+                log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
+            }
+        }
 
-				@Override
-				public Health getHealth(boolean includeDetails) {
-					return Health.up().build();
-				}
+        boolean hideSpecDetails = environment.getProperty(PROP_API_SECURITY_HIDE_SPEC_DETAILS, Boolean.class, true);
+        if (!hideSpecDetails) {
+            log.warn("WARNING: Insecure configuration detected: The API is configured to return the full spec of proxies, " +
+                    "this may contain sensitive values such as the container image, secret environment variables etc. " +
+                    "Remove the proxy.api-security.hide-spec-details property to enable API security.");
+        }
 
-				@Override
-				public Health health() {
-					return Health.up().build();
-				}
-			};
-		}
-	}
+    }
 
-	/**
-	 * This Bean ensures that User Session are properly expired when using Redis for session storage.
-	 */
-	@Bean
-	@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
-	public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
-		return new SpringSessionBackedSessionRegistry<>(sessionRepository);
-	}
+    @Bean
+    public UndertowServletWebServerFactory servletContainer() {
+        UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
+        factory.addDeploymentInfoCustomizers(info -> {
+            info.setPreservePathOnForward(false); // required for the /api/route/{id}/ endpoint to work properly
+            if (Boolean.parseBoolean(environment.getProperty("logging.requestdump", "false"))) {
+                info.addOuterHandlerChainWrapper(Handlers::requestDump);
+            }
+            info.addInnerHandlerChainWrapper(defaultHandler -> mappingManager.createHttpHandler(defaultHandler));
 
-	@Bean
-	public HttpSessionEventPublisher httpSessionEventPublisher() {
-		return new HttpSessionEventPublisher();
-	}
+            log.debug("Setting sameSiteCookie policy for session cookies to {}", sameSiteCookiePolicy);
+            info.addOuterHandlerChainWrapper(defaultHandler -> new SameSiteCookieHandler(defaultHandler, sameSiteCookiePolicy, null, true, true, false));
 
-	@Bean
-	public Executor taskExecutor() {
-		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(2);
-		executor.setMaxPoolSize(4);
-		executor.initialize();
-		return executor;
-	}
+            ServletSessionConfig sessionConfig = new ServletSessionConfig();
+            sessionConfig.setHttpOnly(true);
+            sessionConfig.setSecure(secureCookiesEnabled);
+            info.setServletSessionConfig(sessionConfig);
+            if (sessionManagerFactory != null) {
+                info.setSessionManagerFactory(sessionManagerFactory);
+            }
+        });
+        try {
+            factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("Invalid bind address specified", e);
+        }
+        factory.setPort(Integer.parseInt(environment.getProperty("proxy.port", "8080")));
+        return factory;
+    }
 
-	@Bean
-	public HeartbeatService heartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
-		return new HeartbeatService(heartbeatProcessors);
-	}
+    @Bean
+    public FilterRegistrationBean<FormContentFilter> registration2(FormContentFilter filter) {
+        FilterRegistrationBean<FormContentFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
 
-	@Bean
-	@ConditionalOnMissingBean
-	public ActiveProxiesService activeProxiesService() {
-		return new ActiveProxiesService();
-	}
+    /**
+     * Register the Jackson module which implements compatibility between javax.json and Jackson.
+     *
+     * @return
+     */
+    @Bean
+    public JSR353Module jsr353Module() {
+        return new JSR353Module();
+    }
 
-	public static Properties getDefaultProperties() {
-		Properties properties = new Properties();
+    @Bean
+    public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
+        if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
+            // if we are using redis for session -> use a proper health check for redis
+            return new RedisHealthIndicator(rdeRedisConnectionFactory);
+        } else {
+            // not using redis for session -> just pretend it's always online
+            return new HealthIndicator() {
 
-		// use in-memory session storage by default. Can be overwritten in application.yml
-		properties.put("spring.session.store-type", "none");
-		// required for proper working of the SP_USER_INITIATED_LOGOUT session attribute in the UserService
-		properties.put("spring.session.redis.flush-mode", "IMMEDIATE");
+                @Override
+                public Health getHealth(boolean includeDetails) {
+                    return Health.up().build();
+                }
 
-		// disable multi-part handling by Spring. We don't need this anywhere in the application.
-		// When enabled this will cause problems when proxying file-uploads to the shiny apps.
-		properties.put("spring.servlet.multipart.enabled", "false");
+                @Override
+                public Health health() {
+                    return Health.up().build();
+                }
+            };
+        }
+    }
 
-		// disable logging of requests, since this reads part of the requests and therefore undertow is unable to correctly handle those requests
-		properties.put("logging.level.org.springframework.web.servlet.DispatcherServlet", "INFO");
-		properties.put("logging.level.io.fabric8.kubernetes.client.dsl.internal.VersionUsageUtils", "ERROR");
+    /**
+     * This Bean ensures that User Session are properly expired when using Redis for session storage.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
+    public <S extends Session> SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<S> sessionRepository) {
+        return new SpringSessionBackedSessionRegistry<>(sessionRepository);
+    }
 
-		properties.put("spring.application.name", "ContainerProxy");
+    @Bean
+    public HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
+    }
 
-		// Metrics configuration
-		// ====================
+    @Bean
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.initialize();
+        return executor;
+    }
 
-		// disable all supported exporters by default
-		// Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
-		properties.put("management.metrics.export.prometheus.enabled", "false");
-		properties.put("management.metrics.export.influx.enabled", "false");
-		// set actuator to port 9090 (can be overwritten)
-		properties.put("management.server.port", "9090");
-		// enable prometheus endpoint by default (but not the exporter)
-		properties.put("management.endpoint.prometheus.enabled", "true");
-		properties.put("management.endpoint.recyclable.enabled", "true");
-		// include prometheus and health endpoint in exposure
-		properties.put("management.endpoints.web.exposure.include", "health,prometheus,recyclable");
+    @Bean
+    public HeartbeatService heartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
+        return new HeartbeatService(heartbeatProcessors);
+    }
 
-		// ====================
+    @Bean
+    @ConditionalOnMissingBean
+    public ActiveProxiesService activeProxiesService() {
+        return new ActiveProxiesService();
+    }
 
-		// Health configuration
-		// ====================
-
-		// enable redisSession check for the readiness probe
-		properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
-		// disable ldap health endpoint
-		properties.put("management.health.ldap.enabled", false);
-		// disable default redis health endpoint since it's managed by redisSession
-		properties.put("management.health.redis.enabled", "false");
-		// enable Kubernetes probes
-		properties.put("management.endpoint.health.probes.enabled", true);
-
-		// ====================
-
-		properties.put("spring.config.use-legacy-processing", true);
-
-		// disable openapi docs and swagger ui
-		properties.put("springdoc.api-docs.enabled", false);
-		properties.put("springdoc.swagger-ui.enabled", false);
-
-		return properties;
-	}
-
-	private static void setDefaultProperties(SpringApplication app) {
-		app.setDefaultProperties(getDefaultProperties());
-		// See: https://github.com/keycloak/keycloak/pull/7053
-		System.setProperty("jdk.serialSetFilterAfterRead", "true");
-	}
-
-	@Bean
-	public GroupedOpenApi groupOpenApi() {
-		return GroupedOpenApi.builder()
-				.group("v1")
-				.addOpenApiCustomiser(openApi -> {
-					Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
-					openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
-							.forEach(p -> {
-								p.getValue().setHead(null);
-								p.getValue().setPost(null);
-								p.getValue().setDelete(null);
-								p.getValue().setParameters(null);
-								p.getValue().setOptions(null);
-								p.getValue().setPut(null);
-								p.getValue().setPatch(null);
-							});
-				})
-				.build();
-	}
+    @Bean
+    public GroupedOpenApi groupOpenApi() {
+        return GroupedOpenApi.builder()
+                .group("v1")
+                .addOpenApiCustomiser(openApi -> {
+                    Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
+                    openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
+                            .forEach(p -> {
+                                p.getValue().setHead(null);
+                                p.getValue().setPost(null);
+                                p.getValue().setDelete(null);
+                                p.getValue().setParameters(null);
+                                p.getValue().setOptions(null);
+                                p.getValue().setPut(null);
+                                p.getValue().setPatch(null);
+                            });
+                })
+                .build();
+    }
 
 }

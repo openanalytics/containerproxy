@@ -45,18 +45,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class SimpleAuthenticationTest {
 
-	@Inject
-	private MockMvc mvc;
+    @Inject
+    private MockMvc mvc;
 
-	@Inject
-	private Environment environment;
-	
-	@Test
-	public void authenticateUser() throws Exception {
-		String userName = environment.getProperty("proxy.users[0].name");
-		String password = environment.getProperty("proxy.users[0].password");
-		mvc
-			.perform(get("/api/proxy").with(httpBasic(userName, password)).accept(MediaType.APPLICATION_JSON_VALUE))
-			.andExpect(status().isOk());
-	}
+    @Inject
+    private Environment environment;
+
+    @Test
+    public void authenticateUser() throws Exception {
+        String userName = environment.getProperty("proxy.users[0].name");
+        String password = environment.getProperty("proxy.users[0].password");
+        mvc
+                .perform(get("/api/proxy").with(httpBasic(userName, password)).accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk());
+    }
 }

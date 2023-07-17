@@ -33,15 +33,10 @@ import java.util.stream.Collectors;
 
 public abstract class KubernetesTestBase {
 
-    public static interface TestBody {
-        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws Exception;
-    }
-
     public static final String namespace = "itest";
     public static final String overriddenNamespace = "itest-overridden";
-    private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
-
     static protected final DefaultKubernetesClient client = new DefaultKubernetesClient();
+    private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
 
     protected void setup(TestBody test) {
         Runtime.getRuntime().addShutdownHook(new Thread(this::deleteNamespaces));
@@ -84,13 +79,16 @@ public abstract class KubernetesTestBase {
     private void createNamespaces() {
         for (String namespace : managedNamespaces) {
             client.namespaces().create(new NamespaceBuilder()
-                    .withNewMetadata()
-                    .withName(namespace)
-                    .endMetadata()
-                    .build());
+                .withNewMetadata()
+                .withName(namespace)
+                .endMetadata()
+                .build());
         }
     }
 
+    public static interface TestBody {
+        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws Exception;
+    }
 
     protected List<Secret> getSecrets(String namespace) {
         return client.secrets().inNamespace(namespace).list().getItems().stream().filter(it -> !it.getMetadata().getName().startsWith("default-token")).collect(Collectors.toList());

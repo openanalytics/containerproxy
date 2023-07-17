@@ -35,45 +35,43 @@ import java.util.Map;
 @Service
 public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBackend> implements ApplicationContextAware {
 
-	private static final String PROPERTY_CONTAINER_BACKEND = "proxy.container-backend";
+    private static final String PROPERTY_CONTAINER_BACKEND = "proxy.container-backend";
 
     private static final Map<String, Class<? extends IContainerBackend>> BACKENDS = new HashMap<>();
+    @Inject
+    protected Environment environment;
+    private ApplicationContext applicationContext;
 
     public static void addBackend(String name, Class<? extends IContainerBackend> backend) {
-		if (BACKENDS.containsKey(name)) {
-			throw new IllegalArgumentException(String.format("Cannot register duplicate backend with name %s not found", name));
-		}
-		BACKENDS.put(name, backend);
+        if (BACKENDS.containsKey(name)) {
+            throw new IllegalArgumentException(String.format("Cannot register duplicate backend with name %s not found", name));
+        }
+        BACKENDS.put(name, backend);
     }
 
     private static IContainerBackend createFor(String name) throws Exception {
         if (!BACKENDS.containsKey(name)) {
-			throw new IllegalArgumentException(String.format("Backend with name %s not found", name));
+            throw new IllegalArgumentException(String.format("Backend with name %s not found", name));
         }
         return BACKENDS.get(name).newInstance();
     }
 
-	private ApplicationContext applicationContext;
+    @Override
+    public void setApplicationContext(@Nonnull ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
 
-	@Inject
-	protected Environment environment;
+    @Override
+    public Class<?> getObjectType() {
+        return IContainerBackend.class;
+    }
 
-	@Override
-	public void setApplicationContext(@Nonnull ApplicationContext applicationContext) throws BeansException {
-		this.applicationContext = applicationContext;
-	}
-
-	@Override
-	public Class<?> getObjectType() {
-		return IContainerBackend.class;
-	}
-
-	@Override
-	protected IContainerBackend createInstance() throws Exception {
-		String backendName = environment.getProperty(PROPERTY_CONTAINER_BACKEND, "docker");
-		IContainerBackend backend = createFor(backendName);
-		applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
-		backend.initialize();
-		return backend;
-	}
+    @Override
+    protected IContainerBackend createInstance() throws Exception {
+        String backendName = environment.getProperty(PROPERTY_CONTAINER_BACKEND, "docker");
+        IContainerBackend backend = createFor(backendName);
+        applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
+        backend.initialize();
+        return backend;
+    }
 }

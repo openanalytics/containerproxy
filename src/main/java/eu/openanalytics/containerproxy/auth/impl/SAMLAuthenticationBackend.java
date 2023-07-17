@@ -81,6 +81,14 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     @Lazy
     private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
+    public static String determineLogoutSuccessURL(Environment environment) {
+        String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
+        if (logoutURL == null || logoutURL.trim().isEmpty()) {
+            logoutURL = "/";
+        }
+        return logoutURL;
+    }
+
     @Override
     public String getName() {
         return NAME;
@@ -124,19 +132,6 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
                 .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class);
     }
 
-    private static class Saml2RequestMatcher implements RequestMatcher {
-
-        @Override
-        public boolean matches(HttpServletRequest request) {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null) {
-                return false;
-            }
-            return authentication.getPrincipal() instanceof Saml2AuthenticatedPrincipal;
-        }
-
-    }
-
     @Override
     public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
     }
@@ -155,14 +150,6 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
         return determineLogoutSuccessURL(environment);
     }
 
-    public static String determineLogoutSuccessURL(Environment environment) {
-        String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
-        if (logoutURL == null || logoutURL.trim().isEmpty()) {
-            logoutURL = "/";
-        }
-        return logoutURL;
-    }
-
     public String getLoginRedirectURI() {
         return ContextPathHelper.withoutEndingSlash()
                 + "/saml2/authenticate/"
@@ -172,6 +159,19 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     private enum LogoutMethod {
         LOCAL,
         SAML
+    }
+
+    private static class Saml2RequestMatcher implements RequestMatcher {
+
+        @Override
+        public boolean matches(HttpServletRequest request) {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return false;
+            }
+            return authentication.getPrincipal() instanceof Saml2AuthenticatedPrincipal;
+        }
+
     }
 
 }

@@ -26,6 +26,6 @@ package eu.openanalytics.containerproxy.backend.strategy;
  */
 public interface IProxyLogoutStrategy {
 
-	public void onLogout(String userId);
+    public void onLogout(String userId);
 
 }

@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
-import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import org.springframework.context.event.EventListener;
 

@@ -26,6 +26,8 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 
 public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
 
+    public static final ParameterNamesKey inst = new ParameterNamesKey();
+
     public ParameterNamesKey() {
         super("openanalytics.eu/sp-parameters-names",
                 "SHINYPROXY_PARAMETER_NAMES",
@@ -37,8 +39,6 @@ public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
                 false,
                 ParameterNames.class);
     }
-
-    public static final ParameterNamesKey inst = new ParameterNamesKey();
 
     @Override
     public ParameterNames deserializeFromString(String value) {

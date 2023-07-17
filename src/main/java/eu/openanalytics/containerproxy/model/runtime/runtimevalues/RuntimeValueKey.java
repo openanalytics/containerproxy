@@ -46,7 +46,8 @@ public abstract class RuntimeValueKey<T> {
 
     private final Class<T> clazz;
 
-    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific, Class<T> clazz) {
+    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific,
+                           Class<T> clazz) {
         this.keyAsLabel = Objects.requireNonNull(keyAsLabel, "keyAsLabel may not be null");
         this.keyAsEnvVar = Objects.requireNonNull(keyAsEnvVar, "keyAsEnvVar may not be null");
         this.includeAsLabel = includeAsLabel;

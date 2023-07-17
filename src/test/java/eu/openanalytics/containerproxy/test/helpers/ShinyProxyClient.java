@@ -22,18 +22,24 @@ package eu.openanalytics.containerproxy.test.helpers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import okhttp3.*;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-import javax.json.*;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
 import java.time.Duration;
 import java.util.HashSet;
 
 public class ShinyProxyClient {
 
+    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient client;
     private final String baseUrl;
-
-    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ShinyProxyClient(String username, String password, int port) {

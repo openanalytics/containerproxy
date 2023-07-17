@@ -2,9 +2,9 @@ spring:
   session:
     store-type: none
   data:
-     redis:
-        repositories:
-           enabled: false
+    redis:
+      repositories:
+        enabled: false
 proxy:
   authentication: ldap
   ldap:

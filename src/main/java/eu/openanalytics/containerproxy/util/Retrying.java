@@ -22,11 +22,6 @@ package eu.openanalytics.containerproxy.util;
 
 public class Retrying {
 
-    @FunctionalInterface
-    public interface Attempt {
-        boolean attempt(int currentAttempt, int maxAttempts);
-    }
-
     public static boolean retry(Attempt job, int maxDelay) {
         return retry(job, maxDelay, false);
     }
@@ -72,6 +67,11 @@ public class Retrying {
         }
         // it takes 11 attempts to have a delay of 3 000ms
         return (int) Math.ceil((maxDelay - 3_000) / 2_000.0) + 11;
+    }
+
+    @FunctionalInterface
+    public interface Attempt {
+        boolean attempt(int currentAttempt, int maxAttempts);
     }
 
 }

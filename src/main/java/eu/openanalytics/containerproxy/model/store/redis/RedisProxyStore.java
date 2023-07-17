@@ -38,22 +38,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisProxyStore implements IProxyStore {
 
+    private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
+    private final ConcurrentHashMap<String, Map<String, URI>> targetsCache = new ConcurrentHashMap<>();
     @Inject
     private RedisTemplate<String, Proxy> redisTemplate;
-
     @Inject
     private ProxyMappingManager mappingManager;
-
     @Inject
     private IdentifierService identifierService;
-
-    private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
-
     private String redisKey;
-
     private HashOperations<String, String, Proxy> ops;
-
-    private final ConcurrentHashMap<String, Map<String, URI>> targetsCache = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {

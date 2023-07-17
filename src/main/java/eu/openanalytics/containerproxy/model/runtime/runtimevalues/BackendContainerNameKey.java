@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class BackendContainerNameKey extends RuntimeValueKey<String> {
 
+    public final static BackendContainerNameKey inst = new BackendContainerNameKey();
+
     private BackendContainerNameKey() {
         super("openanalytics.eu/sp-backend-container-name",
                 "SHINYPROXY_BACKEND_CONTAINER_NAME",
@@ -33,8 +35,6 @@ public class BackendContainerNameKey extends RuntimeValueKey<String> {
                 true,
                 String.class);
     }
-
-    public final static BackendContainerNameKey inst = new BackendContainerNameKey();
 
     @Override
     public String deserializeFromString(String value) {

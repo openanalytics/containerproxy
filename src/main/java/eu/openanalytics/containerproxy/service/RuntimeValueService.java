@@ -68,19 +68,14 @@ public class RuntimeValueService {
     private static final String PROP_DEFAULT_PROXY_MAX_LIFETIME = "proxy.default-proxy-max-lifetime";
 
     private static final Long DEFAULT_TIMEOUT = 60000L;
-
-    private long defaultHeartbeatTimeout;
-
-    private long defaultMaxLifetime;
-
-    @Inject
-    private ParametersService parametersService;
-
-    @Inject
-    private Environment environment;
-
     @Inject
     protected IdentifierService identifierService;
+    private long defaultHeartbeatTimeout;
+    private long defaultMaxLifetime;
+    @Inject
+    private ParametersService parametersService;
+    @Inject
+    private Environment environment;
 
     @PostConstruct
     public void init() {

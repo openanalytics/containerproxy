@@ -77,178 +77,181 @@ import java.util.Map;
 @Component
 public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 
-	public static final String NAME = "keycloak";
-	
-	@Inject
-	Environment environment;
+    public static final String NAME = "keycloak";
 
-	@Inject
-	ApplicationContext ctx;
+    @Inject
+    Environment environment;
 
-	@Inject
-	@Lazy
-	AuthenticationManager authenticationManager;
+    @Inject
+    ApplicationContext ctx;
 
-	@Inject
-	@Lazy
-	private SavedRequestAwareAuthenticationSuccessHandler successHandler;
+    @Inject
+    @Lazy
+    AuthenticationManager authenticationManager;
 
-	@Override
-	public String getName() {
-		return NAME;
-	}
-	
-	@Override
-	public boolean hasAuthorization() {
-		return true;
-	}
+    @Inject
+    @Lazy
+    private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
-	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
-		http.formLogin().disable();
-		
-		http
-			.sessionManagement().sessionAuthenticationStrategy(sessionAuthenticationStrategy())
-			.and()
-			.addFilterBefore(keycloakPreAuthActionsFilter(), LogoutFilter.class)
-			.addFilterBefore(keycloakAuthenticationProcessingFilter(), BasicAuthenticationFilter.class)
-			.exceptionHandling().authenticationEntryPoint(authenticationEntryPoint())
-			.and()
-			.logout().addLogoutHandler(keycloakLogoutHandler());
-	}
+    @Override
+    public String getName() {
+        return NAME;
+    }
 
-	@Override
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
-		 auth.authenticationProvider(keycloakAuthenticationProvider());
-	}
+    @Override
+    public boolean hasAuthorization() {
+        return true;
+    }
 
-	@Override
-	public String getLogoutSuccessURL() {
-		return "/";
-	}
-	
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() {
-		// Possible solution for issue #21037, create a custom RequestMatcher that doesn't include a QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) request matcher.
-		// The QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) caused the HTTP requests to be changed before they where processed.
-		// Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
-		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
-		RequestMatcher requestMatcher =
-				new OrRequestMatcher(
-	                    new AntPathRequestMatcher("/sso/login"),
-						new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
-	            );
+    @Override
+    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
+        http.formLogin().disable();
 
-		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
-		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
-		filter.setAuthenticationFailureHandler(keycloakAuthenticationFailureHandler());
-		filter.setAuthenticationSuccessHandler(successHandler);
-		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
-		filter.setApplicationContext(ctx);
-		filter.afterPropertiesSet();
-		return filter;
-	}
+        http
+                .sessionManagement().sessionAuthenticationStrategy(sessionAuthenticationStrategy())
+                .and()
+                .addFilterBefore(keycloakPreAuthActionsFilter(), LogoutFilter.class)
+                .addFilterBefore(keycloakAuthenticationProcessingFilter(), BasicAuthenticationFilter.class)
+                .exceptionHandling().authenticationEntryPoint(authenticationEntryPoint())
+                .and()
+                .logout().addLogoutHandler(keycloakLogoutHandler());
+    }
 
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected KeycloakPreAuthActionsFilter keycloakPreAuthActionsFilter() {
-		KeycloakPreAuthActionsFilter filter = new KeycloakPreAuthActionsFilter(httpSessionManager());
-		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
-		filter.setApplicationContext(ctx);
-		try { filter.afterPropertiesSet(); } catch (ServletException e) {}
-		return filter;
-	}
+    @Override
+    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
+        auth.authenticationProvider(keycloakAuthenticationProvider());
+    }
 
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected HttpSessionManager httpSessionManager() {
-		return new HttpSessionManager();
-	}
+    @Override
+    public String getLogoutSuccessURL() {
+        return "/";
+    }
 
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
-		return new CompositeSessionAuthenticationStrategy(Arrays.asList(
-			new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
-			new ChangeSessionIdAuthenticationStrategy()
-		));
-	}
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    protected KeycloakAuthenticationProcessingFilter keycloakAuthenticationProcessingFilter() {
+        // Possible solution for issue #21037, create a custom RequestMatcher that doesn't include a QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) request matcher.
+        // The QueryParamPresenceRequestMatcher(OAuth2Constants.ACCESS_TOKEN) caused the HTTP requests to be changed before they where processed.
+        // Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
+        // If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
+        RequestMatcher requestMatcher =
+                new OrRequestMatcher(
+                        new AntPathRequestMatcher("/sso/login"),
+                        new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
+                );
 
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	public KeycloakAuthenticationFailureHandler keycloakAuthenticationFailureHandler() {
-		return new AuthenticationFaillureHandler();
-	}
+        KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
+        filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
+        filter.setAuthenticationFailureHandler(keycloakAuthenticationFailureHandler());
+        filter.setAuthenticationSuccessHandler(successHandler);
+        // Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
+        filter.setApplicationContext(ctx);
+        filter.afterPropertiesSet();
+        return filter;
+    }
 
-	@Bean
-	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
-	protected AdapterDeploymentContext adapterDeploymentContext() throws Exception {
-		AdapterConfig cfg = new AdapterConfig();
-		cfg.setRealm(environment.getProperty("proxy.keycloak.realm"));
-		cfg.setAuthServerUrl(environment.getProperty("proxy.keycloak.auth-server-url"));
-		cfg.setResource(environment.getProperty("proxy.keycloak.resource"));
-		cfg.setSslRequired(environment.getProperty("proxy.keycloak.ssl-required", "external"));
-		cfg.setUseResourceRoleMappings(environment.getProperty("proxy.keycloak.use-resource-role-mappings", Boolean.class, false));
-		Map<String,Object> credentials = new HashMap<>();
-		credentials.put("secret", environment.getProperty("proxy.keycloak.credentials-secret"));
-		cfg.setCredentials(credentials);
-		KeycloakDeployment dep = KeycloakDeploymentBuilder.build(cfg);
-		AdapterDeploymentContextFactoryBean factoryBean = new AdapterDeploymentContextFactoryBean(facade -> dep);
-		factoryBean.afterPropertiesSet();
-		return factoryBean.getObject();
-	}
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    protected KeycloakPreAuthActionsFilter keycloakPreAuthActionsFilter() {
+        KeycloakPreAuthActionsFilter filter = new KeycloakPreAuthActionsFilter(httpSessionManager());
+        // Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
+        filter.setApplicationContext(ctx);
+        try {
+            filter.afterPropertiesSet();
+        } catch (ServletException e) {
+        }
+        return filter;
+    }
 
-	protected AuthenticationEntryPoint authenticationEntryPoint() throws Exception {
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    protected HttpSessionManager httpSessionManager() {
+        return new HttpSessionManager();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+        return new CompositeSessionAuthenticationStrategy(Arrays.asList(
+                new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
+                new ChangeSessionIdAuthenticationStrategy()
+        ));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    public KeycloakAuthenticationFailureHandler keycloakAuthenticationFailureHandler() {
+        return new AuthenticationFaillureHandler();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
+    protected AdapterDeploymentContext adapterDeploymentContext() throws Exception {
+        AdapterConfig cfg = new AdapterConfig();
+        cfg.setRealm(environment.getProperty("proxy.keycloak.realm"));
+        cfg.setAuthServerUrl(environment.getProperty("proxy.keycloak.auth-server-url"));
+        cfg.setResource(environment.getProperty("proxy.keycloak.resource"));
+        cfg.setSslRequired(environment.getProperty("proxy.keycloak.ssl-required", "external"));
+        cfg.setUseResourceRoleMappings(environment.getProperty("proxy.keycloak.use-resource-role-mappings", Boolean.class, false));
+        Map<String, Object> credentials = new HashMap<>();
+        credentials.put("secret", environment.getProperty("proxy.keycloak.credentials-secret"));
+        cfg.setCredentials(credentials);
+        KeycloakDeployment dep = KeycloakDeploymentBuilder.build(cfg);
+        AdapterDeploymentContextFactoryBean factoryBean = new AdapterDeploymentContextFactoryBean(facade -> dep);
+        factoryBean.afterPropertiesSet();
+        return factoryBean.getObject();
+    }
+
+    protected AuthenticationEntryPoint authenticationEntryPoint() throws Exception {
         return new KeycloakAuthenticationEntryPoint(adapterDeploymentContext());
     }
-	
-	protected KeycloakAuthenticationProvider keycloakAuthenticationProvider() {
-		return new KeycloakAuthenticationProvider() {
-			@Override
-			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-				KeycloakAuthenticationToken token = (KeycloakAuthenticationToken) super.authenticate(authentication);
-				List<KeycloakRole> auth = token.getAuthorities().stream()
-						.map(t -> t.getAuthority().toUpperCase())
-						.map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
-						.map(KeycloakRole::new)
-						.toList();
-				String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
-				return new KeycloakAuthenticationToken2(token.getAccount(), token.isInteractive(), nameAttribute, auth);
-			}
-		};
-	}
-	
-	protected KeycloakLogoutHandler keycloakLogoutHandler() throws Exception {
-		return new KeycloakLogoutHandler(adapterDeploymentContext());
-	}
-	
-	public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
-		
-		private static final long serialVersionUID = -521347733024996150L;
 
-		private final String nameAttribute;
-		
-		public KeycloakAuthenticationToken2(KeycloakAccount account, boolean interactive, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
-			super(account, interactive, authorities);
-			this.nameAttribute = nameAttribute;
-		}
-		
-		@Override
-		public String getName() {
-			IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
-			if (token == null) {
-				// when ContainerProxy is accessed directly using the Access Token as Bearer value in the Authorization
-				// header, no ID Token is present. The AccessTokens provided by Keycloak are in fact ID tokens, so we
-				// can safely fall back to them.
-				token = getAccount().getKeycloakSecurityContext().getToken();
-			}
-			return switch (nameAttribute) {
-				case IDToken.PREFERRED_USERNAME -> token.getPreferredUsername();
-				case IDToken.NICKNAME -> token.getNickName();
-				case IDToken.EMAIL -> token.getEmail();
-				default -> token.getName();
-			};
-		}
-	}
+    protected KeycloakAuthenticationProvider keycloakAuthenticationProvider() {
+        return new KeycloakAuthenticationProvider() {
+            @Override
+            public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+                KeycloakAuthenticationToken token = (KeycloakAuthenticationToken) super.authenticate(authentication);
+                List<KeycloakRole> auth = token.getAuthorities().stream()
+                        .map(t -> t.getAuthority().toUpperCase())
+                        .map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
+                        .map(KeycloakRole::new)
+                        .toList();
+                String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
+                return new KeycloakAuthenticationToken2(token.getAccount(), token.isInteractive(), nameAttribute, auth);
+            }
+        };
+    }
+
+    protected KeycloakLogoutHandler keycloakLogoutHandler() throws Exception {
+        return new KeycloakLogoutHandler(adapterDeploymentContext());
+    }
+
+    public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
+
+        private static final long serialVersionUID = -521347733024996150L;
+
+        private final String nameAttribute;
+
+        public KeycloakAuthenticationToken2(KeycloakAccount account, boolean interactive, String nameAttribute, Collection<? extends GrantedAuthority> authorities) {
+            super(account, interactive, authorities);
+            this.nameAttribute = nameAttribute;
+        }
+
+        @Override
+        public String getName() {
+            IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
+            if (token == null) {
+                // when ContainerProxy is accessed directly using the Access Token as Bearer value in the Authorization
+                // header, no ID Token is present. The AccessTokens provided by Keycloak are in fact ID tokens, so we
+                // can safely fall back to them.
+                token = getAccount().getKeycloakSecurityContext().getToken();
+            }
+            return switch (nameAttribute) {
+                case IDToken.PREFERRED_USERNAME -> token.getPreferredUsername();
+                case IDToken.NICKNAME -> token.getNickName();
+                case IDToken.EMAIL -> token.getEmail();
+                default -> token.getName();
+            };
+        }
+    }
 }

@@ -42,8 +42,8 @@ public class PropertyOverrideContextInitializer
         PropertiesPropertySource defaultProperties = new PropertiesPropertySource("shinyProxyDefaultProperties", ContainerProxyApplication.getDefaultProperties());
         propertySources.addFirst(defaultProperties);
 
-		// remove any external, file-based property source
-		// we don't want any application.yml or application.properties to be loaded during the tests
+        // remove any external, file-based property source
+        // we don't want any application.yml or application.properties to be loaded during the tests
         propertySources
                 .stream()
                 .map(PropertySource::getName)

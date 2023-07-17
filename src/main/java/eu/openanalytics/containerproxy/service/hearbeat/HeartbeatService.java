@@ -59,42 +59,17 @@ public class HeartbeatService {
     private final Logger log = LogManager.getLogger(HeartbeatService.class);
 
     private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(3);
-
-    public enum HeartbeatSource {
-        /**
-         * Heartbeat send because of an incoming HTTP request.
-         */
-        HTTP_REQUEST,
-        /**
-         * Heartbeat send because of a response (pong) to a websocket ping.
-         */
-        WEBSOCKET_PONG,
-        /**
-         * Heartbeat send because of some internal event in ContainerProxy. This heartbeat is not directly caused
-         * by action of the user.
-         */
-        INTERNAL,
-        /**
-         * Heartbeat send because of a fallback heartbeat request.
-         */
-        FALLBACK
-    }
-
-    @Inject
-    private Environment environment;
-
-    @Inject
-    private ISessionService sessionService;
-
-    @Inject
-    @Lazy
-    private HeartbeatService self;
-
     private final List<IHeartbeatProcessor> heartbeatProcessors;
-
     // keep track of the HeartbeatConnector for every SessionId so that the websocket connection can be closed
     // when the user logs out from that session. This is required for apps that keep running even if when the user signs out.
     private final ListMultimap<String, HeartbeatConnector> heartbeatConnectors = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
+    @Inject
+    private Environment environment;
+    @Inject
+    private ISessionService sessionService;
+    @Inject
+    @Lazy
+    private HeartbeatService self;
 
     public HeartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
         this.heartbeatProcessors = heartbeatProcessors;
@@ -141,6 +116,26 @@ public class HeartbeatService {
         heartbeatConnectors.get(event.getId()).forEach(HeartbeatConnector::closeConnection);
         // remove the session from the map
         heartbeatConnectors.removeAll(event.getId());
+    }
+
+    public enum HeartbeatSource {
+        /**
+         * Heartbeat send because of an incoming HTTP request.
+         */
+        HTTP_REQUEST,
+        /**
+         * Heartbeat send because of a response (pong) to a websocket ping.
+         */
+        WEBSOCKET_PONG,
+        /**
+         * Heartbeat send because of some internal event in ContainerProxy. This heartbeat is not directly caused
+         * by action of the user.
+         */
+        INTERNAL,
+        /**
+         * Heartbeat send because of a fallback heartbeat request.
+         */
+        FALLBACK
     }
 
     private class HeartbeatConnector {
@@ -205,7 +200,7 @@ public class HeartbeatService {
         /**
          * Closes the WebSocket connection associated with this connector.
          */
-        public void closeConnection()  {
+        public void closeConnection() {
             try {
                 if (streamConnection != null) {
                     streamConnection.close();

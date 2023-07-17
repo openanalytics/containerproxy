@@ -31,7 +31,7 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-public class RedisOAuth2AuthorizedClientService implements OAuth2AuthorizedClientService  {
+public class RedisOAuth2AuthorizedClientService implements OAuth2AuthorizedClientService {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 

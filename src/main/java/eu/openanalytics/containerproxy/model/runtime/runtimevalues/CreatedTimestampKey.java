@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 // TODO convert to long?
 public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
+    public static final CreatedTimestampKey inst = new CreatedTimestampKey();
+
     private CreatedTimestampKey() {
         super("openanalytics.eu/sp-proxy-created-timestamp",
                 "SHINYPROXY_CREATED_TIMESTAMP",
@@ -34,8 +36,6 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
                 false,
                 String.class);
     }
-
-    public static final CreatedTimestampKey inst = new CreatedTimestampKey();
 
     @Override
     public String deserializeFromString(String value) {

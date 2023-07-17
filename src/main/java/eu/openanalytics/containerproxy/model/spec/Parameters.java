@@ -34,12 +34,12 @@ public class Parameters {
         return definitions;
     }
 
-    public List<String> getIds() {
-        return definitions.stream().map(ParameterDefinition::getId).toList();
-    }
-
     public void setDefinitions(List<ParameterDefinition> definitions) {
         this.definitions = definitions;
+    }
+
+    public List<String> getIds() {
+        return definitions.stream().map(ParameterDefinition::getId).toList();
     }
 
     public List<ValueSet> getValueSets() {

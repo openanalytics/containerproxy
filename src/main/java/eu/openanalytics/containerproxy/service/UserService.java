@@ -59,241 +59,235 @@ import java.util.Set;
 @Service
 public class UserService {
 
-	private final static String ATTRIBUTE_USER_INITIATED_LOGOUT = "SP_USER_INITIATED_LOGOUT";
+    private final static String ATTRIBUTE_USER_INITIATED_LOGOUT = "SP_USER_INITIATED_LOGOUT";
 
-	private final Logger log = LogManager.getLogger(UserService.class);
+    private final Logger log = LogManager.getLogger(UserService.class);
+    private final Set<String> adminGroups = new HashSet<>();
+    private final Set<String> adminUsers = new HashSet<>();
+    @Inject
+    private Environment environment;
+    @Inject
+    @Lazy
+    // Note: lazy needed to work around early initialization conflict
+    private IAuthenticationBackend authBackend;
+    @Inject
+    private IProxyLogoutStrategy logoutStrategy;
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
+    @Inject
+    @Lazy
+    private ProxyAccessControlService accessControlService;
 
-	@Inject
-	private Environment environment;
+    public static List<String> getGroups(Authentication auth) {
+        List<String> groups = new ArrayList<>();
+        if (auth != null) {
+            for (GrantedAuthority grantedAuth : auth.getAuthorities()) {
+                String authName = grantedAuth.getAuthority().toUpperCase();
+                if (authName.startsWith("ROLE_")) authName = authName.substring(5);
+                groups.add(authName);
+            }
+        }
+        return groups;
+    }
 
-	@Inject
-	@Lazy
-	// Note: lazy needed to work around early initialization conflict 
-	private IAuthenticationBackend authBackend;
-	
-	@Inject
-	private IProxyLogoutStrategy logoutStrategy;
+    public static String getUserId(Authentication auth) {
+        if (auth == null) return null;
+        if (auth instanceof AnonymousAuthenticationToken) {
+            // Anonymous authentication: use the session id instead of the username.
+            return Sha256.hash(((WebAuthenticationDetails) auth.getDetails()).getSessionId());
+        }
+        return auth.getName();
+    }
 
-	@Inject
-	private ApplicationEventPublisher applicationEventPublisher;
+    @PostConstruct
+    public void init() {
+        // load admin groups
+        // Support for old, non-array notation
+        String singleGroup = environment.getProperty("proxy.admin-groups");
+        if (singleGroup != null && !singleGroup.isEmpty()) {
+            adminGroups.add(singleGroup.toUpperCase());
+        }
 
-	@Inject
-	@Lazy
-	private ProxyAccessControlService accessControlService;
+        for (int i = 0; ; i++) {
+            String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
+            if (groupName == null || groupName.isEmpty()) {
+                break;
+            }
+            adminGroups.add(groupName.toUpperCase());
+        }
 
-	private final Set<String> adminGroups = new HashSet<>();
-	private final Set<String> adminUsers = new HashSet<>();
+        // load admin users
+        // Support for old, non-array notation
+        String singleUser = environment.getProperty("proxy.admin-users");
+        if (singleUser != null && !singleUser.isEmpty()) {
+            adminUsers.add(singleUser);
+        }
 
-	@PostConstruct
-	public void init() {
-		// load admin groups
-		// Support for old, non-array notation
-		String singleGroup = environment.getProperty("proxy.admin-groups");
-		if (singleGroup != null && !singleGroup.isEmpty()) {
-			adminGroups.add(singleGroup.toUpperCase());
-		}
+        for (int i = 0; ; i++) {
+            String userName = environment.getProperty(String.format("proxy.admin-users[%s]", i));
+            if (userName == null || userName.isEmpty()) {
+                break;
+            }
+            adminUsers.add(userName);
+        }
+    }
 
-		for (int i=0 ;; i++) {
-			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
-			if (groupName == null || groupName.isEmpty()) {
-				break;
-			}
-			adminGroups.add(groupName.toUpperCase());
-		}
+    public Set<String> getAdminGroups() {
+        return adminGroups;
+    }
 
-		// load admin users
-		// Support for old, non-array notation
-		String singleUser = environment.getProperty("proxy.admin-users");
-		if (singleUser != null && !singleUser.isEmpty()) {
-			adminUsers.add(singleUser);
-		}
+    public Authentication getCurrentAuth() {
+        return SecurityContextHolder.getContext().getAuthentication();
+    }
 
-		for (int i=0 ;; i++) {
-			String userName = environment.getProperty(String.format("proxy.admin-users[%s]", i));
-			if (userName == null || userName.isEmpty()) {
-				break;
-			}
-			adminUsers.add(userName);
-		}
-	}
+    public String getCurrentUserId() {
+        return getUserId(getCurrentAuth());
+    }
 
-	public Set<String> getAdminGroups() {
-		return adminGroups;
-	}
+    public Set<String> getAdminUsers() {
+        return adminUsers;
+    }
 
-	public Authentication getCurrentAuth() {
-		return SecurityContextHolder.getContext().getAuthentication();
-	}
-	
-	public String getCurrentUserId() {
-		return getUserId(getCurrentAuth());
-	}
-	
-	public Set<String> getAdminUsers() {
-		return adminUsers;
-	}
-	
-	public List<String> getGroups() {
-		return getGroups(getCurrentAuth());
-	}
-	
-	public static List<String> getGroups(Authentication auth) {
-		List<String> groups = new ArrayList<>();
-		if (auth != null) {
-			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {
-				String authName = grantedAuth.getAuthority().toUpperCase();
-				if (authName.startsWith("ROLE_")) authName = authName.substring(5);
-				groups.add(authName);
-			}
-		}
-		return groups;
-	}
-	
-	public boolean isAdmin() {
-		return isAdmin(getCurrentAuth());
-	}
-	
-	public boolean isAdmin(Authentication auth) {
-		if (!authBackend.hasAuthorization() || auth == null) {
-			return false;
-		}
+    public List<String> getGroups() {
+        return getGroups(getCurrentAuth());
+    }
 
-		for (String adminGroup: getAdminGroups()) {
-			if (isMember(auth, adminGroup)) {
-				return true;
-			}
-		}
+    public boolean isAdmin() {
+        return isAdmin(getCurrentAuth());
+    }
 
-		String userName = getUserId(auth);
-		for (String adminUser: getAdminUsers()) {
-			if (userName != null && userName.equalsIgnoreCase(adminUser)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	public boolean canAccess(ProxySpec spec) {
-		return accessControlService.canAccess(getCurrentAuth(), spec);
-	}
+    public boolean isAdmin(Authentication auth) {
+        if (!authBackend.hasAuthorization() || auth == null) {
+            return false;
+        }
 
-	public boolean canAccess(Authentication user, ProxySpec spec) {
-		return accessControlService.canAccess(user, spec);
-	}
+        for (String adminGroup : getAdminGroups()) {
+            if (isMember(auth, adminGroup)) {
+                return true;
+            }
+        }
 
-	public boolean isOwner(Proxy proxy) {
-		return isOwner(getCurrentAuth(), proxy);
-	}
+        String userName = getUserId(auth);
+        for (String adminUser : getAdminUsers()) {
+            if (userName != null && userName.equalsIgnoreCase(adminUser)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	public boolean isOwner(Authentication auth, Proxy proxy) {
-		if (auth == null || proxy == null) return false;
-		return proxy.getUserId().equals(getUserId(auth));
-	}
-	
-	public boolean isMember(Authentication auth, String groupName) {
-		if (auth == null || auth instanceof AnonymousAuthenticationToken || groupName == null) return false;
-		for (String group: getGroups(auth)) {
-			if (group.equalsIgnoreCase(groupName)) return true;
-		}
-		return false;
-	}
+    public boolean canAccess(ProxySpec spec) {
+        return accessControlService.canAccess(getCurrentAuth(), spec);
+    }
 
-	public static String getUserId(Authentication auth) {
-		if (auth == null) return null;
-		if (auth instanceof AnonymousAuthenticationToken) {
-			// Anonymous authentication: use the session id instead of the username.
-			return Sha256.hash(((WebAuthenticationDetails) auth.getDetails()).getSessionId());
-		}
-		return auth.getName();
-	}
+    public boolean canAccess(Authentication user, ProxySpec spec) {
+        return accessControlService.canAccess(user, spec);
+    }
 
-	@EventListener
-	public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
-		Authentication source = event.getAuthentication();
-		Exception e = event.getException();
-		log.info(String.format("Authentication failure [user: %s] [error: %s]", getUserId(source), e.getMessage()));
-		String userId = getUserId(source);
+    public boolean isOwner(Proxy proxy) {
+        return isOwner(getCurrentAuth(), proxy);
+    }
 
-		applicationEventPublisher.publishEvent(new AuthFailedEvent(
-				this,
-				userId));
-	}
+    public boolean isOwner(Authentication auth, Proxy proxy) {
+        if (auth == null || proxy == null) return false;
+        return proxy.getUserId().equals(getUserId(auth));
+    }
 
-	public void logout(Authentication auth) {
-		String userId = getUserId(auth);
-		if (userId == null) return;
+    public boolean isMember(Authentication auth, String groupName) {
+        if (auth == null || auth instanceof AnonymousAuthenticationToken || groupName == null) return false;
+        for (String group : getGroups(auth)) {
+            if (group.equalsIgnoreCase(groupName)) return true;
+        }
+        return false;
+    }
 
-		if (logoutStrategy != null) logoutStrategy.onLogout(userId);
-		log.info(String.format("User logged out [user: %s]", userId));
+    @EventListener
+    public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
+        Authentication source = event.getAuthentication();
+        Exception e = event.getException();
+        log.info(String.format("Authentication failure [user: %s] [error: %s]", getUserId(source), e.getMessage()));
+        String userId = getUserId(source);
 
-		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
-		session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
+        applicationEventPublisher.publishEvent(new AuthFailedEvent(
+                this,
+                userId));
+    }
 
-		applicationEventPublisher.publishEvent(new UserLogoutEvent(
-				this,
-				userId,
-				false));
-	}
+    public void logout(Authentication auth) {
+        String userId = getUserId(auth);
+        if (userId == null) return;
 
-	@EventListener
-	public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
-		Authentication auth = event.getAuthentication();
-		String userName = getUserId(auth);
+        if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+        log.info(String.format("User logged out [user: %s]", userId));
 
-		log.info(String.format("User logged in [user: %s]", userName));
+        HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
+        session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
 
-		String userId = getUserId(auth);
-		applicationEventPublisher.publishEvent(new UserLoginEvent(
-				this,
-				userId));
-	}
+        applicationEventPublisher.publishEvent(new UserLogoutEvent(
+                this,
+                userId,
+                false));
+    }
 
-	@EventListener
-	public void onHttpSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
-		String userInitiatedLogout = (String) event.getSession().getAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT);
+    @EventListener
+    public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
+        Authentication auth = event.getAuthentication();
+        String userName = getUserId(auth);
 
-		if (userInitiatedLogout != null && userInitiatedLogout.equals("true")) {
-			// user initiated the logout
-			// event already handled by the logout() function above -> ignore it
-		} else {
-			// user did not initiated the logout -> session expired
-			// not already handled by any other handler
-			if (!event.getSecurityContexts().isEmpty()) {
-				SecurityContext securityContext = event.getSecurityContexts().get(0);
-				if (securityContext == null) return;
+        log.info(String.format("User logged in [user: %s]", userName));
 
-				String userId = getUserId(securityContext.getAuthentication());
-				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+        String userId = getUserId(auth);
+        applicationEventPublisher.publishEvent(new UserLoginEvent(
+                this,
+                userId));
+    }
 
-				log.info(String.format("User logged out [user: %s]", userId));
-				applicationEventPublisher.publishEvent(new UserLogoutEvent(
-						this,
-						userId,
-						true
-				));
-			} else if (authBackend.getName().equals("none")) {
-				String userId = Sha256.hash(event.getSession().getId());
-				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+    @EventListener
+    public void onHttpSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
+        String userInitiatedLogout = (String) event.getSession().getAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT);
 
-				log.info(String.format("Anonymous user logged out [user: %s]", userId));
-				applicationEventPublisher.publishEvent(new UserLogoutEvent(
-						this,
-						userId,
-						true
-				));
-			}
-		}
-	}
+        if (userInitiatedLogout != null && userInitiatedLogout.equals("true")) {
+            // user initiated the logout
+            // event already handled by the logout() function above -> ignore it
+        } else {
+            // user did not initiated the logout -> session expired
+            // not already handled by any other handler
+            if (!event.getSecurityContexts().isEmpty()) {
+                SecurityContext securityContext = event.getSecurityContexts().get(0);
+                if (securityContext == null) return;
 
-	@EventListener
-	public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
-		if (authBackend.getName().equals("none")) {
-			String userId = Sha256.hash(event.getSession().getId());
-			log.info(String.format("Anonymous user logged in [user: %s]", userId));
-			applicationEventPublisher.publishEvent(new UserLoginEvent(
-					this,
-					userId));
-		}
-	}
+                String userId = getUserId(securityContext.getAuthentication());
+                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+
+                log.info(String.format("User logged out [user: %s]", userId));
+                applicationEventPublisher.publishEvent(new UserLogoutEvent(
+                        this,
+                        userId,
+                        true
+                ));
+            } else if (authBackend.getName().equals("none")) {
+                String userId = Sha256.hash(event.getSession().getId());
+                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+
+                log.info(String.format("Anonymous user logged out [user: %s]", userId));
+                applicationEventPublisher.publishEvent(new UserLogoutEvent(
+                        this,
+                        userId,
+                        true
+                ));
+            }
+        }
+    }
+
+    @EventListener
+    public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
+        if (authBackend.getName().equals("none")) {
+            String userId = Sha256.hash(event.getSession().getId());
+            log.info(String.format("Anonymous user logged in [user: %s]", userId));
+            applicationEventPublisher.publishEvent(new UserLoginEvent(
+                    this,
+                    userId));
+        }
+    }
 
 }

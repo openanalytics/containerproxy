@@ -66,14 +66,14 @@ public class JDBCCollector extends AbstractDbCollector {
 	private final String url;
 	private final String username;
 	private final String password;
-	private final String tableName;
+    private final String tableName;
 
-	public JDBCCollector(String url, String username, String password, String tableName) {
+	public JDBCCollector(String url, String username, String password, String tableNam) {
 		this.url = url;
 		this.username = username;
 		this.password = password;
-		this.tableName = tableName;
-	}
+        this.tableName = tableName;
+    }
 
 	@PostConstruct
 	public void init() throws IOException {
@@ -106,7 +106,7 @@ public class JDBCCollector extends AbstractDbCollector {
 		if (maximumPoolSize != null) {
 			ds.setMaximumPoolSize(maximumPoolSize);
 		}
-		
+
 		// create table if not already exists
 		try (Connection con = ds.getConnection()) {
 			Statement statement = con.createStatement();

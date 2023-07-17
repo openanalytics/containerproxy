@@ -6,6 +6,6 @@ proxy:
   authentication: simple
   container-backend: docker
 
-  users: []
+  users: [ ]
 
-  specs: []
+  specs: [ ]

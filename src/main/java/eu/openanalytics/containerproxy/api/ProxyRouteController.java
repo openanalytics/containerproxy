@@ -35,36 +35,36 @@ import javax.servlet.http.HttpServletResponse;
 @Controller
 public class ProxyRouteController extends BaseController {
 
-	@Inject
-	private UserService userService;
-	
-	@Inject
-	private ProxyService proxyService;
-	
-	@Inject
-	private ProxyMappingManager mappingManager;
-	
-	@RequestMapping(value="/api/route/**")
-	public void route(HttpServletRequest request, HttpServletResponse response) {
-		try {
-			// Ensure that the caller is the owner of the target proxy.
-			boolean hasAccess = false;
-			String baseURL = ContextPathHelper.withEndingSlash() + "api/route/";
-			String mapping = request.getRequestURI().substring(baseURL.length());
-			String proxyId = mappingManager.getProxyId(mapping);
-			if (proxyId != null) {
-				Proxy proxy = proxyService.findProxy(p -> proxyId.equals(p.getId()), false);
-				hasAccess = userService.isOwner(proxy);
-			}
-			
-			if (hasAccess) {
-				mappingManager.dispatchAsync(proxyId, mapping, request, response);
-			} else {
-				response.setStatus(403);
-				response.getWriter().write("Not authorized to access this proxy");
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error routing proxy request", e);
-		}
-	}
+    @Inject
+    private UserService userService;
+
+    @Inject
+    private ProxyService proxyService;
+
+    @Inject
+    private ProxyMappingManager mappingManager;
+
+    @RequestMapping(value = "/api/route/**")
+    public void route(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Ensure that the caller is the owner of the target proxy.
+            boolean hasAccess = false;
+            String baseURL = ContextPathHelper.withEndingSlash() + "api/route/";
+            String mapping = request.getRequestURI().substring(baseURL.length());
+            String proxyId = mappingManager.getProxyId(mapping);
+            if (proxyId != null) {
+                Proxy proxy = proxyService.findProxy(p -> proxyId.equals(p.getId()), false);
+                hasAccess = userService.isOwner(proxy);
+            }
+
+            if (hasAccess) {
+                mappingManager.dispatchAsync(proxyId, mapping, request, response);
+            } else {
+                response.setStatus(403);
+                response.getWriter().write("Not authorized to access this proxy");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error routing proxy request", e);
+        }
+    }
 }

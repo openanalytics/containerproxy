@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ContainerImageKey extends RuntimeValueKey<String> {
 
+    public static final ContainerImageKey inst = new ContainerImageKey();
+
     private ContainerImageKey() {
         super("openanalytics.eu/sp-container-image",
                 "SHINYPROXY_CONTAINER_IMAGE",
@@ -33,8 +35,6 @@ public class ContainerImageKey extends RuntimeValueKey<String> {
                 true,
                 String.class);
     }
-
-    public static final ContainerImageKey inst = new ContainerImageKey();
 
     @Override
     public String deserializeFromString(String value) {

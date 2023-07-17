@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class RealmIdKey extends RuntimeValueKey<String> {
 
+    public static final RealmIdKey inst = new RealmIdKey();
+
     private RealmIdKey() {
         super("openanalytics.eu/sp-realm-id",
                 "SHINYPROXY_REALM_ID",
@@ -33,8 +35,6 @@ public class RealmIdKey extends RuntimeValueKey<String> {
                 false,
                 String.class);
     }
-
-    public static final RealmIdKey inst = new RealmIdKey();
 
     @Override
     public String deserializeFromString(String value) {

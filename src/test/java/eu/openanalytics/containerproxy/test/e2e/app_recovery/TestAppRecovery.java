@@ -55,6 +55,15 @@ public class TestAppRecovery extends KubernetesTestBase {
         );
     }
 
+    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
+        return Stream.of(
+                Arguments.of("docker", ""),
+                Arguments.of("docker-swarm", ""),
+                Arguments.of("kubernetes", ""),
+                Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
+        );
+    }
+
     private void assertEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
         // Docker
         DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
@@ -128,15 +137,6 @@ public class TestAppRecovery extends KubernetesTestBase {
         } finally {
             instances.forEach(ShinyProxyInstance::stop);
         }
-    }
-
-    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
-        return Stream.of(
-                Arguments.of("docker", ""),
-                Arguments.of("docker-swarm", ""),
-                Arguments.of("kubernetes", ""),
-                Arguments.of("kubernetes", "--proxy.docker.internal-networking=true")
-        );
     }
 
     // note: this test only works with minikube running on the same local machine, because it uses the NodePort services

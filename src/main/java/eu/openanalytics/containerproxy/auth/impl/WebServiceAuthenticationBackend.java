@@ -47,55 +47,55 @@ import java.util.List;
  * checked by a HTTP call to a remote web service.
  */
 public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
-	
-	public static final String NAME = "webservice";
 
-	private static final String PROPERTY_PREFIX = "proxy.webservice.";
-	
-	@Inject
-	private Environment environment;
+    public static final String NAME = "webservice";
 
-	@Override
-	public String getName() {
-		return NAME;
-	}
+    private static final String PROPERTY_PREFIX = "proxy.webservice.";
 
-	@Override
-	public boolean hasAuthorization() {
-		return true;
-	}
+    @Inject
+    private Environment environment;
 
-	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
-		// Nothing to do.
-	}
+    @Override
+    public String getName() {
+        return NAME;
+    }
 
-	@Override
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
-		RemoteAuthenticationProvider authenticationProvider = new RemoteAuthenticationProvider();
-		authenticationProvider.setRemoteAuthenticationManager((username, password) -> {
-			RestTemplate restTemplate = new RestTemplate();
+    @Override
+    public boolean hasAuthorization() {
+        return true;
+    }
 
-			HttpHeaders headers = new HttpHeaders();
-			headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-			headers.setContentType(MediaType.APPLICATION_JSON);
+    @Override
+    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
+        // Nothing to do.
+    }
 
-			try {
-				String body = String.format(environment.getProperty(PROPERTY_PREFIX + "authentication-request-body", ""), username, password);
-				String loginUrl = environment.getProperty(PROPERTY_PREFIX + "authentication-url");
-				ResponseEntity<String> result = restTemplate.exchange(loginUrl, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
-				if (result.getStatusCode() == HttpStatus.OK) {
-					return Lists.newArrayList();
-				}
-				throw new AuthenticationServiceException("Unknown response received " + result);
-			} catch (HttpClientErrorException e) {
-				throw new BadCredentialsException("Invalid username or password");
-			} catch (RestClientException e) {
-				throw new AuthenticationServiceException("Internal error " + e.getMessage());
-			}
+    @Override
+    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
+        RemoteAuthenticationProvider authenticationProvider = new RemoteAuthenticationProvider();
+        authenticationProvider.setRemoteAuthenticationManager((username, password) -> {
+            RestTemplate restTemplate = new RestTemplate();
 
-		});
-		auth.authenticationProvider(authenticationProvider);
-	}
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            try {
+                String body = String.format(environment.getProperty(PROPERTY_PREFIX + "authentication-request-body", ""), username, password);
+                String loginUrl = environment.getProperty(PROPERTY_PREFIX + "authentication-url");
+                ResponseEntity<String> result = restTemplate.exchange(loginUrl, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
+                if (result.getStatusCode() == HttpStatus.OK) {
+                    return Lists.newArrayList();
+                }
+                throw new AuthenticationServiceException("Unknown response received " + result);
+            } catch (HttpClientErrorException e) {
+                throw new BadCredentialsException("Invalid username or password");
+            } catch (RestClientException e) {
+                throw new AuthenticationServiceException("Internal error " + e.getMessage());
+            }
+
+        });
+        auth.authenticationProvider(authenticationProvider);
+    }
 
 }

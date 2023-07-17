@@ -163,6 +163,7 @@ public class RedisSessionService extends AbstractSessionService {
 
     /**
      * Extracts the {@link Authentication} object from the given Session, if and only if the user is authenticated.
+     *
      * @param session the session
      * @return Authentication|null
      */

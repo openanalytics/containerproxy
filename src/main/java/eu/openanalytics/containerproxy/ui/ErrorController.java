@@ -45,103 +45,103 @@ import static eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationF
 @RequestMapping("/error")
 public class ErrorController extends BaseController implements org.springframework.boot.web.servlet.error.ErrorController {
 
-	@RequestMapping(produces = "text/html")
-	public String handleError(ModelMap map, HttpServletRequest request, HttpServletResponse response) {
+    @RequestMapping(produces = "text/html")
+    public String handleError(ModelMap map, HttpServletRequest request, HttpServletResponse response) {
 
-		// handle keycloak errors
-	    Object obj = request.getSession().getAttribute(SP_KEYCLOAK_ERROR_REASON);
-	    if (obj instanceof OIDCAuthenticationError.Reason reason) {
-	    	request.getSession().removeAttribute(SP_KEYCLOAK_ERROR_REASON);
-			if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
-				reason == OIDCAuthenticationError.Reason.STALE_TOKEN) {
-	    		// These errors are typically caused by users using wrong bookmarks (e.g. bookmarks with states in)
-				// or when some cookies got stale. However, the user is logged into the IDP, therefore it's enough to
-				// send the user to the main page and they will get logged in automatically.
-				return "redirect:/";
-			} else {
-				return "redirect:/auth-error";
-			}
-		}
+        // handle keycloak errors
+        Object obj = request.getSession().getAttribute(SP_KEYCLOAK_ERROR_REASON);
+        if (obj instanceof OIDCAuthenticationError.Reason reason) {
+            request.getSession().removeAttribute(SP_KEYCLOAK_ERROR_REASON);
+            if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
+                    reason == OIDCAuthenticationError.Reason.STALE_TOKEN) {
+                // These errors are typically caused by users using wrong bookmarks (e.g. bookmarks with states in)
+                // or when some cookies got stale. However, the user is logged into the IDP, therefore it's enough to
+                // send the user to the main page and they will get logged in automatically.
+                return "redirect:/";
+            } else {
+                return "redirect:/auth-error";
+            }
+        }
 
-		Optional<Throwable> exception = getException(request);
-		if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
-			return "redirect:/";
-		}
+        Optional<Throwable> exception = getException(request);
+        if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
+            return "redirect:/";
+        }
 
-		String shortError = "ShinyProxy experienced an unrecoverable error.";
-		String description = "";
+        String shortError = "ShinyProxy experienced an unrecoverable error.";
+        String description = "";
 
-		if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
-			shortError = "Bad Request";
-			description = "You are not allowed to send this request.";
-			response.setStatus(400);
-		}
+        if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
+            shortError = "Bad Request";
+            description = "You are not allowed to send this request.";
+            response.setStatus(400);
+        }
 
-		if (exception.isPresent() && exception.get() instanceof ContainerProxyException) {
-			description = exception.get().getMessage();
-		}
+        if (exception.isPresent() && exception.get() instanceof ContainerProxyException) {
+            description = exception.get().getMessage();
+        }
 
-		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
-		if (status != null) {
-			int statusCode = Integer.parseInt(status.toString());
-			if (statusCode == HttpStatus.NOT_FOUND.value()) {
-				shortError = "Not found";
-				description = "The requested page was not found";
-			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
-				shortError = "Forbidden";
-				description = "You do not have access to this page";
-			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
-				shortError = "Method not allowed";
-			}
-		}
+        Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+        if (status != null) {
+            int statusCode = Integer.parseInt(status.toString());
+            if (statusCode == HttpStatus.NOT_FOUND.value()) {
+                shortError = "Not found";
+                description = "The requested page was not found";
+            } else if (statusCode == HttpStatus.FORBIDDEN.value()) {
+                shortError = "Forbidden";
+                description = "You do not have access to this page";
+            } else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+                shortError = "Method not allowed";
+            }
+        }
 
-		prepareMap(map);
-		map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
-		map.put("shortError", shortError);
-		map.put("description", description);
-		
-		return "error";
-	}
-	
-	@RequestMapping(produces = "application/json")
-	@ResponseBody
-	public ResponseEntity<ApiResponse<Object>> error(HttpServletRequest request, HttpServletResponse response) {
-		Optional<Throwable> exception = getException(request);
-		if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
-			return ApiResponse.failUnauthorized();
-		}
+        prepareMap(map);
+        map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
+        map.put("shortError", shortError);
+        map.put("description", description);
 
-		if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
-			return ApiResponse.fail("bad request");
-		}
+        return "error";
+    }
 
-		Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
-		if (status != null) {
-			int statusCode = Integer.parseInt(status.toString());
-			if (statusCode == HttpStatus.NOT_FOUND.value()) {
-				return ApiResponse.failNotFound();
-			} else if (statusCode == HttpStatus.FORBIDDEN.value()) {
-				return ApiResponse.failForbidden();
-			} else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
-				return ResponseEntity.status(HttpStatus.METHOD_FAILURE).body(new ApiResponse<>("fail", "method not allowed"));
-			}
-	}
+    @RequestMapping(produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<Object>> error(HttpServletRequest request, HttpServletResponse response) {
+        Optional<Throwable> exception = getException(request);
+        if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
+            return ApiResponse.failUnauthorized();
+        }
 
-		return ApiResponse.error("unrecoverable error");
-	}
+        if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
+            return ApiResponse.fail("bad request");
+        }
 
-	private boolean isAccountStatusException(Throwable exception) {
-		if (exception instanceof AccountStatusException) return true;
-		if (exception.getCause() != null) return isAccountStatusException(exception.getCause());
-		return false;
-	}
+        Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+        if (status != null) {
+            int statusCode = Integer.parseInt(status.toString());
+            if (statusCode == HttpStatus.NOT_FOUND.value()) {
+                return ApiResponse.failNotFound();
+            } else if (statusCode == HttpStatus.FORBIDDEN.value()) {
+                return ApiResponse.failForbidden();
+            } else if (statusCode == HttpStatus.METHOD_NOT_ALLOWED.value()) {
+                return ResponseEntity.status(HttpStatus.METHOD_FAILURE).body(new ApiResponse<>("fail", "method not allowed"));
+            }
+        }
 
-	private Optional<Throwable> getException(HttpServletRequest request) {
-		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
-		if (exception == null) {
-			exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
-		}
-		return Optional.ofNullable(exception);
-	}
+        return ApiResponse.error("unrecoverable error");
+    }
+
+    private boolean isAccountStatusException(Throwable exception) {
+        if (exception instanceof AccountStatusException) return true;
+        if (exception.getCause() != null) return isAccountStatusException(exception.getCause());
+        return false;
+    }
+
+    private Optional<Throwable> getException(HttpServletRequest request) {
+        Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
+        if (exception == null) {
+            exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+        }
+        return Optional.ofNullable(exception);
+    }
 
 }

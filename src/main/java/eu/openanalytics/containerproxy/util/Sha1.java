@@ -26,7 +26,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Sha1 {
 
-    public static String hash(String value)  {
+    public static String hash(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
             digest.reset();

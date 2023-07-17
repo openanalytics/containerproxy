@@ -81,25 +81,25 @@ public class ContainerSpec {
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
 
-	public void setCmd(List<String> cmd) {
-		this.cmd = new SpelField.StringList(cmd);
-	}
+    public void setCmd(List<String> cmd) {
+        this.cmd = new SpelField.StringList(cmd);
+    }
 
-	public void setEnv(Map<String, String> env) {
-		this.env = new SpelField.StringMap(env);
-	}
+    public void setEnv(Map<String, String> env) {
+        this.env = new SpelField.StringMap(env);
+    }
 
-	public void setNetworkConnections(List<String> networkConnections) {
-		this.networkConnections = new SpelField.StringList(networkConnections);
-	}
+    public void setNetworkConnections(List<String> networkConnections) {
+        this.networkConnections = new SpelField.StringList(networkConnections);
+    }
 
-	public void setDns(List<String> dns) {
-		this.dns = new SpelField.StringList(dns);
-	}
+    public void setDns(List<String> dns) {
+        this.dns = new SpelField.StringList(dns);
+    }
 
-	public void setVolumes(List<String> volumes) {
-		this.volumes = new SpelField.StringList(volumes);
-	}
+    public void setVolumes(List<String> volumes) {
+        this.volumes = new SpelField.StringList(volumes);
+    }
 
     public void setLabels(Map<String, String> labels) {
         this.labels = new SpelField.StringMap(labels);

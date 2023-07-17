@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class UserIdKey extends RuntimeValueKey<String> {
 
+    public static final UserIdKey inst = new UserIdKey();
+
     private UserIdKey() {
         super("openanalytics.eu/sp-user-id",
                 "SHINYPROXY_USERNAME",
@@ -29,12 +31,10 @@ public class UserIdKey extends RuntimeValueKey<String> {
                 true,
                 true,
                 false, // no need to expose in API
-               true,
+                true,
                 false,
                 String.class);
     }
-
-    public static final UserIdKey inst = new UserIdKey();
 
     @Override
     public String deserializeFromString(String value) {

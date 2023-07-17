@@ -56,25 +56,18 @@ import java.util.function.ToDoubleFunction;
 public class Micrometer implements IStatCollector {
 
     private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every 20 seconds
-
-    @Inject
-    private MeterRegistry registry;
-
-    @Inject
-    private ProxyService proxyService;
-
-    @Inject
-    private ISessionService sessionService;
-
     private final Logger logger = LogManager.getLogger(getClass());
-
     // keeps track of the number of proxies per spec id
     private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
-
     // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<ProxyCounter> proxyCounters = new ArrayList<>();
-
+    @Inject
+    private MeterRegistry registry;
+    @Inject
+    private ProxyService proxyService;
+    @Inject
+    private ISessionService sessionService;
     private Counter appStartFailedCounter;
 
     private Counter authFailedCounter;
@@ -82,6 +75,22 @@ public class Micrometer implements IStatCollector {
     private Counter userLogins;
 
     private Counter userLogouts;
+
+    /**
+     * Wraps a function that returns an Integer into a function that returns a double.
+     * When the provided Integer is null, the resulting function returns Double.NaN.
+     *
+     * We need this function because Micrometer cannot handle null values for Gauges.
+     */
+    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
+        return (state) -> {
+            Integer res = producer.applyAsDouble(state);
+            if (res == null) {
+                return Double.NaN;
+            }
+            return res;
+        };
+    }
 
     @PostConstruct
     public void init() {
@@ -118,7 +127,7 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
-        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(),  event.getWasExpired());
+        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(), event.getWasExpired());
         userLogouts.increment();
     }
 
@@ -222,6 +231,11 @@ public class Micrometer implements IStatCollector {
         }
     }
 
+    @FunctionalInterface
+    private interface ToIntegerFunction<T> {
+        Integer applyAsDouble(T var1);
+    }
+
     private class ProxyCounter {
 
         private final String specId;
@@ -234,27 +248,6 @@ public class Micrometer implements IStatCollector {
             return proxyCountCache.getOrDefault(specId, null);
         }
 
-    }
-
-    /**
-     * Wraps a function that returns an Integer into a function that returns a double.
-     * When the provided Integer is null, the resulting function returns Double.NaN.
-     *
-     * We need this function because Micrometer cannot handle null values for Gauges.
-     */
-    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
-        return (state) -> {
-            Integer res = producer.applyAsDouble(state);
-            if (res == null) {
-                return Double.NaN;
-            }
-            return res;
-        };
-    }
-
-    @FunctionalInterface
-    private interface ToIntegerFunction<T> {
-        Integer applyAsDouble(T var1);
     }
 
 }

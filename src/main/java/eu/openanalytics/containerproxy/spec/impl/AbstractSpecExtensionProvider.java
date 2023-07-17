@@ -41,12 +41,12 @@ public class AbstractSpecExtensionProvider<T extends ISpecExtension> {
         }
     }
 
-    public void setSpecs(List<T> specs) {
-        this.specs = specs;
-    }
-
     public List<T> getSpecs() {
         return specs;
+    }
+
+    public void setSpecs(List<T> specs) {
+        this.specs = specs;
     }
 
 }

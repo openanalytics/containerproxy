@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class UserGroupsKey extends RuntimeValueKey<String> {
 
+    public static final UserGroupsKey inst = new UserGroupsKey();
+
     private UserGroupsKey() {
         super("openanalytics.eu/sp-user-groups",
                 "SHINYPROXY_USERGROUPS",
@@ -33,8 +35,6 @@ public class UserGroupsKey extends RuntimeValueKey<String> {
                 false,
                 String.class);
     }
-
-    public static final UserGroupsKey inst = new UserGroupsKey();
 
     @Override
     public String deserializeFromString(String value) {

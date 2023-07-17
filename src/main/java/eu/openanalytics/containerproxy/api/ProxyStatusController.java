@@ -62,16 +62,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 public class ProxyStatusController {
 
+    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
     @Inject
     private ProxyService proxyService;
-
     @Inject
     private AsyncProxyService asyncProxyService;
-
     @Inject
     private UserService userService;
-
-    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
 
     @Operation(
             summary = "Change the status of a proxy.", tags = "ContainerProxy",
@@ -83,7 +80,8 @@ public class ProxyStatusController {
                                     @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredState\": \"Stopping\"}"),
                                     @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredState\": \"Pausing\"}"),
                                     @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\"}"),
-                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
+                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
+                                            "\"other_parameter\":\"example\"}}")
                             }
                     )
             )

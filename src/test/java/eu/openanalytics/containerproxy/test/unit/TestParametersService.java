@@ -53,13 +53,11 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("parameters")
 public class TestParametersService {
 
+    private final Authentication auth = mock(Authentication.class);
     @Inject
     private ProxyService proxyService;
-
     @Inject
     private ParametersService parametersService;
-
-    private final Authentication auth = mock(Authentication.class);
 
     @Test
     public void testBigParameters() {

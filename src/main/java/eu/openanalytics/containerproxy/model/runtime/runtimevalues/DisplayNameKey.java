@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class DisplayNameKey extends RuntimeValueKey<String> {
 
+    public static final DisplayNameKey inst = new DisplayNameKey();
+
     private DisplayNameKey() {
         super("openanalytics.eu/sp-display-name",
                 "SHINYPROXY_DISPLAY_NAME",
@@ -29,12 +31,10 @@ public class DisplayNameKey extends RuntimeValueKey<String> {
                 true,
                 false,
                 true, // no need to expose in API
-               true,
+                true,
                 false,
                 String.class);
     }
-
-    public static final DisplayNameKey inst = new DisplayNameKey();
 
     @Override
     public String deserializeFromString(String value) {

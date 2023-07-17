@@ -25,10 +25,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import eu.openanalytics.containerproxy.event.BridgeableEvent;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
+import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
@@ -86,7 +86,7 @@ public class RedisStoreConfiguration {
     @Bean
     public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate,
                                             IdentifierService identifierService) {
-        return new RedisPortAllocator( porRedisTemplate, identifierService);
+        return new RedisPortAllocator(porRedisTemplate, identifierService);
     }
 
     // Beans used internally by Redis store
@@ -173,7 +173,7 @@ public class RedisStoreConfiguration {
         return template;
     }
 
-    private <K,V> RedisTemplate<K,V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {
+    private <K, V> RedisTemplate<K, V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {
         RedisTemplate<K, V> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 

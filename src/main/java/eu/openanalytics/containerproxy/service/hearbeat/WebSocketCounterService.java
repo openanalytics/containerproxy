@@ -37,12 +37,9 @@ public class WebSocketCounterService implements IHeartbeatProcessor {
 
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
-
+    private final ConcurrentHashMap<String, Long> wsHeartbeats = ProxyHashMap.create();
     @Inject
     protected Environment environment;
-
-    private final ConcurrentHashMap<String, Long> wsHeartbeats = ProxyHashMap.create();
-
     private long cleanupInterval;
 
     @PostConstruct

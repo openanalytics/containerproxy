@@ -37,49 +37,47 @@ import java.util.List;
 @Configuration
 public class TemplateResolverConfig implements WebMvcConfigurer {
 
-	private static final String PROP_TEMPLATE_PATH = "proxy.template-path";
-
-	public static final String PROP_CORS_ALLOWED_ORIGINS = "proxy.api-security.cors-allowed-origins";
-
-	@Inject
+    public static final String PROP_CORS_ALLOWED_ORIGINS = "proxy.api-security.cors-allowed-origins";
+    private static final String PROP_TEMPLATE_PATH = "proxy.template-path";
+    @Inject
     private Environment environment;
 
-	@Inject
-	private IdentifierService identifierService;
-	
-	@Override
-	public void addResourceHandlers(ResourceHandlerRegistry registry) {
-		registry.addResourceHandler("/assets/**")
-				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
-		// next line is to have versioned (based on shinyproxy instance) assets
-		registry.addResourceHandler("/" + identifierService.instanceId + "/**")
-				.addResourceLocations("classpath:/static/");
-		registry.addResourceHandler("/" + identifierService.instanceId + "/webjars/**")
-				.addResourceLocations("/webjars/");
-		registry.addResourceHandler("/" + identifierService.instanceId + "/assets/**")
-				.addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
-	}
+    @Inject
+    private IdentifierService identifierService;
 
-	@Bean
-	public FileTemplateResolver templateResolver() {
-		FileTemplateResolver resolver = new FileTemplateResolver();
-		resolver.setPrefix(environment.getProperty("proxy.template-path") + "/");
-		resolver.setSuffix(".html");
-		resolver.setTemplateMode("HTML5");
-		resolver.setCacheable(false);
-		resolver.setCheckExistence(true);
-		resolver.setOrder(1);
-		return resolver;
-	}
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/assets/**")
+                .addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
+        // next line is to have versioned (based on shinyproxy instance) assets
+        registry.addResourceHandler("/" + identifierService.instanceId + "/**")
+                .addResourceLocations("classpath:/static/");
+        registry.addResourceHandler("/" + identifierService.instanceId + "/webjars/**")
+                .addResourceLocations("/webjars/");
+        registry.addResourceHandler("/" + identifierService.instanceId + "/assets/**")
+                .addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/");
+    }
 
-	@Override
-	public void addCorsMappings(@Nonnull CorsRegistry registry) {
-		List<String> origins = EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS);
-		if (origins != null) {
-			registry.addMapping("/**")
-					.allowCredentials(true)
-					.allowedOrigins(origins.toArray(new String[0]));
-		}
-	}
+    @Bean
+    public FileTemplateResolver templateResolver() {
+        FileTemplateResolver resolver = new FileTemplateResolver();
+        resolver.setPrefix(environment.getProperty("proxy.template-path") + "/");
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode("HTML5");
+        resolver.setCacheable(false);
+        resolver.setCheckExistence(true);
+        resolver.setOrder(1);
+        return resolver;
+    }
+
+    @Override
+    public void addCorsMappings(@Nonnull CorsRegistry registry) {
+        List<String> origins = EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS);
+        if (origins != null) {
+            registry.addMapping("/**")
+                    .allowCredentials(true)
+                    .allowedOrigins(origins.toArray(new String[0]));
+        }
+    }
 
 }

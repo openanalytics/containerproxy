@@ -30,6 +30,12 @@ import java.util.Map;
  */
 public class ExistingContainerInfo {
 
+    private final String containerId;
+    private final Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
+    private final String image;
+    private final Map<Integer, Integer> portBindings;
+    private final ProxyStatus proxyStatus;
+
     public ExistingContainerInfo(String containerId,
                                  Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues,
                                  String image,
@@ -54,13 +60,6 @@ public class ExistingContainerInfo {
         this.portBindings = portBindings;
         this.proxyStatus = proxyStatus;
     }
-
-    private final String containerId;
-    private final Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
-    private final String image;
-    private final Map<Integer, Integer> portBindings;
-
-    private final ProxyStatus proxyStatus;
 
     public String getContainerId() {
         return containerId;

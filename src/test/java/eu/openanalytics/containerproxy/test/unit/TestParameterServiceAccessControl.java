@@ -102,17 +102,17 @@ public class TestParameterServiceAccessControl {
                 allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
+                        "3.0.6",
+                        "4.0.5",
+                        "4.1.3",
+                        "4.0.3"
                 ),
                 allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "2G",
-                         "4G",
-                         "8G"
+                        "2G",
+                        "4G",
+                        "8G"
                 ),
                 allowedParametersForUser.getValues().get("memory"));
 
@@ -173,10 +173,10 @@ public class TestParameterServiceAccessControl {
                 allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
+                        "3.0.6",
+                        "4.0.5",
+                        "4.1.3",
+                        "4.0.3"
                 ),
                 allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(

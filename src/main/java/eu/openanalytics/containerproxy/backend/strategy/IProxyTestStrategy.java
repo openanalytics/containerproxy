@@ -28,6 +28,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyTestStrategy {
 
-	public boolean testProxy(Proxy proxy);
+    public boolean testProxy(Proxy proxy);
 
 }

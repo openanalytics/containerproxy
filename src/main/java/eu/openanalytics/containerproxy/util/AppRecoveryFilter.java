@@ -78,7 +78,7 @@ public class AppRecoveryFilter extends GenericFilterBean {
         renderTemplate((HttpServletResponse) response);
     }
 
-    private void renderTemplate(HttpServletResponse httpResponse ) throws IOException {
+    private void renderTemplate(HttpServletResponse httpResponse) throws IOException {
         if (renderedTemplate == null) {
             InputStream template = this.getClass().getResourceAsStream("/templates/startup.html");
             if (template == null) {

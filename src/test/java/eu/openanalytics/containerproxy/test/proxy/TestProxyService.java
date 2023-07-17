@@ -20,12 +20,14 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import java.net.URI;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
+import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.test.proxy.TestProxyService.TestConfiguration;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,60 +38,56 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.test.proxy.TestProxyService.TestConfiguration;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import javax.inject.Inject;
+import java.net.URI;
 
-@SpringBootTest(classes= {TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {TestConfiguration.class, ContainerProxyApplication.class})
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestProxyService {
 
-	@Inject
-	private Environment environment;
-	
-	@Inject
-	private ProxyService proxyService;
-	
-	@Test
-	public void launchProxy() throws InvalidParametersException {
-		String specId = environment.getProperty("proxy.specs[0].id");
+    @Inject
+    private Environment environment;
 
-		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+    @Inject
+    private ProxyService proxyService;
 
-		Proxy proxy = proxyService.startProxy(baseSpec);
-		proxyService.stopProxy(null, proxy, true).run();
-	}
-	
-	public static class TestConfiguration {
-		@Bean
-		@Primary
-		public ProxyMappingManager mappingManager() {
-			return new NoopMappingManager();
-		}
+    @Test
+    public void launchProxy() throws InvalidParametersException {
+        String specId = environment.getProperty("proxy.specs[0].id");
 
-		@Bean
-		@Primary
-		public UserService mockedUserService() {
-			return new MockedUserService();
-		}
-	}
-	
-	public static class NoopMappingManager extends ProxyMappingManager {
-		@Override
-		public synchronized void addMapping(String proxyId, String path, URI target) {
-			// No-op
-			System.out.println("NOOP");
-		}
-		
-		@Override
-		public synchronized void removeMapping(String path) {
-			// No-ops
-		}
-	}
+        ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+
+        Proxy proxy = proxyService.startProxy(baseSpec);
+        proxyService.stopProxy(null, proxy, true).run();
+    }
+
+    public static class TestConfiguration {
+        @Bean
+        @Primary
+        public ProxyMappingManager mappingManager() {
+            return new NoopMappingManager();
+        }
+
+        @Bean
+        @Primary
+        public UserService mockedUserService() {
+            return new MockedUserService();
+        }
+    }
+
+    public static class NoopMappingManager extends ProxyMappingManager {
+        @Override
+        public synchronized void addMapping(String proxyId, String path, URI target) {
+            // No-op
+            System.out.println("NOOP");
+        }
+
+        @Override
+        public synchronized void removeMapping(String path) {
+            // No-ops
+        }
+    }
 
 }

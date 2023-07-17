@@ -30,7 +30,7 @@ public class ChangeProxyStatusDto {
 
     private Map<String, String> parameters;
 
-    @Schema(description = "The desired state for the proxy.", allowableValues =  {"Stopping", "Pausing","Resuming"})
+    @Schema(description = "The desired state for the proxy.", allowableValues = {"Stopping", "Pausing", "Resuming"})
     public String getDesiredState() {
         return desiredState;
     }

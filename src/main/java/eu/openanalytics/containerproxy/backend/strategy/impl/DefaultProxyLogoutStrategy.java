@@ -39,45 +39,45 @@ import javax.inject.Inject;
 @Component
 public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
-	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
+    private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
 
-	@Inject
-	@Lazy
-	private ProxyService proxyService;
+    @Inject
+    @Lazy
+    private ProxyService proxyService;
 
-	@Inject
-	@Lazy
-	private AsyncProxyService asyncProxyService;
+    @Inject
+    @Lazy
+    private AsyncProxyService asyncProxyService;
 
-	@Inject
-	private Environment environment;
+    @Inject
+    private Environment environment;
 
-	@Inject
-	private IProxySpecProvider specProvider;
+    @Inject
+    private IProxySpecProvider specProvider;
 
-	private boolean defaultStopProxyOnLogout;
+    private boolean defaultStopProxyOnLogout;
 
-	@PostConstruct
-	public void init() {
-		defaultStopProxyOnLogout = environment.getProperty(PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT, Boolean.class, true);
-	}
+    @PostConstruct
+    public void init() {
+        defaultStopProxyOnLogout = environment.getProperty(PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT, Boolean.class, true);
+    }
 
-	@Override
-	public void onLogout(String userId) {
-		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
-			if (shouldBeStopped(proxy)) {
-				asyncProxyService.stopProxy(proxy,  true);
-			}
-		}
-	}
+    @Override
+    public void onLogout(String userId) {
+        for (Proxy proxy : proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
+            if (shouldBeStopped(proxy)) {
+                asyncProxyService.stopProxy(proxy, true);
+            }
+        }
+    }
 
-	public boolean shouldBeStopped(Proxy proxy) {
-		// we retrieve the spec here, therefore this is not compatible with AppRecovery
-		ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
-		if (proxySpec != null && proxySpec.getStopOnLogout() != null) {
-			return proxySpec.getStopOnLogout();
-		}
-		return defaultStopProxyOnLogout;
-	}
+    public boolean shouldBeStopped(Proxy proxy) {
+        // we retrieve the spec here, therefore this is not compatible with AppRecovery
+        ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
+        if (proxySpec != null && proxySpec.getStopOnLogout() != null) {
+            return proxySpec.getStopOnLogout();
+        }
+        return defaultStopProxyOnLogout;
+    }
 
 }

@@ -44,14 +44,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class NoAuthenticationTest {
 
-	@Inject
-	private MockMvc mvc;
+    @Inject
+    private MockMvc mvc;
 
-	@Test
-	public void authenticateUser() throws Exception {
-		mvc
-			.perform(get("/api/proxyspec").accept(MediaType.APPLICATION_JSON_VALUE))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isNotEmpty());
-	}
+    @Test
+    public void authenticateUser() throws Exception {
+        mvc
+                .perform(get("/api/proxyspec").accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isNotEmpty());
+    }
 }

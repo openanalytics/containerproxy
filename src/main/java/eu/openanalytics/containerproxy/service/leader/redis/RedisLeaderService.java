@@ -39,15 +39,12 @@ import java.util.UUID;
  */
 public class RedisLeaderService implements Candidate, ILeaderService {
 
+    private final Logger logger = LogManager.getLogger(getClass());
     @Inject
     private ExpirableLockRegistry lockRegistry;
-
     @Inject
     private IdentifierService identifierService;
-
     private volatile boolean isLeader;
-
-    private final Logger logger = LogManager.getLogger(getClass());
 
     @Scheduled(fixedDelay = 5000)
     private void cleanObsolete() {

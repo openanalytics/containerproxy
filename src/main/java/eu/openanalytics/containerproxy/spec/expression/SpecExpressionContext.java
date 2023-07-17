@@ -54,6 +54,36 @@ public class SpecExpressionContext {
     List<String> groups;
     String userId;
 
+    public static SpecExpressionContext create(Object... objects) {
+        SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
+        return create(builder, objects);
+    }
+
+    public static SpecExpressionContext create(SpecExpressionContextBuilder builder, Object... objects) {
+        for (Object o : objects) {
+            if (o instanceof ContainerSpec) {
+                builder.containerSpec = (ContainerSpec) o;
+            } else if (o instanceof ProxySpec) {
+                builder.proxySpec = (ProxySpec) o;
+            } else if (o instanceof Proxy) {
+                builder.proxy = (Proxy) o;
+            } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
+                builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+            } else if (o instanceof KeycloakPrincipal) {
+                builder.keycloakUser = (KeycloakPrincipal) o;
+            } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
+                builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
+            } else if (o instanceof LdapUserDetails) {
+                builder.ldapUser = (LdapUserDetails) o;
+            }
+            if (o instanceof Authentication) {
+                builder.groups = UserService.getGroups((Authentication) o);
+                builder.userId = UserService.getUserId(((Authentication) o));
+            }
+        }
+        return builder.build();
+    }
+
     /**
      * Convert a {@see String} to a list of strings, by splitting according to the provided regex and trimming each result
      */
@@ -109,36 +139,6 @@ public class SpecExpressionContext {
             return false;
         }
         return Arrays.stream(allowedValues).anyMatch(it -> it.trim().equalsIgnoreCase(attribute.trim()));
-    }
-
-    public static SpecExpressionContext create(Object... objects) {
-        SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
-        return create(builder, objects);
-    }
-
-    public static SpecExpressionContext create(SpecExpressionContextBuilder builder, Object... objects) {
-        for (Object o : objects) {
-            if (o instanceof ContainerSpec) {
-                builder.containerSpec = (ContainerSpec) o;
-            } else if (o instanceof ProxySpec) {
-                builder.proxySpec = (ProxySpec) o;
-            } else if (o instanceof Proxy) {
-                builder.proxy = (Proxy) o;
-            } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-                builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
-            } else if (o instanceof KeycloakPrincipal) {
-                builder.keycloakUser = (KeycloakPrincipal) o;
-            } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
-                builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
-            } else if (o instanceof LdapUserDetails) {
-                builder.ldapUser = (LdapUserDetails) o;
-            }
-            if (o instanceof Authentication) {
-                builder.groups = UserService.getGroups((Authentication) o);
-                builder.userId = UserService.getUserId(((Authentication) o));
-            }
-        }
-        return builder.build();
     }
 
     public SpecExpressionContext copy(Object... objects) {

@@ -32,10 +32,9 @@ import java.io.IOException;
 public class ShinyProxyInstance {
 
     private final ProcessBuilder processBuilder;
-    private Process process;
     private final int port;
-
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private Process process;
 
     public ShinyProxyInstance(String configFileName, int port, String extraArgs) {
         this.port = port;

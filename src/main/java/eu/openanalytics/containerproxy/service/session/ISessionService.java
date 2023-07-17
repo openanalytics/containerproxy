@@ -41,6 +41,7 @@ public interface ISessionService {
 
     /**
      * Re-activates the session of the given sessionId. This means that the last-active time is set to the current time.
+     *
      * @param sessionId the session to update
      */
     public void reActivateSession(String sessionId);
@@ -48,6 +49,7 @@ public interface ISessionService {
     /**
      * Finds the sessionId of the user in the given exchange. Does not use any context (e.g. RequestContext) and therefore
      * can be used outside such a context.
+     *
      * @param exchange the exchange to extract the sessionId from
      * @return the sessionId
      */

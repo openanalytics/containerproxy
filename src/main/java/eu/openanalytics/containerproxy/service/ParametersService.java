@@ -48,11 +48,9 @@ import java.util.regex.Pattern;
 @Service
 public class ParametersService {
 
-    private final IProxySpecProvider baseSpecProvider;
-
-    private final AccessControlEvaluationService accessControlEvaluationService;
-
     private static final Pattern PARAMETER_ID_PATTERN = Pattern.compile("[a-zA-Z\\d_-]*");
+    private final IProxySpecProvider baseSpecProvider;
+    private final AccessControlEvaluationService accessControlEvaluationService;
 
     public ParametersService(IProxySpecProvider baseSpecProvider, AccessControlEvaluationService accessControlEvaluationService, ObjectMapper objectMapper) {
         this.baseSpecProvider = baseSpecProvider;
@@ -89,7 +87,8 @@ public class ParametersService {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: duplicate parameter id '%s'", spec.getId(), definition.getId()));
             }
             if (!PARAMETER_ID_PATTERN.matcher(definition.getId()).matches()) {
-                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: parameter id '%s' is invalid, id may only exists out of Latin letters, numbers, dash and underscore", spec.getId(), definition.getId()));
+                throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: parameter id '%s' is invalid, id may only exists out of Latin letters, numbers, dash and underscore",
+                        spec.getId(), definition.getId()));
             }
             parameterIds.add(definition.getId());
             if (definition.getDisplayName() != null && StringUtils.isBlank(definition.getDisplayName())) {

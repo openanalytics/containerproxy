@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class InstanceIdKey extends RuntimeValueKey<String> {
 
+    public static final InstanceIdKey inst = new InstanceIdKey();
+
     private InstanceIdKey() {
         super("openanalytics.eu/sp-instance",
                 "SHINYPROXY_INSTANCE",
@@ -33,8 +35,6 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
                 false,
                 String.class);
     }
-
-    public static final InstanceIdKey inst = new InstanceIdKey();
 
     @Override
     public String deserializeFromString(String value) {

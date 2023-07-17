@@ -28,9 +28,10 @@ public class ImmediateJsonResponse {
     /**
      * Helper that writes a JSON response to a HttpServletResponse without using Spring.
      * This can be used in places where no Spring logic can be used (e.g. Filters)
+     *
      * @param response the response to write into
-     * @param status the status code of the response
-     * @param json the jsons string to write
+     * @param status   the status code of the response
+     * @param json     the jsons string to write
      * @throws IOException
      */
     public static void write(HttpServletResponse response, int status, String json) throws IOException {

@@ -49,12 +49,12 @@ import java.util.UUID;
 @Service
 public class IdentifierService {
 
+    private final Logger logger = LogManager.getLogger(getClass());
     /**
      * String that identifies this "run" or "server" of ShinyProxy.
      * This is unique every time ShinyProxy starts and independent of the InstanceId.
      */
     public String runtimeId = null;
-
     /**
      * String that identifies this "instance" of ShinyProxy Configuration.
      * This value is determined by the configuration (i.e. application.yml) of ShinyProxy.
@@ -62,14 +62,10 @@ public class IdentifierService {
      * This value only changes when the configuration changes.
      */
     public String instanceId = null;
-
     /**
      * String identifying the realm ShinyProxy operates in.
      */
     public String realmId = null;
-
-    private final Logger logger = LogManager.getLogger(getClass());
-
     @Inject
     private Environment environment;
 
@@ -130,7 +126,7 @@ public class IdentifierService {
         }
 
         Object parsedConfig = objectMapper.readValue(file, Object.class);
-        String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
+        String canonicalConfigFile = objectMapper.writeValueAsString(parsedConfig);
 
         // TODO
         MessageDigest digest = MessageDigest.getInstance("SHA-1");

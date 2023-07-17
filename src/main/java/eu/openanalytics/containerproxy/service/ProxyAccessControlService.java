@@ -65,8 +65,7 @@ public class ProxyAccessControlService {
     }
 
     /**
-     *
-     * @param auth the current user
+     * @param auth   the current user
      * @param specId the specId the user is trying to access
      * @return whether the user can access the given specId or when this spec does not exist whether the user already
      * has a proxy with this spec id

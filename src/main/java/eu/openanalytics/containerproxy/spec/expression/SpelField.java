@@ -127,7 +127,7 @@ public abstract class SpelField<O, R> {
         return originalValue;
     }
 
-    public abstract SpelField<O,R> resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext);
+    public abstract SpelField<O, R> resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext);
 
     public static class String extends SpelField<java.lang.String, java.lang.String> {
 
@@ -249,6 +249,7 @@ public abstract class SpelField<O, R> {
 
         /**
          * Adds a value to the list.
+         *
          * @param newValue
          */
         public void add(java.lang.String newValue) {

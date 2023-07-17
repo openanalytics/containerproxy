@@ -23,12 +23,11 @@ package eu.openanalytics.containerproxy.event;
 import org.springframework.context.ApplicationEvent;
 
 public class UserLogoutEvent extends ApplicationEvent {
-    
+
     private final String userId;
     private final Boolean wasExpired;
 
     /**
-     *
      * @param source
      * @param userId
      * @param wasExpired whether the user is logged automatically because the session has expired

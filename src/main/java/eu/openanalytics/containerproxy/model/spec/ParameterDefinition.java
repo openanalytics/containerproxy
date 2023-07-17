@@ -84,6 +84,7 @@ public class ParameterDefinition {
 
     /**
      * Given the (backend) value, return the human friendly name for the value.
+     *
      * @param value the backend-value
      * @return the human friendly name of the value
      */
@@ -97,6 +98,7 @@ public class ParameterDefinition {
 
     /**
      * Given the (human friendly name), return the backend value
+     *
      * @param name the human-friendly name
      * @return the backend value
      */

@@ -73,6 +73,14 @@ public class JDBCCollector extends AbstractDbCollector {
 		this.password = password;
 	}
 
+	protected String getTableName() {
+		String tableName = environment.getProperty("proxy.usage-stats-table"); 
+		if (tableName == null) {
+			tableName = "event";
+		}
+		return tableName;
+	}
+
 	@PostConstruct
 	public void init() throws IOException {
 		ds = new HikariDataSource();
@@ -104,21 +112,22 @@ public class JDBCCollector extends AbstractDbCollector {
 		if (maximumPoolSize != null) {
 			ds.setMaximumPoolSize(maximumPoolSize);
 		}
-
+		
+		String tableName = this.getTableName();
 		// create table if not already exists
 		try (Connection con = ds.getConnection()) {
 			Statement statement = con.createStatement();
 			if (con.getMetaData().getDatabaseProductName().equals("Microsoft SQL Server")) {
 				statement.execute(
-						"IF OBJECT_ID('event', 'U') IS NULL" +
-								" create table event(" +
+						"IF OBJECT_ID('" + tableName + "', 'U') IS NULL" +
+								" create table " + tableName + "(" +
 								" event_time datetime," +
 								" username varchar(128)," +
 								" type varchar(128)," +
 								" data text)");
 			} else {
 				statement.execute(
-						"create table if not exists event(" +
+						"create table if not exists " + tableName + "(" +
 								" event_time timestamp," +
 								" username varchar(128)," +
 								" type varchar(128)," +
@@ -131,7 +140,7 @@ public class JDBCCollector extends AbstractDbCollector {
 
 	@Override
 	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
-		String sql = "INSERT INTO event(event_time, username, type, data) VALUES (?,?,?,?)";
+		String sql = "INSERT INTO " + getTableName() + "(event_time, username, type, data) VALUES (?,?,?,?)";
 		try (Connection con = ds.getConnection()) {
 			try (PreparedStatement stmt = con.prepareStatement(sql)) {
 				stmt.setTimestamp(1, new Timestamp(timestamp));

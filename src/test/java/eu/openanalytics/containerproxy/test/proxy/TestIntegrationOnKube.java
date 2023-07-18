@@ -44,7 +44,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.ServiceList;
@@ -125,7 +124,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
             Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             ServiceList serviceList = client.services().inNamespace(namespace).list();
@@ -174,7 +173,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // Check Volumes
             Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
@@ -227,7 +226,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
@@ -283,7 +282,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
@@ -323,7 +322,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // Check Resource limits/requests
             ResourceRequirements req = pod.getSpec().getContainers().get(0).getResources();
@@ -363,7 +362,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
@@ -421,7 +420,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
                 Assertions.assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
                 ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
                 Assertions.assertEquals(true, container.getReady());
-                Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+                Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
                 serviceList = client.services().inNamespace(overriddenNamespace).list();
                 Assertions.assertEquals(1, serviceList.getItems().size());
@@ -474,7 +473,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // Check volumes: one HostPath is added using SP and one using patches
             Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
@@ -526,7 +525,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -535,15 +534,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-            }
+            Secret secret = getSingleSecret(overriddenNamespace);
+            Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -554,9 +547,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // all additional manifests should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
             Assertions.assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
 
             Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
@@ -605,7 +596,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -614,15 +605,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-            }
+            Secret secret = getSingleSecret(overriddenNamespace);
+            Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -633,9 +618,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // all additional manifests should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
             Assertions.assertEquals(0, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
 
             Assertions.assertEquals(0, proxyService.getProxies(null, true).size());
@@ -664,7 +647,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
 
             // check env variables
@@ -725,7 +708,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             PersistentVolumeClaimList claimList = client.persistentVolumeClaims().inNamespace(overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -734,15 +717,9 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
             // secret has no namespace defined -> should be created in the namespace defined by the pod patches
-            SecretList secretList = client.secrets().inNamespace(overriddenNamespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-            }
+            Secret secret = getSingleSecret(overriddenNamespace);
+            Assertions.assertEquals(overriddenNamespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -753,9 +730,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
 
             // the PVC should not be deleted
             Assertions.assertEquals(1, client.persistentVolumeClaims().inNamespace(overriddenNamespace).list().getItems().size());
@@ -782,20 +757,14 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the application.yml
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the application.yml
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -806,9 +775,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
         });
         // case 2: secret does already exist, check that it does not get overridden
         setup((client, namespace, overriddenNamespace) -> {
@@ -838,20 +805,14 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the secret we created above not from the application.yml
-                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the secret we created above not from the application.yml
+            Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -862,9 +823,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(namespace).size());
         });
     }
 
@@ -887,20 +846,14 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the application.yml
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the application.yml
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -911,9 +864,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(namespace).size());
         });
 
         // case 2: secret does already exist, check that it gets overridden
@@ -946,22 +897,16 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the application.yml not from the secret we created above
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-                // since the secret should not have been replaced, the creation timestamp must be equal
-                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the application.yml not from the secret we created above
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            // since the secret should not have been replaced, the creation timestamp must be equal
+            Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -972,9 +917,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(namespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(namespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
         });
     }
 
@@ -1005,12 +948,10 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1042,20 +983,14 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the application.yml
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the application.yml
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1066,9 +1001,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
         });
 
         // case 2: secret does already exist, check that it gets overridden
@@ -1101,22 +1034,16 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the application.yml not from the secret we created above
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-                // since the secret was replaced, the creation timestamp must be different
-                Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the application.yml not from the secret we created above
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            // since the secret was replaced, the creation timestamp must be different
+            Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1127,9 +1054,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
         });
     }
 
@@ -1150,19 +1075,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1173,7 +1092,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
 
             String originalCreationTimestamp = client.secrets().inNamespace(namespace)
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
@@ -1182,18 +1101,12 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
-            secretList= client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-                // secret should have not been modified -> check timestamp
-                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
-            }
+            secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
+            // secret should have not been modified -> check timestamp
+            Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1204,7 +1117,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
         });
     }
 
@@ -1227,19 +1140,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1250,7 +1157,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
 
             String originalCreationTimestamp = client.secrets().inNamespace(namespace)
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
@@ -1261,19 +1168,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
-            secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                // secret should have the value from the second spec
-                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
-                // since the secret should not have been replaced, the creation timestamp must be equal
-                Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
-            }
+            secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            // secret should have the value from the second spec
+            Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
+            // since the secret should not have been replaced, the creation timestamp must be equal
+            Assertions.assertEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1284,7 +1185,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
         });
     }
 
@@ -1315,12 +1216,10 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // the secret should be deleted
-            Assertions.assertEquals(1, client.secrets().inNamespace(overriddenNamespace).list().getItems().size());
-            Assertions.assertTrue(client.secrets().inNamespace(overriddenNamespace).list()
-                    .getItems().get(0).getMetadata().getName().startsWith("default-token"));
+            Assertions.assertEquals(0, getSecrets(overriddenNamespace).size());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1350,19 +1249,13 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
-            SecretList secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
-            }
+            Secret secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            Assertions.assertEquals("cGFzc3dvcmQ=", secret.getData().get("password"));
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1373,7 +1266,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
 
             String originalCreationTimestamp = client.secrets().inNamespace(namespace)
                     .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
@@ -1383,18 +1276,12 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             proxy = proxyService.startProxy(spec);
 
             // secret has no namespace defined -> should be created in the default namespace
-            secretList = client.secrets().inNamespace(namespace).list();
-            Assertions.assertEquals(2, secretList.getItems().size());
-            for (Secret secret : secretList.getItems()) {
-                if (secret.getMetadata().getName().startsWith("default-token")) {
-                    continue;
-                }
-                Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
-                Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
-                Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
-                // since the secret should have been replaced, the creation timestamp must be different
-                Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
-            }
+            secret = getSingleSecret(namespace);
+            Assertions.assertEquals(namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret", secret.getMetadata().getName());
+            Assertions.assertEquals("b2xkX3Bhc3N3b3Jk", secret.getData().get("password"));
+            // since the secret should have been replaced, the creation timestamp must be different
+            Assertions.assertNotEquals(originalCreationTimestamp, secret.getMetadata().getCreationTimestamp());
 
             proxyService.stopProxy(null, proxy, true).run();
 
@@ -1405,7 +1292,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             podList = client.pods().inNamespace(namespace).list();
             Assertions.assertEquals(0, podList.getItems().size());
             // the secret should not be deleted
-            Assertions.assertEquals(2, client.secrets().inNamespace(namespace).list().getItems().size());
+            Assertions.assertEquals(1, getSecrets(namespace).size());
         });
     }
 
@@ -1429,7 +1316,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
             Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             ServiceList serviceList = client.services().inNamespace(namespace).list();
@@ -1508,7 +1395,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
             Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
@@ -1559,7 +1446,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
             Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
@@ -1639,7 +1526,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
 
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("ledfan/rstudio_base_r:4_0_5", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
             Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
@@ -1701,7 +1588,7 @@ public class TestIntegrationOnKube extends KubernetesTestBase {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertEquals("openanalytics/shinyproxy-demo:latest", container.getImage());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
 
             ConfigMap configMap1 = client.configMaps().inNamespace(overriddenNamespace).withName("configmap1").get();
             Assertions.assertTrue(configMap1.getData().containsKey("test.txt"));

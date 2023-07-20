@@ -202,6 +202,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 		
 		for (com.spotify.docker.client.messages.Container container: dockerClient.listContainers(ListContainersParam.allContainers())) {
 			if (!container.state().equalsIgnoreCase("running")) {
+                log.warn("Ignoring container {} because it is not running, {}", container.id(), container.state());
 				continue; // not recovering stopped/broken apps
 			}
 

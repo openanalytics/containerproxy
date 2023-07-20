@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxySpec {
 
@@ -92,8 +92,12 @@ public class ProxySpec {
     Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
     public void setContainerIndex() {
-        for (int i = 0; i < this.containerSpecs.size(); i++) {
-            this.containerSpecs.get(i).setIndex(i);
+        if (this.containerSpecs != null) {
+            for (int i = 0; i < this.containerSpecs.size(); i++) {
+                this.containerSpecs
+                    .get(i)
+                    .setIndex(i);
+            }
         }
     }
 

@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.auth.impl;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 
 /**
  * NoOp authentication: no login is required, all apps are public.
@@ -43,7 +42,7 @@ public class NoAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
+    public void configureHttpSecurity(HttpSecurity http) {
         // Nothing to do.
     }
 

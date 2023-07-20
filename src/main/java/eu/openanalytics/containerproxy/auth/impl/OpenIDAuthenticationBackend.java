@@ -35,7 +35,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -155,34 +154,38 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
-        anyRequestConfigurer.authenticated();
+    public void configureHttpSecurity(HttpSecurity http) throws Exception {
+//        anyRequestConfigurer.authenticated();
 
         http
-                .oauth2Login()
+            .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")
                 .successHandler(successHandler)
                 .clientRegistrationRepository(clientRegistrationRepo)
                 .authorizedClientService(oAuth2AuthorizedClientService)
-                .authorizationEndpoint()
-                .authorizationRequestResolver(authorizationRequestResolver())
-                .and()
+                .authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint
+                    .authorizationRequestResolver(authorizationRequestResolver())
+                )
                 .failureHandler((request, response, exception) -> {
                     log.error(exception);
-                    response.sendRedirect(ServletUriComponentsBuilder.fromCurrentContextPath().path("/auth-error").build().toUriString());
+                    response.sendRedirect(ServletUriComponentsBuilder
+                        .fromCurrentContextPath()
+                        .path("/auth-error")
+                        .build()
+                        .toUriString());
                 })
-                .userInfoEndpoint()
-                .userAuthoritiesMapper(createAuthoritiesMapper())
-                .oidcUserService(createOidcUserService())
-                .and()
-                .and()
-                .addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
+                .userInfoEndpoint(userinfo -> userinfo
+                    .userAuthoritiesMapper(createAuthoritiesMapper())
+                    .oidcUserService(createOidcUserService())
+                )
+            )
+            .addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
     }
 
     private OAuth2AuthorizationRequestResolver authorizationRequestResolver() {
         Boolean usePkce = environment.getProperty("proxy.openid.with-pkce", Boolean.class, false);
         DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepo,
-                OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+            OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
 
         if (usePkce) {
             authorizationRequestResolver.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
@@ -198,14 +201,16 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     public String getLoginRedirectURI() {
         return ContextPathHelper.withoutEndingSlash()
-                + OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI
-                + "/" + REG_ID;
+            + OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI
+            + "/" + REG_ID;
     }
 
     @Override
     public String getLogoutSuccessURL() {
         String logoutURL = environment.getProperty("proxy.openid.logout-url");
-        if (logoutURL == null || logoutURL.trim().isEmpty()) logoutURL = IAuthenticationBackend.super.getLogoutSuccessURL();
+        if (logoutURL == null || logoutURL
+            .trim()
+            .isEmpty()) logoutURL = IAuthenticationBackend.super.getLogoutSuccessURL();
         return logoutURL;
     }
 
@@ -213,7 +218,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     public void customizeContainerEnv(Authentication user, Map<String, String> env) {
         OAuth2AuthorizedClient client = refreshClient(user.getName());
         if (client == null || client.getAccessToken() == null) return;
-        env.put(ENV_TOKEN_NAME, client.getAccessToken().getTokenValue());
+        env.put(ENV_TOKEN_NAME, client
+            .getAccessToken()
+            .getTokenValue());
     }
 
     @Override
@@ -246,17 +253,26 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
                         if (log.isDebugEnabled()) {
                             String lineSep = System.getProperty("line.separator");
-                            String claims = idToken.getClaims().entrySet().stream()
-                                    .map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
-                                    .collect(Collectors.joining(lineSep));
+                            String claims = idToken
+                                .getClaims()
+                                .entrySet()
+                                .stream()
+                                .map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
+                                .collect(Collectors.joining(lineSep));
                             log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token (%d):%s%s",
-                                    rolesClaimName, idToken.getClaims().size(), lineSep, claims));
+                                rolesClaimName, idToken
+                                    .getClaims()
+                                    .size(), lineSep, claims));
                         }
 
-                        Object claimValue = idToken.getClaims().get(rolesClaimName);
+                        Object claimValue = idToken
+                            .getClaims()
+                            .get(rolesClaimName);
 
                         for (String role : parseRolesClaim(log, rolesClaimName, claimValue)) {
-                            String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
+                            String mappedRole = role
+                                .toUpperCase()
+                                .startsWith("ROLE_") ? role : "ROLE_" + role;
                             mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
                         }
                     }
@@ -284,9 +300,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
                 String nameAttributeKey = environment.getProperty("proxy.openid.username-attribute", "email");
                 return new CustomNameOidcUser(new HashSet<>(user.getAuthorities()),
-                        user.getIdToken(),
-                        user.getUserInfo(),
-                        nameAttributeKey
+                    user.getIdToken(),
+                    user.getUserInfo(),
+                    nameAttributeKey
                 );
             }
         };
@@ -309,8 +325,14 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
             if (isEmailsAttribute) {
                 Object emails = getAttributes().get(ID_ATTR_EMAILS);
                 if (emails instanceof String[]) return ((String[]) emails)[0];
-                else if (emails instanceof JSONArray) return ((JSONArray) emails).get(0).toString();
-                else if (emails instanceof Collection) return ((Collection<?>) emails).stream().findFirst().get().toString();
+                else if (emails instanceof JSONArray) return ((JSONArray) emails)
+                    .get(0)
+                    .toString();
+                else if (emails instanceof Collection) return ((Collection<?>) emails)
+                    .stream()
+                    .findFirst()
+                    .get()
+                    .toString();
                 else return emails.toString();
             } else return super.getName();
         }
@@ -320,7 +342,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
             if (client == null || client.getRefreshToken() == null) {
                 return null;
             }
-            return client.getRefreshToken().getTokenValue();
+            return client
+                .getRefreshToken()
+                .getTokenValue();
         }
     }
 }

@@ -217,12 +217,8 @@
 			<version>2.1.7</version>
 		</dependency>
 
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
 
-        <!-- Docker -->
+		<!-- Docker -->
 		<dependency>
 			<groupId>com.spotify</groupId>
 			<artifactId>docker-client</artifactId>

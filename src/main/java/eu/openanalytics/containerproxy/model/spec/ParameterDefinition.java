@@ -22,11 +22,9 @@ package eu.openanalytics.containerproxy.model.spec;
 
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
-import org.springframework.boot.context.properties.ConstructorBinding;
 
 import java.util.List;
 
-@ConstructorBinding
 public class ParameterDefinition {
 
     private final String id;
@@ -106,7 +104,6 @@ public class ParameterDefinition {
         return valueNames.getKey(name);
     }
 
-    @ConstructorBinding
     public static class ValueName {
 
         private final String name;

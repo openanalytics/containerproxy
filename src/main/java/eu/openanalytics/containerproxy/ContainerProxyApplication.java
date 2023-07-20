@@ -40,12 +40,11 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
@@ -53,7 +52,6 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -75,7 +73,6 @@ import java.security.Security;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -87,7 +84,7 @@ import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP
 
 @EnableScheduling
 @EnableAsync
-@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
+@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class, DataSourceAutoConfiguration.class, RedisAutoConfiguration.class})
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
     public static final String CONFIG_FILENAME = "application.yml";
@@ -180,7 +177,7 @@ public class ContainerProxyApplication {
         // ====================
 
         // enable redisSession check for the readiness probe
-        properties.put("management.endpoint.health.group.readiness.include", "readinessProbe,redisSession,appRecoveryReadyIndicator");
+        properties.put("management.endpoint.health.group.readiness.include", "appRecoveryReadyIndicator");
         // disable ldap health endpoint
         properties.put("management.health.ldap.enabled", false);
         // disable default redis health endpoint since it's managed by redisSession
@@ -189,8 +186,6 @@ public class ContainerProxyApplication {
         properties.put("management.endpoint.health.probes.enabled", true);
 
         // ====================
-
-        properties.put("spring.config.use-legacy-processing", true);
 
         // disable openapi docs and swagger ui
         properties.put("springdoc.api-docs.enabled", false);
@@ -308,28 +303,6 @@ public class ContainerProxyApplication {
     @Bean
     public JSR353Module jsr353Module() {
         return new JSR353Module();
-    }
-
-    @Bean
-    public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
-        if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
-            // if we are using redis for session -> use a proper health check for redis
-            return new RedisHealthIndicator(rdeRedisConnectionFactory);
-        } else {
-            // not using redis for session -> just pretend it's always online
-            return new HealthIndicator() {
-
-                @Override
-                public Health getHealth(boolean includeDetails) {
-                    return Health.up().build();
-                }
-
-                @Override
-                public Health health() {
-                    return Health.up().build();
-                }
-            };
-        }
     }
 
     /**

@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
@@ -70,7 +71,11 @@ public class ProxyAccessControlService {
      * @return whether the user can access the given specId or when this spec does not exist whether the user already
      * has a proxy with this spec id
      */
-    public boolean canAccessOrHasExistingProxy(Authentication auth, String specId) {
+    public boolean canAccessOrHasExistingProxy(Authentication auth, RequestAuthorizationContext context) {
+        if (!context.getVariables().containsKey("specId")) {
+            return false;
+        }
+        String specId = context.getVariables().get("specId");
         ProxySpec spec = specProvider.getSpec(specId);
         if (spec != null) {
             return canAccess(auth, spec);

@@ -25,7 +25,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.provisioning.InMemoryUserDetailsManagerConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -54,7 +53,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) {
+    public void configureHttpSecurity(HttpSecurity http) {
         // Nothing to do.
     }
 
@@ -64,7 +63,10 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
         int i = 0;
         SimpleUser user = loadUser(i++);
         while (user != null) {
-            userDetails.withUser(user.name).password("{noop}" + user.password).roles(user.roles);
+            userDetails
+                .withUser(user.name)
+                .password("{noop}" + user.password)
+                .roles(user.roles);
             user = loadUser(i++);
         }
     }
@@ -77,7 +79,10 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
         // method 1: single property with comma seperated groups
         String[] groups = environment.getProperty(String.format("proxy.users[%d].groups", index), String[].class);
         if (groups != null) {
-            groups = Arrays.stream(groups).map(String::toUpperCase).toArray(String[]::new);
+            groups = Arrays
+                .stream(groups)
+                .map(String::toUpperCase)
+                .toArray(String[]::new);
             return new SimpleUser(userName, password, groups);
         } else {
             // method 2: YAML array

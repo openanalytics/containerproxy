@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.auth;
 
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
@@ -48,7 +47,7 @@ public interface IAuthenticationBackend {
     /**
      * Perform customization on the http level, such as filters and login forms.
      */
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception;
+    public void configureHttpSecurity(HttpSecurity http) throws Exception;
 
     /**
      * Perform customization on the authentication manager level, such as authentication

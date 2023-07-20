@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler;
+import jakarta.servlet.ServletException;
 import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
@@ -46,7 +47,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
@@ -66,7 +67,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import javax.servlet.ServletException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -104,17 +104,15 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
-        http.formLogin().disable();
+    public void configureHttpSecurity(HttpSecurity http) throws Exception {
+        http.formLogin(AbstractHttpConfigurer::disable);
 
         http
-                .sessionManagement().sessionAuthenticationStrategy(sessionAuthenticationStrategy())
-                .and()
-                .addFilterBefore(keycloakPreAuthActionsFilter(), LogoutFilter.class)
-                .addFilterBefore(keycloakAuthenticationProcessingFilter(), BasicAuthenticationFilter.class)
-                .exceptionHandling().authenticationEntryPoint(authenticationEntryPoint())
-                .and()
-                .logout().addLogoutHandler(keycloakLogoutHandler());
+            .sessionManagement(session -> session.sessionAuthenticationStrategy(sessionAuthenticationStrategy()))
+            .addFilterBefore(keycloakPreAuthActionsFilter(), LogoutFilter.class)
+            .addFilterBefore(keycloakAuthenticationProcessingFilter(), BasicAuthenticationFilter.class)
+            .exceptionHandling(exceptionHandling -> exceptionHandling.authenticationEntryPoint(authenticationEntryPoint()))
+            .logout(logout -> logout.addLogoutHandler(keycloakLogoutHandler()));
     }
 
     @Override
@@ -135,10 +133,10 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
         // Because the HTTP requests are adapted before they are processed, the requested failed to complete successfully and caused an io.undertow.server.TruncatedResponseException
         // If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
         RequestMatcher requestMatcher =
-                new OrRequestMatcher(
-                        new AntPathRequestMatcher("/sso/login"),
-                        new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
-                );
+            new OrRequestMatcher(
+                new AntPathRequestMatcher("/sso/login"),
+                new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
+            );
 
         KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
         filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
@@ -173,8 +171,8 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
     @ConditionalOnProperty(name = "proxy.authentication", havingValue = "keycloak")
     protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
         return new CompositeSessionAuthenticationStrategy(Arrays.asList(
-                new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
-                new ChangeSessionIdAuthenticationStrategy()
+            new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
+            new ChangeSessionIdAuthenticationStrategy()
         ));
     }
 
@@ -202,8 +200,13 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
         return factoryBean.getObject();
     }
 
-    protected AuthenticationEntryPoint authenticationEntryPoint() throws Exception {
-        return new KeycloakAuthenticationEntryPoint(adapterDeploymentContext());
+    protected AuthenticationEntryPoint authenticationEntryPoint() {
+        // TODO
+        try {
+            return new KeycloakAuthenticationEntryPoint(adapterDeploymentContext());
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     protected KeycloakAuthenticationProvider keycloakAuthenticationProvider() {
@@ -211,19 +214,30 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
             @Override
             public Authentication authenticate(Authentication authentication) throws AuthenticationException {
                 KeycloakAuthenticationToken token = (KeycloakAuthenticationToken) super.authenticate(authentication);
-                List<KeycloakRole> auth = token.getAuthorities().stream()
-                        .map(t -> t.getAuthority().toUpperCase())
-                        .map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
-                        .map(KeycloakRole::new)
-                        .toList();
-                String nameAttribute = environment.getProperty("proxy.keycloak.name-attribute", IDToken.NAME).toLowerCase();
+                List<KeycloakRole> auth = token
+                    .getAuthorities()
+                    .stream()
+                    .map(t -> t
+                        .getAuthority()
+                        .toUpperCase())
+                    .map(a -> a.startsWith("ROLE_") ? a : "ROLE_" + a)
+                    .map(KeycloakRole::new)
+                    .toList();
+                String nameAttribute = environment
+                    .getProperty("proxy.keycloak.name-attribute", IDToken.NAME)
+                    .toLowerCase();
                 return new KeycloakAuthenticationToken2(token.getAccount(), token.isInteractive(), nameAttribute, auth);
             }
         };
     }
 
-    protected KeycloakLogoutHandler keycloakLogoutHandler() throws Exception {
-        return new KeycloakLogoutHandler(adapterDeploymentContext());
+    protected KeycloakLogoutHandler keycloakLogoutHandler() {
+        // TODO
+        try {
+            return new KeycloakLogoutHandler(adapterDeploymentContext());
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {

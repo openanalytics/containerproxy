@@ -80,10 +80,10 @@ public class ProxyStatusController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = ChangeProxyStatusDto.class),
                             examples = {
-                                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredStatus\": \"Stopping\"}"),
-                                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredStatus\": \"Pausing\"}"),
-                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\"}"),
-                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredStatus\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
+                                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredState\": \"Stopping\"}"),
+                                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredState\": \"Pausing\"}"),
+                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\"}"),
+                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
                             }
                     )
             )
@@ -140,15 +140,12 @@ public class ProxyStatusController {
                 return ApiResponse.fail(ex.getMessage());
             }
         } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-            if (!proxy.getStatus().equals(ProxyStatus.New)
-                    && !proxy.getStatus().equals(ProxyStatus.Up)
-                    && !proxy.getStatus().equals(ProxyStatus.Resuming)
-                    && !proxy.getStatus().equals(ProxyStatus.Paused)) {
-                return ApiResponse.fail(String.format("Cannot stop proxy because it is not in New, Up or Paused status (status is %s)", proxy.getStatus()));
+            if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                return ApiResponse.fail("Cannot stop proxy because it is already stopped");
             }
             asyncProxyService.stopProxy(proxy, false);
         } else {
-            return ApiResponse.fail("Invalid desiredStatus");
+            return ApiResponse.fail("Invalid desiredState");
         }
 
         return ApiResponse.success();

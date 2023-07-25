@@ -37,6 +37,7 @@ import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springdoc.core.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.health.Health;
@@ -71,12 +72,17 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SECURITY_HIDE_SPEC_DETAILS;
+import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES;
+import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG;
 import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
 
 @EnableScheduling
@@ -119,7 +125,11 @@ public class ContainerProxyApplication {
 		app.addListeners(new LoggingConfigurer());
 
 		boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
-		if (!hasExternalConfig) app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
+		if (!hasExternalConfig) {
+			app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
+			Logger log = LogManager.getLogger(ContainerProxyApplication.class);
+			log.warn("WARNING: Did not found configuration, using fallback configuration!");
+		}
 
 		setDefaultProperties(app);
 
@@ -152,7 +162,6 @@ public class ContainerProxyApplication {
 			log.warn("WARNING: Invalid configuration detected: same-site-cookie policy is set to None, but secure-cookies are not enabled. Secure cookies must be enabled when using None as same-site-cookie policy ");
 		}
 
-
 		if (environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
 			if (!environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
 				// running in HA mode, but not using Redis sessions
@@ -161,6 +170,24 @@ public class ContainerProxyApplication {
 			if (environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true)) {
 				// running in HA mode, but proxies are removed when shutting down
 				log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
+			}
+			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+				environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
+				log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
+			}
+		}
+
+		if (environment.getProperty("spring.session.store-type", "").equalsIgnoreCase("redis")) {
+			if (!environment.getProperty("proxy.store-mode", "").equalsIgnoreCase("Redis")) {
+				// using Redis sessions, but not running in HA mode -> this does not make sense
+				// even with one replica, the HA mode should be used in order for the server to survive restarts (which is the reason Redis sessions are used)
+				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis, but store-more is not set to Redis. Change store-mode so that app sessions are stored in Redis!");
+			}
+			if (environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+					environment.getProperty( PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false) ) {
+				// using Redis sessions together with app recovery -> this does not make sense
+				// if already using Redis for sessions there is no reason to not store app sessions
+				log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
 			}
 		}
 
@@ -343,6 +370,26 @@ public class ContainerProxyApplication {
 		app.setDefaultProperties(getDefaultProperties());
 		// See: https://github.com/keycloak/keycloak/pull/7053
 		System.setProperty("jdk.serialSetFilterAfterRead", "true");
+	}
+
+	@Bean
+	public GroupedOpenApi groupOpenApi() {
+		return GroupedOpenApi.builder()
+				.group("v1")
+				.addOpenApiCustomiser(openApi -> {
+					Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
+					openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
+							.forEach(p -> {
+								p.getValue().setHead(null);
+								p.getValue().setPost(null);
+								p.getValue().setDelete(null);
+								p.getValue().setParameters(null);
+								p.getValue().setOptions(null);
+								p.getValue().setPut(null);
+								p.getValue().setPatch(null);
+							});
+				})
+				.build();
 	}
 
 }

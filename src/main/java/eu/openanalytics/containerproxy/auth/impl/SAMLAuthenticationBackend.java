@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.auth.impl.saml.Saml2MetadataFilter;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
@@ -40,6 +41,7 @@ import org.springframework.security.saml2.provider.service.metadata.OpenSamlMeta
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -55,6 +57,7 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.R
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_SERVICE_LOCATION_PATH;
+import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 
 @Component
 @ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
@@ -74,6 +77,10 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
     @Inject
     private Saml2LogoutRequestResolver saml2LogoutRequestResolver;
+
+    @Inject
+    @Lazy
+    private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
     @Override
     public String getName() {
@@ -98,7 +105,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
                         .loginProcessingUrl(SAML_SERVICE_LOCATION_PATH)
                         .authenticationManager(new ProviderManager(samlAuthenticationProvider))
                         .failureHandler(failureHandler)
-                        .defaultSuccessUrl("/", true))
+                        .successHandler(successHandler))
                 .saml2Logout(saml -> saml
                         .logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
                         .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))

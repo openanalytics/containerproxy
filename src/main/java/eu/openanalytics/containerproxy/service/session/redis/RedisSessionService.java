@@ -90,8 +90,10 @@ public class RedisSessionService extends AbstractSessionService {
 
     @Override
     public void reActivateSession(String sessionId) {
-        Session session = redisIndexedSessionRepository.findById(sessionId);//l.setLastAccessedTime
-        session.setLastAccessedTime(Instant.now());
+        Session session = redisIndexedSessionRepository.findById(sessionId);
+        if (session != null) {
+            session.setLastAccessedTime(Instant.now());
+        }
     }
 
     @Override

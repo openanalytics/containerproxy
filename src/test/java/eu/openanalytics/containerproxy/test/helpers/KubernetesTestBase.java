@@ -22,11 +22,14 @@ package eu.openanalytics.containerproxy.test.helpers;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class KubernetesTestBase {
 
@@ -86,6 +89,17 @@ public abstract class KubernetesTestBase {
                     .endMetadata()
                     .build());
         }
+    }
+
+
+    protected List<Secret> getSecrets(String namespace) {
+        return client.secrets().inNamespace(namespace).list().getItems().stream().filter(it -> !it.getMetadata().getName().startsWith("default-token")).collect(Collectors.toList());
+    }
+
+    protected Secret getSingleSecret(String namespace) {
+        List<Secret> secrets = getSecrets(namespace);
+        Assertions.assertEquals(1, secrets.size());
+        return secrets.get(0);
     }
 
 }

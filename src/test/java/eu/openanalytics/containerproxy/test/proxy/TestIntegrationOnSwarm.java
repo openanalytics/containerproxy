@@ -72,6 +72,7 @@ public class TestIntegrationOnSwarm {
 
     @AfterEach
     public void waitForCleanup() throws InterruptedException, DockerException, DockerCertificateException {
+        Thread.sleep(3_000); // wait before checking
         for (int i = 0; i < 120; i++) {
             if (checkEverythingCleanedUp()) {
                 break;

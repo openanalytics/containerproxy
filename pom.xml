@@ -5,7 +5,7 @@
 
 	<groupId>eu.openanalytics</groupId>
 	<artifactId>containerproxy</artifactId>
-	<version>1.0.1</version>
+	<version>1.0.2</version>
 	<name>ContainerProxy</name>
 	<packaging>jar</packaging>
 
@@ -59,14 +59,8 @@
 			<url>https://clojars.org/repo/</url>
 		</repository>
 		<repository>
-			<!-- Currently used only for the opensaml dependency -->
-			<id>shibboleth</id>
-			<url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
-		</repository>
-		<repository>
-			<!-- Currently used only for the spring-social-github 1.0.0.M4 dependency -->
-			<id>spring</id>
-			<url>https://repo.spring.io/plugins-release/</url>
+			<id>oa-nexus-releases</id>
+			<url>https://nexus.openanalytics.eu/repository/releases</url>
 		</repository>
 	</repositories>
 

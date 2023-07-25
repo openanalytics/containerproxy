@@ -48,6 +48,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -80,6 +81,46 @@ public class UserService {
 	@Lazy
 	private ProxyAccessControlService accessControlService;
 
+	private final Set<String> adminGroups = new HashSet<>();
+	private final Set<String> adminUsers = new HashSet<>();
+
+	@PostConstruct
+	public void init() {
+		// load admin groups
+		// Support for old, non-array notation
+		String singleGroup = environment.getProperty("proxy.admin-groups");
+		if (singleGroup != null && !singleGroup.isEmpty()) {
+			adminGroups.add(singleGroup.toUpperCase());
+		}
+
+		for (int i=0 ;; i++) {
+			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
+			if (groupName == null || groupName.isEmpty()) {
+				break;
+			}
+			adminGroups.add(groupName.toUpperCase());
+		}
+
+		// load admin users
+		// Support for old, non-array notation
+		String singleUser = environment.getProperty("proxy.admin-users");
+		if (singleUser != null && !singleUser.isEmpty()) {
+			adminUsers.add(singleUser);
+		}
+
+		for (int i=0 ;; i++) {
+			String userName = environment.getProperty(String.format("proxy.admin-users[%s]", i));
+			if (userName == null || userName.isEmpty()) {
+				break;
+			}
+			adminUsers.add(userName);
+		}
+	}
+
+	public Set<String> getAdminGroups() {
+		return adminGroups;
+	}
+
 	public Authentication getCurrentAuth() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -88,27 +129,15 @@ public class UserService {
 		return getUserId(getCurrentAuth());
 	}
 	
-	public String[] getAdminGroups() {
-		Set<String> adminGroups = new HashSet<>();
-		
-		// Support for old, non-array notation
-		String singleGroup = environment.getProperty("proxy.admin-groups");
-		if (singleGroup != null && !singleGroup.isEmpty()) adminGroups.add(singleGroup.toUpperCase());
-		
-		for (int i=0 ;; i++) {
-			String groupName = environment.getProperty(String.format("proxy.admin-groups[%s]", i));
-			if (groupName == null || groupName.isEmpty()) break;
-			adminGroups.add(groupName.toUpperCase());
-		}
-
-		return adminGroups.toArray(new String[adminGroups.size()]);
+	public Set<String> getAdminUsers() {
+		return adminUsers;
 	}
 	
-	public String[] getGroups() {
+	public List<String> getGroups() {
 		return getGroups(getCurrentAuth());
 	}
 	
-	public static String[] getGroups(Authentication auth) {
+	public static List<String> getGroups(Authentication auth) {
 		List<String> groups = new ArrayList<>();
 		if (auth != null) {
 			for (GrantedAuthority grantedAuth: auth.getAuthorities()) {
@@ -117,7 +146,7 @@ public class UserService {
 				groups.add(authName);
 			}
 		}
-		return groups.toArray(new String[groups.size()]);
+		return groups;
 	}
 	
 	public boolean isAdmin() {
@@ -125,8 +154,21 @@ public class UserService {
 	}
 	
 	public boolean isAdmin(Authentication auth) {
+		if (!authBackend.hasAuthorization() || auth == null) {
+			return false;
+		}
+
 		for (String adminGroup: getAdminGroups()) {
-			if (isMember(auth, adminGroup)) return true;
+			if (isMember(auth, adminGroup)) {
+				return true;
+			}
+		}
+
+		String userName = getUserId(auth);
+		for (String adminUser: getAdminUsers()) {
+			if (userName != null && userName.equalsIgnoreCase(adminUser)) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -221,6 +263,7 @@ public class UserService {
 				if (securityContext == null) return;
 
 				String userId = getUserId(securityContext.getAuthentication());
+				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 
 				log.info(String.format("User logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
@@ -230,6 +273,8 @@ public class UserService {
 				));
 			} else if (authBackend.getName().equals("none")) {
 				String userId = Sha256.hash(event.getSession().getId());
+				if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+
 				log.info(String.format("Anonymous user logged out [user: %s]", userId));
 				applicationEventPublisher.publishEvent(new UserLogoutEvent(
 						this,

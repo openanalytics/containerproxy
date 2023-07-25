@@ -28,6 +28,10 @@
 <head lang="en">
 	<title th:text="${title}"></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<script type="text/javascript" th:inline="javascript">
+		history.forward();
+	</script>
 	<link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}" />
 	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
 	<script th:src="@{${jqueryJs}}"></script>
@@ -48,7 +52,7 @@ h2 {
     margin-top: 20px;
 }
 </style>
-	
+
 </body>
 
 </html>

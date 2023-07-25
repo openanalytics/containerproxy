@@ -54,7 +54,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
@@ -91,6 +91,10 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	@Lazy
 	AuthenticationManager authenticationManager;
+
+	@Inject
+	@Lazy
+	private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
 	@Override
 	public String getName() {
@@ -142,9 +146,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
 		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 		filter.setAuthenticationFailureHandler(keycloakAuthenticationFailureHandler());
-		SimpleUrlAuthenticationSuccessHandler handler = new SimpleUrlAuthenticationSuccessHandler("/");
-		handler.setAlwaysUseDefaultTargetUrl(true);
-		filter.setAuthenticationSuccessHandler(handler);
+		filter.setAuthenticationSuccessHandler(successHandler);
 		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
 		filter.setApplicationContext(ctx);
 		filter.afterPropertiesSet();

@@ -53,6 +53,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -103,7 +104,7 @@ public class RuntimeValueService {
             proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
         }
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
-        String[] groups = UserService.getGroups(user);
+        List<String> groups = UserService.getGroups(user);
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 

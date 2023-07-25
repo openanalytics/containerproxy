@@ -301,7 +301,7 @@ public class ProxyService {
 				throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
 			}
 
-			if (user != null) {
+			if (user != null && !ignoreAccessControl) {
 				log.info(proxy, "Proxy being stopped by user " +  UserService.getUserId(user));
 			}
 
@@ -341,7 +341,7 @@ public class ProxyService {
 				throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
 			}
 
-			if (user != null) {
+			if (user != null && !ignoreAccessControl) {
 				log.info(proxy, "Proxy being paused by user " +  UserService.getUserId(user));
 			}
 

@@ -31,6 +31,7 @@ import net.minidev.json.parser.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -58,6 +59,7 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
@@ -92,6 +94,10 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	@Inject
 	private ClientRegistrationRepository clientRegistrationRepo;
 
+	@Inject
+	@Lazy
+	private SavedRequestAwareAuthenticationSuccessHandler successHandler;
+
 	private static OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
 
 	@Autowired
@@ -115,11 +121,11 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 	@Override
 	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
 		anyRequestConfigurer.authenticated();
-		
+
 		http
 			.oauth2Login()
 				.loginPage("/login")
-				.defaultSuccessUrl("/", true)
+				.successHandler(successHandler)
 				.clientRegistrationRepository(clientRegistrationRepo)
 				.authorizedClientService(oAuth2AuthorizedClientService)
 				.authorizationEndpoint()
@@ -140,7 +146,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 					.oidcUserService(createOidcUserService())
 				.and()
 			.and()
-				.addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
+			.addFilterAfter(openIdReAuthorizeFilter, UsernamePasswordAuthenticationFilter.class);
 	}
 
 	private OAuth2AuthorizationRequestResolver authorizationRequestResolver() {

@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
 @Service
 public class AppRecoveryService {
 
-	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover-running-proxies";
-	protected static final String PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG = "proxy.recover-running-proxies-from-different-config";
+	public static final String PROPERTY_RECOVER_RUNNING_PROXIES = "proxy.recover-running-proxies";
+	public static final String PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG = "proxy.recover-running-proxies-from-different-config";
 
 	private final Logger log = LogManager.getLogger(AppRecoveryService.class);
 

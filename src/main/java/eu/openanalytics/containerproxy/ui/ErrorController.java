@@ -26,7 +26,6 @@ import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.keycloak.adapters.OIDCAuthenticationError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AccountStatusException;
@@ -39,30 +38,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.Optional;
 
-import static eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler.SP_KEYCLOAK_ERROR_REASON;
-
 @Controller
 @RequestMapping("/error")
 public class ErrorController extends BaseController implements org.springframework.boot.web.servlet.error.ErrorController {
 
     @RequestMapping(produces = "text/html")
     public String handleError(ModelMap map, HttpServletRequest request, HttpServletResponse response) {
-
-        // handle keycloak errors
-        Object obj = request.getSession().getAttribute(SP_KEYCLOAK_ERROR_REASON);
-        if (obj instanceof OIDCAuthenticationError.Reason reason) {
-            request.getSession().removeAttribute(SP_KEYCLOAK_ERROR_REASON);
-            if (reason == OIDCAuthenticationError.Reason.INVALID_STATE_COOKIE ||
-                    reason == OIDCAuthenticationError.Reason.STALE_TOKEN) {
-                // These errors are typically caused by users using wrong bookmarks (e.g. bookmarks with states in)
-                // or when some cookies got stale. However, the user is logged into the IDP, therefore it's enough to
-                // send the user to the main page and they will get logged in automatically.
-                return "redirect:/";
-            } else {
-                return "redirect:/auth-error";
-            }
-        }
-
         Optional<Throwable> exception = getException(request);
         if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
             return "redirect:/";

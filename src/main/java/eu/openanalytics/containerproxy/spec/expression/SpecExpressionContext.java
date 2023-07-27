@@ -30,7 +30,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import org.keycloak.KeycloakPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
 
@@ -48,7 +47,6 @@ public class SpecExpressionContext {
     ProxySpec proxySpec;
     Proxy proxy;
     OpenIDAuthenticationBackend.CustomNameOidcUser oidcUser;
-    KeycloakPrincipal keycloakUser;
     ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal samlCredential;
     LdapUserDetails ldapUser;
     List<String> groups;
@@ -69,8 +67,6 @@ public class SpecExpressionContext {
                 builder.proxy = (Proxy) o;
             } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
                 builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
-            } else if (o instanceof KeycloakPrincipal) {
-                builder.keycloakUser = (KeycloakPrincipal) o;
             } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
                 builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
             } else if (o instanceof LdapUserDetails) {

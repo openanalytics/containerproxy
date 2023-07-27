@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import eu.openanalytics.containerproxy.auth.impl.KeycloakAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
@@ -50,10 +49,6 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
     private ApplicationContext applicationContext;
 
     // These backends register some beans of their own, so must be instantiated here.
-
-    @Inject
-    private KeycloakAuthenticationBackend keycloakBackend;
-
     @Autowired(required = false)
     private SAMLAuthenticationBackend samlBackend;
 
@@ -72,9 +67,6 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
             case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
             case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
             case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
-            case KeycloakAuthenticationBackend.NAME -> {
-                return keycloakBackend;
-            }
             case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend();
             case SAMLAuthenticationBackend.NAME -> {
                 return samlBackend;

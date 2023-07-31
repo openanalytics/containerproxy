@@ -165,7 +165,7 @@ public class LogService {
         }
         log.info("Container logging enabled. Log files will be saved to " + logStorage.getStorageLocation());
         // attach existing proxies
-        for (Proxy proxy : proxyService.getProxies(null, true)) {
+        for (Proxy proxy : proxyService.getAllProxies()) {
             attachToOutput(proxy);
         }
     }
@@ -179,7 +179,7 @@ public class LogService {
             executor.shutdown();
         }
         executor = null;
-        for (Proxy proxy : proxyService.getProxies(null, true)) {
+        for (Proxy proxy : proxyService.getAllProxies()) {
             detach(proxy);
         }
         proxyStreams = ProxyHashMap.create();

@@ -204,7 +204,7 @@ public class Micrometer implements IStatCollector {
             intermediate.put(specId, 0);
         }
         // count number of running apps
-        for (Proxy proxy : proxyService.getProxies(p -> p.getStatus() == ProxyStatus.Up, true)) {
+        for (Proxy proxy : proxyService.getAllUpProxies()) {
             intermediate.put(proxy.getSpecId(), intermediate.getOrDefault(proxy.getSpecId(), 0) + 1);
         }
 

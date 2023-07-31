@@ -62,6 +62,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * <p>
@@ -155,9 +156,9 @@ public class ProxyService {
      */
     public List<ProxySpec> getProxySpecs(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
         return baseSpecProvider.getSpecs().stream()
-                .filter(spec -> ignoreAccessControl || userService.canAccess(spec))
-                .filter(spec -> filter == null || filter.test(spec))
-                .toList();
+            .filter(spec -> ignoreAccessControl || userService.canAccess(spec))
+            .filter(spec -> filter == null || filter.test(spec))
+            .toList();
     }
 
     /**
@@ -172,56 +173,65 @@ public class ProxyService {
     }
 
     /**
-     * Find The first proxy that matches the given filter.
+     * Find the first proxy that matches the given filter and that is owned by the current user.
      *
-     * @param filter              The filter to apply while searching, or null.
-     * @param ignoreAccessControl True to search in all proxies, regardless of the current security context.
+     * @param filter The filter to apply while searching.
      * @return The first proxy found that matches the filter, or null if no match was found.
      */
-    public Proxy findProxy(Predicate<Proxy> filter, boolean ignoreAccessControl) {
-        return getProxies(filter, ignoreAccessControl).stream().findAny().orElse(null);
+    public Proxy findUserProxy(Predicate<Proxy> filter) {
+        return findUserProxies(filter).findAny().orElse(null);
     }
 
+    /**
+     * Find all proxies that matches the given filter and that are owned by the current user.
+     *
+     * @param filter The filter to apply while searching.
+     * @return All proxies that matches the filter and are owned by the current user.
+     */
+    public Stream<Proxy> findUserProxies(Predicate<Proxy> filter) {
+        return proxyStore.getAllProxies().stream().filter(filter.and(p -> userService.isOwner(p)));
+    }
+
+    /**
+     * Get the proxy of the current user with the given targetId.
+     *
+     * @param targetId the targetId to search for
+     * @return the proxy of the current user with the given targetId or null if no proxy was found.
+     */
     public Proxy getUserProxyByTargetId(String targetId) {
         // TODO optimise with index/cache
-        return findProxy(p ->
-                p.getTargetId().equals(targetId)
-                    && userService.isOwner(p),
-            false);
-    }
-
-
-    /**
-     * Find all proxies that match an optional filter.
-     *
-     * @param filter              The filter to match, or null.
-     * @param ignoreAccessControl True to search in all proxies, regardless of the current security context.
-     * @return A List of matching proxies, may be empty.
-     */
-    public List<Proxy> getProxies(Predicate<Proxy> filter, boolean ignoreAccessControl) {
-        // TODO remove filter option
-        boolean isAdmin = userService.isAdmin();
-        List<Proxy> matches = new ArrayList<>();
-        for (Proxy proxy : proxyStore.getAllProxies()) {
-            boolean hasAccess = ignoreAccessControl || isAdmin || userService.isOwner(proxy);
-            if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
-        }
-        return matches;
+        return findUserProxy(p -> p.getTargetId().equals(targetId));
     }
 
     /**
-     * Find all proxies that match an optional filter and that are owned by the current user.
+     * Get all proxies that are owned by the current user.
      *
-     * @param filter The filter to match, or null.
      * @return A List of matching proxies, may be empty.
      */
-    public List<Proxy> getProxiesOfCurrentUser(Predicate<Proxy> filter) {
-        List<Proxy> matches = new ArrayList<>();
-        for (Proxy proxy : proxyStore.getAllProxies()) {
-            boolean hasAccess = userService.isOwner(proxy);
-            if (hasAccess && (filter == null || filter.test(proxy))) matches.add(proxy);
-        }
-        return matches;
+    public List<Proxy> getUserProxies() {
+        return proxyStore.getAllProxies().stream().filter(p -> userService.isOwner(p)).toList();
+    }
+
+    /**
+     * Get all proxies that are owned by the given user.
+     *
+     * @return A List of matching proxies, may be empty.
+     */
+    public List<Proxy> getUserProxies(String userId) {
+        return proxyStore.getAllProxies().stream().filter(p -> p.getUserId().equals(userId)).toList();
+    }
+
+    /**
+     * Get all proxies.
+     *
+     * @return A List of all proxies.
+     */
+    public List<Proxy> getAllProxies() {
+        return new ArrayList<>(proxyStore.getAllProxies());
+    }
+
+    public List<Proxy> getAllUpProxies() {
+        return proxyStore.getAllProxies().stream().filter(p -> p.getStatus().equals(ProxyStatus.Up)).toList();
     }
 
     /**
@@ -395,11 +405,11 @@ public class ProxyService {
             proxy = backend.addRuntimeValuesBeforeSpel(user, spec, proxy);
 
             SpecExpressionContext context = SpecExpressionContext.create(
-                    proxy,
-                    spec,
-                    user,
-                    user.getPrincipal(),
-                    user.getCredentials());
+                proxy,
+                spec,
+                user,
+                user.getPrincipal(),
+                user.getCredentials());
 
             // resolve SpEL expression in spec
             spec = spec.firstResolve(expressionResolver, context);
@@ -423,15 +433,6 @@ public class ProxyService {
 
             return Pair.of(spec, proxy);
         } catch (Throwable t) {
-//            try {
-//                backend.stopProxy(proxy); // stop in case we are resuming
-//            } catch (Throwable t2) {
-//                // log error, but ignore it otherwise
-//                // most important is that we remove the proxy from memory
-//                log.error(proxy, t, "Error while stopping failed proxy");
-//            }
-//            proxyStore.removeProxy(proxy);
-//            applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
             log.warn(proxy, t, "Failed to prepare proxy for start");
             throw new ProxyFailedToStartException("Container failed to start", t, proxy);
         }
@@ -499,9 +500,9 @@ public class ProxyService {
         }
 
         proxy = proxy.toBuilder()
-                .startupTimestamp(System.currentTimeMillis())
-                .status(ProxyStatus.Up)
-                .build();
+            .startupTimestamp(System.currentTimeMillis())
+            .status(ProxyStatus.Up)
+            .build();
 
         setupProxy(proxy);
 
@@ -514,7 +515,7 @@ public class ProxyService {
         // fetch proxy from proxyStore in order to check if it was stopped
         Proxy proxy = getProxy(startingProxy.getId());
         if (proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
-                || proxy.getStatus().equals(ProxyStatus.Stopping)) {
+            || proxy.getStatus().equals(ProxyStatus.Stopping)) {
             backend.stopProxy(startingProxy);
             log.info(startingProxy, "Pending proxy cleaned up");
             return true;

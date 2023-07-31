@@ -163,7 +163,7 @@ public class ProxyController extends BaseController {
     @JsonView(Views.UserApi.class)
     @RequestMapping(value = "/api/proxy", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<List<Proxy>>> listProxies() {
-        return ApiResponse.success(proxyService.getProxiesOfCurrentUser(null));
+        return ApiResponse.success(proxyService.getUserProxies());
     }
 
     @Operation(summary = "Get an active proxy.", tags = "ContainerProxy")

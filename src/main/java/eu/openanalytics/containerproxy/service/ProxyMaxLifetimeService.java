@@ -71,7 +71,7 @@ public class ProxyMaxLifetimeService {
             log.debug("Skipping checking max lifetimes because we are not the leader");
             return;
         }
-        for (Proxy proxy : proxyService.getProxies(null, true)) {
+        for (Proxy proxy : proxyService.getAllProxies()) {
             if (mustBeReleased(proxy)) {
                 String uptime = DurationFormatUtils.formatDurationWords(
                         System.currentTimeMillis() - proxy.getStartupTimestamp(),

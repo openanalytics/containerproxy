@@ -100,7 +100,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         }
         try {
             long currentTimestamp = System.currentTimeMillis();
-            for (Proxy proxy : proxyService.getProxies(null, true)) {
+            for (Proxy proxy : proxyService.getAllProxies()) {
                 checkAndReleaseProxy(currentTimestamp, proxy);
             }
         } catch (Throwable t) {

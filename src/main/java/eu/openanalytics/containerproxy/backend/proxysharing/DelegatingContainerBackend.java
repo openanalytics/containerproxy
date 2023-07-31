@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 public class DelegatingContainerBackend implements IContainerBackend {
@@ -56,6 +57,8 @@ public class DelegatingContainerBackend implements IContainerBackend {
     private final ProxyService proxyService;
 
     private final SpecExpressionResolver expressionResolver;
+
+    private final ConcurrentHashMap<String, Proxy> delegateProxies = new ConcurrentHashMap<>();
 
     public DelegatingContainerBackend(RuntimeValueService runtimeValueService, ProxyService proxyService, SpecExpressionResolver expressionResolver) {
         this.runtimeValueService = runtimeValueService;
@@ -71,19 +74,27 @@ public class DelegatingContainerBackend implements IContainerBackend {
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
-        Pair<String, Map<String, URI>> resp = assignDelegatedProxy(proxy.getSpecId());
-        resultProxy.targetId(resp.getFirst());
-        resultProxy.addTargets(resp.getSecond());
-        String publicPath = proxy.getRuntimeObjectOrNull(PublicPathKey.inst);
-        if (publicPath != null) {
-            resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPath.replaceAll(proxy.getId(), resp.getFirst())), true);
+        try {
+            Pair<String, Map<String, URI>> resp = assignDelegatedProxy(proxy.getSpecId());
+            resultProxy.targetId(resp.getFirst());
+            resultProxy.addTargets(resp.getSecond());
+            String publicPath = proxy.getRuntimeObjectOrNull(PublicPathKey.inst);
+            if (publicPath != null) {
+                resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPath.replaceAll(proxy.getId(), resp.getFirst())), true);
+            }
+            return resultProxy.build();
+        } catch (ProxyFailedToStartException proxyFailedToStartException) {
+            throw new ProxyFailedToStartException("Delegate proxy throw an error", proxyFailedToStartException, proxy);
         }
-        return resultProxy.build();
     }
 
     @Override
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
-
+        Proxy delegateProxy = delegateProxies.get(proxy.getTargetId());
+        if (delegateProxy == null) {
+            return;
+        }
+        delegateBackend.stopProxy(delegateProxy);
     }
 
     @Override
@@ -111,16 +122,16 @@ public class DelegatingContainerBackend implements IContainerBackend {
         proxyBuilder.id(id);
         proxyBuilder.targetId(id);
         proxyBuilder.status(ProxyStatus.New);
-        proxyBuilder.userId("SHINYPROXY_CONTAINER_SHARING"); // TODO
+//        proxyBuilder.userId("SHINYPROXY_CONTAINER_SHARING"); // TODO
         proxyBuilder.specId(specId);
         proxyBuilder.createdTimestamp(System.currentTimeMillis());
         // TODO add minimal set of runtimevalues
         proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, "/app_proxy/" + id), false); // TODO
 
         // create container objects
-        ProxySpec proxySpec = proxyService.getProxySpec(specId);
-
         Proxy proxy = proxyBuilder.build();
+
+        ProxySpec proxySpec = proxyService.getProxySpec(specId);
 
         SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
         proxySpec = proxySpec.firstResolve(expressionResolver, context);
@@ -135,11 +146,10 @@ public class DelegatingContainerBackend implements IContainerBackend {
             proxyBuilder.addContainer(container);
         }
         proxy = proxyBuilder.build();
-        // TODO use startupLog
+        // TODO use startupLog ?
         proxy = delegateBackend.startProxy(null, proxy,  proxySpec, null);
-        // TODO store proxy
-        // TODO store link
 
+        delegateProxies.put(proxy.getId(), proxy);
         return Pair.of(proxy.getTargetId(), proxy.getTargets());
     }
 

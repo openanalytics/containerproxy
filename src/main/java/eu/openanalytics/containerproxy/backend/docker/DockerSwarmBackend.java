@@ -81,7 +81,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     }
 
     @Override
-    protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
+    public Proxy startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         try {
             Mount[] mounts = spec.getVolumes()
@@ -213,7 +213,9 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             }
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
-            return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
+            Container rContainer = rContainerBuilder.build();
+            Map<String, URI> targets = setupPortMappingExistingProxy(proxy, rContainer, portBindings);
+            return proxy.toBuilder().addTargets(targets).updateContainer(rContainer).build();
         } catch (ContainerFailedToStartException t) {
             throw t;
         } catch (Throwable t) {

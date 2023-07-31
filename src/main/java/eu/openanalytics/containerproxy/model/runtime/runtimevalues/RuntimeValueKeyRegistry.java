@@ -49,6 +49,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(BackendContainerNameKey.inst);
         addRuntimeValueKey(PortMappingsKey.inst);
         addRuntimeValueKey(DisplayNameKey.inst);
+        addRuntimeValueKey(PublicPathKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

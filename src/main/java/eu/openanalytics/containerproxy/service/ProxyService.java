@@ -182,6 +182,15 @@ public class ProxyService {
         return getProxies(filter, ignoreAccessControl).stream().findAny().orElse(null);
     }
 
+    public Proxy getUserProxyByTargetId(String targetId) {
+        // TODO optimise with index/cache
+        return findProxy(p ->
+                p.getTargetId().equals(targetId)
+                    && userService.isOwner(p),
+            false);
+    }
+
+
     /**
      * Find all proxies that match an optional filter.
      *
@@ -240,6 +249,7 @@ public class ProxyService {
             }
             Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
             proxyBuilder.id(proxyId);
+            proxyBuilder.targetId(proxyId);
             proxyBuilder.status(ProxyStatus.New);
             proxyBuilder.userId(UserService.getUserId(user));
             proxyBuilder.specId(spec.getId());
@@ -293,7 +303,7 @@ public class ProxyService {
             proxyStore.updateProxy(stoppingProxy);
 
             for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                mappingManager.removeMapping(target.getKey());
+                mappingManager.removeMapping(proxy, target.getKey());
             }
             return stoppingProxy;
         }, (stoppingProxy) -> {
@@ -333,7 +343,7 @@ public class ProxyService {
             proxyStore.updateProxy(stoppingProxy);
 
             for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                mappingManager.removeMapping(target.getKey());
+                mappingManager.removeMapping(proxy, target.getKey());
             }
             return stoppingProxy;
 
@@ -413,27 +423,27 @@ public class ProxyService {
 
             return Pair.of(spec, proxy);
         } catch (Throwable t) {
-            try {
-                backend.stopProxy(proxy); // stop in case we are resuming
-            } catch (Throwable t2) {
-                // log error, but ignore it otherwise
-                // most important is that we remove the proxy from memory
-                log.error(proxy, t, "Error while stopping failed proxy");
-            }
-            proxyStore.removeProxy(proxy);
-            applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
+//            try {
+//                backend.stopProxy(proxy); // stop in case we are resuming
+//            } catch (Throwable t2) {
+//                // log error, but ignore it otherwise
+//                // most important is that we remove the proxy from memory
+//                log.error(proxy, t, "Error while stopping failed proxy");
+//            }
+//            proxyStore.removeProxy(proxy);
+//            applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(proxy));
             log.warn(proxy, t, "Failed to prepare proxy for start");
-            throw new ContainerProxyException("Container failed to start", t);
+            throw new ProxyFailedToStartException("Container failed to start", t, proxy);
         }
     }
 
     private Proxy startOrResumeProxy(Authentication user, Proxy proxy, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLog) {
         ProxySpec spec = baseSpecProvider.getSpec(proxy.getSpecId());
-        Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, proxy, spec);
-        spec = r.getFirst();
-        proxy = r.getSecond();
 
         try {
+            Pair<ProxySpec, Proxy> r = prepareProxyForStart(user, proxy, spec);
+            spec = r.getFirst();
+            proxy = r.getSecond();
             if (proxy.getStatus() == ProxyStatus.New) {
                 log.info(proxy, "Starting proxy");
                 proxy = backend.startProxy(user, proxy, spec, proxyStartupLog);
@@ -480,9 +490,9 @@ public class ProxyService {
             throw new ContainerProxyException("Container did not respond in time");
         }
 
-        if (proxyStartupLog != null) {
-            proxyStartupLog.applicationStarted();
-        }
+//        if (proxyStartupLog != null) { // TODO
+//            proxyStartupLog.applicationStarted();
+//        }
 
         if (cleanupIfPendingAppWasStopped(proxy)) {
             return null;
@@ -527,21 +537,12 @@ public class ProxyService {
     }
 
     /**
-     * Setups the Mapping of and logging of the proxy.
+     * Setups the Mapping of proxy.
      */
     private void setupProxy(Proxy proxy) {
-        for (Container container : proxy.getContainers()) {
-            for (Entry<String, URI> target : container.getTargets().entrySet()) {
-                mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
-            }
+        for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
+            mappingManager.addMapping(proxy, target.getKey(), target.getValue());
         }
-    }
-
-    private String formatLogMessage(String message, Proxy proxy) {
-        if (proxy == null) {
-            return String.format("%s [unknown proxy]", message);
-        }
-        return String.format("%s [user: %s] [spec: %s] [id: %s]", message, proxy.getUserId(), proxy.getSpecId(), proxy.getId());
     }
 
     /**

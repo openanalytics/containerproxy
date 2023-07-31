@@ -131,7 +131,7 @@ public class AppRecoveryService {
                 } else {
                     proxy.status(ProxyStatus.Up);
                 }
-                container = containerBackend.setupPortMappingExistingProxy(proxy.build(), container, containerInfo.getPortBindings());
+                proxy.addTargets(containerBackend.setupPortMappingExistingProxy(proxy.build(), container, containerInfo.getPortBindings()));
                 proxy.addContainer(container);
             }
 

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultTargetMappingStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
@@ -28,6 +29,7 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.inject.Inject;
@@ -36,7 +38,7 @@ import javax.inject.Inject;
 public class ProxyRouteController extends BaseController {
 
     @Inject
-    private UserService userService;
+    private ContextPathHelper contextPathHelper;
 
     @Inject
     private ProxyService proxyService;
@@ -44,21 +46,15 @@ public class ProxyRouteController extends BaseController {
     @Inject
     private ProxyMappingManager mappingManager;
 
-    @RequestMapping(value = "/api/route/**")
-    public void route(HttpServletRequest request, HttpServletResponse response) {
+    @RequestMapping(value = "/api/route/{targetId}/**")
+    public void route(@PathVariable String targetId, HttpServletRequest request, HttpServletResponse response) {
         try {
-            // Ensure that the caller is the owner of the target proxy.
-            boolean hasAccess = false;
-            String baseURL = ContextPathHelper.withEndingSlash() + "api/route/";
-            String mapping = request.getRequestURI().substring(baseURL.length());
-            String proxyId = mappingManager.getProxyId(mapping);
-            if (proxyId != null) {
-                Proxy proxy = proxyService.findProxy(p -> proxyId.equals(p.getId()), false);
-                hasAccess = userService.isOwner(proxy);
-            }
+            String baseURL = contextPathHelper.withEndingSlash() + "api/route/";
+            String mapping = request.getRequestURI().substring(baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH);
+            Proxy proxy = proxyService.getUserProxyByTargetId(targetId);
 
-            if (hasAccess) {
-                mappingManager.dispatchAsync(proxyId, mapping, request, response);
+            if (proxy != null) {
+                mappingManager.dispatchAsync(proxy.getId(), mapping, request, response);
             } else {
                 response.setStatus(403);
                 response.getWriter().write("Not authorized to access this proxy");

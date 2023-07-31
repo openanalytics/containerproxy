@@ -120,27 +120,23 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
-        List<Container> resultContainers = new ArrayList<>();
-
         for (ContainerSpec spec : proxySpec.getContainerSpecs()) {
             try {
                 Container container = proxy.getContainer(spec.getIndex());
-                container = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
-                resultContainers.add(container);
-                if (container.getIndex() == 0) {
+                proxy = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
+                if (proxyStartupLogBuilder != null && container.getIndex() == 0) {
                     proxyStartupLogBuilder.startingApplication();
                 }
             } catch (ContainerFailedToStartException t) {
-                resultContainers.add(t.getContainer());
-                proxy = proxy.toBuilder().containers(resultContainers).build();
+                proxy = proxy.toBuilder().updateContainer(t.getContainer()).build();
                 throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
             }
         }
 
-        return proxy.toBuilder().containers(resultContainers).build();
+        return proxy;
     }
 
-    protected abstract Container startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
+    public abstract Proxy startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
 
     @Override
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
@@ -205,14 +201,14 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
                     env.put(key.toString(), envProps.get(key).toString());
                 }
             }
+        }
 
-            if (containerSpec.getEnv().isPresent()) {
-                env.putAll(containerSpec.getEnv().getValue());
-            }
+        if (containerSpec.getEnv().isPresent()) {
+            env.putAll(containerSpec.getEnv().getValue());
         }
 
         // Allow the authentication backend to add values to the environment, if needed.
-        if (authBackend != null) authBackend.customizeContainerEnv(user, env);
+        if (user != null && authBackend != null) authBackend.customizeContainerEnv(user, env);
 
         return env;
     }
@@ -227,8 +223,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
     abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
 
-    public Container setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-        Container.ContainerBuilder containerBuilder = container.toBuilder();
+    public Map<String, URI> setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+        Map<String, URI> targets = new HashMap<>();
         for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
 
             Integer boundPort = null; // in case of internal networking
@@ -239,9 +235,9 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
             String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
             URI target = calculateTarget(container, portMapping, boundPort);
-            containerBuilder.addTarget(mapping, target);
+            targets.put(mapping, target);
         }
-        return containerBuilder.build();
+        return targets;
     }
 
 }

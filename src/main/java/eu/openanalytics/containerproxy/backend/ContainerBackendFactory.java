@@ -20,10 +20,15 @@
  */
 package eu.openanalytics.containerproxy.backend;
 
+import eu.openanalytics.containerproxy.backend.proxysharing.DelegatingContainerBackend;
+import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.RuntimeValueService;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +45,14 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
     private static final Map<String, Class<? extends IContainerBackend>> BACKENDS = new HashMap<>();
     @Inject
     protected Environment environment;
+    @Inject
+    private RuntimeValueService runtimeValueService;
+    @Lazy
+    @Inject
+    private ProxyService proxyService;
+    @Inject
+    private SpecExpressionResolver expressionResolver;
+
     private ApplicationContext applicationContext;
 
     public static void addBackend(String name, Class<? extends IContainerBackend> backend) {
@@ -72,6 +85,8 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
         IContainerBackend backend = createFor(backendName);
         applicationContext.getAutowireCapableBeanFactory().autowireBean(backend);
         backend.initialize();
-        return backend;
+        DelegatingContainerBackend containerSharingBackend = new DelegatingContainerBackend(runtimeValueService, proxyService, expressionResolver);
+        containerSharingBackend.setDelegate(backend);
+        return containerSharingBackend;
     }
 }

@@ -91,6 +91,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     private OpenIdReAuthorizeFilter openIdReAuthorizeFilter;
     @Inject
     private SpecExpressionResolver specExpressionResolver;
+    @Inject
+    private ContextPathHelper contextPathHelper;
 
     /**
      * Parses the claim containing the roles to a List of Strings.
@@ -200,7 +202,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     }
 
     public String getLoginRedirectURI() {
-        return ContextPathHelper.withoutEndingSlash()
+        return contextPathHelper.withoutEndingSlash()
             + OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI
             + "/" + REG_ID;
     }

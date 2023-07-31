@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.model.runtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
@@ -42,7 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -66,6 +64,10 @@ public class Proxy extends RuntimeValueStore {
 
     List<Container> containers;
 
+    String targetId;
+
+    Map<String, URI> targets;
+
     Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
     @JsonCreator
@@ -77,17 +79,21 @@ public class Proxy extends RuntimeValueStore {
                                        @JsonProperty("specId") String specId,
                                        @JsonProperty("displayName") String displayName,
                                        @JsonProperty("containers") List<Container> containers,
+                                       @JsonProperty("targetId") String targetId,
+                                       @JsonProperty("targets") Map<String, URI> targets,
                                        @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
         Proxy.ProxyBuilder builder = Proxy.builder()
-                .id(id)
-                .status(status)
-                .startupTimestamp(startupTimestamp)
-                .createdTimestamp(createdTimestamp)
-                .userId(userId)
-                .specId(specId)
-                .displayName(displayName)
-                .containers(containers);
+            .id(id)
+            .status(status)
+            .startupTimestamp(startupTimestamp)
+            .createdTimestamp(createdTimestamp)
+            .userId(userId)
+            .specId(specId)
+            .displayName(displayName)
+            .targetId(targetId)
+            .targets(targets)
+            .containers(containers);
 
         for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
             RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
@@ -118,12 +124,12 @@ public class Proxy extends RuntimeValueStore {
         return Collections.unmodifiableMap(runtimeValues);
     }
 
-    @JsonIgnore
+    @JsonView(Views.Internal.class)
     public Map<String, URI> getTargets() {
-        return getContainers()
-                .stream()
-                .flatMap(c -> c.getTargets().entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        if (targets == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(targets);
     }
 
     public static class ProxyBuilder {
@@ -171,6 +177,26 @@ public class Proxy extends RuntimeValueStore {
             return this;
         }
 
+        public ProxyBuilder updateContainer(Container container) {
+            containers.set(container.getIndex(), container);
+            return this;
+        }
+
+        public ProxyBuilder addTarget(String mapping, URI target) {
+            if (targets == null) {
+                targets = new HashMap<>();
+            }
+            targets.put(mapping, target);
+            return this;
+        }
+
+        public ProxyBuilder addTargets(Map<String, URI> targets) {
+            if (this.targets == null) {
+                this.targets = new HashMap<>();
+            }
+            this.targets.putAll(targets);
+            return this;
+        }
     }
 
 }

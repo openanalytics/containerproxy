@@ -100,7 +100,7 @@ public class RedisProxyStore implements IProxyStore {
                 // there were still some old mappings -> remove them
                 logger.debug("Redis: remove mappings for {}", proxy.getId());
                 for (Map.Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                    mappingManager.removeMapping(target.getKey());
+                    mappingManager.removeMapping(proxy, target.getKey());
                 }
             }
             return;
@@ -111,7 +111,7 @@ public class RedisProxyStore implements IProxyStore {
 
         if (oldTargets == null || oldTargets != newTargets) {
             for (Map.Entry<String, URI> target : newTargets.entrySet()) {
-                mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
+                mappingManager.addMapping(proxy, target.getKey(), target.getValue());
             }
         }
     }

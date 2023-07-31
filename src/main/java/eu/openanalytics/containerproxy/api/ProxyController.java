@@ -199,7 +199,7 @@ public class ProxyController extends BaseController {
     @JsonView(Views.UserApi.class)
     @RequestMapping(value = "/api/proxy/{proxyId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Proxy>> getProxy(@PathVariable String proxyId) {
-        Proxy proxy = proxyService.findProxy(p -> p.getId().equals(proxyId), false);
+        Proxy proxy = proxyService.getProxy(proxyId);
         if (proxy == null) {
             return ApiResponse.failForbidden();
         }
@@ -250,7 +250,6 @@ public class ProxyController extends BaseController {
         if (baseSpec == null) {
             return ApiResponse.failForbidden();
         }
-
         try {
             Proxy proxy = proxyService.startProxy(baseSpec);
             return ApiResponse.created(proxy);

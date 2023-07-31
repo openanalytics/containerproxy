@@ -18,26 +18,16 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.strategy.impl;
+package eu.openanalytics.containerproxy.backend.proxysharing;
 
-import eu.openanalytics.containerproxy.backend.strategy.IProxyTargetMappingStrategy;
-import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import org.springframework.stereotype.Component;
 
-@Component
-public class DefaultTargetMappingStrategy implements IProxyTargetMappingStrategy {
+public class DelegatedProxy {
 
-    public static final String DEFAULT_MAPPING_KEY = "default";
-    public static final int TARGET_ID_LENGTH = 36;
+    private final Proxy proxy;
 
-    public String createMapping(String mappingKey, Container container, Proxy proxy) {
-        String mapping = "";
-        if (!mappingKey.equalsIgnoreCase(DEFAULT_MAPPING_KEY)) {
-            // For non-default mappings, also append the mapping key
-            mapping += "/" + mappingKey;
-        }
-        return mapping;
+    public DelegatedProxy(Proxy proxy) {
+        this.proxy = proxy;
     }
 
 }

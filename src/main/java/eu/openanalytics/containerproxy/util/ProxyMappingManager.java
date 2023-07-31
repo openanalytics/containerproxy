@@ -54,9 +54,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -72,7 +71,8 @@ public class ProxyMappingManager {
     private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
 
     private final StructuredLogger logger = StructuredLogger.create(getClass());
-    private final Map<String, String> mappings = new HashMap<>();
+    // the current set of prefixPaths registered in the pathHandler
+    private final Set<String> prefixPaths = new HashSet<>();
     private PathHandler pathHandler;
     private volatile boolean isShuttingDown = false;
 
@@ -131,18 +131,20 @@ public class ProxyMappingManager {
     }
 
     @SuppressWarnings("deprecation")
-    public synchronized void addMapping(String proxyId, String mapping, URI target) {
+    public synchronized void addMapping(Proxy proxy, String mapping, URI target) {
         if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
 
-        if (mappings.containsKey(mapping)) {
+        String prefixPath = getPrefixPath(proxy.getId(), mapping);
+        if (prefixPaths.contains(prefixPath)) {
             return;
         }
+        prefixPaths.add(prefixPath);
 
         LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
             @Override
             public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
                 try {
-                    exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxyId));
+                    exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxy.getId()));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -152,23 +154,14 @@ public class ProxyMappingManager {
         proxyClient.setMaxQueueSize(100);
         proxyClient.addHost(target);
 
-        mappings.put(mapping, proxyId);
-
-        String path = PROXY_INTERNAL_ENDPOINT + "/" + mapping;
-        pathHandler.addPrefixPath(path, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
+        pathHandler.addPrefixPath(prefixPath, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
     }
 
-    public synchronized void removeMapping(String mapping) {
+    public synchronized void removeMapping(Proxy proxy, String mapping) {
         if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-        mappings.remove(mapping);
-        pathHandler.removePrefixPath(mapping);
-    }
-
-    public String getProxyId(String mapping) {
-        for (Entry<String, String> e : mappings.entrySet()) {
-            if (mapping.toLowerCase().startsWith(e.getKey().toLowerCase())) return e.getValue();
-        }
-        return null;
+        String prefixPath = getPrefixPath(proxy.getId(), mapping);
+        prefixPaths.remove(prefixPath);
+        pathHandler.removePrefixPath(prefixPath);
     }
 
     /**
@@ -198,7 +191,7 @@ public class ProxyMappingManager {
 
         String queryString = request.getQueryString();
         queryString = (queryString == null) ? "" : "?" + queryString;
-        String targetPath = PROXY_INTERNAL_ENDPOINT + "/" + mapping + queryString;
+        String targetPath = getPrefixPath(proxyId, mapping) + queryString;
 
         if (exchangeCustomizer != null) {
             exchangeCustomizer.accept(exchange);
@@ -213,6 +206,20 @@ public class ProxyMappingManager {
         exchange.addDefaultResponseListener(defaultResponseListener);
         request.startAsync();
         request.getRequestDispatcher(targetPath).forward(request, response);
+    }
+
+    /**
+     * Get the internal endpoint (path) used inside the undertow container.
+     * This endpoint proxies to the corresponding target URI of the proxy.
+     * The mapping can be an empty string or a string starting with a "/"; TODO
+     *
+     * @param proxyId
+     * @param mapping the mapping (a sub-path)
+     * @return
+     */
+    private String getPrefixPath(String proxyId, String mapping) {
+        // note: this is the real proxyId note the targetid!
+        return PROXY_INTERNAL_ENDPOINT + "/" + proxyId + "/" + mapping;
     }
 
     @EventListener(ContextClosedEvent.class)

@@ -79,13 +79,13 @@ public class TestProxyService {
 
     public static class NoopMappingManager extends ProxyMappingManager {
         @Override
-        public synchronized void addMapping(String proxyId, String path, URI target) {
+        public synchronized void addMapping(Proxy proxy, String path, URI target) {
             // No-op
             System.out.println("NOOP");
         }
 
         @Override
-        public synchronized void removeMapping(String path) {
+        public synchronized void removeMapping(Proxy proxyId, String path) {
             // No-ops
         }
     }

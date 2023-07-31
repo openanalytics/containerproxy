@@ -64,7 +64,9 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.security.web.header.Header;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
@@ -103,6 +105,8 @@ public class WebSecurityConfig {
     private IdentifierService identifierService;
     @Autowired(required = false)
     private List<ICustomSecurityConfig> customConfigs;
+    @Inject
+    private HandlerMappingIntrospector handlerMappingIntrospector;
     @Inject
     @Lazy
     private SavedRequestAwareAuthenticationSuccessHandler successHandler;
@@ -190,20 +194,33 @@ public class WebSecurityConfig {
 
         http.authorizeHttpRequests(authz -> authz
             .requestMatchers(
-                "/actuator/health", "/actuator/health/readiness",
-                "/actuator/health/liveness", "/actuator/prometheus", "/actuator/recyclable"
+                new MvcRequestMatcher(handlerMappingIntrospector, "/actuator/health"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/actuator/health/readiness"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/actuator/health/liveness"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/actuator/prometheus"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/actuator/recyclable")
             )
             .permitAll()
-            .requestMatchers("/saml/metadata")
+            .requestMatchers(new MvcRequestMatcher(handlerMappingIntrospector, "/saml/metadata"))
             .permitAll()
             .requestMatchers(
-                "/login", "/signin/**", "/auth-error", "/error", "/app-access-denied", "/logout-success",
-                "/favicon.ico",
-                "/" + identifierService.instanceId + "/css/**", "/css/**",
-                "/" + identifierService.instanceId + "/img/**", "/img/**",
-                "/" + identifierService.instanceId + "/js/**", "/js/**",
-                "/" + identifierService.instanceId + "/assets/**", "/assets/**",
-                "/" + identifierService.instanceId + "/webjars/**", "/webjars/**"
+                new MvcRequestMatcher(handlerMappingIntrospector, "/login"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/signin/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/auth-error"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/error"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/app-access-denied"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/logout-success"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/favicon.ico"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/css/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/css/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/img/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/img/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/js/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/js/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/assets/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/assets/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/webjars/**"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/webjars/**")
             )
             .permitAll()
         );

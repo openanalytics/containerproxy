@@ -80,6 +80,9 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     @Lazy
     private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
+    @Inject
+    private ContextPathHelper contextPathHelper;
+
     public static String determineLogoutSuccessURL(Environment environment) {
         String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
         if (logoutURL == null || logoutURL
@@ -152,7 +155,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     }
 
     public String getLoginRedirectURI() {
-        return ContextPathHelper.withoutEndingSlash()
+        return contextPathHelper.withoutEndingSlash()
             + "/saml2/authenticate/"
             + REG_ID;
     }

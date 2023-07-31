@@ -30,11 +30,11 @@ public class ContextPathHelper {
     private static String contextPathWithoutSlash = null;
     private static String contextPathWithSlash = null;
 
-    public static String withEndingSlash() {
+    public String withEndingSlash() {
         return contextPathWithSlash;
     }
 
-    public static String withoutEndingSlash() {
+    public String withoutEndingSlash() {
         return contextPathWithoutSlash;
     }
 

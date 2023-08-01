@@ -61,19 +61,25 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private final ISeatStore seatStore = new MemorySeatStore();
 
+    private static String publicPathPrefix = "/api/route/";
+
+    public static void setPublicPathPrefix(String publicPathPrefix) {
+        ProxySharingDispatcher.publicPathPrefix = publicPathPrefix;
+    }
+
     public ProxySharingDispatcher(IContainerBackend containerBackend, ProxySpec proxySpec, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService) {
         this.containerBackend = containerBackend;
         this.proxySpec = proxySpec;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < proxySpec.getSpecExtension(ProxySharingSpecExtension.class).fixedSeatsAvailable; i++) {
             executor.submit(createDelegateProxyJob());
         }
     }
 
     public static boolean supportSpec(ProxySpec proxySpec) {
-        return true;
+        return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).fixedSeatsAvailable != null;
     }
 
     @Override
@@ -123,43 +129,46 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private Runnable createDelegateProxyJob() {
         return () -> {
-            Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
-            String id = UUID.randomUUID().toString();
+            try {
+                Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
+                String id = UUID.randomUUID().toString();
 
-            logger.info("Creating DelegateProxy " + id);
+                logger.info("Creating DelegateProxy " + id);
 
-            proxyBuilder.id(id);
-            proxyBuilder.targetId(id);
-            proxyBuilder.status(ProxyStatus.New);
-//        proxyBuilder.userId("SHINYPROXY_CONTAINER_SHARING"); // TODO
-            proxyBuilder.specId(proxySpec.getId());
-            proxyBuilder.createdTimestamp(System.currentTimeMillis());
-            // TODO add minimal set of runtimevalues
-            proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, "/app_proxy/" + id), false); // TODO
+                proxyBuilder.id(id);
+                proxyBuilder.targetId(id);
+                proxyBuilder.status(ProxyStatus.New);
+                proxyBuilder.specId(proxySpec.getId());
+                proxyBuilder.createdTimestamp(System.currentTimeMillis());
+                // TODO add minimal set of runtimevalues
+                proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPathPrefix + id), false);
 
-            // create container objects
-            Proxy proxy = proxyBuilder.build();
-            delegateProxies.put(proxy.getId(), proxy);
+                // create container objects
+                Proxy proxy = proxyBuilder.build();
+                delegateProxies.put(proxy.getId(), proxy);
 
-            SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
-            ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
-            context = context.copy(resolvedSpec, proxy);
-            resolvedSpec = resolvedSpec.finalResolve(expressionResolver, context);
+                SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
+                ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
+                context = context.copy(resolvedSpec, proxy);
+                resolvedSpec = resolvedSpec.finalResolve(expressionResolver, context);
 
-            for (ContainerSpec containerSpec : resolvedSpec.getContainerSpecs()) {
-                Container.ContainerBuilder containerBuilder = Container.builder();
-                containerBuilder.index(containerSpec.getIndex());
-                Container container = containerBuilder.build();
-                container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
-                proxyBuilder.addContainer(container);
+                for (ContainerSpec containerSpec : resolvedSpec.getContainerSpecs()) {
+                    Container.ContainerBuilder containerBuilder = Container.builder();
+                    containerBuilder.index(containerSpec.getIndex());
+                    Container container = containerBuilder.build();
+                    container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
+                    proxyBuilder.addContainer(container);
+                }
+                proxy = proxyBuilder.build();
+                // TODO use startupLog ?
+                logger.info("Starting DelegateProxy " + id);
+                proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
+                delegateProxies.put(proxy.getId(), proxy);
+                seatStore.addSeat(proxySpec.getId(), new Seat(proxy.getId()));
+                logger.info("Started DelegateProxy " + id);
+            } catch (ProxyFailedToStartException ex) {
+                logger.error("Failed to start delegate proxy", ex);
             }
-            proxy = proxyBuilder.build();
-            // TODO use startupLog ?
-            logger.info("Starting DelegateProxy " + id);
-            proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
-            delegateProxies.put(proxy.getId(), proxy);
-            seatStore.addSeat(proxySpec.getId(), new Seat(proxy.getId()));
-            logger.info("Started DelegateProxy " + id);
         };
     }
 

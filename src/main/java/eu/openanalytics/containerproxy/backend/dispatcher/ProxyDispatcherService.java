@@ -22,12 +22,14 @@ package eu.openanalytics.containerproxy.backend.dispatcher;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingSpecExtensionProvider;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,8 +37,24 @@ import java.util.Map;
 public class ProxyDispatcherService {
 
     private final Map<String, IProxyDispatcher> dispatchers = new HashMap<>();
+    private final IProxySpecProvider proxySpecProvider;
+    private final IContainerBackend containerBackend;
+    private final SpecExpressionResolver expressionResolver;
+    private final RuntimeValueService runtimeValueService;
 
-    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService) {
+    @SuppressWarnings({"unused", "FieldCanBeLocal"}) // we need the spec extensions loaded
+    private final ProxySharingSpecExtensionProvider proxySharingSpecExtensionProvider;
+
+    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, ProxySharingSpecExtensionProvider proxySharingSpecExtensionProvider) {
+        this.proxySpecProvider = proxySpecProvider;
+        this.containerBackend = containerBackend;
+        this.expressionResolver = expressionResolver;
+        this.runtimeValueService = runtimeValueService;
+        this.proxySharingSpecExtensionProvider = proxySharingSpecExtensionProvider;
+    }
+
+    @PostConstruct
+    public void init() {
         for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
             if (ProxySharingDispatcher.supportSpec(proxySpec)) {
                 dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(containerBackend, proxySpec, expressionResolver, runtimeValueService));

@@ -60,7 +60,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final SpecExpressionResolver expressionResolver;
     private final RuntimeValueService runtimeValueService;
 
-    private final ConcurrentHashMap<String, Proxy> delegateProxies = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, DelegateProxy> delegateProxies = new ConcurrentHashMap<>();
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -71,6 +71,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private static String publicPathPrefix = "/api/route/";
 
     private final Integer minimumSeatsAvailable;
+    private final Integer maximumSeatsAvailable;
 
     private final LinkedBlockingQueue<Event> channel = new LinkedBlockingQueue<>();
 
@@ -91,6 +92,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
+        this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
         this.testStrategy = testStrategy;
 
         eventProcessor = new Thread(new EventProcessor(channel, this));
@@ -136,7 +138,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             }
         }
 
-        Proxy delegateProxy = delegateProxies.get(seat.getTargetId());
+        Proxy delegateProxy = delegateProxies.get(seat.getTargetId()).proxy;
 
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
         resultProxy.targetId(delegateProxy.getId());
@@ -192,9 +194,30 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 pendingDelegateProxies.add(id);
                 executor.submit(createDelegateProxyJob(id));
             }
+        } else if (seatsAvailable > maximumSeatsAvailable) {
+            int amountToScaleDown = seatsAvailable - maximumSeatsAvailable;
+            logger.info("Scale down required, removing " + amountToScaleDown);
+            for (int i = 0; i < amountToScaleDown; i++) {
+                if (!removeDelegateProxy()) {
+                    logger.info("Full Scale down not possible");
+                    break;
+                }
+            }
         } else {
             logger.info("No scale up required");
         }
+    }
+
+    private boolean removeDelegateProxy() {
+        for (DelegateProxy delegateProxy : delegateProxies.values()) {
+            if (seatStore.removeSeats(proxySpec.getId(), delegateProxy.seatIds)) {
+                containerBackend.stopProxy(delegateProxy.proxy);
+                delegateProxies.remove(delegateProxy.proxy.getId());
+                logger.info("Removed one delegate proxy " + delegateProxy.proxy.getId());
+                return true;
+            }
+        }
+        return false;
     }
 
     private Runnable createDelegateProxyJob(String id) {
@@ -213,7 +236,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
                 // create container objects
                 Proxy proxy = proxyBuilder.build();
-                delegateProxies.put(proxy.getId(), proxy);
+                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, List.of()));
 
                 SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
@@ -236,8 +259,9 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                     logger.info("Failed to start delegate proxy (did not come online)" + id); // TODO
                 }
 
-                delegateProxies.put(proxy.getId(), proxy);
-                seatStore.addSeat(proxySpec.getId(), new Seat(proxy.getId()));
+                Seat seat = new Seat(proxy.getId());
+                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, List.of(seat.getId())));
+                seatStore.addSeat(proxySpec.getId(), seat);
                 logger.info("Started DelegateProxy " + id);
             } catch (ProxyFailedToStartException ex) {
                 logger.error("Failed to start delegate proxy", ex);
@@ -268,7 +292,12 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 while (true) {
                     Event event = channel.take();
                     if (event == Event.RECONCILE) {
-                        dispatcher.reconcile();
+                        try {
+                            dispatcher.reconcile();
+                        } catch (Exception ex) {
+//                            logger.error("Error", ex);
+                            ex.printStackTrace();
+                        }
                     }
                 }
             } catch (InterruptedException e) {
@@ -276,6 +305,25 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             }
         }
 
+    }
+
+    private static class DelegateProxy {
+
+        private final Proxy proxy;
+        private final List<String> seatIds;
+
+        private DelegateProxy(Proxy proxy, List<String> seatIds) {
+            this.proxy = proxy;
+            this.seatIds = seatIds;
+        }
+
+        public Proxy getProxy() {
+            return proxy;
+        }
+
+        public List<String> getSeatIds() {
+            return seatIds;
+        }
     }
 
 }

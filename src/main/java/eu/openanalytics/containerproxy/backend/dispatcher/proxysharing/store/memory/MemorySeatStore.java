@@ -26,6 +26,7 @@ import com.google.common.collect.Multimaps;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,8 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MemorySeatStore implements ISeatStore {
 
     // TODO synchronize on specId?
-    private final ListMultimap<String, Seat> availableSeats = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
-    private final Map<String, Seat> claimedSeats = new ConcurrentHashMap<>();
+    private final ListMultimap<String, Seat> availableSeats = Multimaps.synchronizedListMultimap(ArrayListMultimap.create()); // SpecId -> Seat
+    private final Map<String, Seat> claimedSeats = new ConcurrentHashMap<>(); // seat id -> Seat
 
     @Override
     public synchronized void addSeat(String specId, Seat seat) {
@@ -63,6 +64,17 @@ public class MemorySeatStore implements ISeatStore {
     @Override
     public synchronized Integer getNumSeatsAvailable(String specId) {
         return availableSeats.get(specId).size();
+    }
+
+    @Override
+    public synchronized boolean removeSeats(String specId, List<String> seatIds) {
+        for (String seatId : seatIds) {
+            if (claimedSeats.containsKey(seatId)) {
+                return false;
+            }
+        }
+        availableSeats.get(specId).removeIf(s -> seatIds.contains(s.getId())); // TODO optimize
+        return true;
     }
 
 }

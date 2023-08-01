@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
 
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ISeatStore {
@@ -33,4 +34,6 @@ public interface ISeatStore {
     void releaseSeat(String specId, String seatId);
 
     Integer getNumSeatsAvailable(String specId);
+
+    boolean removeSeats(String specId, List<String> seatIds);
 }

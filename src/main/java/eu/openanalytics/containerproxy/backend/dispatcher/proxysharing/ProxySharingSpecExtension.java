@@ -43,6 +43,8 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
     Integer minimumSeatsAvailable;
 
+    Integer maximumSeatsAvailable;
+
     @Override
     public ProxySharingSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return this;

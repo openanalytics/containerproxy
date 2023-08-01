@@ -18,32 +18,17 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
+package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
 
-public class DisplayNameKey extends RuntimeValueKey<String> {
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 
-    public static final DisplayNameKey inst = new DisplayNameKey();
+import java.util.Optional;
 
-    private DisplayNameKey() {
-        super("openanalytics.eu/sp-display-name",
-                "SHINYPROXY_DISPLAY_NAME",
-                false,
-                true,
-                false,
-                true,
-                true,
-                false,
-                String.class);
-    }
+public interface ISeatStore {
 
-    @Override
-    public String deserializeFromString(String value) {
-        return value;
-    }
+    void addSeat(String specId, Seat seat);
 
-    @Override
-    public String serializeToString(String value) {
-        return value;
-    }
+    public Optional<Seat> claimSeat(String specId, String claimingProxyId);
 
+    void releaseSeat(String specId, String seatId);
 }

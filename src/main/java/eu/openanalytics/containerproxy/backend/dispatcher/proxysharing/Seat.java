@@ -18,32 +18,38 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
+package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
-public class DisplayNameKey extends RuntimeValueKey<String> {
+import lombok.Data;
 
-    public static final DisplayNameKey inst = new DisplayNameKey();
+import java.util.UUID;
 
-    private DisplayNameKey() {
-        super("openanalytics.eu/sp-display-name",
-                "SHINYPROXY_DISPLAY_NAME",
-                false,
-                true,
-                false,
-                true,
-                true,
-                false,
-                String.class);
+@Data
+public class Seat {
+
+    private final String targetId;
+
+    private final String id;
+
+    private String claimingProxyId;
+
+    public Seat(String targetId) {
+        this.targetId = targetId;
+        id = UUID.randomUUID().toString();
     }
 
-    @Override
-    public String deserializeFromString(String value) {
-        return value;
+    public void claim(String proxyId) {
+        if (claimingProxyId != null) {
+            throw new IllegalStateException(String.format("Seat %s already claimed by %s", id, proxyId));
+        }
+        claimingProxyId = proxyId;
     }
 
-    @Override
-    public String serializeToString(String value) {
-        return value;
+    public void release() {
+        if (claimingProxyId == null) {
+            throw new IllegalStateException(String.format("Seat %s not claimed", id));
+        }
+        claimingProxyId = null;
     }
 
 }

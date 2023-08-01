@@ -21,10 +21,6 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import eu.openanalytics.containerproxy.backend.ContainerBackendFactory;
-import eu.openanalytics.containerproxy.backend.docker.DockerEngineBackend;
-import eu.openanalytics.containerproxy.backend.docker.DockerSwarmBackend;
-import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesBackend;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
@@ -98,9 +94,6 @@ public class ContainerProxyApplication {
 
     static {
         Security.addProvider(new BouncyCastleProvider());
-        ContainerBackendFactory.addBackend("docker", DockerEngineBackend.class);
-        ContainerBackendFactory.addBackend("docker-swarm", DockerSwarmBackend.class);
-        ContainerBackendFactory.addBackend("kubernetes", KubernetesBackend.class);
     }
 
     private final Logger log = LogManager.getLogger(getClass());

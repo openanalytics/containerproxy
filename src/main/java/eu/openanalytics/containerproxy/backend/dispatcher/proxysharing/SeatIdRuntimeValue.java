@@ -18,22 +18,24 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
+package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
-public class DisplayNameKey extends RuntimeValueKey<String> {
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 
-    public static final DisplayNameKey inst = new DisplayNameKey();
+public class SeatIdRuntimeValue extends RuntimeValueKey<String> {
 
-    private DisplayNameKey() {
-        super("openanalytics.eu/sp-display-name",
-                "SHINYPROXY_DISPLAY_NAME",
-                false,
-                true,
-                false,
-                true,
-                true,
-                false,
-                String.class);
+    public static final SeatIdRuntimeValue inst = new SeatIdRuntimeValue();
+
+    private SeatIdRuntimeValue() {
+        super("openanalytics.eu/sp-seat-id",
+            "SHINYPROXY_SEAT_ID",
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            String.class);
     }
 
     @Override

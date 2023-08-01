@@ -111,8 +111,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
         return targetPath;
     }
 
-    @Override
-    public void initialize() throws ContainerProxyException {
+    public void initialize() {
         // If this application runs as a container itself, things like port publishing can be omitted.
         useInternalNetwork = getProperty(PROPERTY_INTERNAL_NETWORKING, false);
         privileged = getProperty(PROPERTY_PRIVILEGED, false);

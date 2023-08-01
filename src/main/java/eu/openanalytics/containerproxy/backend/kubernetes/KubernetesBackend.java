@@ -83,9 +83,11 @@ import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.json.JsonPatch;
 import java.io.ByteArrayInputStream;
@@ -113,6 +115,7 @@ import java.util.stream.Stream;
 
 import static eu.openanalytics.containerproxy.backend.kubernetes.PodPatcher.DEBUG_PROPERTY;
 
+@ConditionalOnProperty(name = "proxy.container-backend", havingValue = "kubernetes")
 public class KubernetesBackend extends AbstractContainerBackend {
 
     private static final String PROPERTY_PREFIX = "proxy.kubernetes.";
@@ -137,8 +140,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private KubernetesManifestsRemover kubernetesManifestsRemover;
     private Boolean logManifests;
 
-    @Override
-    public void initialize() throws ContainerProxyException {
+    @PostConstruct
+    public void initialize() {
         super.initialize();
 
         ConfigBuilder configBuilder = new ConfigBuilder();

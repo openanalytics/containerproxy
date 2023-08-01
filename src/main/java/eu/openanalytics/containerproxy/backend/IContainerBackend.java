@@ -39,14 +39,6 @@ import java.util.function.BiConsumer;
 public interface IContainerBackend {
 
     /**
-     * Initialize this container backend.
-     * This method is called lazily, when the backend is needed for the first time.
-     *
-     * @throws ContainerProxyException If anything goes wrong during initialization of the backend.
-     */
-    public void initialize() throws ContainerProxyException;
-
-    /**
      * Start the given proxy, which may take some time depending on the type of backend.
      * The proxy will be in the {@link ProxyStatus#New} state before entering this method.
      * When this method returns, the proxy should be in the {@link ProxyStatus#Up} state.

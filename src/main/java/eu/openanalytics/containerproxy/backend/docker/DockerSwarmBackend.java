@@ -55,8 +55,10 @@ import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
 import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
 
+import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -67,10 +69,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+@ConditionalOnProperty(name = "proxy.container-backend", havingValue = "docker-swarm")
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
-    @Override
-    public void initialize() throws ContainerProxyException {
+    @PostConstruct
+    public void initialize() {
         super.initialize();
         String swarmId = null;
         try {

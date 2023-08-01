@@ -22,7 +22,7 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
-import eu.openanalytics.containerproxy.backend.IContainerBackend;
+import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
 import eu.openanalytics.containerproxy.event.ProxyResumeEvent;
@@ -89,7 +89,7 @@ public class ProxyService {
     @Inject
     private IProxySpecProvider baseSpecProvider;
     @Inject
-    private IContainerBackend backend;
+    private ProxyDispatcherService proxyDispatcherService;
     @Inject
     private ProxyMappingManager mappingManager;
     @Inject
@@ -117,7 +117,7 @@ public class ProxyService {
         }
         for (Proxy proxy : proxyStore.getAllProxies()) {
             try {
-                backend.stopProxy(proxy);
+                proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(proxy);
             } catch (Exception exception) {
                 exception.printStackTrace();
             }
@@ -319,7 +319,7 @@ public class ProxyService {
         }, (stoppingProxy) -> {
             Proxy stoppedProxy = stoppingProxy.withStatus(ProxyStatus.Stopped);
             try {
-                backend.stopProxy(stoppedProxy);
+                proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(stoppedProxy);
             } catch (Throwable t) {
                 log.error(stoppedProxy, t, "Failed to remove proxy");
             }
@@ -340,7 +340,7 @@ public class ProxyService {
                 throw new AccessDeniedException(String.format("Cannot pause proxy %s: access denied", proxy.getId()));
             }
 
-            if (!backend.supportsPause()) {
+            if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).supportsPause()) {
                 log.warn(proxy, "Trying to pause a proxy when the backend does not support pausing apps");
                 throw new IllegalArgumentException("Trying to pause a proxy when the backend does not support pausing apps");
             }
@@ -359,7 +359,7 @@ public class ProxyService {
 
         }, (pausingProxy) -> {
             try {
-                backend.pauseProxy(pausingProxy);
+                proxyDispatcherService.getDispatcher(pausingProxy.getSpecId()).pauseProxy(pausingProxy);
                 Proxy pausedProxy = pausingProxy.withStatus(ProxyStatus.Paused);
                 proxyStore.updateProxy(pausedProxy);
                 log.info(pausedProxy, "Proxy paused");
@@ -376,7 +376,7 @@ public class ProxyService {
                 throw new AccessDeniedException(String.format("Cannot resume proxy %s: access denied", proxy.getId()));
             }
 
-            if (!backend.supportsPause()) {
+            if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).supportsPause()) {
                 log.warn(proxy, "Trying to resume a proxy when the backend does not support pausing apps");
                 throw new IllegalArgumentException("Trying to resume a proxy when the backend does not support pausing apps");
             }
@@ -402,7 +402,7 @@ public class ProxyService {
     private Pair<ProxySpec, Proxy> prepareProxyForStart(Authentication user, Proxy proxy, ProxySpec spec) {
         try {
             proxy = runtimeValueService.addRuntimeValuesBeforeSpel(user, spec, proxy);
-            proxy = backend.addRuntimeValuesBeforeSpel(user, spec, proxy);
+            proxy = proxyDispatcherService.getDispatcher(spec.getId()).addRuntimeValuesBeforeSpel(user, spec, proxy);
 
             SpecExpressionContext context = SpecExpressionContext.create(
                 proxy,
@@ -447,17 +447,17 @@ public class ProxyService {
             proxy = r.getSecond();
             if (proxy.getStatus() == ProxyStatus.New) {
                 log.info(proxy, "Starting proxy");
-                proxy = backend.startProxy(user, proxy, spec, proxyStartupLog);
+                proxy = proxyDispatcherService.getDispatcher(spec.getId()).startProxy(user, proxy, spec, proxyStartupLog);
             } else if (proxy.getStatus() == ProxyStatus.Resuming) {
                 log.info(proxy, "Resuming proxy");
-                proxy = backend.resumeProxy(user, proxy, spec);
+                proxy = proxyDispatcherService.getDispatcher(spec.getId()).resumeProxy(user, proxy, spec);
             } else {
                 throw new ContainerProxyException("Cannot start or resume proxy because status is invalid");
             }
         } catch (ProxyFailedToStartException t) {
             log.warn(t.getProxy(), t, "Proxy failed to start");
             try {
-                backend.stopProxy(t.getProxy());
+                proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(t.getProxy());
             } catch (Throwable t2) {
                 // log error, but ignore it otherwise
                 // most important is that we remove the proxy from memory
@@ -479,7 +479,7 @@ public class ProxyService {
 
         if (!testStrategy.testProxy(proxy)) {
             try {
-                backend.stopProxy(proxy);
+                proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(proxy);
             } catch (Throwable t) {
                 // log error, but ignore it otherwise
                 // most important is that we remove the proxy from memory
@@ -516,7 +516,7 @@ public class ProxyService {
         Proxy proxy = getProxy(startingProxy.getId());
         if (proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
             || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-            backend.stopProxy(startingProxy);
+            proxyDispatcherService.getDispatcher(startingProxy.getSpecId()).stopProxy(startingProxy);
             log.info(startingProxy, "Pending proxy cleaned up");
             return true;
         }

@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory.MemorySeatStore;
+import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
@@ -41,10 +42,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class ProxySharingDispatcher implements IProxyDispatcher {
 
@@ -63,28 +70,72 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private static String publicPathPrefix = "/api/route/";
 
+    private final Integer minimumSeatsAvailable;
+
+    private final LinkedBlockingQueue<Event> channel = new LinkedBlockingQueue<>();
+
+    private final Thread eventProcessor;
+
+    private final List<String> pendingDelegateProxies = Collections.synchronizedList(new ArrayList<>());
+    private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
+
+    private final IProxyTestStrategy testStrategy;
+
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingDispatcher.publicPathPrefix = publicPathPrefix;
     }
 
-    public ProxySharingDispatcher(IContainerBackend containerBackend, ProxySpec proxySpec, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService) {
+    public ProxySharingDispatcher(IContainerBackend containerBackend, ProxySpec proxySpec, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy) {
         this.containerBackend = containerBackend;
         this.proxySpec = proxySpec;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
+        this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
+        this.testStrategy = testStrategy;
 
-        for (int i = 0; i < proxySpec.getSpecExtension(ProxySharingSpecExtension.class).fixedSeatsAvailable; i++) {
-            executor.submit(createDelegateProxyJob());
-        }
+        eventProcessor = new Thread(new EventProcessor(channel, this));
+        eventProcessor.start();
+        channel.add(Event.RECONCILE);
+
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                channel.add(Event.RECONCILE);
+            }
+        }, 0, 10_000);
     }
 
     public static boolean supportSpec(ProxySpec proxySpec) {
-        return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).fixedSeatsAvailable != null;
+        return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable != null;
     }
 
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
-        Seat seat = seatStore.claimSeat(spec.getId(), proxy.getId()).orElseThrow();
+        Seat seat = seatStore.claimSeat(spec.getId(), proxy.getId()).orElse(null);
+        if (seat == null) {
+            logger.info("Seat not immediately available");
+            pendingDelegatingProxies.add(proxy.getId());
+            channel.add(Event.RECONCILE); // re-trigger reconcile, so we are sure a scale up is scheduled
+            // no seat available, busy loop until one becomes available
+            // TODO replace by native async code, taking into account HA and multi seat per container
+            for (int i = 0; i < 600; i++) {
+                seat = seatStore.claimSeat(spec.getId(), proxy.getId()).orElse(null);
+                if (seat != null) {
+                    break;
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    pendingDelegatingProxies.remove(proxy.getId());
+                    throw new RuntimeException(e);
+                }
+            }
+            pendingDelegatingProxies.remove(proxy.getId());
+            if (seat == null) {
+                throw new IllegalStateException("Could not claim a seat");
+            }
+        }
+
         Proxy delegateProxy = delegateProxies.get(seat.getTargetId());
 
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
@@ -95,6 +146,9 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPath.replaceAll(proxy.getId(), delegateProxy.getId())), true);
         }
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdRuntimeValue.inst, seat.getId()), true);
+
+        channel.add(Event.RECONCILE); // re-trigger reconcile
+
         return resultProxy.build();
     }
 
@@ -127,12 +181,26 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         return proxy; // TODO
     }
 
-    private Runnable createDelegateProxyJob() {
+    private void reconcile() {
+        Integer seatsAvailable = seatStore.getNumSeatsAvailable(proxySpec.getId()) + pendingDelegateProxies.size();
+        Integer seatsRequired = minimumSeatsAvailable + pendingDelegatingProxies.size();
+        if (seatsAvailable < seatsRequired) {
+            int amountToScaleUp = seatsRequired - seatsAvailable;
+            logger.info("Scale up required, needing " + amountToScaleUp);
+            for (int i = 0; i < amountToScaleUp; i++) {
+                String id = UUID.randomUUID().toString();
+                pendingDelegateProxies.add(id);
+                executor.submit(createDelegateProxyJob(id));
+            }
+        } else {
+            logger.info("No scale up required");
+        }
+    }
+
+    private Runnable createDelegateProxyJob(String id) {
         return () -> {
             try {
                 Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
-                String id = UUID.randomUUID().toString();
-
                 logger.info("Creating DelegateProxy " + id);
 
                 proxyBuilder.id(id);
@@ -163,13 +231,51 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 // TODO use startupLog ?
                 logger.info("Starting DelegateProxy " + id);
                 proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
+
+                if (!testStrategy.testProxy(proxy)) {
+                    logger.info("Failed to start delegate proxy (did not come online)" + id); // TODO
+                }
+
                 delegateProxies.put(proxy.getId(), proxy);
                 seatStore.addSeat(proxySpec.getId(), new Seat(proxy.getId()));
                 logger.info("Started DelegateProxy " + id);
             } catch (ProxyFailedToStartException ex) {
                 logger.error("Failed to start delegate proxy", ex);
+            } finally {
+                pendingDelegateProxies.remove(id);
+                channel.add(Event.RECONCILE); // re-trigger reconcile in-case startup failed
             }
         };
+    }
+
+    private enum Event {
+        RECONCILE
+    }
+
+    private static class EventProcessor implements Runnable {
+
+        private final LinkedBlockingQueue<Event> channel;
+        private final ProxySharingDispatcher dispatcher;
+
+        public EventProcessor(LinkedBlockingQueue<Event> channel, ProxySharingDispatcher dispatcher) {
+            this.channel = channel;
+            this.dispatcher = dispatcher;
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    Event event = channel.take();
+                    if (event == Event.RECONCILE) {
+                        dispatcher.reconcile();
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
     }
 
 }

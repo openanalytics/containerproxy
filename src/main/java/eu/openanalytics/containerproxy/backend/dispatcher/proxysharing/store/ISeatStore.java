@@ -31,4 +31,6 @@ public interface ISeatStore {
     public Optional<Seat> claimSeat(String specId, String claimingProxyId);
 
     void releaseSeat(String specId, String seatId);
+
+    Integer getNumSeatsAvailable(String specId);
 }

@@ -131,7 +131,6 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
                 throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
             }
         }
-
         return proxy;
     }
 

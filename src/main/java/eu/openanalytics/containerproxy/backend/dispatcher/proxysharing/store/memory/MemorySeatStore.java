@@ -43,7 +43,10 @@ public class MemorySeatStore implements ISeatStore {
 
     @Override
     public synchronized Optional<Seat> claimSeat(String specId, String claimingProxyId) {
-        Seat seat = availableSeats.get(specId).get(0); // TODO check available
+        if (availableSeats.isEmpty()) {
+            return Optional.empty();
+        }
+        Seat seat = availableSeats.get(specId).get(0);
         availableSeats.remove(specId, seat);
         seat.claim(claimingProxyId);
         claimedSeats.put(seat.getId(), seat);
@@ -55,6 +58,11 @@ public class MemorySeatStore implements ISeatStore {
         Seat seat = claimedSeats.remove(seatId);
         seat.release();
         availableSeats.put(specId, seat);
+    }
+
+    @Override
+    public synchronized Integer getNumSeatsAvailable(String specId) {
+        return availableSeats.get(specId).size();
     }
 
 }

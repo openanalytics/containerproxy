@@ -41,7 +41,7 @@ import lombok.Setter;
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
-    Integer fixedSeatsAvailable;
+    Integer minimumSeatsAvailable;
 
     @Override
     public ProxySharingSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {

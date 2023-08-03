@@ -26,7 +26,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.google.common.base.Splitter;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
-import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -86,6 +85,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -115,6 +115,7 @@ import java.util.stream.Stream;
 
 import static eu.openanalytics.containerproxy.backend.kubernetes.PodPatcher.DEBUG_PROPERTY;
 
+@Component
 @ConditionalOnProperty(name = "proxy.container-backend", havingValue = "kubernetes")
 public class KubernetesBackend extends AbstractContainerBackend {
 
@@ -309,7 +310,9 @@ public class KubernetesBackend extends AbstractContainerBackend {
             createAdditionalManifests(proxy, specExtension, effectiveKubeNamespace);
 
             // tell the status service we are starting the pod/container
-            proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
+            if (proxyStartupLogBuilder != null) {
+                proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
+            }
 
             // create and start the pod
             Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
@@ -333,10 +336,14 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 }
             }
 
-            proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
+            if (proxyStartupLogBuilder != null) {
+                proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
+            }
             Pod pod = kubeClient.resource(startedPod).fromServer().get();
 
-            parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
+            if (proxyStartupLogBuilder != null) {
+                parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
+            }
 
             Service service = null;
             Map<Integer, Integer> portBindings = new HashMap<>();

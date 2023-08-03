@@ -24,16 +24,20 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ISeatStore {
 
-    void addSeat(String specId, Seat seat);
+    void addSeat(Seat seat);
 
-    public Optional<Seat> claimSeat(String specId, String claimingProxyId);
+    public Optional<Seat> claimSeat(String claimingProxyId);
 
-    void releaseSeat(String specId, String seatId);
+    void releaseSeat(String seatId);
 
-    Integer getNumSeatsAvailable(String specId);
+    boolean removeSeats(Set<String> seatIds);
 
-    boolean removeSeats(String specId, List<String> seatIds);
+    Integer getNumUnclaimedSeats();
+
+    Integer getNumClaimedSeats();
+
 }

@@ -121,7 +121,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             // no seat available, busy loop until one becomes available
             // TODO replace by native async code, taking into account HA and multi seat per container
             for (int i = 0; i < 600; i++) {
-                seat = seatStore.claimSeat(spec.getId(), proxy.getId()).orElse(null);
+                seat = seatStore.claimSeat(proxy.getId()).orElse(null);
                 if (seat != null) {
                     break;
                 }
@@ -160,7 +160,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         if (seatId == null) {
             throw new IllegalStateException("Not seat id runtimevalue"); // TODO
         }
-        seatStore.releaseSeat(proxy.getSpecId(), seatId);
+        seatStore.releaseSeat(seatId);
     }
 
     @Override
@@ -184,7 +184,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     private void reconcile() {
-        Integer seatsAvailable = seatStore.getNumSeatsAvailable(proxySpec.getId()) + pendingDelegateProxies.size();
+        Integer seatsAvailable = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size();
         Integer seatsRequired = minimumSeatsAvailable + pendingDelegatingProxies.size();
         if (seatsAvailable < seatsRequired) {
             int amountToScaleUp = seatsRequired - seatsAvailable;
@@ -210,7 +210,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private boolean removeDelegateProxy() {
         for (DelegateProxy delegateProxy : delegateProxies.values()) {
-            if (seatStore.removeSeats(proxySpec.getId(), delegateProxy.seatIds)) {
+            if (seatStore.removeSeats(delegateProxy.seatIds)) {
                 containerBackend.stopProxy(delegateProxy.proxy);
                 delegateProxies.remove(delegateProxy.proxy.getId());
                 logger.info("Removed one delegate proxy " + delegateProxy.proxy.getId());
@@ -236,7 +236,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
                 // create container objects
                 Proxy proxy = proxyBuilder.build();
-                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, List.of()));
+                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, Set.of()));
 
                 SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
@@ -260,8 +260,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 }
 
                 Seat seat = new Seat(proxy.getId());
-                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, List.of(seat.getId())));
-                seatStore.addSeat(proxySpec.getId(), seat);
+                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, Set.of(seat.getId())));
+                seatStore.addSeat(seat);
                 logger.info("Started DelegateProxy " + id);
             } catch (ProxyFailedToStartException ex) {
                 logger.error("Failed to start delegate proxy", ex);
@@ -310,9 +310,9 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private static class DelegateProxy {
 
         private final Proxy proxy;
-        private final List<String> seatIds;
+        private final Set<String> seatIds;
 
-        private DelegateProxy(Proxy proxy, List<String> seatIds) {
+        private DelegateProxy(Proxy proxy, Set<String> seatIds) {
             this.proxy = proxy;
             this.seatIds = seatIds;
         }
@@ -321,7 +321,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             return proxy;
         }
 
-        public List<String> getSeatIds() {
+        public Set<String> getSeatIds() {
             return seatIds;
         }
     }

@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.backend.dispatcher;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingSpecExtensionProvider;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
@@ -44,16 +43,12 @@ public class ProxyDispatcherService {
     private final RuntimeValueService runtimeValueService;
     private final IProxyTestStrategy proxyTestStrategy;
 
-    @SuppressWarnings({"unused", "FieldCanBeLocal"}) // we need the spec extensions loaded
-    private final ProxySharingSpecExtensionProvider proxySharingSpecExtensionProvider;
-
-    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy proxyTestStrategy, ProxySharingSpecExtensionProvider proxySharingSpecExtensionProvider) {
+    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy proxyTestStrategy) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.proxyTestStrategy = proxyTestStrategy;
-        this.proxySharingSpecExtensionProvider = proxySharingSpecExtensionProvider;
     }
 
     @PostConstruct

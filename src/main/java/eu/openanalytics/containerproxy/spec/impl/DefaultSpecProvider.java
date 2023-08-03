@@ -20,18 +20,24 @@
  */
 package eu.openanalytics.containerproxy.spec.impl;
 
+import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.ISpecExtensionProvider;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
 @Component
 @ConfigurationProperties(prefix = "proxy")
 public class DefaultSpecProvider implements IProxySpecProvider {
+
+    @Inject
+    private List<ISpecExtensionProvider<?>> specExtensionProviders;
 
     private List<ProxySpec> specs = new ArrayList<>();
 
@@ -51,6 +57,11 @@ public class DefaultSpecProvider implements IProxySpecProvider {
     @PostConstruct
     public void init() {
         specs.forEach(ProxySpec::setContainerIndex);
+        for (ISpecExtensionProvider<?> specExtensionProvider : specExtensionProviders) {
+            for (ISpecExtension specExtension : specExtensionProvider.getSpecs()) {
+                getSpec(specExtension.getId()).addSpecExtension(specExtension);
+            }
+        }
     }
 
 }

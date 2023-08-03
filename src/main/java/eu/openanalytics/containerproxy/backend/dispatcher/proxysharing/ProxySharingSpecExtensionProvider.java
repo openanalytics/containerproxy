@@ -20,12 +20,20 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
-import eu.openanalytics.containerproxy.spec.impl.AbstractSpecExtensionProvider;
+import eu.openanalytics.containerproxy.spec.ISpecExtensionProvider;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
+
+@Setter
+@Getter
 @Configuration
 @ConfigurationProperties(prefix = "proxy")
-public class ProxySharingSpecExtensionProvider extends AbstractSpecExtensionProvider<ProxySharingSpecExtension> {
+public class ProxySharingSpecExtensionProvider implements ISpecExtensionProvider<ProxySharingSpecExtension> {
+
+    private List<ProxySharingSpecExtension> specs;
 
 }

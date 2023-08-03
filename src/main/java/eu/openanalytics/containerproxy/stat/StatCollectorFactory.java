@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingMicrometer;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
@@ -83,6 +84,10 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
             bd.getConstructorArgumentValues().addGenericArgumentValue(password);
         } else if (url.equalsIgnoreCase("micrometer")) {
             bd.setBeanClassName(Micrometer.class.getName());
+
+            BeanDefinition bd2 = new GenericBeanDefinition();
+            bd2.setBeanClassName(ProxySharingMicrometer.class.getName());
+            registry.registerBeanDefinition("ProxySharingMicrometer", bd2);
         } else {
             throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", url));
         }

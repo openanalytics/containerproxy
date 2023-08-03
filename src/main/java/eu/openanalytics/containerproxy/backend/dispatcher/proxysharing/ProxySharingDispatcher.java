@@ -42,9 +42,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -81,6 +84,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
 
     private final IProxyTestStrategy testStrategy;
+    private ProxySharingMicrometer proxySharingMicrometer = null;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingDispatcher.publicPathPrefix = publicPathPrefix;
@@ -113,7 +117,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
-        Seat seat = seatStore.claimSeat(spec.getId(), proxy.getId()).orElse(null);
+        LocalDateTime startTime = LocalDateTime.now();
+        Seat seat = seatStore.claimSeat(proxy.getId()).orElse(null);
         if (seat == null) {
             logger.info("Seat not immediately available");
             pendingDelegatingProxies.add(proxy.getId());
@@ -136,6 +141,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             if (seat == null) {
                 throw new IllegalStateException("Could not claim a seat");
             }
+        }
+        LocalDateTime endTime = LocalDateTime.now();
+        if (proxySharingMicrometer != null) {
+            proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
         }
 
         Proxy delegateProxy = delegateProxies.get(seat.getTargetId()).proxy;
@@ -271,6 +280,23 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             }
         };
     }
+
+    public Integer getNumUnclaimedSeats() {
+        return seatStore.getNumUnclaimedSeats();
+    }
+
+    public Integer getNumClaimedSeats() {
+        return seatStore.getNumClaimedSeats();
+    }
+
+    public Integer getNumCreatingSeats() {
+        return pendingDelegateProxies.size();
+    }
+
+    public void setProxySharingMicrometer(ProxySharingMicrometer proxySharingMicrometer) {
+        this.proxySharingMicrometer = proxySharingMicrometer;
+    }
+
 
     private enum Event {
         RECONCILE

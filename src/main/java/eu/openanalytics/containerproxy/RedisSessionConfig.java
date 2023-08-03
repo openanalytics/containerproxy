@@ -26,12 +26,16 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.session.RedisSessionProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
+import org.springframework.session.data.redis.config.ConfigureNotifyKeyspaceEventsAction;
+import org.springframework.session.data.redis.config.ConfigureRedisAction;
 import org.springframework.session.data.redis.config.annotation.web.http.RedisIndexedHttpSessionConfiguration;
 
 import java.util.Objects;
@@ -39,18 +43,24 @@ import java.util.Objects;
 @Configuration
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
 @Import(RedisAutoConfiguration.class)
+@EnableConfigurationProperties(RedisSessionProperties.class)
 public class RedisSessionConfig extends RedisIndexedHttpSessionConfiguration {
 
     private final String redisNamespace;
     private final Environment environment;
 
-    public RedisSessionConfig(IdentifierService identifierService, Environment environment) {
+    public RedisSessionConfig(IdentifierService identifierService, Environment environment, RedisSessionProperties redisSessionProperties) {
         this.environment = environment;
         if (identifierService.realmId != null) {
             redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         } else {
             redisNamespace = String.format("shinyproxy__%s", RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         }
+        ConfigureRedisAction configureRedisAction = switch (redisSessionProperties.getConfigureAction()) {
+            case NOTIFY_KEYSPACE_EVENTS -> new ConfigureNotifyKeyspaceEventsAction();
+            case NONE -> ConfigureRedisAction.NO_OP;
+        };
+        setConfigureRedisAction(configureRedisAction);
     }
 
     @Override

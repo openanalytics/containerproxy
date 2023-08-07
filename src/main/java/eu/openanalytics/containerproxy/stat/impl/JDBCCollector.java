@@ -66,19 +66,13 @@ public class JDBCCollector extends AbstractDbCollector {
 	private final String url;
 	private final String username;
 	private final String password;
+	private final String tableName;
 
-	public JDBCCollector(String url, String username, String password) {
+	public JDBCCollector(String url, String username, String password, String tableName) {
 		this.url = url;
 		this.username = username;
 		this.password = password;
-	}
-
-	protected String getTableName() {
-		String tableName = environment.getProperty("proxy.usage-stats-table"); 
-		if (tableName == null) {
-			tableName = "event";
-		}
-		return tableName;
+		this.tableName = tableName;
 	}
 
 	@PostConstruct
@@ -113,21 +107,20 @@ public class JDBCCollector extends AbstractDbCollector {
 			ds.setMaximumPoolSize(maximumPoolSize);
 		}
 		
-		String tableName = this.getTableName();
 		// create table if not already exists
 		try (Connection con = ds.getConnection()) {
 			Statement statement = con.createStatement();
 			if (con.getMetaData().getDatabaseProductName().equals("Microsoft SQL Server")) {
 				statement.execute(
-						"IF OBJECT_ID('" + tableName + "', 'U') IS NULL" +
-								" create table " + tableName + "(" +
+						"IF OBJECT_ID('" + this.tableName + "', 'U') IS NULL" +
+								" create table " + this.tableName + "(" +
 								" event_time datetime," +
 								" username varchar(128)," +
 								" type varchar(128)," +
 								" data text)");
 			} else {
 				statement.execute(
-						"create table if not exists " + tableName + "(" +
+						"create table if not exists " + this.tableName + "(" +
 								" event_time timestamp," +
 								" username varchar(128)," +
 								" type varchar(128)," +
@@ -140,7 +133,7 @@ public class JDBCCollector extends AbstractDbCollector {
 
 	@Override
 	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
-		String sql = "INSERT INTO " + getTableName() + "(event_time, username, type, data) VALUES (?,?,?,?)";
+		String sql = "INSERT INTO " + this.tableName + "(event_time, username, type, data) VALUES (?,?,?,?)";
 		try (Connection con = ds.getConnection()) {
 			try (PreparedStatement stmt = con.prepareStatement(sql)) {
 				stmt.setTimestamp(1, new Timestamp(timestamp));
@@ -148,7 +141,7 @@ public class JDBCCollector extends AbstractDbCollector {
 				stmt.setString(3, type);
 				stmt.setString(4, data);
 				stmt.executeUpdate();
-		   }
+			}
 		} catch (SQLException e) {
 			throw new IOException("Exception while logging stats", e);
 		}

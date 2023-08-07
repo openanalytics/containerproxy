@@ -33,6 +33,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.util.function.ToDoubleFunction;
+import java.util.function.ToLongFunction;
 
 public class ProxySharingMicrometer implements IStatCollector {
 
@@ -50,9 +51,9 @@ public class ProxySharingMicrometer implements IStatCollector {
      *
      * We need this function because Micrometer cannot handle null values for Gauges.
      */
-    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
+    private static <T> ToDoubleFunction<T> wrapHandleNull(ToLongFunction<T> producer) {
         return (state) -> {
-            Integer res = producer.applyAsDouble(state);
+            Long res = producer.applyAsDouble(state);
             if (res == null) {
                 return Double.NaN;
             }
@@ -79,8 +80,8 @@ public class ProxySharingMicrometer implements IStatCollector {
     }
 
     @FunctionalInterface
-    private interface ToIntegerFunction<T> {
-        Integer applyAsDouble(T var1);
+    private interface ToLongFunction<T> {
+        Long applyAsDouble(T var1);
     }
 
 }

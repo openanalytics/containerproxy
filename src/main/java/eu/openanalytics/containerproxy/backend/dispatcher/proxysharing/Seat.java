@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.UUID;
@@ -36,6 +38,16 @@ public class Seat {
     public Seat(String targetId) {
         this.targetId = targetId;
         id = UUID.randomUUID().toString();
+    }
+
+    @JsonCreator
+    public Seat(@JsonProperty("seatId") String targetId,
+                @JsonProperty("id") String id,
+                @JsonProperty("claimingProxyId") String claimingProxyId
+    ) {
+        this.targetId = targetId;
+        this.id = id;
+        this.claimingProxyId = claimingProxyId;
     }
 
     public void claim(String proxyId) {

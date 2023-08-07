@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 import eu.openanalytics.containerproxy.event.BridgeableEvent;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -162,7 +163,7 @@ public class RedisStoreConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, RedisPortAllocator.PortList> portRedisTemplate(RedisConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, RedisPortAllocator.PortList.class);
     }
 
@@ -171,6 +172,16 @@ public class RedisStoreConfiguration {
         RedisTemplate<String, OAuth2AuthorizedClient> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         return template;
+    }
+
+    @Bean
+    public RedisTemplate<String, String> unClaimSeatIdsTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, String.class);
+    }
+
+    @Bean
+    public RedisTemplate<String, Seat> seatsTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, Seat.class);
     }
 
     private <K, V> RedisTemplate<K, V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {

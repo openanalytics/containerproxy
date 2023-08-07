@@ -18,25 +18,20 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
+package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
-import java.util.Optional;
-import java.util.Set;
+@Component
+@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "None", matchIfMissing = true)
+public class MemoryProxySharingFactory implements IProxySharingStoreFactory {
 
-public interface ISeatStore {
-
-    void addSeat(Seat seat);
-
-    public Optional<Seat> claimSeat(String claimingProxyId);
-
-    void releaseSeat(String seatId);
-
-    boolean removeSeats(Set<String> seatIds);
-
-    Long getNumUnclaimedSeats();
-
-    Long getNumClaimedSeats();
+    @Override
+    public ISeatStore createSeatStore(String specId) {
+        return new MemorySeatStore();
+    }
 
 }

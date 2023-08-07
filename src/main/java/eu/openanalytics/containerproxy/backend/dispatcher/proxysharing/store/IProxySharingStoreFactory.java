@@ -20,23 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
+public interface IProxySharingStoreFactory {
 
-import java.util.Optional;
-import java.util.Set;
-
-public interface ISeatStore {
-
-    void addSeat(Seat seat);
-
-    public Optional<Seat> claimSeat(String claimingProxyId);
-
-    void releaseSeat(String seatId);
-
-    boolean removeSeats(Set<String> seatIds);
-
-    Long getNumUnclaimedSeats();
-
-    Long getNumClaimedSeats();
+    public ISeatStore createSeatStore(String specId);
 
 }

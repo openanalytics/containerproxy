@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.dispatcher;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
@@ -42,20 +43,34 @@ public class ProxyDispatcherService {
     private final SpecExpressionResolver expressionResolver;
     private final RuntimeValueService runtimeValueService;
     private final IProxyTestStrategy proxyTestStrategy;
+    private final IProxySharingStoreFactory storeFactory;
 
-    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy proxyTestStrategy) {
+    public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
+                                  IContainerBackend containerBackend,
+                                  SpecExpressionResolver expressionResolver,
+                                  RuntimeValueService runtimeValueService,
+                                  IProxyTestStrategy proxyTestStrategy,
+                                  IProxySharingStoreFactory storeFactory) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.proxyTestStrategy = proxyTestStrategy;
+        this.storeFactory = storeFactory;
     }
 
     @PostConstruct
     public void init() {
         for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
             if (ProxySharingDispatcher.supportSpec(proxySpec)) {
-                dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(containerBackend, proxySpec, expressionResolver, runtimeValueService, proxyTestStrategy));
+                dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(
+                    containerBackend,
+                    proxySpec,
+                    expressionResolver,
+                    runtimeValueService,
+                    proxyTestStrategy,
+                    storeFactory.createSeatStore(proxySpec.getId())
+                ));
             } else {
                 dispatchers.put(proxySpec.getId(), new DefaultProxyDispatcher(containerBackend, proxySpec));
             }

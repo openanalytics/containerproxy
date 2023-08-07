@@ -79,13 +79,13 @@ public class MemorySeatStore implements ISeatStore {
     }
 
     @Override
-    public synchronized Integer getNumUnclaimedSeats() {
-        return unClaimSeatIds.size();
+    public synchronized Long getNumUnclaimedSeats() {
+        return (long) unClaimSeatIds.size();
     }
 
     @Override
-    public synchronized Integer getNumClaimedSeats() {
-        return seats.size() - unClaimSeatIds.size();
+    public synchronized Long getNumClaimedSeats() {
+        return (long) (seats.size() - unClaimSeatIds.size());
     }
 
 }

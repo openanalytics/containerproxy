@@ -25,7 +25,6 @@ import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory.MemorySeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -33,6 +32,7 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
@@ -69,7 +69,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final ISeatStore seatStore = new MemorySeatStore();
+    private final ISeatStore seatStore;
 
     private static String publicPathPrefix = "/api/route/";
 
@@ -86,11 +86,20 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final IProxyTestStrategy testStrategy;
     private ProxySharingMicrometer proxySharingMicrometer = null;
 
+    static {
+        RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdRuntimeValue.inst);
+    }
+
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingDispatcher.publicPathPrefix = publicPathPrefix;
     }
 
-    public ProxySharingDispatcher(IContainerBackend containerBackend, ProxySpec proxySpec, SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy) {
+    public ProxySharingDispatcher(IContainerBackend containerBackend,
+                                  ProxySpec proxySpec,
+                                  SpecExpressionResolver expressionResolver,
+                                  RuntimeValueService runtimeValueService,
+                                  IProxyTestStrategy testStrategy,
+                                  ISeatStore seatStore) {
         this.containerBackend = containerBackend;
         this.proxySpec = proxySpec;
         this.expressionResolver = expressionResolver;
@@ -98,6 +107,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
         this.testStrategy = testStrategy;
+        this.seatStore = seatStore;
 
         eventProcessor = new Thread(new EventProcessor(channel, this));
         eventProcessor.start();
@@ -193,10 +203,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     private void reconcile() {
-        Integer seatsAvailable = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size();
+        Long seatsAvailable = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size();
         Integer seatsRequired = minimumSeatsAvailable + pendingDelegatingProxies.size();
         if (seatsAvailable < seatsRequired) {
-            int amountToScaleUp = seatsRequired - seatsAvailable;
+            long amountToScaleUp = seatsRequired - seatsAvailable;
             logger.info("Scale up required, needing " + amountToScaleUp);
             for (int i = 0; i < amountToScaleUp; i++) {
                 String id = UUID.randomUUID().toString();
@@ -204,7 +214,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 executor.submit(createDelegateProxyJob(id));
             }
         } else if (seatsAvailable > maximumSeatsAvailable) {
-            int amountToScaleDown = seatsAvailable - maximumSeatsAvailable;
+            long amountToScaleDown = seatsAvailable - maximumSeatsAvailable;
             logger.info("Scale down required, removing " + amountToScaleDown);
             for (int i = 0; i < amountToScaleDown; i++) {
                 if (!removeDelegateProxy()) {
@@ -281,16 +291,16 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         };
     }
 
-    public Integer getNumUnclaimedSeats() {
+    public Long getNumUnclaimedSeats() {
         return seatStore.getNumUnclaimedSeats();
     }
 
-    public Integer getNumClaimedSeats() {
+    public Long getNumClaimedSeats() {
         return seatStore.getNumClaimedSeats();
     }
 
-    public Integer getNumCreatingSeats() {
-        return pendingDelegateProxies.size();
+    public Long getNumCreatingSeats() {
+        return (long) pendingDelegateProxies.size();
     }
 
     public void setProxySharingMicrometer(ProxySharingMicrometer proxySharingMicrometer) {

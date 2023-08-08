@@ -68,7 +68,7 @@ public class ProxySharingMicrometer implements IStatCollector {
                 ProxySharingDispatcher dispatcher = (ProxySharingDispatcher) proxyDispatcherService.getDispatcher(proxySpec.getId());
                 registry.gauge("seats_unclaimed", Tags.of("spec.id", proxySpec.getId()), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumUnclaimedSeats));
                 registry.gauge("seats_claimed", Tags.of("spec.id", proxySpec.getId()), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumClaimedSeats));
-                registry.gauge("seats_creating", Tags.of("spec.id", proxySpec.getId()), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumCreatingSeats));
+                registry.gauge("seats_creating", Tags.of("spec.id", proxySpec.getId()), dispatcher.getProxySharingScaler(), wrapHandleNull(ProxySharingScaler::getNumCreatingSeats));
                 registry.timer("seats_wait_time", "spec.id", proxySpec.getId());
                 dispatcher.setProxySharingMicrometer(this);
             }

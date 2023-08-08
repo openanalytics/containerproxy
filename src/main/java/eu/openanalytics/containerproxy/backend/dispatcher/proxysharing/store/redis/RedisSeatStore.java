@@ -25,7 +25,6 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.BoundListOperations;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -81,7 +80,7 @@ public class RedisSeatStore implements ISeatStore {
     public boolean removeSeats(Set<String> seatIds) {
         // TODO check whether all seats are unclaimed
         seatIds.forEach(s -> unClaimedSeatsIdsOperations.remove(1, s));
-        seatsOperations.delete(seatIds);
+//        seatsOperations.delete(seatIds); // TODO broken
         return true;
     }
 

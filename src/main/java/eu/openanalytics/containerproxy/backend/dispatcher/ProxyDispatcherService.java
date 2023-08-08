@@ -21,14 +21,19 @@
 package eu.openanalytics.containerproxy.backend.dispatcher;
 
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingScaler;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory.MemoryDelegateProxyStore;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -45,19 +50,27 @@ public class ProxyDispatcherService {
     private final RuntimeValueService runtimeValueService;
     private final IProxyTestStrategy proxyTestStrategy;
     private final IProxySharingStoreFactory storeFactory;
+    private final ILeaderService leaderService;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final ConfigurableBeanFactory beanFactory;
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IContainerBackend containerBackend,
                                   SpecExpressionResolver expressionResolver,
                                   RuntimeValueService runtimeValueService,
                                   IProxyTestStrategy proxyTestStrategy,
-                                  IProxySharingStoreFactory storeFactory) {
+                                  IProxySharingStoreFactory storeFactory,
+                                  ILeaderService leaderService,
+                                  ApplicationEventPublisher applicationEventPublisher, ConfigurableBeanFactory beanFactory) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.proxyTestStrategy = proxyTestStrategy;
         this.storeFactory = storeFactory;
+        this.leaderService = leaderService;
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.beanFactory = beanFactory;
     }
 
     @PostConstruct
@@ -65,15 +78,20 @@ public class ProxyDispatcherService {
         DefaultProxyDispatcher defaultProxyDispatcher = new DefaultProxyDispatcher(containerBackend);
         for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
             if (ProxySharingDispatcher.supportSpec(proxySpec)) {
+                ISeatStore seatStore = storeFactory.createSeatStore(proxySpec.getId());
+                IDelegateProxyStore delegateProxyStore = storeFactory.createDelegateProxyStore(proxySpec.getId());
+
+                ProxySharingScaler proxySharingScaler = new ProxySharingScaler(leaderService, seatStore, proxySpec,
+                    delegateProxyStore, containerBackend, expressionResolver, runtimeValueService, proxyTestStrategy);
+                beanFactory.registerSingleton("proxySharingScaler_" + proxySpec.getId(), proxySharingScaler);
+
                 dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(
-                    containerBackend,
-                    proxySpec,
-                    expressionResolver,
-                    runtimeValueService,
-                    proxyTestStrategy,
-                    storeFactory.createDelegateProxyStore(proxySpec.getId()),
-                    storeFactory.createSeatStore(proxySpec.getId())
-                ));
+                    delegateProxyStore,
+                    seatStore,
+                    applicationEventPublisher,
+                    proxySharingScaler
+                    ));
+
             } else {
                 dispatchers.put(proxySpec.getId(), defaultProxyDispatcher);
             }

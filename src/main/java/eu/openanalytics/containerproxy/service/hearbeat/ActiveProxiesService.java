@@ -89,10 +89,6 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         return heartbeatStore.get(proxyId);
     }
 
-    public void setLastHeartBeat(String proxyId, Long time) {
-        heartbeatStore.update(proxyId, time);
-    }
-
     private void performCleanup() {
         if (!leaderService.isLeader()) {
             log.debug("Skipping checking heartbeats because we are not the leader");

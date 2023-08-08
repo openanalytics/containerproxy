@@ -112,15 +112,15 @@ public class JDBCCollector extends AbstractDbCollector {
 			Statement statement = con.createStatement();
 			if (con.getMetaData().getDatabaseProductName().equals("Microsoft SQL Server")) {
 				statement.execute(
-						"IF OBJECT_ID('" + this.tableName + "', 'U') IS NULL" +
-								" create table " + this.tableName + "(" +
+						"IF OBJECT_ID('" + tableName + "', 'U') IS NULL" +
+								" create table " + tableName + "(" +
 								" event_time datetime," +
 								" username varchar(128)," +
 								" type varchar(128)," +
 								" data text)");
 			} else {
 				statement.execute(
-						"create table if not exists " + this.tableName + "(" +
+						"create table if not exists " + tableName + "(" +
 								" event_time timestamp," +
 								" username varchar(128)," +
 								" type varchar(128)," +
@@ -133,7 +133,7 @@ public class JDBCCollector extends AbstractDbCollector {
 
 	@Override
 	protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
-		String sql = "INSERT INTO " + this.tableName + "(event_time, username, type, data) VALUES (?,?,?,?)";
+		String sql = "INSERT INTO " + tableName + "(event_time, username, type, data) VALUES (?,?,?,?)";
 		try (Connection con = ds.getConnection()) {
 			try (PreparedStatement stmt = con.prepareStatement(sql)) {
 				stmt.setTimestamp(1, new Timestamp(timestamp));

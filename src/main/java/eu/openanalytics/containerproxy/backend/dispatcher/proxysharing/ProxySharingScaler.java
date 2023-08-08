@@ -54,6 +54,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
 
 public class ProxySharingScaler {
 
@@ -75,6 +76,7 @@ public class ProxySharingScaler {
     private final Thread eventProcessor;
 
     private static String publicPathPrefix = "/api/route/";
+    private final Lock unclaimedSeatsLock;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -83,11 +85,12 @@ public class ProxySharingScaler {
     // TODO add cleanup of proxies that never became ready
 
     public ProxySharingScaler(ILeaderService leaderService, ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
-                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy) {
+                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, Lock unclaimedSeatsLock) {
         this.leaderService = leaderService;
         this.proxySpec = proxySpec;
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
+        this.unclaimedSeatsLock = unclaimedSeatsLock;
 
         eventProcessor = new Thread(() -> {
             while (true) {
@@ -159,28 +162,22 @@ public class ProxySharingScaler {
     }
 
     private void reconcile() {
-        long num = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size() - minimumSeatsAvailable - pendingDelegatingProxies.size();
-        logger.info(String.format("%s : Unclaimed: %s + pendingDelegate: %s - minimum: %s - pendingDelegating: %s = %s %n", proxySpec.getId(), seatStore.getNumUnclaimedSeats(), pendingDelegateProxies.size(), minimumSeatsAvailable, pendingDelegatingProxies.size(), num));
-        if (num == 0) {
+        long num = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size() - pendingDelegatingProxies.size();
+        logger.info(String.format("%s : Unclaimed: %s + pendingDelegate: %s - pendingDelegating: %s ? minimum: %s %n", proxySpec.getId(), seatStore.getNumUnclaimedSeats(), pendingDelegateProxies.size(), pendingDelegatingProxies.size(), minimumSeatsAvailable));
+        if (num == minimumSeatsAvailable) {
             logger.info("No scaling required " + proxySpec.getId());
-        } else if (num < 0) {
-            long amountToScaleUp = Math.abs(num);
-            logger.info("Scale up required, needing " + amountToScaleUp + " " + proxySpec.getId());
-            for (int i = 0; i < amountToScaleUp; i++) {
+        } else if (num < minimumSeatsAvailable) {
+            long numToScaleUp = minimumSeatsAvailable - num;
+            logger.info("Scale up required, needing " + numToScaleUp + " " + proxySpec.getId());
+            for (int i = 0; i < numToScaleUp; i++) {
                 String id = UUID.randomUUID().toString();
                 pendingDelegateProxies.add(id);
                 executor.submit(createDelegateProxyJob(id));
             }
         } else if (num > maximumSeatsAvailable) {
-            long amountToScaleDown = num - maximumSeatsAvailable;
-            logger.info("Scale down required, removing " + amountToScaleDown + " " + proxySpec.getId());
-            // TODO scale down is broken
-//            for (int i = 0; i < amountToScaleDown; i++) {
-//                if (!removeDelegateProxy()) {
-//                    logger.info("Full Scale down not possible");
-//                    break;
-//                }
-//            }
+            long numToScaleDown = num - maximumSeatsAvailable;
+            logger.info("Scale down required, removing " + numToScaleDown + " " + proxySpec.getId());
+            scaleDown(numToScaleDown);
         }
     }
 
@@ -217,11 +214,6 @@ public class ProxySharingScaler {
                 proxy = proxyBuilder.build();
                 // TODO use startupLog ?
                 logger.info("Starting DelegateProxy " + id);
-                try {
-                    Thread.sleep(10_000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
                 proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
                 delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of()));
 
@@ -247,17 +239,31 @@ public class ProxySharingScaler {
         };
     }
 
-    private boolean removeDelegateProxy() {
-        // TODO refactor to check here
-        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
-            if (seatStore.removeSeats(delegateProxy.getSeatIds())) {
+    private void scaleDown(long numToScaleDown) {
+        if (unclaimedSeatsLock.tryLock()) {
+            logger.info("Got lock to scale down");
+            // first find proxies of which all seats are unclaimed and already remove these from the unclaimed store
+            List<DelegateProxy> delegateProxiesToRemove = new ArrayList<>();
+            for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+                if (seatStore.areSeatsUnclaimed(delegateProxy.getSeatIds())) {
+                    delegateProxiesToRemove.add(delegateProxy);
+                    seatStore.removeSeats(delegateProxy.getSeatIds());
+                    if (delegateProxiesToRemove.size() == numToScaleDown) {
+                        break;
+                    }
+                }
+            }
+            // seats are removed -> unlock
+            unclaimedSeatsLock.unlock();
+            // only now remove the proxies (this takes the most time)
+            for (DelegateProxy delegateProxy : delegateProxiesToRemove) {
                 containerBackend.stopProxy(delegateProxy.getProxy());
                 delegateProxyStore.removeDelegateProxy(delegateProxy);
-                logger.info("Removed one delegate proxy " + delegateProxy.getProxy().getId());
-                return true;
             }
+            logger.info(String.format("Found %s proxies to remove", delegateProxiesToRemove.size()));
+        } else {
+            logger.info("Could not get lock to scale down");
         }
-        return false;
     }
 
     public Long getNumCreatingSeats() {

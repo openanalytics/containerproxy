@@ -34,11 +34,13 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.integration.support.locks.ExpirableLockRegistry;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
 
 @Service
 public class ProxyDispatcherService {
@@ -53,6 +55,7 @@ public class ProxyDispatcherService {
     private final ILeaderService leaderService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final ConfigurableBeanFactory beanFactory;
+    private final ExpirableLockRegistry expirableLockRegistry;
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IContainerBackend containerBackend,
@@ -61,7 +64,9 @@ public class ProxyDispatcherService {
                                   IProxyTestStrategy proxyTestStrategy,
                                   IProxySharingStoreFactory storeFactory,
                                   ILeaderService leaderService,
-                                  ApplicationEventPublisher applicationEventPublisher, ConfigurableBeanFactory beanFactory) {
+                                  ApplicationEventPublisher applicationEventPublisher,
+                                  ConfigurableBeanFactory beanFactory,
+                                  ExpirableLockRegistry expirableLockRegistry) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
@@ -71,6 +76,7 @@ public class ProxyDispatcherService {
         this.leaderService = leaderService;
         this.applicationEventPublisher = applicationEventPublisher;
         this.beanFactory = beanFactory;
+        this.expirableLockRegistry = expirableLockRegistry;
     }
 
     @PostConstruct
@@ -81,16 +87,28 @@ public class ProxyDispatcherService {
                 ISeatStore seatStore = storeFactory.createSeatStore(proxySpec.getId());
                 IDelegateProxyStore delegateProxyStore = storeFactory.createDelegateProxyStore(proxySpec.getId());
 
-                ProxySharingScaler proxySharingScaler = new ProxySharingScaler(leaderService, seatStore, proxySpec,
-                    delegateProxyStore, containerBackend, expressionResolver, runtimeValueService, proxyTestStrategy);
+                Lock unclaimedSeatsLock = expirableLockRegistry.obtain("unclaimed_seats_" + proxySpec.getId());
+
+                ProxySharingScaler proxySharingScaler = new ProxySharingScaler(
+                    leaderService,
+                    seatStore,
+                    proxySpec,
+                    delegateProxyStore,
+                    containerBackend,
+                    expressionResolver,
+                    runtimeValueService,
+                    proxyTestStrategy,
+                    unclaimedSeatsLock);
+
                 beanFactory.registerSingleton("proxySharingScaler_" + proxySpec.getId(), proxySharingScaler);
 
                 dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(
                     delegateProxyStore,
                     seatStore,
                     applicationEventPublisher,
-                    proxySharingScaler
-                    ));
+                    proxySharingScaler,
+                    unclaimedSeatsLock
+                ));
 
             } else {
                 dispatchers.put(proxySpec.getId(), defaultProxyDispatcher);

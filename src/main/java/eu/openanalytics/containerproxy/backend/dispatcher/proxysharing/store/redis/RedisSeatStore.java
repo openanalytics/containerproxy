@@ -24,16 +24,18 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.BoundListOperations;
+import org.springframework.data.redis.core.BoundSetOperations;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 public class RedisSeatStore implements ISeatStore {
 
     private final BoundHashOperations<String, String, Seat> seatsOperations; // seat id -> Seat
-    private final BoundListOperations<String, String> unClaimedSeatsIdsOperations; // list of seatIds
+    private final BoundSetOperations<String, String> unClaimedSeatsIdsOperations; // list of seatIds
 
-    public RedisSeatStore(BoundHashOperations<String, String, Seat> seatsOperations, BoundListOperations<String, String> unClaimedSeatsIdsOperations) {
+    public RedisSeatStore(BoundHashOperations<String, String, Seat> seatsOperations, BoundSetOperations<String, String> unClaimedSeatsIdsOperations) {
         this.seatsOperations = seatsOperations;
         this.unClaimedSeatsIdsOperations = unClaimedSeatsIdsOperations;
     }
@@ -45,14 +47,14 @@ public class RedisSeatStore implements ISeatStore {
         }
         seatsOperations.put(seat.getId(), seat);
         if (seat.getClaimingProxyId() == null) {
-            unClaimedSeatsIdsOperations.leftPush(seat.getId());
+            unClaimedSeatsIdsOperations.add(seat.getId());
         }
     }
 
     @Override
     public Optional<Seat> claimSeat(String claimingProxyId) {
         // TODO enough locking?
-        String seatId = unClaimedSeatsIdsOperations.leftPop();
+        String seatId = unClaimedSeatsIdsOperations.pop();
         if (seatId == null) {
             return Optional.empty();
         }
@@ -73,15 +75,22 @@ public class RedisSeatStore implements ISeatStore {
         }
         seat.release();
         seatsOperations.put(seatId, seat);
-        unClaimedSeatsIdsOperations.leftPush(seatId);
+        unClaimedSeatsIdsOperations.add(seatId);
     }
 
     @Override
-    public boolean removeSeats(Set<String> seatIds) {
-        // TODO check whether all seats are unclaimed
-        seatIds.forEach(s -> unClaimedSeatsIdsOperations.remove(1, s));
-//        seatsOperations.delete(seatIds); // TODO broken
-        return true;
+    public void removeSeats(Set<String> seatIds) {
+        unClaimedSeatsIdsOperations.remove(seatIds.toArray());
+        seatsOperations.delete(seatIds.toArray());
+    }
+
+    @Override
+    public boolean areSeatsUnclaimed(Set<String> seatIds) {
+        Map<Object, Boolean> response = unClaimedSeatsIdsOperations.isMember(seatIds.toArray());
+        if (response == null) {
+            throw new IllegalStateException("TODO");
+        }
+        return !response.containsValue(false);
     }
 
     @Override

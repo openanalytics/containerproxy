@@ -52,7 +52,7 @@ public class RedisProxySharingFactory implements IProxySharingStoreFactory {
     @Override
     public ISeatStore createSeatStore(String specId) {
         return new RedisSeatStore(seatsTemplate.boundHashOps("shinyproxy_" + identifierService.realmId + "__seats_" + specId),
-            unClaimSeatIdsTemplate.boundListOps("shinyproxy_" + identifierService.realmId + "__unclaimed_seat_ids_" + specId));
+            unClaimSeatIdsTemplate.boundSetOps("shinyproxy_" + identifierService.realmId + "__unclaimed_seat_ids_" + specId));
     }
 
     @Override

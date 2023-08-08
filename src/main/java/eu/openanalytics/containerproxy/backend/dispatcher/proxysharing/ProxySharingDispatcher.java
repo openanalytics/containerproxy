@@ -40,6 +40,7 @@ import org.springframework.security.core.Authentication;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.locks.Lock;
 
 public class ProxySharingDispatcher implements IProxyDispatcher {
 
@@ -49,6 +50,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final ISeatStore seatStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySharingScaler proxySharingScaler;
+    private final Lock unclaimedSeatsLock;
 
     static {
         RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdRuntimeValue.inst);
@@ -57,28 +59,42 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     public ProxySharingDispatcher(IDelegateProxyStore delegateProxyStore,
                                   ISeatStore seatStore,
                                   ApplicationEventPublisher applicationEventPublisher,
-                                  ProxySharingScaler proxySharingScaler) {
+                                  ProxySharingScaler proxySharingScaler,
+                                  Lock unclaimedSeatsLock) {
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
         this.applicationEventPublisher = applicationEventPublisher;
         this.proxySharingScaler = proxySharingScaler;
+        this.unclaimedSeatsLock = unclaimedSeatsLock;
     }
 
     public static boolean supportSpec(ProxySpec proxySpec) {
         return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable != null;
     }
 
+    public Seat claimSeat(String claimingProxyId) {
+        if (!unclaimedSeatsLock.tryLock()) {
+            return null;
+        }
+        try {
+            return seatStore.claimSeat(claimingProxyId).orElse(null);
+        } finally {
+            unclaimedSeatsLock.unlock();
+            System.out.println("Released lock!");
+        }
+    }
+
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
         LocalDateTime startTime = LocalDateTime.now();
-        Seat seat = seatStore.claimSeat(proxy.getId()).orElse(null);
+        Seat seat = claimSeat(proxy.getId());
         if (seat == null) {
             logger.info("Seat not immediately available");
             applicationEventPublisher.publishEvent(new PendingProxyEvent(spec.getId(), proxy.getId()));
             // no seat available, busy loop until one becomes available
             // TODO replace by native async code, taking into account HA and multi seat per container
             for (int i = 0; i < 600; i++) {
-                seat = seatStore.claimSeat(proxy.getId()).orElse(null);
+                seat = claimSeat(proxy.getId());
                 if (seat != null) {
                     break;
                 }

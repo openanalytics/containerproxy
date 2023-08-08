@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
+import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
@@ -143,15 +144,28 @@ public class ProxySharingScaler {
             return;
         }
         channel.add(Event.RECONCILE);
+        // if the seat was claimed by a pending proxy we need to remove it from the pendingDelegatingProxies
+        pendingDelegatingProxies.remove(seatClaimedEvent.getClaimingProxyId());
+    }
+
+    @EventListener
+    public void onSeatReleasedEvent(SeatReleasedEvent seatReleasedEvent) {
+        if (!Objects.equals(seatReleasedEvent.getSpecId(), proxySpec.getId())) {
+            // only handle events for this spec
+            return;
+        }
+        // remove the claimingProxyId from pending in case the proxy stopped (or failed) while starting up
+        pendingDelegatingProxies.remove(seatReleasedEvent.getClaimingProxyId());
     }
 
     private void reconcile() {
         long num = seatStore.getNumUnclaimedSeats() + pendingDelegateProxies.size() - minimumSeatsAvailable - pendingDelegatingProxies.size();
+        logger.info(String.format("%s : Unclaimed: %s + pendingDelegate: %s - minimum: %s - pendingDelegating: %s = %s %n", proxySpec.getId(), seatStore.getNumUnclaimedSeats(), pendingDelegateProxies.size(), minimumSeatsAvailable, pendingDelegatingProxies.size(), num));
         if (num == 0) {
-            logger.info("No scaling required");
+            logger.info("No scaling required " + proxySpec.getId());
         } else if (num < 0) {
             long amountToScaleUp = Math.abs(num);
-            logger.info("Scale up required, needing " + amountToScaleUp);
+            logger.info("Scale up required, needing " + amountToScaleUp + " " + proxySpec.getId());
             for (int i = 0; i < amountToScaleUp; i++) {
                 String id = UUID.randomUUID().toString();
                 pendingDelegateProxies.add(id);
@@ -159,7 +173,7 @@ public class ProxySharingScaler {
             }
         } else if (num > maximumSeatsAvailable) {
             long amountToScaleDown = num - maximumSeatsAvailable;
-            logger.info("Scale down required, removing " + amountToScaleDown);
+            logger.info("Scale down required, removing " + amountToScaleDown + " " + proxySpec.getId());
             // TODO scale down is broken
 //            for (int i = 0; i < amountToScaleDown; i++) {
 //                if (!removeDelegateProxy()) {
@@ -203,8 +217,13 @@ public class ProxySharingScaler {
                 proxy = proxyBuilder.build();
                 // TODO use startupLog ?
                 logger.info("Starting DelegateProxy " + id);
+                try {
+                    Thread.sleep(10_000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
-                // TODO save proxy so it can be cleaned up
+                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of()));
 
                 if (!testStrategy.testProxy(proxy)) {
                     logger.info("Failed to start delegate proxy (did not come online)" + id); // TODO
@@ -218,11 +237,6 @@ public class ProxySharingScaler {
                 Seat seat = new Seat(proxy.getId());
                 delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(seat.getId())));
                 seatStore.addSeat(seat);
-                synchronized (pendingDelegatingProxies) {
-                    if (!pendingDelegatingProxies.isEmpty()) {
-                        pendingDelegatingProxies.remove(0);
-                    }
-                }
                 logger.info("Started DelegateProxy " + id);
             } catch (ProxyFailedToStartException ex) {
                 logger.error("Failed to start delegate proxy", ex);

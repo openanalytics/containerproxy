@@ -31,7 +31,7 @@ import lombok.With;
 @EqualsAndHashCode(callSuper = true)
 @AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
-public class SeatClaimedEvent extends BridgeableEvent {
+public class SeatReleasedEvent extends BridgeableEvent {
 
     @With
     String source;
@@ -40,7 +40,7 @@ public class SeatClaimedEvent extends BridgeableEvent {
 
     String claimingProxyId;
 
-    public SeatClaimedEvent(String specId, String claimingProxyId) {
+    public SeatReleasedEvent(String specId, String claimingProxyId) {
         source = "SOURCE_NOT_AVAILABLE";
         this.specId = specId;
         this.claimingProxyId = claimingProxyId;

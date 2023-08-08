@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
+import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
@@ -84,15 +85,14 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-//                    pendingDelegatingProxies.remove(proxy.getId());
                     throw new RuntimeException(e);
                 }
             }
-//            pendingDelegatingProxies.remove(proxy.getId());
             if (seat == null) {
                 throw new IllegalStateException("Could not claim a seat");
             }
         }
+        applicationEventPublisher.publishEvent(new SeatClaimedEvent(spec.getId(), proxy.getId()));
         LocalDateTime endTime = LocalDateTime.now();
         if (proxySharingMicrometer != null) {
             proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
@@ -110,18 +110,18 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdRuntimeValue.inst, seat.getId()), true);
 
-        applicationEventPublisher.publishEvent(new SeatClaimedEvent(spec.getId()));
 
         return resultProxy.build();
     }
 
     @Override
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
-        String seatId = proxy.getRuntimeValue(SeatIdRuntimeValue.inst);
-        if (seatId == null) {
-            throw new IllegalStateException("Not seat id runtimevalue"); // TODO
+        String seatId = proxy.getRuntimeObjectOrNull(SeatIdRuntimeValue.inst);
+        if (seatId != null) {
+            // proxy did not yet claimed a Seat
+            seatStore.releaseSeat(seatId);
         }
-        seatStore.releaseSeat(seatId);
+        applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), proxy.getId()));
     }
 
     @Override

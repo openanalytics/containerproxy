@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -51,7 +52,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -63,13 +63,13 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final SpecExpressionResolver expressionResolver;
     private final RuntimeValueService runtimeValueService;
 
-    private final ConcurrentHashMap<String, DelegateProxy> delegateProxies = new ConcurrentHashMap<>();
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final ISeatStore seatStore;
+    private final IDelegateProxyStore delegateProxyStore;
 
     private static String publicPathPrefix = "/api/route/";
 
@@ -99,6 +99,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                                   SpecExpressionResolver expressionResolver,
                                   RuntimeValueService runtimeValueService,
                                   IProxyTestStrategy testStrategy,
+                                  IDelegateProxyStore delegateProxyStore,
                                   ISeatStore seatStore) {
         this.containerBackend = containerBackend;
         this.proxySpec = proxySpec;
@@ -107,11 +108,11 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
         this.testStrategy = testStrategy;
+        this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
 
         eventProcessor = new Thread(new EventProcessor(channel, this));
         eventProcessor.start();
-        channel.add(Event.RECONCILE);
 
         new Timer().schedule(new TimerTask() {
             @Override
@@ -157,7 +158,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
         }
 
-        Proxy delegateProxy = delegateProxies.get(seat.getTargetId()).proxy;
+        // TODO NPE
+        Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getTargetId()).getProxy();
 
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
         resultProxy.targetId(delegateProxy.getId());
@@ -228,11 +230,12 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     private boolean removeDelegateProxy() {
-        for (DelegateProxy delegateProxy : delegateProxies.values()) {
-            if (seatStore.removeSeats(delegateProxy.seatIds)) {
-                containerBackend.stopProxy(delegateProxy.proxy);
-                delegateProxies.remove(delegateProxy.proxy.getId());
-                logger.info("Removed one delegate proxy " + delegateProxy.proxy.getId());
+        // TODO refactor to check here
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            if (seatStore.removeSeats(delegateProxy.getSeatIds())) {
+                containerBackend.stopProxy(delegateProxy.getProxy());
+                delegateProxyStore.removeDelegateProxy(delegateProxy);
+                logger.info("Removed one delegate proxy " + delegateProxy.getProxy().getId());
                 return true;
             }
         }
@@ -255,7 +258,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
                 // create container objects
                 Proxy proxy = proxyBuilder.build();
-                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, Set.of()));
+                delegateProxyStore.addDelegateProxy(new DelegateProxy(proxy, Set.of()));
 
                 SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
@@ -278,8 +281,13 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                     logger.info("Failed to start delegate proxy (did not come online)" + id); // TODO
                 }
 
+                proxy = proxy.toBuilder()
+                    .startupTimestamp(System.currentTimeMillis())
+                    .status(ProxyStatus.Up)
+                    .build();
+
                 Seat seat = new Seat(proxy.getId());
-                delegateProxies.put(proxy.getId(), new DelegateProxy(proxy, Set.of(seat.getId())));
+                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(seat.getId())));
                 seatStore.addSeat(seat);
                 logger.info("Started DelegateProxy " + id);
             } catch (ProxyFailedToStartException ex) {
@@ -343,23 +351,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     }
 
-    private static class DelegateProxy {
 
-        private final Proxy proxy;
-        private final Set<String> seatIds;
-
-        private DelegateProxy(Proxy proxy, Set<String> seatIds) {
-            this.proxy = proxy;
-            this.seatIds = seatIds;
-        }
-
-        public Proxy getProxy() {
-            return proxy;
-        }
-
-        public Set<String> getSeatIds() {
-            return seatIds;
-        }
-    }
 
 }

@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.BoundListOperations;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 

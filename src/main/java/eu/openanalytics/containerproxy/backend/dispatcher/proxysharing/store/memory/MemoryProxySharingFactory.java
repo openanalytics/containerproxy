@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,6 +33,11 @@ public class MemoryProxySharingFactory implements IProxySharingStoreFactory {
     @Override
     public ISeatStore createSeatStore(String specId) {
         return new MemorySeatStore();
+    }
+
+    @Override
+    public IDelegateProxyStore createDelegateProxyStore(String specId) {
+        return new MemoryDelegateProxyStore();
     }
 
 }

@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.backend.dispatcher;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.memory.MemoryDelegateProxyStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
@@ -70,6 +71,7 @@ public class ProxyDispatcherService {
                     expressionResolver,
                     runtimeValueService,
                     proxyTestStrategy,
+                    storeFactory.createDelegateProxyStore(proxySpec.getId()),
                     storeFactory.createSeatStore(proxySpec.getId())
                 ));
             } else {

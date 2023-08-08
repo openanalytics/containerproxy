@@ -20,12 +20,29 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
-public interface IProxySharingStoreFactory {
+import java.util.Set;
 
-    public ISeatStore createSeatStore(String specId);
+public class DelegateProxy {
 
-    public IDelegateProxyStore createDelegateProxyStore(String specId);
+    private final Proxy proxy;
+    private final Set<String> seatIds;
 
+    @JsonCreator
+    public DelegateProxy(@JsonProperty("proxy") Proxy proxy,
+                         @JsonProperty("seatIds") Set<String> seatIds) {
+        this.proxy = proxy;
+        this.seatIds = seatIds;
+    }
+
+    public Proxy getProxy() {
+        return proxy;
+    }
+
+    public Set<String> getSeatIds() {
+        return seatIds;
+    }
 }

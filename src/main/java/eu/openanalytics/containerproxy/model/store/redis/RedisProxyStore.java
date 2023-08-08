@@ -47,7 +47,7 @@ public class RedisProxyStore implements IProxyStore {
     @Inject
     private IdentifierService identifierService;
     private String redisKey;
-    private HashOperations<String, String, Proxy> ops;
+    private HashOperations<String, String, Proxy> ops; // TODO refactor to bound?
 
     @PostConstruct
     public void init() {

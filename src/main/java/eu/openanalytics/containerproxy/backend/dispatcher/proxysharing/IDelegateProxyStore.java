@@ -18,14 +18,22 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
+package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 
-public interface IProxySharingStoreFactory {
+import java.util.Collection;
 
-    public ISeatStore createSeatStore(String specId);
+public interface IDelegateProxyStore {
 
-    public IDelegateProxyStore createDelegateProxyStore(String specId);
+    public Collection<DelegateProxy> getAllDelegateProxies();
+
+    public void addDelegateProxy(DelegateProxy delegateProxy);
+
+    public void removeDelegateProxy(DelegateProxy delegateProxy);
+
+    public void updateDelegateProxy(DelegateProxy delegateProxy);
+
+    public DelegateProxy getDelegateProxy(String delegateProxyId);
 
 }

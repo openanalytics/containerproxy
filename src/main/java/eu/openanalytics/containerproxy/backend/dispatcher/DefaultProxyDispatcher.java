@@ -31,11 +31,9 @@ import org.springframework.security.core.Authentication;
 public class DefaultProxyDispatcher implements IProxyDispatcher {
 
     private final IContainerBackend containerBackend;
-    private final ProxySpec proxySpec;
 
-    public DefaultProxyDispatcher(IContainerBackend containerBackend, ProxySpec proxySpec) {
+    public DefaultProxyDispatcher(IContainerBackend containerBackend) {
         this.containerBackend = containerBackend;
-        this.proxySpec = proxySpec;
     }
 
     @Override

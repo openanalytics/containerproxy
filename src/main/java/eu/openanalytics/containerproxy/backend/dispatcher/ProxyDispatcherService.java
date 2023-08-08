@@ -61,6 +61,7 @@ public class ProxyDispatcherService {
 
     @PostConstruct
     public void init() {
+        DefaultProxyDispatcher defaultProxyDispatcher = new DefaultProxyDispatcher(containerBackend);
         for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
             if (ProxySharingDispatcher.supportSpec(proxySpec)) {
                 dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(
@@ -72,7 +73,7 @@ public class ProxyDispatcherService {
                     storeFactory.createSeatStore(proxySpec.getId())
                 ));
             } else {
-                dispatchers.put(proxySpec.getId(), new DefaultProxyDispatcher(containerBackend, proxySpec));
+                dispatchers.put(proxySpec.getId(), defaultProxyDispatcher);
             }
         }
     }

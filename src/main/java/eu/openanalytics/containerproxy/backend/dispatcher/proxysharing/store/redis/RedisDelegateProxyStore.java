@@ -45,8 +45,8 @@ public class RedisDelegateProxyStore implements IDelegateProxyStore {
     }
 
     @Override
-    public void removeDelegateProxy(DelegateProxy delegateProxy) {
-        delegateProxyOps.delete(delegateProxy.getProxy().getId());
+    public void removeDelegateProxy(String delegateProxyId) {
+        delegateProxyOps.delete(delegateProxyId);
     }
 
     @Override

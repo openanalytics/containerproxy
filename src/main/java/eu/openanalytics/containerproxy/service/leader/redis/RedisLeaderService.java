@@ -27,8 +27,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.integration.leader.Candidate;
 import org.springframework.integration.leader.Context;
-import org.springframework.integration.support.locks.ExpirableLockRegistry;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.integration.support.locks.LockRegistry;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
@@ -41,15 +40,8 @@ public class RedisLeaderService implements Candidate, ILeaderService {
 
     private final Logger logger = LogManager.getLogger(getClass());
     @Inject
-    private ExpirableLockRegistry lockRegistry;
-    @Inject
     private IdentifierService identifierService;
     private volatile boolean isLeader;
-
-    @Scheduled(fixedDelay = 5000)
-    private void cleanObsolete() {
-        lockRegistry.expireUnusedOlderThan(5000);
-    }
 
     @Nonnull
     @Override

@@ -42,8 +42,8 @@ public class MemoryDelegateProxyStore implements IDelegateProxyStore {
     }
 
     @Override
-    public void removeDelegateProxy(DelegateProxy delegateProxy) {
-        delegateProxies.remove(delegateProxy.getProxy().getId());
+    public void removeDelegateProxy(String delegateProxyId) {
+        delegateProxies.remove(delegateProxyId);
     }
 
     @Override

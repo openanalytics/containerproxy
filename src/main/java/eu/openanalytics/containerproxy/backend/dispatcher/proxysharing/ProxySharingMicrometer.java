@@ -33,7 +33,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.util.function.ToDoubleFunction;
-import java.util.function.ToLongFunction;
 
 public class ProxySharingMicrometer implements IStatCollector {
 

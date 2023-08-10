@@ -53,7 +53,6 @@ public class RedisSeatStore implements ISeatStore {
 
     @Override
     public Optional<Seat> claimSeat(String claimingProxyId) {
-        // TODO enough locking?
         String seatId = unClaimedSeatsIdsOperations.pop();
         if (seatId == null) {
             return Optional.empty();

@@ -50,7 +50,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.integration.leader.event.DefaultLeaderEventPublisher;
 import org.springframework.integration.redis.util.RedisLockRegistry;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
-import org.springframework.integration.support.locks.ExpirableLockRegistry;
+import org.springframework.integration.support.locks.LockRegistry;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 
 import javax.inject.Inject;
@@ -67,6 +68,7 @@ public class RedisStoreConfiguration {
 
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
+    private RedisLockRegistry redisLockRegistry;
 
     // Store beans
 
@@ -94,8 +96,16 @@ public class RedisStoreConfiguration {
     // Beans used internally by Redis store
 
     @Bean
-    public ExpirableLockRegistry expirableLockRegistry() {
-        return new RedisLockRegistry(connectionFactory, "shinyproxy_" + identifierService.realmId + "__locks");
+    public LockRegistry lockRegistry() {
+        redisLockRegistry = new RedisLockRegistry(connectionFactory, "shinyproxy_" + identifierService.realmId + "__locks");
+        return redisLockRegistry;
+    }
+
+    @Scheduled(fixedDelay = 5000)
+    private void cleanObsolete() {
+        if (redisLockRegistry != null) {
+            redisLockRegistry.expireUnusedOlderThan(5000);
+        }
     }
 
     @Bean
@@ -132,7 +142,7 @@ public class RedisStoreConfiguration {
 
     @Bean
     public LockRegistryLeaderInitiator leaderInitiator(ApplicationEventPublisher applicationEventPublisher) {
-        LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(expirableLockRegistry(), leaderService());
+        LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRegistry(), leaderService());
         initiator.setLeaderEventPublisher(new DefaultLeaderEventPublisher(applicationEventPublisher));
         return initiator;
     }

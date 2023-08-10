@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -49,6 +50,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slogger = new StructuredLogger(logger);
     private final ProxySharingScaler proxySharingScaler;
     private final Lock unclaimedSeatsLock;
 
@@ -80,7 +82,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             return seatStore.claimSeat(claimingProxyId).orElse(null);
         } finally {
             unclaimedSeatsLock.unlock();
-            System.out.println("Released lock!");
         }
     }
 
@@ -89,7 +90,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         LocalDateTime startTime = LocalDateTime.now();
         Seat seat = claimSeat(proxy.getId());
         if (seat == null) {
-            logger.info("Seat not immediately available");
+            slogger.info(proxy,"Seat not immediately available");
             applicationEventPublisher.publishEvent(new PendingProxyEvent(spec.getId(), proxy.getId()));
             // no seat available, busy loop until one becomes available
             // TODO replace by native async code, taking into account HA and multi seat per container

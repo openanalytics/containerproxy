@@ -29,6 +29,8 @@ import eu.openanalytics.containerproxy.service.portallocator.memory.MemoryPortAl
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
+import org.springframework.integration.support.locks.LockRegistry;
 
 @Configuration
 @ConditionalOnProperty(name = "proxy.store-mode", havingValue = "None", matchIfMissing = true)
@@ -52,6 +54,11 @@ public class MemoryStoreConfiguration {
     @Bean
     public MemoryPortAllocator portAllocator() {
         return new MemoryPortAllocator();
+    }
+
+    @Bean
+    public LockRegistry lockRegistry() {
+        return new DefaultLockRegistry();
     }
 
 }

@@ -30,7 +30,7 @@ public interface IDelegateProxyStore {
 
     public void addDelegateProxy(DelegateProxy delegateProxy);
 
-    public void removeDelegateProxy(DelegateProxy delegateProxy);
+    public void removeDelegateProxy(String delegateProxyId);
 
     public void updateDelegateProxy(DelegateProxy delegateProxy);
 

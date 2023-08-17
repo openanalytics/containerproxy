@@ -20,6 +20,9 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Scheduler;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
@@ -54,7 +57,10 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserService {
@@ -77,6 +83,16 @@ public class UserService {
     @Inject
     @Lazy
     private ProxyAccessControlService accessControlService;
+
+    private final Cache<String, Boolean> isAdminCache;
+
+    public UserService() {
+        // cache isAdmin status results for (at least) 60 minutes, since this never changes during the lifetime of a session
+        isAdminCache = Caffeine.newBuilder()
+            .scheduler(Scheduler.systemScheduler())
+            .expireAfterAccess(60, TimeUnit.MINUTES)
+            .build();
+    }
 
     public static List<String> getGroups(Authentication auth) {
         List<String> groups = new ArrayList<>();
@@ -161,19 +177,22 @@ public class UserService {
             return false;
         }
 
-        for (String adminGroup : getAdminGroups()) {
-            if (isMember(auth, adminGroup)) {
-                return true;
+        String sessionId = Objects.requireNonNull(RequestContextHolder.getRequestAttributes()).getSessionId();
+        return isAdminCache.get(sessionId, s -> {
+            for (String adminGroup : getAdminGroups()) {
+                if (isMember(auth, adminGroup)) {
+                    return true;
+                }
             }
-        }
 
-        String userName = getUserId(auth);
-        for (String adminUser : getAdminUsers()) {
-            if (userName != null && userName.equalsIgnoreCase(adminUser)) {
-                return true;
+            String userName = getUserId(auth);
+            for (String adminUser : getAdminUsers()) {
+                if (userName != null && userName.equalsIgnoreCase(adminUser)) {
+                    return true;
+                }
             }
-        }
-        return false;
+            return false;
+        });
     }
 
     public boolean canAccess(ProxySpec spec) {

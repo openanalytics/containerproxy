@@ -63,16 +63,16 @@ public class HeartbeatService {
     // keep track of the HeartbeatConnector for every SessionId so that the websocket connection can be closed
     // when the user logs out from that session. This is required for apps that keep running even if when the user signs out.
     private final ListMultimap<String, HeartbeatConnector> heartbeatConnectors = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
-    @Inject
-    private Environment environment;
+    private final Long heartbeatRate;
     @Inject
     private ISessionService sessionService;
     @Inject
     @Lazy
     private HeartbeatService self;
 
-    public HeartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
+    public HeartbeatService(List<IHeartbeatProcessor> heartbeatProcessors, Environment environment) {
         this.heartbeatProcessors = heartbeatProcessors;
+        heartbeatRate = environment.getProperty(ActiveProxiesService.PROP_RATE, Long.class, ActiveProxiesService.DEFAULT_RATE);
     }
 
     public void attachHeartbeatChecker(HttpServerExchange exchange, String proxyId) {
@@ -107,7 +107,7 @@ public class HeartbeatService {
     }
 
     public long getHeartbeatRate() {
-        return environment.getProperty(ActiveProxiesService.PROP_RATE, Long.class, ActiveProxiesService.DEFAULT_RATE);
+        return heartbeatRate;
     }
 
     @EventListener

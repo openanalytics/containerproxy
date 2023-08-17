@@ -322,8 +322,8 @@ public class ContainerProxyApplication {
     }
 
     @Bean
-    public HeartbeatService heartbeatService(List<IHeartbeatProcessor> heartbeatProcessors) {
-        return new HeartbeatService(heartbeatProcessors);
+    public HeartbeatService heartbeatService(List<IHeartbeatProcessor> heartbeatProcessors, Environment environment) {
+        return new HeartbeatService(heartbeatProcessors, environment);
     }
 
     @Bean

@@ -22,7 +22,7 @@ package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.backend.strategy.impl.DefaultTargetMappingStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.UserAndTargetIdProxyIndex;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
@@ -41,17 +41,20 @@ public class ProxyRouteController extends BaseController {
     private ContextPathHelper contextPathHelper;
 
     @Inject
-    private ProxyService proxyService;
+    private ProxyMappingManager mappingManager;
 
     @Inject
-    private ProxyMappingManager mappingManager;
+    private UserAndTargetIdProxyIndex userAndTargetIdProxyIndex;
+
+    @Inject
+    private UserService userService;
 
     @RequestMapping(value = "/api/route/{targetId}/**")
     public void route(@PathVariable String targetId, HttpServletRequest request, HttpServletResponse response) {
         try {
             String baseURL = contextPathHelper.withEndingSlash() + "api/route/";
             String mapping = request.getRequestURI().substring(baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH);
-            Proxy proxy = proxyService.getUserProxyByTargetId(targetId);
+            Proxy proxy = userAndTargetIdProxyIndex.getProxy(userService.getCurrentUserId(), targetId);
 
             if (proxy != null) {
                 mappingManager.dispatchAsync(proxy.getId(), mapping, request, response);

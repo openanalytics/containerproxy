@@ -80,7 +80,7 @@ public class ProxyAccessControlService {
         if (spec != null) {
             return canAccess(auth, spec);
         }
-        return proxyService.findUserProxies(p -> p.getSpecId().equals(specId)).findAny().isPresent();
+        return proxyService.getUserProxiesBySpecId(specId).findAny().isPresent();
     }
 
     public boolean canAccess(Authentication auth, ProxySpec spec) {

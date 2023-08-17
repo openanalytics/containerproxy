@@ -173,34 +173,12 @@ public class ProxyService {
     }
 
     /**
-     * Find the first proxy that matches the given filter and that is owned by the current user.
+     * Get the proxies of the given specId that are owned by the current user.
      *
-     * @param filter The filter to apply while searching.
-     * @return The first proxy found that matches the filter, or null if no match was found.
+     * @return A List of matching proxies, may be empty.
      */
-    public Proxy findUserProxy(Predicate<Proxy> filter) {
-        return findUserProxies(filter).findAny().orElse(null);
-    }
-
-    /**
-     * Find all proxies that matches the given filter and that are owned by the current user.
-     *
-     * @param filter The filter to apply while searching.
-     * @return All proxies that matches the filter and are owned by the current user.
-     */
-    public Stream<Proxy> findUserProxies(Predicate<Proxy> filter) {
-        return proxyStore.getAllProxies().stream().filter(filter.and(p -> userService.isOwner(p)));
-    }
-
-    /**
-     * Get the proxy of the current user with the given targetId.
-     *
-     * @param targetId the targetId to search for
-     * @return the proxy of the current user with the given targetId or null if no proxy was found.
-     */
-    public Proxy getUserProxyByTargetId(String targetId) {
-        // TODO optimise with index/cache
-        return findUserProxy(p -> p.getTargetId().equals(targetId));
+    public Stream<Proxy> getUserProxiesBySpecId(String specId) {
+        return proxyStore.getAllProxies().stream().filter(p -> userService.isOwner(p) && p.getSpecId().equals(specId));
     }
 
     /**
@@ -230,6 +208,11 @@ public class ProxyService {
         return new ArrayList<>(proxyStore.getAllProxies());
     }
 
+    /**
+     * Get all Up proxies.
+     *
+     * @return A List of all Up proxies.
+     */
     public List<Proxy> getAllUpProxies() {
         return proxyStore.getAllProxies().stream().filter(p -> p.getStatus().equals(ProxyStatus.Up)).toList();
     }
@@ -608,5 +591,4 @@ public class ProxyService {
     private interface BlockingAction {
         Proxy run();
     }
-
 }

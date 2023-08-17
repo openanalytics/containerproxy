@@ -86,7 +86,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControl() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxyService.getUserSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -155,7 +155,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithGroupMembership() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxyService.getUserSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -216,7 +216,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessExpression() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxyService.getUserSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -287,7 +287,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessUsers() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxyService.getUserSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("jeff");

@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -59,6 +60,9 @@ public class TestIntegrationOnSwarm {
 
     @Inject
     private ProxyService proxyService;
+
+    @Inject
+    private IProxySpecProvider specProvider;
 
     private boolean checkEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
         try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
@@ -92,7 +96,7 @@ public class TestIntegrationOnSwarm {
         try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
             String specId = environment.getProperty("proxy.specs[0].id");
 
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = specProvider.getSpec(specId);
             Proxy proxy = proxyService.startProxy(spec);
 
             List<Service> services = dockerClient.listServices();
@@ -119,7 +123,7 @@ public class TestIntegrationOnSwarm {
 
             String specId = environment.getProperty("proxy.specs[1].id");
 
-            ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(specId), true);
+            ProxySpec spec = specProvider.getSpec(specId);
             Proxy proxy = proxyService.startProxy(spec);
 
             List<Service> services = dockerClient.listServices();

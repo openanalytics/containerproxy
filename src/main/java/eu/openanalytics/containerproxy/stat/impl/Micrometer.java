@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -68,6 +69,8 @@ public class Micrometer implements IStatCollector {
     private ProxyService proxyService;
     @Inject
     private ISessionService sessionService;
+    @Inject
+    private IProxySpecProvider specProvider;
     private Counter appStartFailedCounter;
 
     private Counter authFailedCounter;
@@ -101,7 +104,7 @@ public class Micrometer implements IStatCollector {
         registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getLoggedInUsersCount));
         registry.gauge("absolute_users_active", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getActiveUsersCount));
 
-        for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
+        for (ProxySpec spec : specProvider.getSpecs()) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());

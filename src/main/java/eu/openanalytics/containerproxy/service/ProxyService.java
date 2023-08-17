@@ -61,7 +61,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
@@ -126,38 +125,28 @@ public class ProxyService {
 
 
     /**
-     * Find the ProxySpec that matches the given ID.
+     * Find the ProxySpec that matches the given ID and check access control.
      *
-     * @param id The ID to look for.
+     * @param id    The ID to look for.
      * @return A matching ProxySpec, or null if no match was found.
      */
-    public ProxySpec getProxySpec(String id) {
+    public ProxySpec getUserSpec(String id) {
         if (id == null || id.isEmpty()) return null;
-        return findProxySpec(spec -> spec.getId().equals(id), true);
+        ProxySpec proxySpec = baseSpecProvider.getSpec(id);
+        if (userService.canAccess(proxySpec)) {
+            return proxySpec;
+        }
+        return null;
     }
 
     /**
-     * Find the first ProxySpec that matches the given filter.
+     * Find all ProxySpecs that can be accessed by the current user.
      *
-     * @param filter              The filter to match, may be null.
-     * @param ignoreAccessControl True to search in all ProxySpecs, regardless of the current security context.
-     * @return The first ProxySpec found that matches the filter, or null if no match was found.
-     */
-    public ProxySpec findProxySpec(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
-        return getProxySpecs(filter, ignoreAccessControl).stream().findAny().orElse(null);
-    }
-
-    /**
-     * Find all ProxySpecs that match the given filter.
-     *
-     * @param filter              The filter to match, or null.
-     * @param ignoreAccessControl True to search in all ProxySpecs, regardless of the current security context.
      * @return A List of matching ProxySpecs, may be empty.
      */
-    public List<ProxySpec> getProxySpecs(Predicate<ProxySpec> filter, boolean ignoreAccessControl) {
+    public List<ProxySpec> getUserSpecs() {
         return baseSpecProvider.getSpecs().stream()
-            .filter(spec -> ignoreAccessControl || userService.canAccess(spec))
-            .filter(spec -> filter == null || filter.test(spec))
+            .filter(spec -> userService.canAccess(spec))
             .toList();
     }
 
@@ -365,7 +354,7 @@ public class ProxyService {
             }
 
             Proxy resumingProxy = proxy.withStatus(ProxyStatus.Resuming);
-            Proxy parameterizedProxy = runtimeValueService.processParameters(user, getProxySpec(proxy.getSpecId()), parameters, resumingProxy);
+            Proxy parameterizedProxy = runtimeValueService.processParameters(user, getUserSpec(proxy.getSpecId()), parameters, resumingProxy);
             proxyStore.updateProxy(parameterizedProxy);
             return parameterizedProxy;
         }, (parameterizedProxy) -> {

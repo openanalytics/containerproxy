@@ -94,7 +94,7 @@ public class ProxyController extends BaseController {
     })
     @RequestMapping(value = "/api/proxyspec", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MappingJacksonValue> listProxySpecs() {
-        List<ProxySpec> specs = proxyService.getProxySpecs(null, false);
+        List<ProxySpec> specs = proxyService.getUserSpecs();
         return ApiResponse.success(apiSecurityService.protectSpecs(specs));
     }
 
@@ -125,7 +125,7 @@ public class ProxyController extends BaseController {
     })
     @RequestMapping(value = "/api/proxyspec/{proxySpecId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MappingJacksonValue> getProxySpec(@PathVariable String proxySpecId) {
-        ProxySpec spec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
+        ProxySpec spec = proxyService.getUserSpec(proxySpecId);
         if (spec == null) {
             return ResponseEntity.status(403).body(new MappingJacksonValue(new ApiResponse<>("fail", "forbidden")));
         }
@@ -246,7 +246,7 @@ public class ProxyController extends BaseController {
     @JsonView(Views.UserApi.class)
     @RequestMapping(value = "/api/proxy/{proxySpecId}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Proxy>> startProxy(@PathVariable String proxySpecId) throws InvalidParametersException {
-        ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
+        ProxySpec baseSpec = proxyService.getUserSpec(proxySpecId);
         if (baseSpec == null) {
             return ApiResponse.failForbidden();
         }

@@ -61,7 +61,7 @@ public class TestParametersService {
 
     @Test
     public void testBigParameters() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxyService.getUserSpec("big-parameters");
         AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
@@ -154,7 +154,7 @@ public class TestParametersService {
 
     @Test
     public void testDefaultValues() {
-        ProxySpec spec = proxyService.getProxySpec("default-values");
+        ProxySpec spec = proxyService.getUserSpec("default-values");
 
         Authentication authJack = mock(Authentication.class);
         when(authJack.getName()).thenReturn("jack");
@@ -208,7 +208,7 @@ public class TestParametersService {
     @Test
     public void testParseAndValidateRequest() throws InvalidParametersException {
         // test that all allowed values are allowed by the parseAndValidateRequest function
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxyService.getUserSpec("big-parameters");
 
         // make sure that using the backend values is not allowed
         testNotAllowedValue(spec, "A", "1", "foo", "yes");
@@ -265,14 +265,14 @@ public class TestParametersService {
 
     @Test
     public void testParseAndValidateRequestNoParameters() throws InvalidParametersException {
-        ProxySpec spec = proxyService.getProxySpec("no-parameters");
+        ProxySpec spec = proxyService.getUserSpec("no-parameters");
 
         Assertions.assertFalse(parametersService.parseAndValidateRequest(auth, spec, new HashMap<>()).isPresent());
     }
 
     @Test
     public void testInvalidNumberOfParameters() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxyService.getUserSpec("big-parameters");
 
         // too many parameters
         Map<String, String> providedParameters = new HashMap<>() {{
@@ -301,7 +301,7 @@ public class TestParametersService {
 
     @Test
     public void testInvalidParameterIds() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxyService.getUserSpec("big-parameters");
 
         Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", "The letter A");

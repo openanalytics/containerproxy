@@ -32,12 +32,11 @@ public class DefaultTargetMappingStrategy implements IProxyTargetMappingStrategy
     public static final int TARGET_ID_LENGTH = 36;
 
     public String createMapping(String mappingKey, Container container, Proxy proxy) {
-        String mapping = "";
         if (!mappingKey.equalsIgnoreCase(DEFAULT_MAPPING_KEY)) {
-            // For non-default mappings, also append the mapping key
-            mapping += "/" + mappingKey;
+            // For non-default mappings, use the mapping key
+            return mappingKey;
         }
-        return mapping;
+        return "";
     }
 
 }

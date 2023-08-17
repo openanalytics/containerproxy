@@ -218,7 +218,7 @@ public class ProxyMappingManager {
      * @return
      */
     private String getPrefixPath(String proxyId, String mapping) {
-        // note: this is the real proxyId note the targetid!
+        // note: this is the real proxyId note the targetId!
         return PROXY_INTERNAL_ENDPOINT + "/" + proxyId + "/" + mapping;
     }
 

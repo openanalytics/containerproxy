@@ -29,7 +29,9 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
     public ParameterValuesKey() {
         super("openanalytics.eu/sp-parameters",
                 "SHINYPROXY_PARAMETERS",
+                "openanalytics.eu/sp-parameters",
                 false,
+                true,
                 true,
                 false,
                 false, // IMPORTANT: the actual values may not be exposed through the API

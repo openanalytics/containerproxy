@@ -37,21 +37,21 @@ public class ContainerBackendFactory extends AbstractFactoryBean<IContainerBacke
 
 	private static final String PROPERTY_CONTAINER_BACKEND = "proxy.container-backend";
 
-    private static final Map<String, Class<? extends IContainerBackend>> BACKENDS = new HashMap<>();
+	private static final Map<String, Class<? extends IContainerBackend>> BACKENDS = new HashMap<>();
 
-    public static void addBackend(String name, Class<? extends IContainerBackend> backend) {
+	public static void addBackend(String name, Class<? extends IContainerBackend> backend) {
 		if (BACKENDS.containsKey(name)) {
 			throw new IllegalArgumentException(String.format("Cannot register duplicate backend with name %s not found", name));
 		}
 		BACKENDS.put(name, backend);
-    }
+	}
 
-    private static IContainerBackend createFor(String name) throws Exception {
-        if (!BACKENDS.containsKey(name)) {
+	private static IContainerBackend createFor(String name) throws Exception {
+		if (!BACKENDS.containsKey(name)) {
 			throw new IllegalArgumentException(String.format("Backend with name %s not found", name));
-        }
-        return BACKENDS.get(name).newInstance();
-    }
+		}
+		return BACKENDS.get(name).newInstance();
+	}
 
 	private ApplicationContext applicationContext;
 

@@ -20,32 +20,32 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class HeartbeatTimeoutKey extends RuntimeValueKey<Long> {
+public class TaskDefinitionKey extends RuntimeValueKey<String> {
 
-    private HeartbeatTimeoutKey() {
-        super("openanalytics.eu/sp-heartbeat-timeout",
-                "SHINYPROXY_HEARTBEAT_TIMEOUT",
-                "openanalytics.eu/sp-heartbeat-timeout",
+    private TaskDefinitionKey() {
+        super("openanalytics.eu/sp-task-defintion",
+                "SHINYPROXY_TASK_DEFINITION",
+                "openanalytics.eu/sp-task-defintion",
+                false,
+                false,
+                false,
+                false,
+                false, // important: may not be exposed in API for security
                 false,
                 true,
-                true,
-                false,
-                true,
-                true,
-                false,
-                Long.class);
+                String.class);
     }
 
-    public static HeartbeatTimeoutKey inst = new HeartbeatTimeoutKey();
+    public static TaskDefinitionKey inst = new TaskDefinitionKey();
 
     @Override
-    public Long deserializeFromString(String value) {
-        return Long.parseLong(value);
+    public String deserializeFromString(String value) {
+        return value;
     }
 
     @Override
-    public String serializeToString(Long value) {
-        return value.toString();
+    public String serializeToString(String value) {
+        return value;
     }
 
 }

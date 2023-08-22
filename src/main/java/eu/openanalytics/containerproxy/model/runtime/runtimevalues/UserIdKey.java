@@ -25,7 +25,9 @@ public class UserIdKey extends RuntimeValueKey<String> {
     private UserIdKey() {
         super("openanalytics.eu/sp-user-id",
                 "SHINYPROXY_USERNAME",
+                "openanalytics.eu/sp-user-id",
                 false,
+                true,
                 true,
                 true,
                 false, // no need to expose in API

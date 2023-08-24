@@ -233,7 +233,7 @@ public class ProxyService {
             proxyBuilder.id(proxyId);
             proxyBuilder.targetId(proxyId);
             proxyBuilder.status(ProxyStatus.New);
-            proxyBuilder.userId(UserService.getUserId(user));
+            proxyBuilder.userId(user.getName());
             proxyBuilder.specId(spec.getId());
             proxyBuilder.createdTimestamp(System.currentTimeMillis());
 
@@ -278,7 +278,7 @@ public class ProxyService {
             }
 
             if (user != null && !ignoreAccessControl) {
-                log.info(proxy, "Proxy being stopped by user " + UserService.getUserId(user));
+                log.info(proxy, "Proxy being stopped by user " + user.getName());
             }
 
             Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
@@ -318,7 +318,7 @@ public class ProxyService {
             }
 
             if (user != null && !ignoreAccessControl) {
-                log.info(proxy, "Proxy being paused by user " + UserService.getUserId(user));
+                log.info(proxy, "Proxy being paused by user " + user.getName());
             }
 
             Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);

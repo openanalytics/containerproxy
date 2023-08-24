@@ -74,7 +74,7 @@ public class SpecExpressionContext {
             }
             if (o instanceof Authentication) {
                 builder.groups = UserService.getGroups((Authentication) o);
-                builder.userId = UserService.getUserId(((Authentication) o));
+                builder.userId = ((Authentication) o).getName();
             }
         }
         return builder.build();

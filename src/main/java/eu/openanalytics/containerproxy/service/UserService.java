@@ -24,13 +24,13 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Scheduler;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
 import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.util.Sha256;
 import jakarta.servlet.http.HttpSession;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,8 +45,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetails;
-import org.springframework.security.web.session.HttpSessionCreatedEvent;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -57,7 +55,6 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -106,15 +103,6 @@ public class UserService {
         return groups;
     }
 
-    public static String getUserId(Authentication auth) {
-        if (auth == null) return null;
-        if (auth instanceof AnonymousAuthenticationToken) {
-            // Anonymous authentication: use the session id instead of the username.
-            return Sha256.hash(((WebAuthenticationDetails) auth.getDetails()).getSessionId());
-        }
-        return auth.getName();
-    }
-
     @PostConstruct
     public void init() {
         // load admin groups
@@ -157,7 +145,7 @@ public class UserService {
     }
 
     public String getCurrentUserId() {
-        return getUserId(getCurrentAuth());
+        return getCurrentAuth().getName();
     }
 
     public Set<String> getAdminUsers() {
@@ -185,7 +173,7 @@ public class UserService {
                 }
             }
 
-            String userName = getUserId(auth);
+            String userName = auth.getName();
             for (String adminUser : getAdminUsers()) {
                 if (userName != null && userName.equalsIgnoreCase(adminUser)) {
                     return true;
@@ -209,7 +197,7 @@ public class UserService {
 
     public boolean isOwner(Authentication auth, Proxy proxy) {
         if (auth == null || proxy == null) return false;
-        return proxy.getUserId().equals(getUserId(auth));
+        return proxy.getUserId().equals(auth.getName());
     }
 
     public boolean isMember(Authentication auth, String groupName) {
@@ -224,8 +212,8 @@ public class UserService {
     public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
         Authentication source = event.getAuthentication();
         Exception e = event.getException();
-        log.info(String.format("Authentication failure [user: %s] [error: %s]", getUserId(source), e.getMessage()));
-        String userId = getUserId(source);
+        String userId = source.getName();
+        log.info(String.format("Authentication failure [user: %s] [error: %s]", userId, e.getMessage()));
 
         applicationEventPublisher.publishEvent(new AuthFailedEvent(
                 this,
@@ -233,7 +221,7 @@ public class UserService {
     }
 
     public void logout(Authentication auth) {
-        String userId = getUserId(auth);
+        String userId = auth.getName();
         if (userId == null) return;
 
         if (logoutStrategy != null) logoutStrategy.onLogout(userId);
@@ -251,11 +239,10 @@ public class UserService {
     @EventListener
     public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
         Authentication auth = event.getAuthentication();
-        String userName = getUserId(auth);
+        String userId = auth.getName();
 
-        log.info(String.format("User logged in [user: %s]", userName));
+        log.info(String.format("User logged in [user: %s]", userId));
 
-        String userId = getUserId(auth);
         applicationEventPublisher.publishEvent(new UserLoginEvent(
                 this,
                 userId));
@@ -275,7 +262,7 @@ public class UserService {
                 SecurityContext securityContext = event.getSecurityContexts().get(0);
                 if (securityContext == null) return;
 
-                String userId = getUserId(securityContext.getAuthentication());
+                String userId = securityContext.getAuthentication().getName();
                 if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 
                 log.info(String.format("User logged out [user: %s]", userId));
@@ -285,7 +272,8 @@ public class UserService {
                         true
                 ));
             } else if (authBackend.getName().equals("none")) {
-                String userId = Sha256.hash(event.getSession().getId());
+                String userId = NoAuthenticationBackend.extractUserId(event.getSession());
+                if (userId == null) return;
                 if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 
                 log.info(String.format("Anonymous user logged out [user: %s]", userId));
@@ -295,17 +283,6 @@ public class UserService {
                         true
                 ));
             }
-        }
-    }
-
-    @EventListener
-    public void onHttpSessionCreated(HttpSessionCreatedEvent event) {
-        if (authBackend.getName().equals("none")) {
-            String userId = Sha256.hash(event.getSession().getId());
-            log.info(String.format("Anonymous user logged in [user: %s]", userId));
-            applicationEventPublisher.publishEvent(new UserLoginEvent(
-                    this,
-                    userId));
         }
     }
 

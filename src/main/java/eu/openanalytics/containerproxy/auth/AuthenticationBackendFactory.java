@@ -29,6 +29,7 @@ import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,9 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
     @Inject
     private ApplicationContext applicationContext;
 
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
+
     // These backends register some beans of their own, so must be instantiated here.
     @Autowired(required = false)
     private SAMLAuthenticationBackend samlBackend;
@@ -63,7 +67,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 
         String type = environment.getProperty("proxy.authentication", "none");
         switch (type) {
-            case NoAuthenticationBackend.NAME -> backend = new NoAuthenticationBackend();
+            case NoAuthenticationBackend.NAME -> backend = new NoAuthenticationBackend(applicationEventPublisher);
             case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
             case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
             case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();

@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.service.session.redis;
 
 import eu.openanalytics.containerproxy.RedisSessionConfig;
+import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
@@ -131,7 +132,12 @@ public class RedisSessionService extends AbstractSessionService {
             Session session = redisIndexedSessionRepository.findById(sessionId);
             if (session == null) continue;
 
-            String authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session), sessionId);
+            String authenticationName;
+            if (authBackend.getName().equals(NoAuthenticationBackend.NAME)) {
+                authenticationName = NoAuthenticationBackend.extractUserId(session);
+            } else {
+                authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session));
+            }
             if (authenticationName == null) continue;
 
             authenticatedUsers.add(authenticationName);

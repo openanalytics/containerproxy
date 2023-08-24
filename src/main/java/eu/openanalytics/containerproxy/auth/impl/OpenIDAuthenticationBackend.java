@@ -157,8 +157,6 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     @Override
     public void configureHttpSecurity(HttpSecurity http) throws Exception {
-//        anyRequestConfigurer.authenticated();
-
         http
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")

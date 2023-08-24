@@ -77,6 +77,7 @@ import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SE
 import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES;
 import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG;
 import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
+import static io.undertow.server.handlers.resource.ResourceManager.EMPTY_RESOURCE_MANAGER;
 
 @EnableScheduling
 @EnableAsync
@@ -271,6 +272,7 @@ public class ContainerProxyApplication {
             if (sessionManagerFactory != null) {
                 info.setSessionManagerFactory(sessionManagerFactory);
             }
+            info.setResourceManager(EMPTY_RESOURCE_MANAGER);
         });
         try {
             factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));

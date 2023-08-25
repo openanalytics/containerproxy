@@ -109,10 +109,10 @@ public class ProxyMappingManager {
 
             String errorPage;
             if (proxy != null && proxy.getStatus() != ProxyStatus.Stopped) {
-                errorPage = "{\"status\":\"error\", \"message\":\"app_crashed\"}";
+                errorPage = "{\"status\":\"fail\", \"data\":\"app_crashed\"}";
             } else {
                 // in-progress request got terminated because the app has been stopped (not crashed)
-                errorPage = "{\"status\":\"error\", \"message\":\"app_stopped_or_non_existent\"}";
+                errorPage = "{\"status\":\"fail\", \"data\":\"app_stopped_or_non_existent\"}";
             }
             responseExchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, String.valueOf(errorPage.length()));
             responseExchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");

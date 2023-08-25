@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
@@ -211,7 +212,7 @@ public class ProxySharingScaler {
                 proxy = proxyBuilder.build();
                 // TODO use startupLog ?
                 log(String.format("Starting DelegateProxy %s", id));
-                proxy = containerBackend.startProxy(null, proxy, resolvedSpec, null);
+                proxy = containerBackend.startProxy(null, proxy, resolvedSpec, new ProxyStartupLog.ProxyStartupLogBuilder());
                 delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of()));
 
                 if (!testStrategy.testProxy(proxy)) {

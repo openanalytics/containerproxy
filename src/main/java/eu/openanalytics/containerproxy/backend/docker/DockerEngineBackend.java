@@ -139,7 +139,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 .env(convertEnv(buildEnv(user, spec, proxy)))
                 .build();
 
-            if (proxyStartupLogBuilder != null) proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
+            proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
             rContainerBuilder.id(containerCreation.id());
 
@@ -151,7 +151,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             dockerClient.startContainer(containerCreation.id());
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()), false);
-            if (proxyStartupLogBuilder != null) proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
+            proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             Container rContainer = rContainerBuilder.build();
             Map<String, URI> targets = setupPortMappingExistingProxy(proxy, rContainer, portBindings);

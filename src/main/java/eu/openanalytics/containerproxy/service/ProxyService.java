@@ -463,9 +463,9 @@ public class ProxyService {
             throw new ContainerProxyException("Container did not respond in time");
         }
 
-//        if (proxyStartupLog != null) { // TODO
-//            proxyStartupLog.applicationStarted();
-//        }
+        if (proxyStartupLog != null) {
+            proxyStartupLog.applicationStarted();
+        }
 
         if (cleanupIfPendingAppWasStopped(proxy)) {
             return null;

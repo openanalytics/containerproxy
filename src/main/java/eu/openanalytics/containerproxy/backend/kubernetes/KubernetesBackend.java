@@ -310,9 +310,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             createAdditionalManifests(proxy, specExtension, effectiveKubeNamespace);
 
             // tell the status service we are starting the pod/container
-            if (proxyStartupLogBuilder != null) {
-                proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
-            }
+            proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
 
             // create and start the pod
             Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
@@ -336,14 +334,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 }
             }
 
-            if (proxyStartupLogBuilder != null) {
-                proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
-            }
+            proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
             Pod pod = kubeClient.resource(startedPod).fromServer().get();
 
-            if (proxyStartupLogBuilder != null) {
-                parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
-            }
+            parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
 
             Service service = null;
             Map<Integer, Integer> portBindings = new HashMap<>();

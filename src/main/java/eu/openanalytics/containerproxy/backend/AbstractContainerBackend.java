@@ -123,7 +123,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
             try {
                 Container container = proxy.getContainer(spec.getIndex());
                 proxy = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
-                if (proxyStartupLogBuilder != null && container.getIndex() == 0) {
+                if (container.getIndex() == 0) {
                     proxyStartupLogBuilder.startingApplication();
                 }
             } catch (ContainerFailedToStartException t) {

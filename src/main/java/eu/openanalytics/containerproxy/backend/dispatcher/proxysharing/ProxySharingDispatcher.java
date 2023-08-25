@@ -97,6 +97,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             for (int i = 0; i < 600; i++) {
                 seat = claimSeat(proxy.getId());
                 if (seat != null) {
+                    slogger.info(proxy,"Seat available attempt: " + i);
                     break;
                 }
                 try {

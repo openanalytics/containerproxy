@@ -75,18 +75,19 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     public Seat claimSeat(String claimingProxyId) {
-        if (!unclaimedSeatsLock.tryLock()) {
-            return null;
-        }
-        try {
+//        if (!unclaimedSeatsLock.tryLock()) {
+//            return null;
+//        }
+//        try {
             return seatStore.claimSeat(claimingProxyId).orElse(null);
-        } finally {
-            unclaimedSeatsLock.unlock();
-        }
+//        } finally {
+//            unclaimedSeatsLock.unlock();
+//        }
     }
 
     @Override
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
+        proxyStartupLogBuilder.startingApplication();
         LocalDateTime startTime = LocalDateTime.now();
         Seat seat = claimSeat(proxy.getId());
         if (seat == null) {

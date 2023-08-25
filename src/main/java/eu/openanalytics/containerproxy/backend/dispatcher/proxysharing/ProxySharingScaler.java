@@ -173,7 +173,7 @@ public class ProxySharingScaler {
         } else if (num > maximumSeatsAvailable) {
             long numToScaleDown = num - maximumSeatsAvailable;
             log(String.format("Scale down required, trying to remove %s DelegateProxies", numToScaleDown));
-            scaleDown(numToScaleDown);
+//            scaleDown(numToScaleDown);
         } else {
             log("No scaling required");
         }

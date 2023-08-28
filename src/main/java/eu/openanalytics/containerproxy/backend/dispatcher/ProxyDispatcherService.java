@@ -55,7 +55,6 @@ public class ProxyDispatcherService {
     private final ILeaderService leaderService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final ConfigurableListableBeanFactory beanFactory;
-    private final LockRegistry lockRegistry;
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IContainerBackend containerBackend,
@@ -65,8 +64,7 @@ public class ProxyDispatcherService {
                                   IProxySharingStoreFactory storeFactory,
                                   ILeaderService leaderService,
                                   ApplicationEventPublisher applicationEventPublisher,
-                                  ConfigurableListableBeanFactory beanFactory,
-                                  LockRegistry lockRegistry) {
+                                  ConfigurableListableBeanFactory beanFactory) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
@@ -76,7 +74,6 @@ public class ProxyDispatcherService {
         this.leaderService = leaderService;
         this.applicationEventPublisher = applicationEventPublisher;
         this.beanFactory = beanFactory;
-        this.lockRegistry = lockRegistry;
     }
 
     @PostConstruct
@@ -87,8 +84,6 @@ public class ProxyDispatcherService {
                 ISeatStore seatStore = storeFactory.createSeatStore(proxySpec.getId());
                 IDelegateProxyStore delegateProxyStore = storeFactory.createDelegateProxyStore(proxySpec.getId());
 
-                Lock unclaimedSeatsLock = lockRegistry.obtain("unclaimed_seats_" + proxySpec.getId());
-
                 ProxySharingScaler proxySharingScaler = new ProxySharingScaler(
                     leaderService,
                     seatStore,
@@ -97,8 +92,7 @@ public class ProxyDispatcherService {
                     containerBackend,
                     expressionResolver,
                     runtimeValueService,
-                    proxyTestStrategy,
-                    unclaimedSeatsLock);
+                    proxyTestStrategy);
 
                 proxySharingScaler = (ProxySharingScaler) beanFactory.initializeBean(proxySharingScaler,"proxySharingScaler_" + proxySpec.getId());
                 beanFactory.registerSingleton("proxySharingScaler_" + proxySpec.getId(), proxySharingScaler);
@@ -107,8 +101,7 @@ public class ProxyDispatcherService {
                     delegateProxyStore,
                     seatStore,
                     applicationEventPublisher,
-                    proxySharingScaler,
-                    unclaimedSeatsLock
+                    proxySharingScaler
                 ));
 
             } else {

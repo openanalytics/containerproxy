@@ -69,14 +69,13 @@ public class MemorySeatStore implements ISeatStore {
     }
 
     @Override
-    public synchronized void removeSeats(Set<String> seatIds) {
-        unClaimSeatIds.removeAll(seatIds);
-        seatIds.forEach(seats::remove);
-    }
-
-    @Override
-    public boolean areSeatsUnclaimed(Set<String> seatIds) {
-        return unClaimSeatIds.containsAll(seatIds);
+    public boolean removeSeatsIfUnclaimed(Set<String> seatIds) {
+        if (unClaimSeatIds.containsAll(seatIds)) {
+            unClaimSeatIds.removeAll(seatIds);
+            seatIds.forEach(seats::remove);
+            return true;
+        }
+        return false;
     }
 
     @Override

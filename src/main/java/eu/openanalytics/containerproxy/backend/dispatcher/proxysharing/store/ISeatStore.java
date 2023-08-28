@@ -33,9 +33,7 @@ public interface ISeatStore {
 
     void releaseSeat(String seatId);
 
-    void removeSeats(Set<String> seatIds);
-
-    boolean areSeatsUnclaimed(Set<String> seatIds);
+    boolean removeSeatsIfUnclaimed(Set<String> seatIds);
 
     Long getNumUnclaimedSeats();
 

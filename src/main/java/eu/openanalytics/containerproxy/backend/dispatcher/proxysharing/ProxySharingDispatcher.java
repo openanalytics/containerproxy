@@ -52,7 +52,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final StructuredLogger slogger = new StructuredLogger(logger);
     private final ProxySharingScaler proxySharingScaler;
-    private final Lock unclaimedSeatsLock;
 
     static {
         RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdRuntimeValue.inst);
@@ -61,13 +60,11 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     public ProxySharingDispatcher(IDelegateProxyStore delegateProxyStore,
                                   ISeatStore seatStore,
                                   ApplicationEventPublisher applicationEventPublisher,
-                                  ProxySharingScaler proxySharingScaler,
-                                  Lock unclaimedSeatsLock) {
+                                  ProxySharingScaler proxySharingScaler) {
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
         this.applicationEventPublisher = applicationEventPublisher;
         this.proxySharingScaler = proxySharingScaler;
-        this.unclaimedSeatsLock = unclaimedSeatsLock;
     }
 
     public static boolean supportSpec(ProxySpec proxySpec) {
@@ -75,14 +72,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     public Seat claimSeat(String claimingProxyId) {
-//        if (!unclaimedSeatsLock.tryLock()) {
-//            return null;
-//        }
-//        try {
-            return seatStore.claimSeat(claimingProxyId).orElse(null);
-//        } finally {
-//            unclaimedSeatsLock.unlock();
-//        }
+        return seatStore.claimSeat(claimingProxyId).orElse(null);
     }
 
     @Override

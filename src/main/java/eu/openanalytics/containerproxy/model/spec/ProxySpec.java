@@ -59,6 +59,18 @@ public class ProxySpec {
     @JsonView(Views.UserApi.class)
     String logoURL;
 
+    @JsonView(Views.UserApi.class)
+    String logoWidth;
+
+    @JsonView(Views.UserApi.class)
+    String logoHeight;
+
+    @JsonView(Views.UserApi.class)
+    String logoStyle;
+
+    @JsonView(Views.UserApi.class)
+    String logoClasses;
+
     AccessControl accessControl;
 
     @Builder.Default

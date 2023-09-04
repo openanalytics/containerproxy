@@ -229,8 +229,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		if (auth.hasAuthorization()) {
 			http.authorizeRequests().antMatchers(
 					"/login", "/signin/**", "/auth-error", "/error", "/app-access-denied", "/logout-success",
-					"/favicon.ico",
-					"/" + identifierService.instanceId + "/css/**", "/css/**",
+					"/" + identifierService.instanceId + "/favicon", "/favicon.ico",
+                    "/" + identifierService.instanceId + "/css/**", "/css/**",
 					"/" + identifierService.instanceId + "/img/**", "/img/**",
 					"/" + identifierService.instanceId + "/js/**", "/js/**",
 					"/" + identifierService.instanceId + "/assets/**", "/assets/**",

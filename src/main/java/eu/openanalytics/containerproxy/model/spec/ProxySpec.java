@@ -68,6 +68,8 @@ public class ProxySpec {
     @JsonView(Views.UserApi.class)
     String logoStyle;
 
+    String faviconPath;
+
     @JsonView(Views.UserApi.class)
     String logoClasses;
 

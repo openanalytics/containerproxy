@@ -46,6 +46,8 @@ import org.springframework.boot.actuate.redis.RedisHealthIndicator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.server.PortInUseException;
@@ -87,7 +89,7 @@ import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP
 
 @EnableScheduling
 @EnableAsync
-@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
+@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class, DataSourceAutoConfiguration.class  })
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
 	public static final String CONFIG_FILENAME = "application.yml";

@@ -35,7 +35,6 @@ import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
-import eu.openanalytics.containerproxy.auth.impl.SocialAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
 
 /**
@@ -81,9 +80,6 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
 			break;
 		case OpenIDAuthenticationBackend.NAME:
 			backend = new OpenIDAuthenticationBackend();
-			break;
-		case SocialAuthenticationBackend.NAME:
-			backend = new SocialAuthenticationBackend();
 			break;
 		case KeycloakAuthenticationBackend.NAME:
 			return keycloakBackend;			

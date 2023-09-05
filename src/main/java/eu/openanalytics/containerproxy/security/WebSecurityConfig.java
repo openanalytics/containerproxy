@@ -219,6 +219,7 @@ public class WebSecurityConfig {
                 new MvcRequestMatcher(handlerMappingIntrospector, "/app-access-denied"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/logout-success"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/favicon.ico"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/favicon"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/css/**"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/" + identifierService.instanceId + "/css/**"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/img/**"),

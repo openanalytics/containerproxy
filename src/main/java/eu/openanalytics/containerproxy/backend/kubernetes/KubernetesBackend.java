@@ -385,10 +385,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
         List<Event> events;
         try {
             events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
-                    .withKind("Pod")
-                    .withName(pod.getMetadata().getName())
-                    .withNamespace(pod.getMetadata().getNamespace())
-                    .build()).list().getItems();
+                .withKind("Pod")
+                .withName(pod.getMetadata().getName())
+                .withNamespace(pod.getMetadata().getNamespace())
+                .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
                 log.warn("Cannot parse events of pod because of insufficient permissions. Give the ShinyProxy ServiceAccount permission to get events of pods in order to show Kubernetes warnings in ShinyProxy logs.");

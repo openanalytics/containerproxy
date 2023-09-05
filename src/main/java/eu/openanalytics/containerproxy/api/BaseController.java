@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import org.springframework.core.env.Environment;
 import org.springframework.ui.ModelMap;
 

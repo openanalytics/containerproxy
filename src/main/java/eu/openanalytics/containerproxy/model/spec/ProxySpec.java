@@ -111,37 +111,37 @@ public class ProxySpec {
 
     public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
-                .maxLifeTime(maxLifeTime.resolve(resolver, context))
-                .specExtensions(
-                        specExtensions.entrySet()
-                                .stream()
-                                .collect(Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        e -> e.getValue().firstResolve(resolver, context))))
-                .containerSpecs(
-                        containerSpecs
-                                .stream()
-                                .map(c -> c.firstResolve(resolver, context.copy(c)))
-                                .toList()
-                )
-                .build();
+            .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
+            .maxLifeTime(maxLifeTime.resolve(resolver, context))
+            .specExtensions(
+                specExtensions.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().firstResolve(resolver, context))))
+            .containerSpecs(
+                containerSpecs
+                    .stream()
+                    .map(c -> c.firstResolve(resolver, context.copy(c)))
+                    .toList()
+            )
+            .build();
     }
 
     public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .specExtensions(
-                        specExtensions.entrySet()
-                                .stream()
-                                .collect(Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        e -> e.getValue().finalResolve(resolver, context))))
-                .containerSpecs(
-                        containerSpecs
-                                .stream()
-                                .map(c -> c.finalResolve(resolver, context.copy(c)))
-                                .toList()
-                )
-                .build();
+            .specExtensions(
+                specExtensions.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().finalResolve(resolver, context))))
+            .containerSpecs(
+                containerSpecs
+                    .stream()
+                    .map(c -> c.finalResolve(resolver, context.copy(c)))
+                    .toList()
+            )
+            .build();
     }
 }

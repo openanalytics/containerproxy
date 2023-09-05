@@ -180,43 +180,6 @@
 			<version>7.2</version>
 		</dependency>
 
-
-		<!-- Spring social security components -->
-		<!-- Note: also includes an embedded datasource (H2) to remember social logins -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jdbc</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-social-facebook</artifactId>
-			<version>1.5.22.RELEASE</version>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.social</groupId>
-			<artifactId>spring-social-twitter</artifactId>
-			<version>1.1.2.RELEASE</version>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.social</groupId>
-			<artifactId>spring-social-linkedin</artifactId>
-			<version>1.0.2.RELEASE</version>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.social</groupId>
-			<artifactId>spring-social-github</artifactId>
-			<version>1.0.0.M4</version>
-		</dependency>
-		<dependency>
-			<groupId>com.github.spring-social</groupId>
-			<artifactId>spring-social-google</artifactId>
-			<version>1.1.3</version>
-		</dependency>
-
 		<!-- Keycloak -->
 		<dependency>
 			<groupId>org.keycloak</groupId>
@@ -326,22 +289,6 @@
 			<groupId>org.webjars</groupId>
 			<artifactId>jquery</artifactId>
 			<version>3.6.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.webjars.bower</groupId>
-			<artifactId>bootstrap-social</artifactId>
-			<version>5.1.1</version>
-			<exclusions>
-				<!-- These dependencies are already included and would otherwise produce some warnings -->
-				<exclusion>
-					<groupId>org.webjars.bower</groupId>
-					<artifactId>bootstrap</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.webjars.bower</groupId>
-					<artifactId>font-awesome</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars.bower</groupId>

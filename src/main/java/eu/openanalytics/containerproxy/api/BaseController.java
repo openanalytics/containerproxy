@@ -41,7 +41,6 @@ public class BaseController {
 		map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
 		map.put("jqueryJs", "/webjars/jquery/3.6.1/jquery.min.js");
 		map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
-		map.put("bootstrapSocialCss", "/webjars/bootstrap-social/5.1.1/bootstrap-social.css");
         map.put("resourcePrefix", "/" + identifierService.instanceId);
 	}
 

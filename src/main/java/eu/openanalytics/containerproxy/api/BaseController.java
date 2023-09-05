@@ -24,24 +24,32 @@ import eu.openanalytics.containerproxy.service.IdentifierService;
 import org.springframework.core.env.Environment;
 import org.springframework.ui.ModelMap;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 public class BaseController {
 
-	@Inject
-	private Environment environment;
+    @Inject
+    private Environment environment;
 
     @Inject
     private IdentifierService identifierService;
 
+    private String title;
+
+    @PostConstruct
+    public void baseInit() {
+        title = environment.getProperty("proxy.title", "ShinyProxy");
+    }
+
     protected void prepareMap(ModelMap map) {
-		map.put("title", environment.getProperty("proxy.title", "ShinyProxy"));
+        map.put("title", title);
         // no versioning (using instanceId) needed since paths already contain a version
-		map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
-		map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
-		map.put("jqueryJs", "/webjars/jquery/3.6.1/jquery.min.js");
-		map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
+        map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
+        map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
+        map.put("jqueryJs", "/webjars/jquery/3.6.1/jquery.min.js");
+        map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
         map.put("resourcePrefix", "/" + identifierService.instanceId);
-	}
+    }
 
 }

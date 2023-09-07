@@ -30,12 +30,15 @@ public class DelegateProxy {
 
     private final Proxy proxy;
     private final Set<String> seatIds;
+    private final DelegateProxyStatus delegateProxyStatus;
 
     @JsonCreator
     public DelegateProxy(@JsonProperty("proxy") Proxy proxy,
-                         @JsonProperty("seatIds") Set<String> seatIds) {
+                         @JsonProperty("seatIds") Set<String> seatIds,
+                         @JsonProperty("delegateProxyStatus") DelegateProxyStatus delegateProxyStatus) {
         this.proxy = proxy;
         this.seatIds = seatIds;
+        this.delegateProxyStatus = delegateProxyStatus;
     }
 
     public Proxy getProxy() {
@@ -45,4 +48,9 @@ public class DelegateProxy {
     public Set<String> getSeatIds() {
         return seatIds;
     }
+
+    public DelegateProxyStatus getDelegateProxyStatus() {
+        return delegateProxyStatus;
+    }
+
 }

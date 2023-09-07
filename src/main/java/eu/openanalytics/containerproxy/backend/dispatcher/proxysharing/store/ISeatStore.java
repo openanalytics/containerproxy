@@ -29,9 +29,11 @@ public interface ISeatStore {
 
     void addSeat(Seat seat);
 
+    Seat getSeat(String seatId);
+
     public Optional<Seat> claimSeat(String claimingProxyId);
 
-    void releaseSeat(String seatId);
+    void releaseSeat(String seatId, boolean reclaimable);
 
     boolean removeSeatsIfUnclaimed(Set<String> seatIds);
 

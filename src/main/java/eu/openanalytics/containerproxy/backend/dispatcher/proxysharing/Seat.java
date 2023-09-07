@@ -29,39 +29,37 @@ import java.util.UUID;
 @Data
 public class Seat {
 
-    private final String targetId;
-
     private final String id;
+    private final String delegateProxyId;
+    private String delegatingProxyId;
 
-    private String claimingProxyId;
-
-    public Seat(String targetId) {
-        this.targetId = targetId;
+    public Seat(String delegateProxyId) {
+        this.delegateProxyId = delegateProxyId;
         id = UUID.randomUUID().toString();
     }
 
     @JsonCreator
-    public Seat(@JsonProperty("seatId") String targetId,
-                @JsonProperty("id") String id,
-                @JsonProperty("claimingProxyId") String claimingProxyId
+    public Seat(@JsonProperty("id") String id,
+                @JsonProperty("delegateProxyId") String delegateProxyId,
+                @JsonProperty("delegatingProxyId") String delegatingProxyId
     ) {
-        this.targetId = targetId;
+        this.delegateProxyId = delegateProxyId;
         this.id = id;
-        this.claimingProxyId = claimingProxyId;
+        this.delegatingProxyId = delegatingProxyId;
     }
 
     public void claim(String proxyId) {
-        if (claimingProxyId != null) {
+        if (delegatingProxyId != null) {
             throw new IllegalStateException(String.format("Seat %s already claimed by %s", id, proxyId));
         }
-        claimingProxyId = proxyId;
+        delegatingProxyId = proxyId;
     }
 
     public void release() {
-        if (claimingProxyId == null) {
+        if (delegatingProxyId == null) {
             throw new IllegalStateException(String.format("Seat %s not claimed", id));
         }
-        claimingProxyId = null;
+        delegatingProxyId = null;
     }
 
 }

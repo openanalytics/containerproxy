@@ -56,9 +56,14 @@ public class RedisSeatStore implements ISeatStore {
             throw new IllegalArgumentException(String.format("Cannot add seat with id %s: seat already added", seat.getId()));
         }
         seatsOperations.put(seat.getId(), seat);
-        if (seat.getClaimingProxyId() == null) {
+        if (seat.getDelegatingProxyId() == null) {
             unClaimedSeatsIdsOperations.add(seat.getId());
         }
+    }
+
+    @Override
+    public Seat getSeat(String seatId) {
+        return seatsOperations.get(seatId);
     }
 
     @Override
@@ -77,14 +82,16 @@ public class RedisSeatStore implements ISeatStore {
     }
 
     @Override
-    public void releaseSeat(String seatId) {
+    public void releaseSeat(String seatId, boolean reclaimable) {
         Seat seat = seatsOperations.get(seatId);
         if (seat == null) {
             throw new IllegalArgumentException(String.format("Cannot release seat with id %s: seat not found in SeatStore", seatId));
         }
         seat.release();
         seatsOperations.put(seatId, seat);
-        unClaimedSeatsIdsOperations.add(seatId);
+        if (reclaimable) {
+            unClaimedSeatsIdsOperations.add(seatId);
+        }
     }
 
     @Override

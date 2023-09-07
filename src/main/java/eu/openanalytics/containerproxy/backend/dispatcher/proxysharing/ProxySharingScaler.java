@@ -47,6 +47,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -101,6 +102,9 @@ public class ProxySharingScaler {
                     if (event == Event.RECONCILE) {
                         reconcile();
                     }
+                    if (event == Event.CLEANUP) {
+                        cleanup();
+                    }
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception ex) {
@@ -117,8 +121,15 @@ public class ProxySharingScaler {
         eventProcessor.start();
     }
 
+    @Scheduled(fixedDelay = 20_000)
+    public void scheduleCleanup() {
+        if (leaderService.isLeader()) {
+            channel.add(Event.CLEANUP);
+        }
+    }
+
     @Scheduled(fixedDelay = 10_000)
-    public void forceReconcile() {
+    public void scheduleReconcile() {
         if (leaderService.isLeader()) {
             channel.add(Event.RECONCILE);
         }
@@ -278,12 +289,40 @@ public class ProxySharingScaler {
         }
     }
 
+    private void cleanup() {
+        // remove proxies that are scheduled to remove and are fully unclaimed
+        Collection<DelegateProxy> allDelegateProxies = delegateProxyStore.getAllDelegateProxies();
+        for (DelegateProxy delegateProxy : allDelegateProxies) {
+            if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
+                if (allSeatsUnclaimedOfToRemoveProxy(delegateProxy)) {
+                    logger.info("Removing DelegateProxy {} marked for removal", delegateProxy.getProxy().getId());
+                    seatStore.removeSeatsIfUnclaimed(delegateProxy.getSeatIds());
+                    containerBackend.stopProxy(delegateProxy.getProxy());
+                    delegateProxyStore.removeDelegateProxy(delegateProxy.getProxy().getId());
+                } else {
+                    logger.debug("DelegateProxy {} marked for removal but still has claimed seats", delegateProxy.getProxy().getId());
+                }
+            }
+        }
+    }
+
+    private boolean allSeatsUnclaimedOfToRemoveProxy(DelegateProxy delegateProxy) {
+        // note: this is a proxy that is being removed, seats cannot be re-claimed
+        for (String seatId : delegateProxy.getSeatIds()) {
+            if (seatStore.getSeat(seatId).getDelegatingProxyId() != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public Long getNumPendingSeats() {
         return delegateProxyStore.getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.Pending)).count();
     }
 
     private enum Event {
-        RECONCILE
+        RECONCILE,
+        CLEANUP
     }
 
     private void log(String message) {

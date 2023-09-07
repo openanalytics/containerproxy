@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
@@ -41,7 +43,6 @@ import org.springframework.security.core.Authentication;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.concurrent.locks.Lock;
 
 public class ProxySharingDispatcher implements IProxyDispatcher {
 
@@ -108,7 +109,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
 
         // TODO NPE
-        Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getTargetId()).getProxy();
+        Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId()).getProxy();
 
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
         resultProxy.targetId(delegateProxy.getId());
@@ -119,7 +120,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdRuntimeValue.inst, seat.getId()), true);
 
-
         return resultProxy.build();
     }
 
@@ -127,8 +127,18 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
         String seatId = proxy.getRuntimeObjectOrNull(SeatIdRuntimeValue.inst);
         if (seatId != null) {
-            // proxy did not yet claimed a Seat
-            seatStore.releaseSeat(seatId);
+            Seat seat = seatStore.getSeat(seatId);
+            DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId());
+            if (delegateProxy == null) {
+                logger.warn("ProxySharing: DelegateProxy {} not found during stop of DelegatingProx: {}", seat.getDelegateProxyId(), proxy.getId());
+            } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
+                seatStore.releaseSeat(seatId, true);
+            } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
+                seatStore.releaseSeat(seatId, false);
+            } else {
+                logger.warn("ProxySharing: DelegateProxy {} has unexpected state during stop of DelegatingProxy: {}", seat.getDelegateProxyId(), proxy.getId());
+                seatStore.releaseSeat(seatId, false);
+            }
         }
         applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), proxy.getId()));
     }

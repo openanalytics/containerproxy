@@ -41,9 +41,14 @@ public class MemorySeatStore implements ISeatStore {
             throw new IllegalArgumentException(String.format("Cannot add seat with id %s: seat already added", seat.getId()));
         }
         seats.put(seat.getId(), seat);
-        if (seat.getClaimingProxyId() == null) {
+        if (seat.getDelegatingProxyId() == null) {
             unClaimSeatIds.add(seat.getId());
         }
+    }
+
+    @Override
+    public Seat getSeat(String seatId) {
+        return seats.get(seatId);
     }
 
     @Override
@@ -59,13 +64,15 @@ public class MemorySeatStore implements ISeatStore {
     }
 
     @Override
-    public synchronized void releaseSeat(String seatId) {
+    public synchronized void releaseSeat(String seatId, boolean reclaimable) {
         Seat seat = seats.get(seatId);
         if (seat == null) {
             throw new IllegalArgumentException(String.format("Cannot release seat with id %s: seat not found in SeatStore", seatId));
         }
         seat.release();
-        unClaimSeatIds.add(seatId);
+        if (reclaimable) {
+            unClaimSeatIds.add(seatId);
+        }
     }
 
     @Override

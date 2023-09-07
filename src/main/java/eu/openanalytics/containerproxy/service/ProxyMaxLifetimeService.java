@@ -23,26 +23,24 @@ package eu.openanalytics.containerproxy.service;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
-import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This service releases proxies which reached their max-lifetime.
  */
 @Service
 public class ProxyMaxLifetimeService {
-
-    private static final Integer CLEANUP_INTERVAL = 5 * 60 * 1000;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final StructuredLogger slog = new StructuredLogger(log);
@@ -54,23 +52,19 @@ public class ProxyMaxLifetimeService {
     private IProxyReleaseStrategy releaseStrategy;
 
     @Inject
-    private ILeaderService leaderService;
+    private GlobalEventLoopService globalEventLoop;
+
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+    public void scheduleCleanup() {
+        globalEventLoop.schedule("ProxyMaxLifetimeService::performCleanup");
+    }
 
     @PostConstruct
     public void init() {
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                performCleanup();
-            }
-        }, CLEANUP_INTERVAL, CLEANUP_INTERVAL);
+        globalEventLoop.addCallback("ProxyMaxLifetimeService::performCleanup", this::performCleanup);
     }
 
     private void performCleanup() {
-        if (!leaderService.isLeader()) {
-            log.debug("Skipping checking max lifetimes because we are not the leader");
-            return;
-        }
         for (Proxy proxy : proxyService.getAllProxies()) {
             if (mustBeReleased(proxy)) {
                 String uptime = DurationFormatUtils.formatDurationWords(

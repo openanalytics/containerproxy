@@ -27,7 +27,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
-import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -64,7 +64,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     private IProxyReleaseStrategy releaseStrategy;
 
     @Inject
-    private ILeaderService leaderService;
+    private GlobalEventLoopService globalEventLoop;
 
     @PostConstruct
     public void init() {
@@ -72,9 +72,10 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                performCleanup();
+                globalEventLoop.schedule("ActiveProxiesService::performCleanup");
             }
         }, cleanupInterval, cleanupInterval);
+        globalEventLoop.addCallback("ActiveProxiesService::performCleanup", this::performCleanup);
     }
 
     @Override
@@ -90,17 +91,9 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     }
 
     private void performCleanup() {
-        if (!leaderService.isLeader()) {
-            log.debug("Skipping checking heartbeats because we are not the leader");
-            return;
-        }
-        try {
-            long currentTimestamp = System.currentTimeMillis();
-            for (Proxy proxy : proxyService.getAllProxies()) {
-                checkAndReleaseProxy(currentTimestamp, proxy);
-            }
-        } catch (Throwable t) {
-            log.error("Error in " + this.getClass().getSimpleName(), t);
+        long currentTimestamp = System.currentTimeMillis();
+        for (Proxy proxy : proxyService.getAllProxies()) {
+            checkAndReleaseProxy(currentTimestamp, proxy);
         }
     }
 

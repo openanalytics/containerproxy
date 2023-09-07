@@ -66,6 +66,9 @@ public class IdentifierService {
      * String identifying the realm ShinyProxy operates in.
      */
     public String realmId = null;
+
+    public Long version = null;
+
     @Inject
     private Environment environment;
 
@@ -86,6 +89,11 @@ public class IdentifierService {
         realmId = environment.getProperty("proxy.realm-id");
         if (realmId != null) {
             logger.info("ShinyProxy realmId:                     " + realmId);
+        }
+
+        version = environment.getProperty("proxy.version", Long.class);
+        if (version != null) {
+            logger.info("ShinyProxy version:                     " + version);
         }
     }
 

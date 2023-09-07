@@ -38,7 +38,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
-import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.slf4j.Logger;
@@ -55,27 +55,25 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class ProxySharingScaler {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final IContainerBackend containerBackend;
     private final IDelegateProxyStore delegateProxyStore;
-    private final ILeaderService leaderService;
     private final IProxyTestStrategy testStrategy;
     private final ISeatStore seatStore;
     private final Integer maximumSeatsAvailable;
     private final Integer minimumSeatsAvailable;
-    private final LinkedBlockingQueue<Event> channel = new LinkedBlockingQueue<>();
     private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
     private final RuntimeValueService runtimeValueService;
     private final SpecExpressionResolver expressionResolver;
-    private final Thread eventProcessor;
 
     private static String publicPathPrefix = "/api/route/";
+    private final GlobalEventLoopService globalEventLoop;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -83,56 +81,30 @@ public class ProxySharingScaler {
 
     // TODO add cleanup of proxies that never became ready
 
-    public ProxySharingScaler(ILeaderService leaderService, ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
-                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy) {
-        this.leaderService = leaderService;
+    public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
+                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop) {
         this.proxySpec = proxySpec;
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
-
-        eventProcessor = new Thread(() -> {
-            while (true) {
-                try {
-                    Event event = channel.take();
-                    if (!leaderService.isLeader()) {
-                        // not the leader -> ignore events send to this channel
-                        return;
-                    }
-
-                    if (event == Event.RECONCILE) {
-                        reconcile();
-                    }
-                    if (event == Event.CLEANUP) {
-                        cleanup();
-                    }
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception ex) {
-                    logger.error("Error while processing event for spec: " + proxySpec.getId(), ex);
-                }
-            }
-        });
+        this.globalEventLoop = globalEventLoop;
         this.seatStore = seatStore;
         this.delegateProxyStore = delegateProxyStore;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.testStrategy = testStrategy;
-        eventProcessor.start();
+        globalEventLoop.addCallback("ProxySharingScaler::cleanup", this::cleanup);
+        globalEventLoop.addCallback("ProxySharingScaler:reconcile", this::reconcile);
     }
 
-    @Scheduled(fixedDelay = 20_000)
+    @Scheduled(fixedDelay = 20, timeUnit = TimeUnit.SECONDS)
     public void scheduleCleanup() {
-        if (leaderService.isLeader()) {
-            channel.add(Event.CLEANUP);
-        }
+        globalEventLoop.schedule("ProxySharingScaler::cleanup");
     }
 
-    @Scheduled(fixedDelay = 10_000)
+    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
     public void scheduleReconcile() {
-        if (leaderService.isLeader()) {
-            channel.add(Event.RECONCILE);
-        }
+        globalEventLoop.schedule("ProxySharingScaler:reconcile");
     }
 
     @EventListener
@@ -142,7 +114,7 @@ public class ProxySharingScaler {
             return;
         }
         pendingDelegatingProxies.add(pendingProxyEvent.getProxyId());
-        channel.add(Event.RECONCILE);
+        globalEventLoop.schedule("ProxySharingScaler:reconcile");
     }
 
     @EventListener
@@ -151,7 +123,7 @@ public class ProxySharingScaler {
             // only handle events for this spec
             return;
         }
-        channel.add(Event.RECONCILE);
+        globalEventLoop.schedule("ProxySharingScaler:reconcile");
         // if the seat was claimed by a pending proxy we need to remove it from the pendingDelegatingProxies
         pendingDelegatingProxies.remove(seatClaimedEvent.getClaimingProxyId());
     }
@@ -253,7 +225,7 @@ public class ProxySharingScaler {
             } catch (Exception ex) {
                 delegateProxyStore.removeDelegateProxy(id);
                 logError(String.format("Failed to start DelegateProxy [id: %s]", id), ex);
-                channel.add(ProxySharingScaler.Event.RECONCILE); // re-trigger reconcile in-case startup failed
+                globalEventLoop.schedule("ProxySharingScaler:reconcile");
             }
         };
     }
@@ -318,11 +290,6 @@ public class ProxySharingScaler {
 
     public Long getNumPendingSeats() {
         return delegateProxyStore.getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.Pending)).count();
-    }
-
-    private enum Event {
-        RECONCILE,
-        CLEANUP
     }
 
     private void log(String message) {

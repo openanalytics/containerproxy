@@ -33,6 +33,8 @@ import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.redis.RedisCheckLatestConfigService;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -85,6 +87,14 @@ public class RedisStoreConfiguration {
     @Bean
     public RedisLeaderService leaderService() {
         return new RedisLeaderService();
+    }
+
+    @Bean
+    public RedisCheckLatestConfigService checkLatestLeaderService(IdentifierService identifierService,
+                                                                  LockRegistryLeaderInitiator lockRegistryLeaderInitiator,
+                                                                  RedisTemplate<String, Long> redisTemplate,
+                                                                  GlobalEventLoopService globalEventLoop) {
+        return new RedisCheckLatestConfigService(identifierService, lockRegistryLeaderInitiator, redisTemplate, globalEventLoop);
     }
 
     @Bean

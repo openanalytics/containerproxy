@@ -27,7 +27,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.integration.leader.Candidate;
 import org.springframework.integration.leader.Context;
-import org.springframework.integration.support.locks.LockRegistry;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;

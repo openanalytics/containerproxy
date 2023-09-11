@@ -33,23 +33,31 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.util.Sha1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.integration.leader.event.OnGrantedEvent;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -71,9 +79,11 @@ public class ProxySharingScaler {
     private final ProxySpec proxySpec;
     private final RuntimeValueService runtimeValueService;
     private final SpecExpressionResolver expressionResolver;
+    private final IdentifierService identifierService;
 
     private static String publicPathPrefix = "/api/route/";
     private final GlobalEventLoopService globalEventLoop;
+    private final String proxySpecHash;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -82,7 +92,7 @@ public class ProxySharingScaler {
     // TODO add cleanup of proxies that never became ready
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
-                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop) {
+                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop, IdentifierService identifierService) {
         this.proxySpec = proxySpec;
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
@@ -93,6 +103,8 @@ public class ProxySharingScaler {
         this.expressionResolver = expressionResolver;
         this.runtimeValueService = runtimeValueService;
         this.testStrategy = testStrategy;
+        this.identifierService = identifierService;
+        proxySpecHash = getProxySpecHash(proxySpec);
         globalEventLoop.addCallback("ProxySharingScaler::cleanup", this::cleanup);
         globalEventLoop.addCallback("ProxySharingScaler:reconcile", this::reconcile);
     }
@@ -165,7 +177,7 @@ public class ProxySharingScaler {
             Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
             proxyBuilder.id(id);
             Proxy proxy = proxyBuilder.build();
-            delegateProxyStore.addDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending));
+            delegateProxyStore.addDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending, proxySpecHash));
             executor.submit(createDelegateProxyJob(proxy));
         }
 
@@ -184,10 +196,11 @@ public class ProxySharingScaler {
                 proxyBuilder.createdTimestamp(System.currentTimeMillis());
                 // TODO add minimal set of runtimevalues
                 proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPathPrefix + id), false);
+                proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
 
                 // create container objects
                 Proxy proxy = proxyBuilder.build();
-                delegateProxyStore.addDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending));
+                delegateProxyStore.addDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending, proxySpecHash));
 
                 SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
@@ -205,7 +218,7 @@ public class ProxySharingScaler {
                 // TODO use startupLog ?
                 log(String.format("Starting DelegateProxy %s", id));
                 proxy = containerBackend.startProxy(null, proxy, resolvedSpec, new ProxyStartupLog.ProxyStartupLogBuilder());
-                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending));
+                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(), DelegateProxyStatus.Pending, proxySpecHash));
 
                 if (!testStrategy.testProxy(proxy)) {
                     logWarn(String.format("Failed to start DelegateProxy %s: Container did not respond in time", id));
@@ -219,7 +232,7 @@ public class ProxySharingScaler {
                     .build();
 
                 Seat seat = new Seat(proxy.getId());
-                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(seat.getId()), DelegateProxyStatus.Available));
+                delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(seat.getId()), DelegateProxyStatus.Available, proxySpecHash));
                 seatStore.addSeat(seat);
                 log(String.format("Started DelegateProxy %s", id));
             } catch (Exception ex) {
@@ -276,6 +289,32 @@ public class ProxySharingScaler {
                 }
             }
         }
+    }
+
+    @Async
+    @EventListener
+    public void compareConfigs(OnGrantedEvent event) {
+        // server is now the leader, check if running proxies are using the latest config
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            if (delegateProxy.getProxySpecHash().equals(proxySpecHash)) {
+                logger.info("DelegateProxy {} created by this config instance",  delegateProxy.getProxy().getId());
+            } else {
+                logger.info("DelegateProxy {} not created by this config instance, marking for removal",  delegateProxy.getProxy().getId());
+                delegateProxy = delegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.ToRemove).build();
+                delegateProxyStore.updateDelegateProxy(delegateProxy);
+            }
+        }
+    }
+
+    private String getProxySpecHash(ProxySpec proxySpec) {
+        // remove ProxySharing SpecExtension, so it's ignored in the hash
+        Map<String, ISpecExtension> specExtensions = new HashMap<>(proxySpec.getSpecExtensions());
+        specExtensions.remove(ProxySharingSpecExtension.class.getName());
+        ProxySpec canonicalSpec = proxySpec
+            .toBuilder()
+            .specExtensions(specExtensions)
+            .build();
+        return Sha1.hash(canonicalSpec);
     }
 
     private boolean allSeatsUnclaimedOfToRemoveProxy(DelegateProxy delegateProxy) {

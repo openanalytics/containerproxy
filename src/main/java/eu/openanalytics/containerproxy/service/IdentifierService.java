@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Charsets;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.util.Sha1;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -123,8 +124,6 @@ public class IdentifierService {
          * the order does not matter for the resulting hash.
          */
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-        objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-        objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
 
         File file = getPathToConfigFile();
         if (file == null) {
@@ -134,13 +133,7 @@ public class IdentifierService {
         }
 
         Object parsedConfig = objectMapper.readValue(file, Object.class);
-        String canonicalConfigFile = objectMapper.writeValueAsString(parsedConfig);
-
-        // TODO
-        MessageDigest digest = MessageDigest.getInstance("SHA-1");
-        digest.reset();
-        digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
-        instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
+        instanceId = Sha1.hash(parsedConfig);
         return instanceId;
     }
 

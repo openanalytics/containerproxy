@@ -24,17 +24,19 @@ import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.BoundValueOperations;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.annotation.Nonnull;
-import javax.annotation.PostConstruct;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -62,8 +64,8 @@ public class RedisCheckLatestConfigService {
     }
 
     @Async
-    @PostConstruct
-    public void init() {
+    @EventListener
+    public void init(ApplicationReadyEvent event) {
         Optional<Boolean> result = redisTemplate.execute(new VersionChecker("version", identifierService.version));
         if (result != null && result.isPresent()) {
             isLatest = result.get();

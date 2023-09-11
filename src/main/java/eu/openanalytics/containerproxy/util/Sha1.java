@@ -20,6 +20,16 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Charsets;
+import jnr.ffi.Runtime;
+
+import javax.json.Json;
+import java.io.File;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -30,9 +40,21 @@ public class Sha1 {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
             digest.reset();
-            digest.update(value.getBytes());
+            digest.update(value.getBytes(Charsets.UTF_8));
             return String.format("%040x", new BigInteger(1, digest.digest()));
         } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static String hash(Object value) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+            objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+            objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+            String canonicalConfig = objectMapper.writeValueAsString(value);
+            return Sha1.hash(canonicalConfig);
+        } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }
     }

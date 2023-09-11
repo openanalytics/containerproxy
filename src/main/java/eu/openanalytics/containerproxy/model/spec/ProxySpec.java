@@ -89,7 +89,7 @@ public class ProxySpec {
     SpelField.Long heartbeatTimeout = new SpelField.Long();
 
     @Builder.Default
-    Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
+    Map<String, ISpecExtension> specExtensions = new HashMap<>();
 
     public void setContainerIndex() {
         if (this.containerSpecs != null) {
@@ -102,11 +102,11 @@ public class ProxySpec {
     }
 
     public void addSpecExtension(ISpecExtension specExtension) {
-        specExtensions.put(specExtension.getClass(), specExtension);
+        specExtensions.put(specExtension.getClass().getName(), specExtension);
     }
 
     public <T> T getSpecExtension(Class<T> extensionClass) {
-        return extensionClass.cast(specExtensions.get(extensionClass));
+        return extensionClass.cast(specExtensions.get(extensionClass.getName()));
     }
 
     public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {

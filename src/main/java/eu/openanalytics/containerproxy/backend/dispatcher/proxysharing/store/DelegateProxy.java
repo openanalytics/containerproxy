@@ -22,35 +22,41 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 
 import java.util.Set;
 
+@Value
+@EqualsAndHashCode
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@JsonView(Views.Default.class)
 public class DelegateProxy {
 
-    private final Proxy proxy;
-    private final Set<String> seatIds;
-    private final DelegateProxyStatus delegateProxyStatus;
+    Proxy proxy;
+    Set<String> seatIds;
+    DelegateProxyStatus delegateProxyStatus;
+    // store hash of spec, so we can compare versions
+    String proxySpecHash;
 
     @JsonCreator
-    public DelegateProxy(@JsonProperty("proxy") Proxy proxy,
+    public static DelegateProxy createDelegateProxy(@JsonProperty("proxy") Proxy proxy,
                          @JsonProperty("seatIds") Set<String> seatIds,
-                         @JsonProperty("delegateProxyStatus") DelegateProxyStatus delegateProxyStatus) {
-        this.proxy = proxy;
-        this.seatIds = seatIds;
-        this.delegateProxyStatus = delegateProxyStatus;
-    }
+                         @JsonProperty("delegateProxyStatus") DelegateProxyStatus delegateProxyStatus,
+                         @JsonProperty("proxySpecHash") String proxySpecHash) {
 
-    public Proxy getProxy() {
-        return proxy;
-    }
-
-    public Set<String> getSeatIds() {
-        return seatIds;
-    }
-
-    public DelegateProxyStatus getDelegateProxyStatus() {
-        return delegateProxyStatus;
+        return DelegateProxy.builder()
+            .proxy(proxy)
+            .seatIds(seatIds)
+            .delegateProxyStatus(delegateProxyStatus)
+            .proxySpecHash(proxySpecHash)
+            .build();
     }
 
 }

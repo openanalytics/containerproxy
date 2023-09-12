@@ -43,6 +43,8 @@ import org.springframework.security.core.Authentication;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private ProxySharingMicrometer proxySharingMicrometer = null;
@@ -101,6 +103,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 throw new IllegalStateException("Could not claim a seat");
             }
         }
+        info(proxy, seat, "Seat claimed");
         applicationEventPublisher.publishEvent(new SeatClaimedEvent(spec.getId(), proxy.getId()));
         LocalDateTime endTime = LocalDateTime.now();
         if (proxySharingMicrometer != null) {
@@ -127,6 +130,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         String seatId = proxy.getRuntimeObjectOrNull(SeatIdRuntimeValue.inst);
         if (seatId != null) {
             seatStore.releaseSeat(seatId);
+            info(proxy, seatStore.getSeat(seatId), "Seat released");
             applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), seatId, proxy.getId()));
         }
     }
@@ -165,6 +169,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     public ProxySharingScaler getProxySharingScaler() {
         return proxySharingScaler;
+    }
+
+    private void info(Proxy proxy, Seat seat, String message) {
+        logger.info("[{} {} {} {} {}] " + message, kv("user", proxy.getUserId()), kv("proxyId", proxy.getId()), kv("specId", proxy.getSpecId()), kv("delegateProxyId", seat.getDelegateProxyId()), kv("seatId", seat.getId()));
     }
 
 }

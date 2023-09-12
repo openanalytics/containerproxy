@@ -97,4 +97,14 @@ public class MemorySeatStore implements ISeatStore {
         return (long) (seats.size() - unClaimSeatIds.size());
     }
 
+    @Override
+    public boolean isSeatClaimable(String seatId) {
+        return unClaimSeatIds.contains(seatId);
+    }
+
+    @Override
+    public void removeSeatInfo(String seatId) {
+        seats.remove(seatId);
+    }
+
 }

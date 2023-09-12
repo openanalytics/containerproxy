@@ -31,7 +31,6 @@ import org.springframework.data.redis.core.BoundValueOperations;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -52,6 +51,7 @@ public class RedisCheckLatestConfigService {
     private final IdentifierService identifierService;
     private final GlobalEventLoopService globalEventLoop;
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final String versionKey;
     private boolean isLatest = false;
 
     public RedisCheckLatestConfigService(IdentifierService identifierService, LockRegistryLeaderInitiator lockRegistryLeaderInitiator, RedisTemplate<String, Long> redisTemplate, GlobalEventLoopService globalEventLoop) {
@@ -61,12 +61,13 @@ public class RedisCheckLatestConfigService {
         this.globalEventLoop = globalEventLoop;
         lockRegistryLeaderInitiator.setAutoStartup(false);
         globalEventLoop.addCallback("CheckLatestLeaderService::check", this::check);
+        versionKey = "shinyproxy_" + identifierService.realmId + "__version";
     }
 
     @Async
     @EventListener
     public void init(ApplicationReadyEvent event) {
-        Optional<Boolean> result = redisTemplate.execute(new VersionChecker("version", identifierService.version));
+        Optional<Boolean> result = redisTemplate.execute(new VersionChecker(versionKey, identifierService.version));
         if (result != null && result.isPresent()) {
             isLatest = result.get();
             if (isLatest) {

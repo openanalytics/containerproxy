@@ -293,7 +293,7 @@ public class ProxyService {
             try {
                 proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(stoppedProxy);
             } catch (Throwable t) {
-                log.error(stoppedProxy, t, "Failed to remove proxy");
+                log.error(stoppedProxy, t, "Failed to stop proxy");
             }
             try {
                 proxyStore.removeProxy(stoppedProxy);

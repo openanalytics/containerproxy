@@ -106,6 +106,11 @@ public class RedisSeatStore implements ISeatStore {
     }
 
     @Override
+    public void removeSeatInfo(String seatId) {
+        seatsOperations.delete(seatId);
+    }
+
+    @Override
     public Long getNumUnclaimedSeats() {
         return unClaimedSeatsIdsOperations.size();
     }
@@ -113,6 +118,11 @@ public class RedisSeatStore implements ISeatStore {
     @Override
     public Long getNumClaimedSeats() {
         return (long) seatsOperations.size() - unClaimedSeatsIdsOperations.size();
+    }
+
+    @Override
+    public boolean isSeatClaimable(String seatId) {
+        return unClaimedSeatsIdsOperations.isMember(seatId);
     }
 
     public static class SeatClaimedDuringRemovalException extends RuntimeException {
@@ -153,7 +163,6 @@ public class RedisSeatStore implements ISeatStore {
                 }
 
                 if (response.containsValue(false)) {
-                    logger.debug("Not all seats are unclaimed, not removing seats.");
                     // seats are claimed -> don't try again
                     return false;
                 }
@@ -162,7 +171,6 @@ public class RedisSeatStore implements ISeatStore {
                 ops.remove(seatIds);
                 var res = operations.exec();
                 if (!res.isEmpty() && (Long) res.get(0) == seatIds.length) {
-                    logger.debug("Seats removed successfully");
                     // seats were removed successfully
                     return true;
                 }
@@ -172,7 +180,6 @@ public class RedisSeatStore implements ISeatStore {
                     return false;
                 }
                 if (numUnclaimedSeats2 < numUnclaimedSeats) {
-                    logger.debug("Seats was claimed in meantime");
                     // a seat was claimed in the mean-time, stop removing seats
                     throw new SeatClaimedDuringRemovalException();
                 }

@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisCheckLatestConfigService;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
@@ -93,8 +94,9 @@ public class RedisStoreConfiguration {
     public RedisCheckLatestConfigService checkLatestLeaderService(IdentifierService identifierService,
                                                                   LockRegistryLeaderInitiator lockRegistryLeaderInitiator,
                                                                   RedisTemplate<String, Long> redisTemplate,
-                                                                  GlobalEventLoopService globalEventLoop) {
-        return new RedisCheckLatestConfigService(identifierService, lockRegistryLeaderInitiator, redisTemplate, globalEventLoop);
+                                                                  GlobalEventLoopService globalEventLoop,
+                                                                  ILeaderService leaderService) {
+        return new RedisCheckLatestConfigService(identifierService, lockRegistryLeaderInitiator, redisTemplate, globalEventLoop, leaderService);
     }
 
     @Bean

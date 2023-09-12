@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -55,6 +56,7 @@ public class ProxyDispatcherService {
     private final ConfigurableListableBeanFactory beanFactory;
     private final GlobalEventLoopService globalEventLoop;
     private final IdentifierService identifierService;
+    private final ILeaderService leaderService;
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IContainerBackend containerBackend,
@@ -65,7 +67,8 @@ public class ProxyDispatcherService {
                                   ApplicationEventPublisher applicationEventPublisher,
                                   ConfigurableListableBeanFactory beanFactory,
                                   GlobalEventLoopService globalEventLoop,
-                                  IdentifierService identifierService) {
+                                  IdentifierService identifierService,
+                                  ILeaderService leaderService) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
@@ -76,6 +79,7 @@ public class ProxyDispatcherService {
         this.beanFactory = beanFactory;
         this.globalEventLoop = globalEventLoop;
         this.identifierService = identifierService;
+        this.leaderService = leaderService;
     }
 
     @PostConstruct
@@ -95,7 +99,8 @@ public class ProxyDispatcherService {
                     runtimeValueService,
                     proxyTestStrategy,
                     globalEventLoop,
-                    identifierService);
+                    identifierService,
+                    leaderService);
 
                 proxySharingScaler = (ProxySharingScaler) beanFactory.initializeBean(proxySharingScaler,"proxySharingScaler_" + proxySpec.getId());
                 beanFactory.registerSingleton("proxySharingScaler_" + proxySpec.getId(), proxySharingScaler);

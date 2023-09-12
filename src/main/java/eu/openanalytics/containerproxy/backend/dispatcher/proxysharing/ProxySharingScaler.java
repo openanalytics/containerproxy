@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.Sha1;
@@ -87,6 +88,7 @@ public class ProxySharingScaler {
     private static String publicPathPrefix = "/api/route/";
     private final GlobalEventLoopService globalEventLoop;
     private final String proxySpecHash;
+    private final ILeaderService leaderService;
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
@@ -96,7 +98,7 @@ public class ProxySharingScaler {
     // TODO add cleanup of proxies that never became ready
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
-                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop, IdentifierService identifierService) {
+                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService) {
         this.proxySpec = proxySpec;
         this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
         this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
@@ -108,6 +110,7 @@ public class ProxySharingScaler {
         this.runtimeValueService = runtimeValueService;
         this.testStrategy = testStrategy;
         this.identifierService = identifierService;
+        this.leaderService = leaderService;
         proxySpecHash = getProxySpecHash(proxySpec);
         globalEventLoop.addCallback("ProxySharingScaler::cleanup", this::cleanup);
         globalEventLoop.addCallback("ProxySharingScaler:reconcile", this::reconcile);
@@ -125,7 +128,7 @@ public class ProxySharingScaler {
 
     @EventListener
     public void onPendingProxyEvent(PendingProxyEvent pendingProxyEvent) {
-        if (!Objects.equals(pendingProxyEvent.getSpecId(), proxySpec.getId())) {
+        if (!Objects.equals(pendingProxyEvent.getSpecId(), proxySpec.getId()) || !leaderService.isLeader()) {
             // only handle events for this spec
             return;
         }
@@ -135,7 +138,7 @@ public class ProxySharingScaler {
 
     @EventListener
     public void onSeatClaimedEvent(SeatClaimedEvent seatClaimedEvent) {
-        if (!Objects.equals(seatClaimedEvent.getSpecId(), proxySpec.getId())) {
+        if (!Objects.equals(seatClaimedEvent.getSpecId(), proxySpec.getId()) || !leaderService.isLeader()) {
             // only handle events for this spec
             return;
         }
@@ -146,7 +149,7 @@ public class ProxySharingScaler {
 
     @EventListener
     public void onSeatReleasedEvent(SeatReleasedEvent seatReleasedEvent) {
-        if (!Objects.equals(seatReleasedEvent.getSpecId(), proxySpec.getId())) {
+        if (!Objects.equals(seatReleasedEvent.getSpecId(), proxySpec.getId()) || !leaderService.isLeader()) {
             // only handle events for this spec
             return;
         }

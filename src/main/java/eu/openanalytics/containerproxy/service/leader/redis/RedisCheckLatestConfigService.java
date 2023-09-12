@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.service.leader.redis;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -50,17 +51,19 @@ public class RedisCheckLatestConfigService {
     private final RedisTemplate<String, Long> redisTemplate;
     private final IdentifierService identifierService;
     private final GlobalEventLoopService globalEventLoop;
+    private final ILeaderService leaderService;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final String versionKey;
     private boolean isLatest = false;
 
-    public RedisCheckLatestConfigService(IdentifierService identifierService, LockRegistryLeaderInitiator lockRegistryLeaderInitiator, RedisTemplate<String, Long> redisTemplate, GlobalEventLoopService globalEventLoop) {
+    public RedisCheckLatestConfigService(IdentifierService identifierService, LockRegistryLeaderInitiator lockRegistryLeaderInitiator, RedisTemplate<String, Long> redisTemplate, GlobalEventLoopService globalEventLoop, ILeaderService leaderService) {
         this.lockRegistryLeaderInitiator = lockRegistryLeaderInitiator;
         this.redisTemplate = redisTemplate;
         this.identifierService = identifierService;
         this.globalEventLoop = globalEventLoop;
+        this.leaderService = leaderService;
         lockRegistryLeaderInitiator.setAutoStartup(false);
-        globalEventLoop.addCallback("CheckLatestLeaderService::check", this::check);
+        globalEventLoop.addCallback("CheckLatestLeaderService::check", this::check, false);
         versionKey = "shinyproxy_" + identifierService.realmId + "__version";
     }
 
@@ -86,10 +89,10 @@ public class RedisCheckLatestConfigService {
         globalEventLoop.schedule("CheckLatestLeaderService::check");
     }
 
-    private void check() {
+    public boolean check() {
         if (!isLatest) {
             // this server is not the latest, no need to check
-            return;
+            return false;
         }
         Optional<Boolean> result = redisTemplate.execute(new VersionChecker(versionKey, identifierService.version));
         if (result != null && result.isPresent()) {
@@ -97,8 +100,29 @@ public class RedisCheckLatestConfigService {
             if (!isLatest) {
                 // no longer the latest
                 logger.info("This server is no longer running the latest configuration (instanceId: {}, version: {}), no longer taking part in leader election.", identifierService.instanceId, identifierService.version);
-                lockRegistryLeaderInitiator.destroy();
+                stopLeaderShipElection();
             }
+        }
+        return isLatest;
+    }
+
+    private void stopLeaderShipElection() {
+        if (leaderService.isLeader()) {
+            // we are still the leader,
+            // release leadership after 25 seconds, such that other replicas can catch up.
+            // every replica checks every 20 seconds whether it's still running the latest config
+            // by waiting 25 seconds before releasing the leadership, we are sure other replicas have noticed
+            // they are not running the latest config. Otherwise other replicas could immediately take over the leadership.
+            Thread thread = new Thread(() -> {
+                try {
+                    Thread.sleep(25_000);
+                } catch (InterruptedException ignored) {
+                }
+                lockRegistryLeaderInitiator.destroy();
+            });
+            thread.start();
+        } else {
+            lockRegistryLeaderInitiator.destroy();
         }
     }
 

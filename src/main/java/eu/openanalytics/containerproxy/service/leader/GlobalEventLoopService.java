@@ -38,7 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class GlobalEventLoopService {
 
     private final LinkedBlockingQueue<String> channel = new LinkedBlockingQueue<>();
-    private final Map<String, Runnable> callbacks = new ConcurrentHashMap<>();
+    private final Map<String, Callback> callbacks = new ConcurrentHashMap<String, Callback>();
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     public GlobalEventLoopService(ILeaderService leaderService) {
@@ -47,19 +47,20 @@ public class GlobalEventLoopService {
                 try {
                     String event = channel.take();
                     try {
-                        if (!leaderService.isLeader()) {
-                            // not the leader -> ignore events send to this channel
-                            continue;
-                        }
-
                         logger.debug("Processing event: {}", event);
 
-                        Runnable callback = callbacks.get(event);
+                        Callback callback = callbacks.get(event);
                         if (callback == null) {
                             logger.warn("No callback found for event: {}", event);
                             continue;
                         }
-                        callback.run();
+
+                        if (callback.onlyIfLeader && !leaderService.isLeader()) {
+                            // not the leader -> ignore events send to this channel
+                            continue;
+                        }
+
+                        callback.callback.run();
                     } catch (Exception ex) {
                         logger.error("Error while processing event in the GlobalEventLoop {}: ", event, ex);
                     }
@@ -72,12 +73,20 @@ public class GlobalEventLoopService {
         eventProcessor.start();
     }
 
+    public void addCallback(String type, Runnable callback, boolean onlyIfLeader) {
+        callbacks.put(type, new Callback(type, callback, onlyIfLeader));
+    }
+
     public void addCallback(String type, Runnable callback) {
-        callbacks.put(type, callback);
+        callbacks.put(type, new Callback(type, callback, true));
     }
 
     public void schedule(String type) {
         channel.add(type);
+    }
+
+    private record Callback(String type, Runnable callback, boolean onlyIfLeader) {
+
     }
 
 }

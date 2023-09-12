@@ -358,7 +358,7 @@ public class ProxySharingScaler {
             debug("Stopping cleanup because a seat was claimed");
         }
         if (!delegateProxiesToRemove.isEmpty()) {
-            log(String.format("Cleaning %s DelegateProxies", delegateProxiesToRemove.size()));
+            log(String.format("Removing %s DelegateProxies that are using outdated spec", delegateProxiesToRemove.size()));
             // only now remove the proxies (this takes the most time)
             removeDelegateProxies(delegateProxiesToRemove);
         }

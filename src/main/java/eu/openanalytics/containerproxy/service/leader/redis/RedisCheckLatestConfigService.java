@@ -91,7 +91,7 @@ public class RedisCheckLatestConfigService {
             // this server is not the latest, no need to check
             return;
         }
-        Optional<Boolean> result = redisTemplate.execute(new VersionChecker("version", identifierService.version));
+        Optional<Boolean> result = redisTemplate.execute(new VersionChecker(versionKey, identifierService.version));
         if (result != null && result.isPresent()) {
             isLatest = result.get();
             if (!isLatest) {

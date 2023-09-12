@@ -33,7 +33,9 @@ public interface ISeatStore {
 
     public Optional<Seat> claimSeat(String claimingProxyId);
 
-    void releaseSeat(String seatId, boolean reclaimable);
+    void releaseSeat(String seatId);
+
+    void addToUnclaimedSeats(String seatId);
 
     boolean removeSeatsIfUnclaimed(Set<String> seatIds);
 

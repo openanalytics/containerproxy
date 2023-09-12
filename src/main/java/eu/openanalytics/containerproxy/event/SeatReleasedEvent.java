@@ -40,9 +40,12 @@ public class SeatReleasedEvent extends BridgeableEvent {
 
     String claimingProxyId;
 
-    public SeatReleasedEvent(String specId, String claimingProxyId) {
+    String seatId;
+
+    public SeatReleasedEvent(String specId, String seatId, String claimingProxyId) {
         source = "SOURCE_NOT_AVAILABLE";
         this.specId = specId;
+        this.seatId = seatId;
         this.claimingProxyId = claimingProxyId;
     }
 

@@ -82,16 +82,18 @@ public class RedisSeatStore implements ISeatStore {
     }
 
     @Override
-    public void releaseSeat(String seatId, boolean reclaimable) {
+    public void releaseSeat(String seatId) {
         Seat seat = seatsOperations.get(seatId);
         if (seat == null) {
             throw new IllegalArgumentException(String.format("Cannot release seat with id %s: seat not found in SeatStore", seatId));
         }
         seat.release();
         seatsOperations.put(seatId, seat);
-        if (reclaimable) {
-            unClaimedSeatsIdsOperations.add(seatId);
-        }
+    }
+
+    @Override
+    public void addToUnclaimedSeats(String seatId) {
+        unClaimedSeatsIdsOperations.add(seatId);
     }
 
     @Override
@@ -154,11 +156,6 @@ public class RedisSeatStore implements ISeatStore {
                     logger.debug("Not all seats are unclaimed, not removing seats.");
                     // seats are claimed -> don't try again
                     return false;
-                }
-                try {
-                    Thread.sleep(10_000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
                 }
                 // seats are unclaimed, try to remove
                 operations.multi();

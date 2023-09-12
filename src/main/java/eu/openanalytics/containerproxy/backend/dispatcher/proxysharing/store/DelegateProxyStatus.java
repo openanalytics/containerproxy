@@ -25,6 +25,6 @@ public enum DelegateProxyStatus {
 
     Pending,
     Available,
-    ToRemove;
+    ToRemove
 
 }

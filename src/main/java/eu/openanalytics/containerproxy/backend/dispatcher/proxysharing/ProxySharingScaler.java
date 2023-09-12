@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
@@ -84,6 +85,7 @@ public class ProxySharingScaler {
     private static String publicPathPrefix = "/api/route/";
     private final GlobalEventLoopService globalEventLoop;
     private final String proxySpecHash;
+    private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -146,23 +148,54 @@ public class ProxySharingScaler {
             // only handle events for this spec
             return;
         }
+
         // remove the claimingProxyId from pending in case the proxy stopped (or failed) while starting up
         pendingDelegatingProxies.remove(seatReleasedEvent.getClaimingProxyId());
+
+        String seatId = seatReleasedEvent.getSeatId();
+        if (seatId == null) {
+            return;
+        }
+        Seat seat = seatStore.getSeat(seatId);
+        if (seat == null) {
+            logger.warn("ProxySharing: Seat {} not found during processing of SeatReleasedEvent", seatId);
+            return;
+        }
+        DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId());
+        if (delegateProxy == null) {
+            logger.warn("ProxySharing: DelegateProxy {} not found during processing of SeatReleasedEvent", seat.getDelegateProxyId());
+            return;
+        }
+        if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
+            seatStore.addToUnclaimedSeats(seatId);
+        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
+            if (!pendingDelegatingProxies.isEmpty()) {
+                logger.info("Re-adding seat {} to unclaimed seath although it's marked for removal because there are pending delegating proxies", seatId);
+                seatStore.addToUnclaimedSeats(seatId);
+            }
+        }
     }
 
     private void reconcile() {
         long numPendingSeats = getNumPendingSeats();
-        long num = seatStore.getNumUnclaimedSeats() + numPendingSeats - pendingDelegatingProxies.size();
-        logger.debug(String.format("ProxySharing: [spec: %s] : Unclaimed: %s + pendingDelegate: %s - pendingDelegating: %s == %s -> minimum: %s",
-            proxySpec.getId(), seatStore.getNumUnclaimedSeats(), numPendingSeats, pendingDelegatingProxies.size(), num, minimumSeatsAvailable));
+        long numToRemove = getNumUnclaimedToRemove();
+        long num = seatStore.getNumUnclaimedSeats() + numPendingSeats - pendingDelegatingProxies.size() - numToRemove;
+        logger.debug(String.format("ProxySharing: [spec: %s] Status: %s, Unclaimed: %s + PendingDelegate: %s - PendingDelegating: %s - UnclaimedToRemove: %s = %s -> minimum: %s",
+            proxySpec.getId(), lastReconcileStatus, seatStore.getNumUnclaimedSeats(), numPendingSeats,
+            pendingDelegatingProxies.size(), numToRemove, num, minimumSeatsAvailable));
         if (num < minimumSeatsAvailable) {
+            lastReconcileStatus = ReconcileStatus.ScaleUp;
             long numToScaleUp = minimumSeatsAvailable - num;
             scaleUp(numToScaleUp);
+        } else if (numPendingSeats > 0) {
+            // still scaling up
+            lastReconcileStatus = ReconcileStatus.ScaleUp;
         } else if (num > maximumSeatsAvailable) {
+            lastReconcileStatus = ReconcileStatus.ScaleDown;
             long numToScaleDown = num - maximumSeatsAvailable;
-            log(String.format("Scale down required, trying to remove %s DelegateProxies", numToScaleDown));
             scaleDown(numToScaleDown);
         } else {
+            lastReconcileStatus = ReconcileStatus.Stable;
             log("No scaling required");
         }
     }
@@ -188,7 +221,7 @@ public class ProxySharingScaler {
         return () -> {
             try {
                 Proxy.ProxyBuilder proxyBuilder = originalProxy.toBuilder();
-                log(String.format("Creating DelegateProxy %s", id));
+                log(String.format("Preparing DelegateProxy %s", id));
 
                 proxyBuilder.targetId(id);
                 proxyBuilder.status(ProxyStatus.New);
@@ -222,7 +255,15 @@ public class ProxySharingScaler {
 
                 if (!testStrategy.testProxy(proxy)) {
                     logWarn(String.format("Failed to start DelegateProxy %s: Container did not respond in time", id));
+                    try {
+                        containerBackend.stopProxy(proxy);
+                    } catch (Throwable t) {
+                        // log error, but ignore it otherwise
+                        // most important is that we remove the proxy from memory
+                        logger.warn("Error while stopping failed proxy"); // TODO fix logging
+                    }
                     delegateProxyStore.removeDelegateProxy(id);
+                    globalEventLoop.schedule("ProxySharingScaler:reconcile");
                     return;
                 }
 
@@ -235,20 +276,32 @@ public class ProxySharingScaler {
                 delegateProxyStore.updateDelegateProxy(new DelegateProxy(proxy, Set.of(seat.getId()), DelegateProxyStatus.Available, proxySpecHash));
                 seatStore.addSeat(seat);
                 log(String.format("Started DelegateProxy %s", id));
-            } catch (Exception ex) {
+            } catch (ProxyFailedToStartException t) {
+                logError(String.format("Failed to start DelegateProxy [id: %s]", id), t);
+                try {
+                    containerBackend.stopProxy(t.getProxy());
+                } catch (Throwable t2) {
+                    // log error, but ignore it otherwise
+                    // most important is that we remove the proxy from memory
+                    logger.warn("Error while stopping failed proxy"); // TODO fix logging
+                }
                 delegateProxyStore.removeDelegateProxy(id);
-                logError(String.format("Failed to start DelegateProxy [id: %s]", id), ex);
+                globalEventLoop.schedule("ProxySharingScaler:reconcile");
+            } catch (Throwable t) {
+                logError(String.format("Failed to start DelegateProxy [id: %s]", id), t);
+                delegateProxyStore.removeDelegateProxy(id);
                 globalEventLoop.schedule("ProxySharingScaler:reconcile");
             }
         };
     }
 
     private void scaleDown(long numToScaleDown) {
+        log(String.format("Scale down required, trying to remove %s DelegateProxies", numToScaleDown));
         List<DelegateProxy> delegateProxiesToRemove = new ArrayList<>();
         // first find proxies of which all seats are unclaimed and already remove these from the unclaimed store
         try {
             for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
-                if (delegateProxy.getProxy().getStatus() == ProxyStatus.Up && seatStore.removeSeatsIfUnclaimed(delegateProxy.getSeatIds())) {
+                if (delegateProxy.getDelegateProxyStatus() == DelegateProxyStatus.Available && seatStore.removeSeatsIfUnclaimed(delegateProxy.getSeatIds())) {
                     delegateProxiesToRemove.add(delegateProxy);
                     if (delegateProxiesToRemove.size() == numToScaleDown) {
                         break;
@@ -266,7 +319,7 @@ public class ProxySharingScaler {
         // only now remove the proxies (this takes the most time)
         for (DelegateProxy delegateProxy : delegateProxiesToRemove) {
             try {
-                containerBackend.stopProxy(delegateProxy.getProxy());
+                containerBackend.stopProxy(delegateProxy.getProxy()); // TODO exception in two steps
                 delegateProxyStore.removeDelegateProxy(delegateProxy.getProxy().getId());
             } catch (Exception ex) {
                 logger.warn("Exception while removing DelegateProxy", ex);
@@ -275,18 +328,33 @@ public class ProxySharingScaler {
     }
 
     private void cleanup() {
+        if (!lastReconcileStatus.equals(ReconcileStatus.Stable) && !lastReconcileStatus.equals(ReconcileStatus.ScaleDown)) {
+            return;
+        }
         // remove proxies that are scheduled to remove and are fully unclaimed
         Collection<DelegateProxy> allDelegateProxies = delegateProxyStore.getAllDelegateProxies();
-        for (DelegateProxy delegateProxy : allDelegateProxies) {
-            if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
-                if (allSeatsUnclaimedOfToRemoveProxy(delegateProxy)) {
-                    logger.info("Removing DelegateProxy {} marked for removal", delegateProxy.getProxy().getId());
-                    seatStore.removeSeatsIfUnclaimed(delegateProxy.getSeatIds());
-                    containerBackend.stopProxy(delegateProxy.getProxy());
-                    delegateProxyStore.removeDelegateProxy(delegateProxy.getProxy().getId());
-                } else {
-                    logger.debug("DelegateProxy {} marked for removal but still has claimed seats", delegateProxy.getProxy().getId());
+        List<DelegateProxy> delegateProxiesToRemove = new ArrayList<>();
+        try {
+            for (DelegateProxy delegateProxy : allDelegateProxies) {
+                if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
+                    if (delegateProxy.getSeatIds().isEmpty() || seatStore.removeSeatsIfUnclaimed(delegateProxy.getSeatIds())) {
+                        delegateProxiesToRemove.add(delegateProxy);
+                    } else {
+                        logger.debug("DelegateProxy {} marked for removal but still has claimed seats", delegateProxy.getProxy().getId());
+                    }
                 }
+            }
+        } catch (RedisSeatStore.SeatClaimedDuringRemovalException ex) {
+            logger.info("Stopping cleanup because a seat was claimed");
+        }
+        log(String.format("Cleaning %s DelegateProxies", delegateProxiesToRemove.size()));
+        // only now remove the proxies (this takes the most time)
+        for (DelegateProxy delegateProxy : delegateProxiesToRemove) {
+            try {
+                containerBackend.stopProxy(delegateProxy.getProxy()); // TODO exception in two steps
+                delegateProxyStore.removeDelegateProxy(delegateProxy.getProxy().getId());
+            } catch (Exception ex) {
+                logger.warn("Exception while removing DelegateProxy", ex);
             }
         }
     }
@@ -331,6 +399,10 @@ public class ProxySharingScaler {
         return delegateProxyStore.getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.Pending)).count();
     }
 
+    public Long getNumUnclaimedToRemove() {
+        return delegateProxyStore.getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove) && allSeatsUnclaimedOfToRemoveProxy(it)).count();
+    }
+
     private void log(String message) {
         logger.info(String.format("ProxySharing: [spec: %s] %s", proxySpec.getId(), message));
     }
@@ -341,6 +413,12 @@ public class ProxySharingScaler {
 
     private void logError(String message, Throwable t) {
         logger.error(String.format("ProxySharing: [spec: %s] %s", proxySpec.getId(), message), t);
+    }
+
+    private enum ReconcileStatus {
+        Stable,
+        ScaleUp,
+        ScaleDown
     }
 
 }

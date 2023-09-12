@@ -64,15 +64,17 @@ public class MemorySeatStore implements ISeatStore {
     }
 
     @Override
-    public synchronized void releaseSeat(String seatId, boolean reclaimable) {
+    public synchronized void releaseSeat(String seatId) {
         Seat seat = seats.get(seatId);
         if (seat == null) {
             throw new IllegalArgumentException(String.format("Cannot release seat with id %s: seat not found in SeatStore", seatId));
         }
         seat.release();
-        if (reclaimable) {
-            unClaimSeatIds.add(seatId);
-        }
+    }
+
+    @Override
+    public void addToUnclaimedSeats(String seatId) {
+        unClaimSeatIds.add(seatId);
     }
 
     @Override

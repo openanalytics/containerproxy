@@ -24,7 +24,6 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
@@ -127,20 +126,9 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
         String seatId = proxy.getRuntimeObjectOrNull(SeatIdRuntimeValue.inst);
         if (seatId != null) {
-            Seat seat = seatStore.getSeat(seatId);
-            DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId());
-            if (delegateProxy == null) {
-                logger.warn("ProxySharing: DelegateProxy {} not found during stop of DelegatingProx: {}", seat.getDelegateProxyId(), proxy.getId());
-            } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
-                seatStore.releaseSeat(seatId, true);
-            } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
-                seatStore.releaseSeat(seatId, false);
-            } else {
-                logger.warn("ProxySharing: DelegateProxy {} has unexpected state during stop of DelegatingProxy: {}", seat.getDelegateProxyId(), proxy.getId());
-                seatStore.releaseSeat(seatId, false);
-            }
+            seatStore.releaseSeat(seatId);
+            applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), seatId, proxy.getId()));
         }
-        applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), proxy.getId()));
     }
 
     @Override

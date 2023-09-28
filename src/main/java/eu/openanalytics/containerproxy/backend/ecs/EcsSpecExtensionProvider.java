@@ -18,34 +18,15 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
+package eu.openanalytics.containerproxy.backend.ecs;
 
-public class RealmIdKey extends RuntimeValueKey<String> {
+import eu.openanalytics.containerproxy.spec.impl.AbstractSpecExtensionProvider;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
-    private RealmIdKey() {
-        super("openanalytics.eu/sp-realm-id",
-                "SHINYPROXY_REALM_ID",
-                "openanalytics.eu/sp-realm-id",
-                false,
-                true,
-                true,
-                true,
-                false, // no need to expose in API
-                false,
-                false,
-                String.class);
-    }
+@Configuration
+@ConfigurationProperties(prefix = "proxy.ecs")
+public class EcsSpecExtensionProvider extends AbstractSpecExtensionProvider<EcsSpecExtension> {
 
-    public static RealmIdKey inst = new RealmIdKey();
-
-    @Override
-    public String deserializeFromString(String value) {
-        return value;
-    }
-
-    @Override
-    public String serializeToString(String value) {
-        return value;
-    }
 
 }

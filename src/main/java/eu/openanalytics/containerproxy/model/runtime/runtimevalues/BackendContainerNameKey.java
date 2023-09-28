@@ -25,6 +25,8 @@ public class BackendContainerNameKey extends RuntimeValueKey<String> {
     private BackendContainerNameKey() {
         super("openanalytics.eu/sp-backend-container-name",
                 "SHINYPROXY_BACKEND_CONTAINER_NAME",
+                "openanalytics.eu/sp-backend-container-name",
+                false,
                 false,
                 false,
                 false,

@@ -21,27 +21,53 @@
 
 package eu.openanalytics.containerproxy.backend.ecs;
 
-import java.net.URI;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
-import eu.openanalytics.containerproxy.model.runtime.*;
 import eu.openanalytics.containerproxy.model.runtime.Container;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.*;
+import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
+import eu.openanalytics.containerproxy.model.runtime.PortMappings;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
-import software.amazon.awssdk.services.ecs.model.*;
+import software.amazon.awssdk.services.ecs.model.Attachment;
+import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
+import software.amazon.awssdk.services.ecs.model.Deployment;
+import software.amazon.awssdk.services.ecs.model.DeploymentRolloutState;
+import software.amazon.awssdk.services.ecs.model.DescribeServicesResponse;
+import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
+import software.amazon.awssdk.services.ecs.model.KeyValuePair;
+import software.amazon.awssdk.services.ecs.model.LaunchType;
+import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
+import software.amazon.awssdk.services.ecs.model.NetworkBinding;
+import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
+import software.amazon.awssdk.services.ecs.model.PropagateTags;
+import software.amazon.awssdk.services.ecs.model.Tag;
+import software.amazon.awssdk.services.ecs.model.Task;
+
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class EcsBackend extends AbstractContainerBackend {
 
@@ -95,9 +121,7 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     @Override
-    public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
-        // TODO Auto-generated method stub
-
+    public List<ExistingContainerInfo> scanExistingContainers() {
         ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
         ListTasksResponse ecsTasks = ecsClient.listTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)));
@@ -151,7 +175,6 @@ public class EcsBackend extends AbstractContainerBackend {
 
     @Override
     protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
-        // TODO Auto-generated method stub
         // Needs to know when a service, task definition for the container spec already
         // exists and modifies that.
 
@@ -182,11 +205,8 @@ public class EcsBackend extends AbstractContainerBackend {
         while (securityGroup != null) {
             securityGroups.add(securityGroup);
             index++;
-            securityGroup = environment.getProperty(String.format("proxy.ecs.security-groups[%d]", index));
+            securityGroup = environment.getProperty(String.format("proxy.ecs.security-groups[%d]", index)); // TODO + spec extension
         }
-
-//        log.info(Arrays.toString(securityGroups.toArray()));
-//        log.info(Arrays.toString(subnets.toArray()));
 
         List<Tag> tags = new ArrayList<>();
 
@@ -215,7 +235,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .tags(tags));
 
 
-        int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "120000"));
+        int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "180000")); // TODO
         boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
             DescribeServicesResponse response = ecsClient.describeServices(builder -> builder
                     .cluster(getProperty(PROPERTY_CLUSTER))
@@ -238,6 +258,7 @@ public class EcsBackend extends AbstractContainerBackend {
         rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
         rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
 
+        // TODO move to above
         if (!serviceReady) {
             throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
         }
@@ -274,6 +295,7 @@ public class EcsBackend extends AbstractContainerBackend {
                         .cluster(getProperty(PROPERTY_CLUSTER))
                         .services("sp-service-" + container.getId() + "-" + proxy.getId()));
 
+                // TODO check if container was never created
                 if (!response.services().get(0).status().equals("INACTIVE")) {
                     if (currentAttempt > 10) {
                         slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
@@ -303,18 +325,19 @@ public class EcsBackend extends AbstractContainerBackend {
 
         Attachment attachment = task.attachments().get(0);
         for (KeyValuePair detail : attachment.details()) {
-            if (detail.name().equals("privateDnsName")) {
+            if (detail.name().equals("privateIPv4Address")) {
                 targetHostName = detail.value();
                 break;
             }
-        };
-        if (Objects.equals(targetHostName, "")) {
-            throw new ContainerFailedToStartException("Could not find privateDnsName in attachment", null, container);
+            if (detail.name().equals("privateIPv6Address")) {
+                targetHostName = detail.value();
+                break;
+            }
         }
-//            targetHostName = task.attachments().get(0).;
+        if (Objects.equals(targetHostName, "")) {
+            throw new ContainerFailedToStartException("Could not find ip in attachment", null, container);
+        }
         targetPort = portMapping.getPort();
-
-        log.info(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
 
         return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
     }
@@ -328,7 +351,6 @@ public class EcsBackend extends AbstractContainerBackend {
         if (taskId == null) {
             return Optional.empty();
         }
-//        String[] tmp = taskId.split("/");
         return Optional.of(taskId);
     }
 
@@ -340,7 +362,6 @@ public class EcsBackend extends AbstractContainerBackend {
         ).tasks();
 
         return Optional.ofNullable(tasks.get(0));
-
     }
 
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,16 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import javax.inject.Inject;
-import javax.servlet.ServletException;
-
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.keycloak.AuthenticationFaillureHandler;
 import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.KeycloakConfigResolver;
@@ -57,14 +48,16 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.RegisterSessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -74,7 +67,15 @@ import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import javax.inject.Inject;
+import javax.servlet.ServletException;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
@@ -85,14 +86,15 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	Environment environment;
 
 	@Inject
-	WebSecurityConfigurerAdapter webSecurityConfigurerAdapter;
-	
-	@Inject
 	ApplicationContext ctx;
 
 	@Inject
 	@Lazy
 	AuthenticationManager authenticationManager;
+
+	@Inject
+	@Lazy
+	private SavedRequestAwareAuthenticationSuccessHandler successHandler;
 
 	@Override
 	public String getName() {
@@ -137,13 +139,14 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		// If in the future we need a RequestMatcher for het ACCESS_TOKEN, we can implement one ourself
 		RequestMatcher requestMatcher =
 				new OrRequestMatcher(
-	                    new AntPathRequestMatcher(KeycloakAuthenticationProcessingFilter.DEFAULT_LOGIN_URL),
-	                    new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
+	                    new AntPathRequestMatcher("/sso/login"),
+						new RequestHeaderRequestMatcher(KeycloakAuthenticationProcessingFilter.AUTHORIZATION_HEADER)
 	            );
 
 		KeycloakAuthenticationProcessingFilter filter = new KeycloakAuthenticationProcessingFilter(authenticationManager, requestMatcher);
 		filter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 		filter.setAuthenticationFailureHandler(keycloakAuthenticationFailureHandler());
+		filter.setAuthenticationSuccessHandler(successHandler);
 		// Fix: call afterPropertiesSet manually, because Spring doesn't invoke it for some reason.
 		filter.setApplicationContext(ctx);
 		filter.afterPropertiesSet();
@@ -169,7 +172,10 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 	@Bean
 	@ConditionalOnProperty(name="proxy.authentication", havingValue="keycloak")
 	protected SessionAuthenticationStrategy sessionAuthenticationStrategy() {
-		return new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl());
+		return new CompositeSessionAuthenticationStrategy(Arrays.asList(
+			new RegisterSessionAuthenticationStrategy(new SessionRegistryImpl()),
+			new ChangeSessionIdAuthenticationStrategy()
+		));
 	}
 
 	@Bean
@@ -225,7 +231,7 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		return new KeycloakLogoutHandler(adapterDeploymentContext());
 	}
 	
-	private static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
+	public static class KeycloakAuthenticationToken2 extends KeycloakAuthenticationToken implements Serializable {
 		
 		private static final long serialVersionUID = -521347733024996150L;
 
@@ -239,6 +245,12 @@ public class KeycloakAuthenticationBackend implements IAuthenticationBackend {
 		@Override
 		public String getName() {
 			IDToken token = getAccount().getKeycloakSecurityContext().getIdToken();
+			if (token == null) {
+				// when ContainerProxy is accessed directly using the Access Token as Bearer value in the Authorization
+				// header, no ID Token is present. The AccessTokens provided by Keycloak are in fact ID tokens, so we
+				// can safely fall back to them.
+				token = getAccount().getKeycloakSecurityContext().getToken();
+			}
 			switch (nameAttribute) {
 			case IDToken.PREFERRED_USERNAME: return token.getPreferredUsername();
 			case IDToken.NICKNAME: return token.getNickName();

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,46 +20,50 @@
  */
 package eu.openanalytics.containerproxy.log;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-import javax.inject.Inject;
-
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.springframework.core.env.Environment;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import javax.inject.Inject;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractLogStorage implements ILogStorage {
 
-	private static final String PARAM_LOG_PATHS = "log_paths";
-	
-	@Inject
-	protected Environment environment;
-	
-	protected String containerLogPath;
-	
-	@Override
-	public void initialize() throws IOException {
-		containerLogPath = environment.getProperty("proxy.container-log-path");
-	}
-	
-	@Override
-	public String getStorageLocation() {
-		return containerLogPath;
-	}
+    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
 
-	@Override
-	public String[] getLogs(Proxy proxy) throws IOException {
-		String[] paths = (String[]) proxy.getContainers().get(0).getParameters().get(PARAM_LOG_PATHS);
-		if (paths == null) {
-			String timestamp = new SimpleDateFormat("yyyyMMdd").format(new Date());
-			paths = new String[] {
-					String.format("%s/%s_%s_%s_stdout.log", containerLogPath, proxy.getSpec().getId(), proxy.getId(), timestamp),
-					String.format("%s/%s_%s_%s_stderr.log", containerLogPath, proxy.getSpec().getId(), proxy.getId(), timestamp)
-			};
-			proxy.getContainers().get(0).getParameters().put(PARAM_LOG_PATHS, paths);
-		}
-		return paths;
-	}
+    @Inject
+    protected Environment environment;
+
+    protected String containerLogPath;
+
+    @Override
+    public void initialize() throws IOException {
+        containerLogPath = environment.getProperty("proxy.container-log-path");
+    }
+
+    @Override
+    public String getStorageLocation() {
+        return containerLogPath;
+    }
+
+    @Override
+    public LogPaths getLogs(Proxy proxy) {
+        return proxyStreams.computeIfAbsent(proxy.getId(), (k) -> {
+            String timestamp = new SimpleDateFormat("dd_MMM_yyyy_kk_mm_ss").format(new Date()); // TODO include time
+            return new LogPaths(
+                    Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
+                    Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
+            );
+        });
+    }
+
+    @Override
+    public void stopService() {
+        proxyStreams = ProxyHashMap.create();
+    }
+
 }

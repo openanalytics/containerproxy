@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,28 +20,64 @@
  */
 package eu.openanalytics.containerproxy.backend.strategy.impl;
 
-import javax.inject.Inject;
-
-import org.springframework.stereotype.Component;
-
 import eu.openanalytics.containerproxy.backend.strategy.IProxyLogoutStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 /**
- * Default logout behaviour: stop all proxies owned by the user.
+ * Default logout behaviour.
  */
 @Component
 public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
 
+	private static final String PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT = "proxy.default-stop-proxy-on-logout";
+
 	@Inject
+	@Lazy
 	private ProxyService proxyService;
-	
+
+	@Inject
+	@Lazy
+	private AsyncProxyService asyncProxyService;
+
+	@Inject
+	private Environment environment;
+
+	@Inject
+	private IProxySpecProvider specProvider;
+
+	private boolean defaultStopProxyOnLogout;
+
+	@PostConstruct
+	public void init() {
+		defaultStopProxyOnLogout = environment.getProperty(PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT, Boolean.class, true);
+	}
+
 	@Override
 	public void onLogout(String userId) {
 		for (Proxy proxy: proxyService.getProxies(p -> p.getUserId().equals(userId), true)) {
-			proxyService.stopProxy(proxy, true, true);
+			if (shouldBeStopped(proxy)) {
+				asyncProxyService.stopProxy(proxy,  true);
+			}
 		}
+	}
+
+	public boolean shouldBeStopped(Proxy proxy) {
+		// we retrieve the spec here, therefore this is not compatible with AppRecovery
+		ProxySpec proxySpec = specProvider.getSpec(proxy.getSpecId());
+		if (proxySpec != null && proxySpec.getStopOnLogout() != null) {
+			return proxySpec.getStopOnLogout();
+		}
+		return defaultStopProxyOnLogout;
 	}
 
 }

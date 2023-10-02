@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,16 +22,19 @@ package eu.openanalytics.containerproxy.test.helpers;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class KubernetesTestBase {
 
     public static interface TestBody {
-        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws InterruptedException;
+        public void run(NamespacedKubernetesClient client, String namespace, String overriddenNamespace) throws Exception;
     }
 
     public static final String namespace = "itest";
@@ -52,7 +55,9 @@ public abstract class KubernetesTestBase {
             NamespacedKubernetesClient namespacedKubernetesClient = client.inNamespace(namespace);
 
             test.run(namespacedKubernetesClient, namespace, overriddenNamespace);
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
             deleteNamespaces();
         }
@@ -84,6 +89,17 @@ public abstract class KubernetesTestBase {
                     .endMetadata()
                     .build());
         }
+    }
+
+
+    protected List<Secret> getSecrets(String namespace) {
+        return client.secrets().inNamespace(namespace).list().getItems().stream().filter(it -> !it.getMetadata().getName().startsWith("default-token")).collect(Collectors.toList());
+    }
+
+    protected Secret getSingleSecret(String namespace) {
+        List<Secret> secrets = getSecrets(namespace);
+        Assertions.assertEquals(1, secrets.size());
+        return secrets.get(0);
     }
 
 }

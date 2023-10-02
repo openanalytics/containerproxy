@@ -18,7 +18,7 @@ It is the engine that powers a.o. [ShinyProxy](https://shinyproxy.io) but can be
 
 Learn more at https://containerproxy.io (in progress)
 
-#### (c) Copyright Open Analytics NV, 2017-2021 - Apache License 2.0
+#### (c) Copyright Open Analytics NV, 2017-2023 - Apache License 2.0
 
 ## Building from source
 

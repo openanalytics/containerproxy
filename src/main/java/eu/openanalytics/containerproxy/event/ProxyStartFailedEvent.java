@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,25 +20,33 @@
  */
 package eu.openanalytics.containerproxy.event;
 
-import org.springframework.context.ApplicationEvent;
 
-public class ProxyStartFailedEvent extends ApplicationEvent {
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.With;
 
-    private final String userId;
-    private final String specId;
+@Value
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+public class ProxyStartFailedEvent extends BridgeableEvent {
 
-    public ProxyStartFailedEvent(Object source, String userId, String specId) {
-        super(source);
-        this.userId = userId;
-        this.specId = specId;
-    }
+    @With
+    String source;
 
-    public String getUserId() {
-        return userId;
-    }
+    String proxyId;
+    String userId;
+    String specId;
 
-    public String getSpecId() {
-        return specId;
+    public ProxyStartFailedEvent(Proxy proxy) {
+        source = "SOURCE_NOT_AVAILABLE";
+        proxyId = proxy.getId();
+        userId = proxy.getUserId();
+        specId = proxy.getSpecId();
     }
 
 }

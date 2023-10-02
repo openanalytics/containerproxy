@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
@@ -33,6 +35,15 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 public class SocialAuthenticationBackend implements IAuthenticationBackend {
 
 	public static final String NAME = "social";
+
+	public SocialAuthenticationBackend() {
+		Logger logger = LoggerFactory.getLogger(getClass());
+		logger.warn("WARNING: ###");
+		logger.warn("WARNING: ###");
+		logger.warn("WARNING: Social authentication is deprecated and will be removed in the next version (3.1.0)!");
+		logger.warn("WARNING: ###");
+		logger.warn("WARNING: ###");
+	}
 	
 	@Override
 	public String getName() {

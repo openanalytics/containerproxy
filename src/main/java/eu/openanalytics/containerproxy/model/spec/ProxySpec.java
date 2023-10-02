@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,158 +20,110 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import eu.openanalytics.containerproxy.model.Views;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Data
+@Setter
+@Getter
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxySpec {
 
-	private String id;
-	private String displayName;
-	private String description;
-	private String logoURL;
-	
-	private ProxyAccessControl accessControl;
-	private List<ContainerSpec> containerSpecs;
-	private List<RuntimeSettingSpec> runtimeSettingSpecs;
+    @JsonView(Views.UserApi.class)
+    String id;
 
-	private Map<String, String> settings = new HashMap<>();
-	
-	private String kubernetesPodPatches;
-	private List<String> kubernetesAdditionalManifests = new ArrayList<>();
+    @JsonView(Views.UserApi.class)
+    String displayName;
 
-	public ProxySpec() {
-		settings = new HashMap<>();
-	}
-	
-	public String getId() {
-		return id;
-	}
+    @JsonView(Views.UserApi.class)
+    String description;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    @JsonView(Views.UserApi.class)
+    String logoURL;
 
-	public String getDisplayName() {
-		return displayName;
-	}
+    AccessControl accessControl;
 
-	public void setDisplayName(String displayName) {
-		this.displayName = displayName;
-	}
+    @Builder.Default
+    List<ContainerSpec> containerSpecs = new ArrayList<>();
 
-	public String getDescription() {
-		return description;
-	}
+    Parameters parameters;
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    @Builder.Default
+    SpelField.Long maxLifeTime = new SpelField.Long();
 
-	public String getLogoURL() {
-		return logoURL;
-	}
+    Boolean stopOnLogout;
 
-	public void setLogoURL(String logoURL) {
-		this.logoURL = logoURL;
-	}
+    @Builder.Default
+    SpelField.Long heartbeatTimeout = new SpelField.Long();
 
-	public ProxyAccessControl getAccessControl() {
-		return accessControl;
-	}
+    @Builder.Default
+    Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
 
-	public void setAccessControl(ProxyAccessControl accessControl) {
-		this.accessControl = accessControl;
-	}
+    public void setContainerIndex() {
+        for (int i = 0; i < this.containerSpecs.size(); i++) {
+            this.containerSpecs.get(i).setIndex(i);
+        }
+    }
 
-	public List<ContainerSpec> getContainerSpecs() {
-		return containerSpecs;
-	}
-	
-	public void setContainerSpecs(List<ContainerSpec> containerSpecs) {
-		this.containerSpecs = containerSpecs;
-	}
-	
-	public List<RuntimeSettingSpec> getRuntimeSettingSpecs() {
-		return runtimeSettingSpecs;
-	}
-	
-	public void setRuntimeSettingSpecs(List<RuntimeSettingSpec> runtimeSettingSpecs) {
-		this.runtimeSettingSpecs = runtimeSettingSpecs;
-	}
-	
-	public Map<String, String> getSettings() {
-		return settings;
-	}
+    public void addSpecExtension(ISpecExtension specExtension) {
+        specExtensions.put(specExtension.getClass(), specExtension);
+    }
 
-	public void setSettings(Map<String, String> settings) {
-		this.settings = settings;
-	}
+    public <T> T getSpecExtension(Class<T> extensionClass) {
+        return extensionClass.cast(specExtensions.get(extensionClass));
+    }
 
-	/**
-	 * Returns the Kubernetes Pod Patch as JsonValue (i.e. array) for nice representation in API requests.
-	 */
-	public String getKubernetesPodPatch() {
-		return kubernetesPodPatches;
-	}
+    public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
+                .maxLifeTime(maxLifeTime.resolve(resolver, context))
+                .specExtensions(
+                        specExtensions.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        e -> e.getValue().firstResolve(resolver, context))))
+                .containerSpecs(
+                        containerSpecs
+                                .stream()
+                                .map(c -> c.firstResolve(resolver, context.copy(c)))
+                                .collect(Collectors.toList())
+                )
+                .build();
+    }
 
-	public void setKubernetesPodPatches(String kubernetesPodPatches) {
-		this.kubernetesPodPatches = kubernetesPodPatches;
-	}
-
-	public void setKubernetesAdditionalManifests(List<String> manifests) {
-		this.kubernetesAdditionalManifests = manifests;
-	}
-
-	public List<String> getKubernetesAdditionalManifests() {
-		return kubernetesAdditionalManifests;
-	}
-	
-	public void copy(ProxySpec target) {
-		target.setId(id);
-		target.setDisplayName(displayName);
-		target.setDescription(description);
-		target.setLogoURL(logoURL);
-		
-		if (accessControl != null) {
-			if (target.getAccessControl() == null) target.setAccessControl(new ProxyAccessControl());
-			accessControl.copy(target.getAccessControl());
-		}
-		
-		if (containerSpecs != null) {
-			if (target.getContainerSpecs() == null) target.setContainerSpecs(new ArrayList<>());
-			for (ContainerSpec spec: containerSpecs) {
-				ContainerSpec copy = new ContainerSpec();
-				spec.copy(copy);
-				target.getContainerSpecs().add(copy);
-			}
-		}
-		
-		if (runtimeSettingSpecs != null) {
-			if (target.getRuntimeSettingSpecs() == null) target.setRuntimeSettingSpecs(new ArrayList<>());
-			for (RuntimeSettingSpec spec: runtimeSettingSpecs) {
-				RuntimeSettingSpec copy = new RuntimeSettingSpec();
-				spec.copy(copy);
-				target.getRuntimeSettingSpecs().add(copy);
-			}
-		}
-		
-		if (settings != null) {
-			if (target.getSettings() == null) target.setSettings(new HashMap<>());
-			target.getSettings().putAll(settings);
-		}
-		
-		
-		if (kubernetesPodPatches != null) {
-			target.setKubernetesPodPatches(kubernetesPodPatches);
-		}
-		
-		if (kubernetesAdditionalManifests != null) {
-			target.setKubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().collect(Collectors.toList()));
-		}
-		
-	}
-
+    public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+        return toBuilder()
+                .specExtensions(
+                        specExtensions.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        e -> e.getValue().finalResolve(resolver, context))))
+                .containerSpecs(
+                        containerSpecs
+                                .stream()
+                                .map(c -> c.finalResolve(resolver, context.copy(c)))
+                                .collect(Collectors.toList())
+                )
+                .build();
+    }
 }

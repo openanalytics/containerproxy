@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,7 +20,9 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.inject.Inject;
 
@@ -73,13 +75,24 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 		String userName = environment.getProperty(String.format("proxy.users[%d].name", index));
 		if (userName == null) return null;
 		String password = environment.getProperty(String.format("proxy.users[%d].password", index));
-		String[] roles = environment.getProperty(String.format("proxy.users[%d].groups", index), String[].class);
-		if (roles == null) {
-			roles = new String[0];
+
+		// method 1: single property with comma seperated groups
+		String[] groups = environment.getProperty(String.format("proxy.users[%d].groups", index), String[].class);
+		if (groups != null) {
+			groups = Arrays.stream(groups).map(String::toUpperCase).toArray(String[]::new);
+			return new SimpleUser(userName, password, groups);
 		} else {
-			roles = Arrays.stream(roles).map(s -> s.toUpperCase()).toArray(i -> new String[i]);
+			// method 2: YAML array
+			List<String> groupsList = new ArrayList<>();
+			int groupIndex = 0;
+			String group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
+			while (group != null) {
+				groupsList.add(group.toUpperCase());
+				groupIndex++;
+				group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
+			}
+			return new SimpleUser(userName, password, groupsList.toArray(new String[0]));
 		}
-		return new SimpleUser(userName, password, roles);
 	}
 	
 	private static class SimpleUser {

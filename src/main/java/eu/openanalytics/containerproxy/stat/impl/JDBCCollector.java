@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 
 import org.springframework.core.env.Environment;
@@ -62,13 +63,20 @@ public class JDBCCollector extends AbstractDbCollector {
 	@Inject
 	private Environment environment;
 
+	private final String url;
+	private final String username;
+	private final String password;
+
+	public JDBCCollector(String url, String username, String password) {
+		this.url = url;
+		this.username = username;
+		this.password = password;
+	}
+
 	@PostConstruct
-	public void init() {
-		String baseURL = environment.getProperty("proxy.usage-stats-url");
-		String username = environment.getProperty("proxy.usage-stats-username", "monetdb");
-		String password = environment.getProperty("proxy.usage-stats-password", "monetdb");
+	public void init() throws IOException {
 		ds = new HikariDataSource();
-		ds.setJdbcUrl(baseURL);
+		ds.setJdbcUrl(url);
 		ds.setUsername(username);
 		ds.setPassword(password);
 
@@ -96,7 +104,29 @@ public class JDBCCollector extends AbstractDbCollector {
 		if (maximumPoolSize != null) {
 			ds.setMaximumPoolSize(maximumPoolSize);
 		}
-		
+
+		// create table if not already exists
+		try (Connection con = ds.getConnection()) {
+			Statement statement = con.createStatement();
+			if (con.getMetaData().getDatabaseProductName().equals("Microsoft SQL Server")) {
+				statement.execute(
+						"IF OBJECT_ID('event', 'U') IS NULL" +
+								" create table event(" +
+								" event_time datetime," +
+								" username varchar(128)," +
+								" type varchar(128)," +
+								" data text)");
+			} else {
+				statement.execute(
+						"create table if not exists event(" +
+								" event_time timestamp," +
+								" username varchar(128)," +
+								" type varchar(128)," +
+								" data text)");
+			}
+		} catch (SQLException e) {
+			throw new IOException("Exception while logging stats", e);
+		}
 	}
 
 	@Override

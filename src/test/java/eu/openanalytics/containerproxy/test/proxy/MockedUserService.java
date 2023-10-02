@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,9 +21,57 @@
 package eu.openanalytics.containerproxy.test.proxy;
 
 import eu.openanalytics.containerproxy.service.UserService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 
 public class MockedUserService extends UserService {
+
     public String getCurrentUserId() {
         return "jack";
     }
+
+    public Authentication getCurrentAuth() {
+        return new Authentication() {
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return Arrays.asList(new SimpleGrantedAuthority("ROLE_GROUP1"), new SimpleGrantedAuthority("ROLE_GROUP2"));
+            }
+
+            @Override
+            public Object getCredentials() {
+                return "N/A";
+            }
+
+            @Override
+            public Object getDetails() {
+                return "N/A";
+            }
+
+            @Override
+            public Object getPrincipal() {
+                return "N/A";
+            }
+
+            @Override
+            public boolean isAuthenticated() {
+                return true;
+            }
+
+            @Override
+            public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
+                // no-op
+            }
+
+            @Override
+            public String getName() {
+                return "jack";
+            }
+        };
+    }
+
 }

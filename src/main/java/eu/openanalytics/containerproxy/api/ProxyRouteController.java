@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,21 +20,20 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.util.ImmediateJsonResponse;
+import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import eu.openanalytics.containerproxy.util.ContextPathHelper;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.core.env.Environment;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import eu.openanalytics.containerproxy.util.SessionHelper;
-
-@RestController
+@Controller
 public class ProxyRouteController extends BaseController {
 
 	@Inject
@@ -46,15 +45,12 @@ public class ProxyRouteController extends BaseController {
 	@Inject
 	private ProxyMappingManager mappingManager;
 	
-	@Inject
-	private Environment environment;
-	
 	@RequestMapping(value="/api/route/**")
 	public void route(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			// Ensure that the caller is the owner of the target proxy.
 			boolean hasAccess = false;
-			String baseURL = SessionHelper.getContextPath(environment, true) + "api/route/";
+			String baseURL = ContextPathHelper.withEndingSlash() + "api/route/";
 			String mapping = request.getRequestURI().substring(baseURL.length());
 			String proxyId = mappingManager.getProxyId(mapping);
 			if (proxyId != null) {
@@ -63,7 +59,7 @@ public class ProxyRouteController extends BaseController {
 			}
 			
 			if (hasAccess) {
-				mappingManager.dispatchAsync(mapping, request, response);
+				mappingManager.dispatchAsync(proxyId, mapping, request, response);
 			} else {
 				response.setStatus(403);
 				response.getWriter().write("Not authorized to access this proxy");

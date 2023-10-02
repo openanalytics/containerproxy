@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2021 Open Analytics
+ * Copyright (C) 2016-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,14 +20,14 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import java.util.List;
-
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 
-import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import java.util.Map;
 
 public interface IAuthenticationBackend {
 
@@ -40,7 +40,7 @@ public interface IAuthenticationBackend {
 	 * Return true if this authentication backend supports authorization.
 	 * In this context, authorization means the separation of permission levels
 	 * via groups.
-	 * 
+	 *
 	 * If there is no authorization, all users have the same (administrator) permissions.
 	 */
 	public boolean hasAuthorization();
@@ -64,12 +64,13 @@ public interface IAuthenticationBackend {
 		return "/logout";
 	}
 
-	public default void customizeContainer(ContainerSpec spec) {
+	public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
 		// Default: do nothing.
 	}
 
-	public default void customizeContainerEnv(List<String> env) {
-		// Default: do nothing.
+	public default LogoutSuccessHandler getLogoutSuccessHandler() {
+		SimpleUrlLogoutSuccessHandler urlLogoutHandler = new SimpleUrlLogoutSuccessHandler();
+		urlLogoutHandler.setDefaultTargetUrl(getLogoutSuccessURL());
+		return urlLogoutHandler;
 	}
-	
 }

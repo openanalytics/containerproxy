@@ -2,7 +2,7 @@
 
     ContainerProxy
 
-    Copyright (C) 2016-2021 Open Analytics
+    Copyright (C) 2016-2023 Open Analytics
 
     ===========================================================================
 
@@ -22,30 +22,33 @@
 -->
 <!DOCTYPE html>
 <html
-	xmlns:th="http://www.thymeleaf.org"
-	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+        xmlns:th="http://www.thymeleaf.org"
+>
 
 <head lang="en">
-	<title>Error</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}" />
-	<link rel="stylesheet" media="screen" th:href="@{/css/error.css}"/>
-	<script th:src="@{${jqueryJs}}"></script>
-	<script th:src="@{${bootstrapJs}}"></script>
+    <title th:text="${title}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}"/>
+    <link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
+    <script th:src="@{${jqueryJs}}"></script>
+    <script th:src="@{${bootstrapJs}}"></script>
 </head>
 
 <body>
-	<div id="error">
-		<h1>Error</h1>
-		<p>
-			<b>Status code:</b> <span th:text="${status}"></span>
-		</p>
-		<p>
-			<b>Message:</b> <span th:text="${message}"></span>
-		</p>
-		<p>
-			<b>Stack Trace:</b> <br/><span th:utext="${stackTrace}"></span>
-		</p>
-	</div>
+<div class="container">
+    <h2 th:text="${shortError}"></h2>
+    <p th:text="${description}"></p>
+    <a th:href="${mainPage}">Go back to the main page</a>
+</div>
+
+<style>
+    h2 {
+        margin-bottom: 20px;
+        margin-top: 20px;
+    }
+</style>
+
 </body>
+
 </html>

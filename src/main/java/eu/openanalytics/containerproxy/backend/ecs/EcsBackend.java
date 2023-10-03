@@ -45,9 +45,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.Attachment;
 import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
-import software.amazon.awssdk.services.ecs.model.Deployment;
-import software.amazon.awssdk.services.ecs.model.DeploymentRolloutState;
-import software.amazon.awssdk.services.ecs.model.DescribeServicesResponse;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
@@ -55,6 +52,7 @@ import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
 import software.amazon.awssdk.services.ecs.model.NetworkBinding;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
+import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 
@@ -175,11 +173,6 @@ public class EcsBackend extends AbstractContainerBackend {
 
     @Override
     protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
-        // Needs to know when a service, task definition for the container spec already
-        // exists and modifies that.
-
-        log.info("Starting image{}, container {} for proxy {}", spec.getImage(), spec.getIndex(), proxy.getId());
-        log.info("Starting task {} for proxy {}", spec.getTaskDefinition(), proxy.getId());
         proxyStartupLogBuilder.startingContainer(spec.getIndex());
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         String containerId = UUID.randomUUID().toString();
@@ -218,31 +211,35 @@ public class EcsBackend extends AbstractContainerBackend {
                 tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsTag()).value(runtimeValue.toString()).build());
             }
         });
+        tags.add(Tag.builder().key("Name").value("sp-task-" + proxy.getId()).build());
 
-        ecsClient.createService(builder -> builder
-                .cluster(getProperty(PROPERTY_CLUSTER))
-                .desiredCount(1)
-                .serviceName("sp-service-" + containerId + "-" + proxy.getId())
-                .taskDefinition(spec.getTaskDefinition().toString())
-                .propagateTags(PropagateTags.SERVICE)
-                .networkConfiguration(NetworkConfiguration.builder()
-                        .awsvpcConfiguration(AwsVpcConfiguration.builder()
-                                .subnets(subnets)
-                                .securityGroups(securityGroups)
-                                .build())
-                        .build())
-                .launchType(LaunchType.FARGATE)
-                .tags(tags));
+        RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
+            .cluster(getProperty(PROPERTY_CLUSTER))
+            .count(1)
+            .taskDefinition(spec.getTaskDefinition().toString())
+            .propagateTags(PropagateTags.TASK_DEFINITION)
+            .networkConfiguration(NetworkConfiguration.builder()
+                .awsvpcConfiguration(AwsVpcConfiguration.builder()
+                    .subnets(subnets)
+                    .securityGroups(securityGroups)
+                    .build())
+                .build())
+            .launchType(LaunchType.FARGATE)
+            .tags(tags));
 
+        if (!runTaskResponse.hasTasks()) {
+            throw new ContainerFailedToStartException("No task in taskResponse", null, rContainerBuilder.build());
+        }
+
+        String taskArn = runTaskResponse.tasks().get(0).taskArn();
 
         int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "180000")); // TODO
         boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
-            DescribeServicesResponse response = ecsClient.describeServices(builder -> builder
-                    .cluster(getProperty(PROPERTY_CLUSTER))
-                    .services("sp-service-" + containerId + "-" + proxy.getId()));
+            DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
+                .cluster(getProperty(PROPERTY_CLUSTER))
+                .tasks(taskArn));
 
-            Deployment deployment = response.services().get(0).deployments().get(0);
-            if (deployment.rolloutState().equals(DeploymentRolloutState.COMPLETED)) {
+            if (response.tasks().get(0).lastStatus().equals("RUNNING")) {
                 return true;
             } else {
                 if (currentAttempt > 10) {
@@ -252,13 +249,10 @@ public class EcsBackend extends AbstractContainerBackend {
             }
         }, totalWaitMs);
 
-        String taskArn = ecsClient.listTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).serviceName("sp-service-" + containerId + "-" + proxy.getId())).taskArns().get(0);
         String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-
         rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
         rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
 
-        // TODO move to above
         if (!serviceReady) {
             throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
         }
@@ -276,27 +270,20 @@ public class EcsBackend extends AbstractContainerBackend {
     @Override
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
-            ecsClient.updateService(builder -> builder.
-                    desiredCount(0).
-                    service("sp-service-" + container.getId() + "-" + proxy.getId()).
-                    cluster(getProperty(PROPERTY_CLUSTER))
-            );
-            ecsClient.deleteService(builder -> builder.
-                    service("sp-service-" + container.getId() + "-" + proxy.getId()).
-                    cluster(getProperty(PROPERTY_CLUSTER))
-            );
+            String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
+            ecsClient.stopTask(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).task(taskArn));
         }
 
         int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "120000"));
 
         boolean isInactive = Retrying.retry((currentAttempt, maxAttempts) -> {
             for (Container container : proxy.getContainers()) {
-                DescribeServicesResponse response = ecsClient.describeServices(builder -> builder
-                        .cluster(getProperty(PROPERTY_CLUSTER))
-                        .services("sp-service-" + container.getId() + "-" + proxy.getId()));
+                String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
+                DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
+                    .cluster(getProperty(PROPERTY_CLUSTER))
+                    .tasks(taskArn));
 
-                // TODO check if container was never created
-                if (!response.services().get(0).status().equals("INACTIVE")) {
+                if (response.hasTasks() && !response.tasks().get(0).lastStatus().equals("STOPPED") && !response.tasks().get(0).lastStatus().equals("DELETED")) {
                     if (currentAttempt > 10) {
                         slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }

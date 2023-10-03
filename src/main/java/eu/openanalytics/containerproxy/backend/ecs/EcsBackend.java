@@ -38,24 +38,27 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
-import io.fabric8.kubernetes.api.model.ContainerPort;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import org.springframework.security.core.Authentication;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.Attachment;
 import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
+import software.amazon.awssdk.services.ecs.model.Compatibility;
+import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
 import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
 import software.amazon.awssdk.services.ecs.model.NetworkBinding;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
+import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
+import software.amazon.awssdk.services.ecs.model.RegisterTaskDefinitionResponse;
 import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -177,11 +180,8 @@ public class EcsBackend extends AbstractContainerBackend {
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         String containerId = UUID.randomUUID().toString();
         rContainerBuilder.id(containerId);
-
-        List<ContainerPort> containerPorts = spec.getPortMapping().stream()
-                .map(p -> new ContainerPortBuilder().withContainerPort(p.getPort()).build())
-                .collect(Collectors.toList());
-
+        try {
+//        EcsSpecExtension specExtension = proxySpec.getSpecExtension(EcsSpecExtension.class);
 
         List<String> subnets = new ArrayList<>();
         int index = 0;
@@ -211,12 +211,13 @@ public class EcsBackend extends AbstractContainerBackend {
                 tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsTag()).value(runtimeValue.toString()).build());
             }
         });
-        tags.add(Tag.builder().key("Name").value("sp-task-" + proxy.getId()).build());
+
+            String taskDefinitionArn = getTaskDefinition(user, spec, proxy, containerId, tags);
 
         RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
             .cluster(getProperty(PROPERTY_CLUSTER))
             .count(1)
-            .taskDefinition(spec.getTaskDefinition().toString())
+            .taskDefinition(taskDefinitionArn)
             .propagateTags(PropagateTags.TASK_DEFINITION)
             .networkConfiguration(NetworkConfiguration.builder()
                 .awsvpcConfiguration(AwsVpcConfiguration.builder()
@@ -258,7 +259,6 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         Map<Integer, Integer> portBindings = new HashMap<>();
-        try {
             return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
         } catch (ContainerFailedToStartException t) {
             throw t;
@@ -267,12 +267,45 @@ public class EcsBackend extends AbstractContainerBackend {
         }
     }
 
+    private String getTaskDefinition(Authentication user, ContainerSpec spec, Proxy proxy, String containerId, List<Tag> tags) throws IOException {
+        if (spec.getImage().getValue().startsWith("arn:aws:ecs:")) {
+            // external task definition
+            return spec.getImage().getValue();
+        }
+
+        List<KeyValuePair> env = buildEnv(user, spec, proxy).entrySet().stream()
+            .map(v -> KeyValuePair.builder().name(v.getKey()).value(v.getValue()).build())
+            .collect(Collectors.toList());
+
+        RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
+            .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
+            .containerDefinitions(ContainerDefinition.builder()
+                .name("sp-container-" + containerId)
+                .image(spec.getImage().getValue())
+                .dnsServers(spec.getDns().getValueOrNull())
+                .privileged(isPrivileged() || spec.isPrivileged())
+                .command(spec.getCmd().getValueOrNull())
+                .environment(env)
+                .build())
+            .networkMode(NetworkMode.AWSVPC) // only option when using fargate
+            .requiresCompatibilities(Compatibility.FARGATE)
+            .cpu(spec.getCpuRequest().getValue()) // required by fargate
+            .memory(spec.getMemoryRequest().getValue()) // required by fargate
+            .tags(tags));
+
+        return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();
+    }
+
     @Override
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
             String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
             ecsClient.stopTask(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).task(taskArn));
+
+            // delete is ignored if task definition does not exist, this is the case if the task definition was not created by shinyproxy
+            ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
         }
+
 
         int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "120000"));
 

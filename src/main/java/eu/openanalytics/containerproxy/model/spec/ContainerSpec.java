@@ -82,8 +82,6 @@ public class ContainerSpec {
     private String dockerRegistryDomain;
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
-    @Builder.Default
-    private SpelField.String taskDefinition = new SpelField.String();
 
 	public void setCmd(List<String> cmd) {
 		this.cmd = new SpelField.StringList(cmd);
@@ -100,10 +98,6 @@ public class ContainerSpec {
 	public void setDns(List<String> dns) {
 		this.dns = new SpelField.StringList(dns);
 	}
-
-    public void setTaskDefinition(String taskDefinition) {
-        this.taskDefinition = new SpelField.String(taskDefinition);
-    }
 
 	public void setVolumes(List<String> volumes) {
 		this.volumes = new SpelField.StringList(volumes);
@@ -127,7 +121,6 @@ public class ContainerSpec {
                 .cpuRequest(cpuRequest.resolve(resolver, context))
                 .cpuLimit(cpuLimit.resolve(resolver, context))
                 .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
-                .taskDefinition(taskDefinition.resolve(resolver, context))
                 .build();
     }
 

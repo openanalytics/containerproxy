@@ -35,11 +35,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
-import org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter;
+//import org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -49,7 +49,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_SAML_LOGOUT_METHOD;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_SUCCESS_LOGOUT_URL;
@@ -58,6 +57,8 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.S
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_SERVICE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.saml2.provider.service.web.authentication.Saml2WebSsoAuthenticationFilter;
 
 @Component
 @ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
@@ -70,7 +71,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
     @Inject
     @SuppressWarnings("deprecation")
-    private OpenSamlAuthenticationProvider samlAuthenticationProvider;
+    private OpenSaml4AuthenticationProvider samlAuthenticationProvider;
 
     @Autowired
     private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;

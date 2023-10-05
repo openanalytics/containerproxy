@@ -66,9 +66,6 @@ import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuc
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -79,6 +76,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static eu.openanalytics.containerproxy.auth.impl.oidc.OpenIDConfiguration.REG_ID;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 

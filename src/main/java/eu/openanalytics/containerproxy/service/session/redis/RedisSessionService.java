@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.RedisSessionConfig;
 import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
+import jakarta.servlet.http.HttpSession;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,7 +37,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.servlet.http.HttpSession;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -44,6 +44,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.data.redis.core.RedisOperations;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
@@ -61,7 +62,7 @@ public class RedisSessionService extends AbstractSessionService {
     private RedisSessionConfig redisSessionConfig;
 
     private String keyPattern;
-    private RedisTemplate<Object, Object> redisTemplate;
+    private RedisOperations<String, Object> redisTemplate;
 
     private Integer cachedUsersLoggedInCount = null; // default value;
     private Integer cachedActiveUsersCount = null; // default value;
@@ -69,7 +70,7 @@ public class RedisSessionService extends AbstractSessionService {
     @PostConstruct
     public void init() {
         keyPattern = redisSessionConfig.getNamespace() + ":sessions:*";
-        redisTemplate = (RedisTemplate<Object, Object>) redisIndexedSessionRepository.getSessionRedisOperations();
+        redisTemplate = (RedisTemplate<String, Object>) redisIndexedSessionRepository.getSessionRedisOperations();
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -112,7 +113,7 @@ public class RedisSessionService extends AbstractSessionService {
      * See the warning at https://redis.io/commands/keys .
      */
     private void updateCachedUsersLoggedInCount() {
-        Set<Object> keys = redisTemplate.keys(keyPattern);
+        Set<String> keys = redisTemplate.keys(keyPattern);
 
         if (keys == null) {
             return;

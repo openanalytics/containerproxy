@@ -30,14 +30,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2X509Credential;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+//import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
 import org.springframework.security.saml2.provider.service.registration.InMemoryRelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.web.Saml2AuthenticationTokenConverter;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSaml3LogoutRequestResolver;
+//import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSaml3LogoutRequestResolver;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.w3c.dom.Document;
@@ -55,6 +55,8 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
+import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSaml4LogoutRequestResolver;
 
 @Configuration
 @ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
@@ -174,15 +176,15 @@ public class SAMLConfiguration {
     @SuppressWarnings("deprecation")
     @Bean
     public Saml2LogoutRequestResolver saml2LogoutRequestResolver(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
-        return new OpenSaml3LogoutRequestResolver(
+        return new OpenSaml4LogoutRequestResolver(
                 (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
         );
     }
 
     @SuppressWarnings("deprecation")
     @Bean
-    public OpenSamlAuthenticationProvider openSamlAuthenticationProvider() {
-        OpenSamlAuthenticationProvider authenticationProvider = new OpenSamlAuthenticationProvider();
+    public OpenSaml4AuthenticationProvider openSamlAuthenticationProvider() {
+        OpenSaml4AuthenticationProvider authenticationProvider = new OpenSaml4AuthenticationProvider();
         authenticationProvider.setResponseAuthenticationConverter(new ResponseAuthenticationConverter(environment));
         return authenticationProvider;
     }

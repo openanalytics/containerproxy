@@ -43,7 +43,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
@@ -67,9 +66,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,10 +76,13 @@ import java.util.Set;
 
 import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 import static eu.openanalytics.containerproxy.ui.TemplateResolverConfig.PROP_CORS_ALLOWED_ORIGINS;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class WebSecurityConfig  {
 
 	private final Logger logger = LogManager.getLogger(getClass());
 
@@ -117,9 +117,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	public static final String PROP_OAUTH2_ROLES_CLAIM = "proxy.oauth2.roles-claim";
 	public static final String PROP_OAUTH2_USERNAME_ATTRIBUTE = "proxy.oauth2.username-attribute";
 
-	@Override
+	
 	public void configure(WebSecurity web) {
-		if (customConfigs != null) {
+		if (s != null) {
 			for (ICustomSecurityConfig cfg: customConfigs) {
 				try {
 					cfg.apply(web);
@@ -140,7 +140,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 	}
 
-	@Override
+	
 	protected void configure(HttpSecurity http) throws Exception {
 		if (EnvironmentUtils.readList(environment, PROP_CORS_ALLOWED_ORIGINS) != null) {
 			// enable cors
@@ -213,12 +213,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		}
 
 		// Allow public access to health endpoint
-		http.authorizeRequests().antMatchers("/actuator/health").permitAll();
-		http.authorizeRequests().antMatchers("/actuator/health/readiness").permitAll();
-		http.authorizeRequests().antMatchers("/actuator/health/liveness").permitAll();
-		http.authorizeRequests().antMatchers("/actuator/prometheus").permitAll();
-		http.authorizeRequests().antMatchers("/actuator/recyclable").permitAll();
-		http.authorizeRequests().antMatchers("/saml/metadata").permitAll();
+		http.authorizeRequests().requestMatchers("/actuator/health").permitAll();
+		http.authorizeRequests().requestMatchers("/actuator/health/readiness").permitAll();
+		http.authorizeRequests().requestMatchers("/actuator/health/liveness").permitAll();
+		http.authorizeRequests().requestMatchers("/actuator/prometheus").permitAll();
+		http.authorizeRequests().requestMatchers("/actuator/recyclable").permitAll();
+		http.authorizeRequests().requestMatchers("/saml/metadata").permitAll();
 
 		// Note: call early, before http.authorizeRequests().anyRequest().fullyAuthenticated();
 		if (customConfigs != null) {
@@ -227,7 +227,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		
 
 		if (auth.hasAuthorization()) {
-			http.authorizeRequests().antMatchers(
+			http.authorizeRequests().requestMatchers(
 					"/login", "/signin/**", "/auth-error", "/error", "/app-access-denied", "/logout-success",
 					"/favicon.ico",
 					"/" + identifierService.instanceId + "/css/**", "/css/**",

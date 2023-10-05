@@ -29,7 +29,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 
 import javax.annotation.Nonnull;
@@ -45,7 +45,7 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.P
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
 
 @SuppressWarnings("deprecation")
-public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
+public class ResponseAuthenticationConverter implements Converter<OpenSaml4AuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
 
     private final Boolean logAttributes;
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -59,8 +59,8 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
     }
 
     @Override
-    public AbstractAuthenticationToken convert(@Nonnull OpenSamlAuthenticationProvider.ResponseToken responseToken) {
-        Saml2Authentication authentication = OpenSamlAuthenticationProvider
+    public AbstractAuthenticationToken convert(@Nonnull OpenSaml4AuthenticationProvider.ResponseToken responseToken) {
+        Saml2Authentication authentication = OpenSaml4AuthenticationProvider
                 .createDefaultResponseAuthenticationConverter()
                 .convert(responseToken);
 

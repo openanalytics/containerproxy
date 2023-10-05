@@ -73,7 +73,7 @@ public class OpenIDConfiguration {
         ClientRegistration client = ClientRegistration.withRegistrationId(REG_ID)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .clientName(REG_ID)
-                .redirectUriTemplate("{baseUrl}/login/oauth2/code/{registrationId}")
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                 .scope(scopes.toArray(new String[scopes.size()]))
                 .userNameAttributeName(environment.getProperty("proxy.openid.username-attribute", "email"))
                 .authorizationUri(environment.getProperty("proxy.openid.auth-url"))

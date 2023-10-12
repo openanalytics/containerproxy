@@ -8,7 +8,7 @@ spring:
 proxy:
   authentication: simple
   container-backend: kubernetes
-
+  heartbeat-timeout: -1
 
   users:
   - name: demo
@@ -26,14 +26,14 @@ proxy:
   specs:
   - id: 01_hello
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
           port: 3838
   - id: 01_hello_volume
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -43,7 +43,7 @@ proxy:
        - "/srv/myvolume2:/srv/myvolume2"
   - id: 01_hello_env
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -54,7 +54,7 @@ proxy:
         VAR3: VALUE3
   - id: 01_hello_secret
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -63,7 +63,7 @@ proxy:
         MY_SECRET: secretKeyRef:mysecret:username
   - id: 01_hello_limits
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -74,7 +74,7 @@ proxy:
       memory-limit: "2Gi"
   - id: 01_hello_priv
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -82,7 +82,7 @@ proxy:
       privileged: true
   - id: 01_hello_patches1
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -103,7 +103,7 @@ proxy:
         value: sp-ittest-b9fa0a24-account
   - id: 01_hello_patches2
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -130,7 +130,7 @@ proxy:
           value: VALUE
   - id: 01_hello_manifests
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -163,7 +163,7 @@ proxy:
            password: cGFzc3dvcmQ=
   - id: 01_hello_manifests_espression
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
@@ -204,14 +204,14 @@ proxy:
               storage: 5Gi
   - id: 02_hello
     container-specs:
-    - image: "openanalytics/shinyproxy-demo"
+    - image: "openanalytics/shinyproxy-integration-test-app"
       cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       port-mapping:
         - name: default
           port: 3838
   - id: 01_hello_manifests_persistent # 11
     container-specs:
-       - image: "openanalytics/shinyproxy-demo"
+       - image: "openanalytics/shinyproxy-integration-test-app"
          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
          port-mapping:
            - name: default
@@ -245,7 +245,7 @@ proxy:
               storage: 5Gi
   - id: 01_hello_advanced_runtime_labels # 12
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -267,7 +267,7 @@ proxy:
        value: "#{proxy.getRuntimeValue('SHINYPROXY_INSTANCE')}"
   - id: 01_hello_manifests_policy_create_once # 13
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -285,7 +285,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_manifests_policy_patch # 14
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -303,7 +303,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_manifests_policy_delete # 15
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -321,7 +321,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_manifests_policy_replace # 16
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -339,7 +339,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_create_once
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -357,7 +357,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_patch # 18
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -375,7 +375,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_patch2 # 19
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -393,7 +393,7 @@ proxy:
           password: b2xkX3Bhc3N3b3Jk
   - id: 01_hello_persistent_manifests_policy_delete #20
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -411,7 +411,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_replace #21
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -429,7 +429,7 @@ proxy:
           password: cGFzc3dvcmQ=
   - id: 01_hello_persistent_manifests_policy_replace2 # 22
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default
@@ -615,7 +615,7 @@ proxy:
           name: ERROR
           value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}"
   - id: parameters-final-resolve
-    heartbeat-timeout: "#{10 + 60}"
+    heartbeat-timeout: "#{100000 + 60000}"
     container-specs:
       - image: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('environment')}:#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('version')}"
         memory-limit: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('memory')}"
@@ -709,7 +709,7 @@ proxy:
           value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValueSetName()}"
   - id: 01_hello_manifests_persistent_using_auth
     container-specs:
-      - image: "openanalytics/shinyproxy-demo"
+      - image: "openanalytics/shinyproxy-integration-test-app"
         cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
         port-mapping:
           - name: default

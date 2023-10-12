@@ -91,7 +91,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
             Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             ServiceList serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
@@ -108,8 +108,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // all services should be deleted
-            serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
-            Assertions.assertEquals(0, serviceList.getItems().size());
+            assertNoServices(k8s);
         }
     }
 
@@ -133,7 +132,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Volumes
             Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
@@ -178,7 +177,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
@@ -221,7 +220,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
             List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
@@ -253,7 +252,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Resource limits/requests
             ResourceRequirements req = pod.getSpec().getContainers().get(0).getResources();
@@ -286,7 +285,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
@@ -334,7 +333,7 @@ public class TestIntegrationOnKube {
                 Assertions.assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
                 ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
                 Assertions.assertEquals(true, container.getReady());
-                Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+                Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
                 serviceList = k8s.client.services().inNamespace(k8s.overriddenNamespace).list();
                 Assertions.assertEquals(1, serviceList.getItems().size());
@@ -351,8 +350,7 @@ public class TestIntegrationOnKube {
                 assertNoPods(k8s);
 
                 // all services should be deleted
-                serviceList = k8s.client.services().inNamespace(k8s.overriddenNamespace).list();
-                Assertions.assertEquals(0, serviceList.getItems().size());
+                assertNoServices(k8s);
             } finally {
                 k8s.client.serviceAccounts().withName(serviceAccountName).delete();
             }
@@ -379,7 +377,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check volumes: one HostPath is added using SP and one using patches
             Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
@@ -425,7 +423,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -444,8 +442,8 @@ public class TestIntegrationOnKube {
             assertNoPods(k8s);
 
             // all additional manifests should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
-            Assertions.assertEquals(0, k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list().getItems().size());
+            assertNoSecrets(k8s);
+            assertNoPvcs(k8s);
         }
     }
 
@@ -491,7 +489,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -512,7 +510,7 @@ public class TestIntegrationOnKube {
             assertNoPods(k8s);
 
             // the secret additional manifests should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
             // the pvc should still exist, shinyproxy does not delete it because it was not created by shinyproxy
             // using sp-additional-manifest-policy: Patch it will be patched and deleted, see test launchProxyWithManifestPolicyPatch case 2
             Assertions.assertEquals(1, k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list().getItems().size());
@@ -539,7 +537,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
 
             // check env variables
@@ -567,7 +565,7 @@ public class TestIntegrationOnKube {
             assertNoPods(k8s);
 
             // all additional manifests should be deleted
-            Assertions.assertEquals(0, k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list().getItems().size());
+            assertNoPvcs(k8s);
         }
     }
 
@@ -593,7 +591,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
@@ -611,7 +609,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
 
             // the PVC should not be deleted
             Assertions.assertEquals(1, k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list().getItems().size());
@@ -636,7 +634,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -650,7 +648,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
         }
         // case 2: secret does already exist, check that it does not get overridden
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
@@ -680,7 +678,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -694,7 +692,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.namespace).size());
+            assertNoSecrets(k8s);
         }
     }
 
@@ -715,7 +713,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -729,7 +727,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.namespace).size());
+            assertNoSecrets(k8s);
         }
 
         // case 2: secret does already exist, check that it gets overridden
@@ -759,7 +757,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -775,7 +773,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
         }
     }
 
@@ -805,10 +803,10 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -834,7 +832,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -848,7 +846,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
         }
 
         // case 2: secret does already exist, check that it gets overridden
@@ -880,7 +878,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -896,7 +894,7 @@ public class TestIntegrationOnKube {
             // all pods should be deleted
             assertNoPods(k8s);
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
         }
     }
 
@@ -917,7 +915,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -974,7 +972,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -1040,10 +1038,10 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // the secret should be deleted
-            Assertions.assertEquals(0, k8s.getSecrets(k8s.overriddenNamespace).size());
+            assertNoSecrets(k8s);
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -1069,7 +1067,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // secret has no namespace defined -> should be created in the default namespace
             Secret secret = k8s.getSingleSecret(k8s.namespace);
@@ -1129,7 +1127,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
             Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
 
             ServiceList serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
@@ -1174,8 +1172,7 @@ public class TestIntegrationOnKube {
             assertNoPods(k8s);
 
             // all services should be deleted
-            serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
-            Assertions.assertEquals(0, serviceList.getItems().size());
+            assertNoServices(k8s);
         }
     }
 
@@ -1323,7 +1320,7 @@ public class TestIntegrationOnKube {
 
             // env vars that should be resolved during the final resolve:
             Assertions.assertTrue(env.containsKey("HEARTBEAT_TIMEOUT"));
-            Assertions.assertEquals("70", env.get("HEARTBEAT_TIMEOUT").getValue());
+            Assertions.assertEquals("160000", env.get("HEARTBEAT_TIMEOUT").getValue());
             Assertions.assertTrue(env.containsKey("MAX_LIFETIME"));
             Assertions.assertEquals("-1", env.get("MAX_LIFETIME").getValue());
             Assertions.assertTrue(env.containsKey("MEMORY_LIMIT"));
@@ -1334,7 +1331,7 @@ public class TestIntegrationOnKube {
             // labels that should be resolved during the final resolve:
             Map<String, String> labels = pod.getMetadata().getLabels();
             Assertions.assertTrue(labels.containsKey("HEARTBEAT_TIMEOUT"));
-            Assertions.assertEquals("70", labels.get("HEARTBEAT_TIMEOUT"));
+            Assertions.assertEquals("160000", labels.get("HEARTBEAT_TIMEOUT"));
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -1364,7 +1361,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
-            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-demo:latest"));
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             ConfigMap configMap1 = k8s.client.configMaps().inNamespace(k8s.overriddenNamespace).withName("configmap1").get();
             Assertions.assertTrue(configMap1.getData().containsKey("test.txt"));
@@ -1396,6 +1393,33 @@ public class TestIntegrationOnKube {
         }, 5_000, "assert no pods", 1, true);
         Assertions.assertTrue(cleanedUp);
         Assertions.assertEquals(0, inst.proxyService.getProxies(null, true).size());
+    }
+
+    private void assertNoPvcs(ContainerSetup k8s) {
+        boolean cleanedUp = Retrying.retry((c, m) -> {
+            List<PersistentVolumeClaim> pods1 = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list().getItems();
+            List<PersistentVolumeClaim> pods2 = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list().getItems();
+            return pods1.isEmpty() && pods2.isEmpty();
+        }, 5_000, "assert no pvcs", 1, true);
+        Assertions.assertTrue(cleanedUp);
+    }
+
+    private void assertNoSecrets(ContainerSetup k8s) {
+        boolean cleanedUp = Retrying.retry((c, m) -> {
+            List<Secret> pods1 = k8s.getSecrets(k8s.namespace);
+            List<Secret> pods2 = k8s.getSecrets(k8s.overriddenNamespace);
+            return pods1.isEmpty() && pods2.isEmpty();
+        }, 5_000, "assert no secrets", 1, true);
+        Assertions.assertTrue(cleanedUp);
+    }
+
+    private void assertNoServices(ContainerSetup k8s) {
+        boolean cleanedUp = Retrying.retry((c, m) -> {
+            List<Service> pods1 = k8s.client.services().inNamespace(k8s.namespace).list().getItems();
+            List<Service> pods2 = k8s.client.services().inNamespace(k8s.overriddenNamespace).list().getItems();
+            return pods1.isEmpty() && pods2.isEmpty();
+        }, 5_000, "assert no secrets", 1, true);
+        Assertions.assertTrue(cleanedUp);
     }
 
 }

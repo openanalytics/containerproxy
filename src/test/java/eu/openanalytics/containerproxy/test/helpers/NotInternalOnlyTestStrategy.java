@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.test.helpers;
 
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 import java.net.HttpURLConnection;
@@ -30,6 +31,8 @@ import java.net.URL;
 import java.util.Arrays;
 
 public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
+
+    private final StructuredLogger log = StructuredLogger.create(getClass());
 
 	@Override
 	public boolean testProxy(Proxy proxy) {
@@ -48,7 +51,9 @@ public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
 				if (Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
 					return true;
 				}
+                log.warn(proxy, "Error during test strategy test: status code: " + responseCode);
 			} catch (Exception e) {
+                log.warn(proxy, e, "Exception during test strategy");
                 return false;
 			}
 			return false;

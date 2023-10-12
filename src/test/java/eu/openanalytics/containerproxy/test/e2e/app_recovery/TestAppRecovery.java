@@ -174,7 +174,7 @@ public class TestAppRecovery {
                 originalProxies2 = clientDemo2.getProxies();
                 Assertions.assertNotNull(originalProxies2);
 
-                // 6. create two proxies for user demo333
+                // 6. create two proxies for user demo3
                 id5 = clientDemo3.startProxy("01_hello");
                 Assertions.assertNotNull(id5);
 

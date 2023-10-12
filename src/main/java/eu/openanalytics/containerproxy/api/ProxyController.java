@@ -37,12 +37,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.inject.Inject;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -239,18 +241,34 @@ public class ProxyController extends BaseController {
     })
     @JsonView(Views.UserApi.class)
 	@RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ApiResponse<Proxy>> startProxy(@PathVariable String proxySpecId) throws InvalidParametersException {
+	public ResponseEntity<ApiResponse<Proxy>> startProxy(@PathVariable String proxySpecId, @RequestBody(required = false) ParametersBody parametersBody) throws InvalidParametersException {
 		ProxySpec baseSpec = proxyService.findProxySpec(s -> s.getId().equals(proxySpecId), false);
 		if (baseSpec == null) {
 			return ApiResponse.failForbidden();
 		}
 
         try {
-            Proxy proxy = proxyService.startProxy(baseSpec);
+            Proxy proxy = proxyService.startProxy(baseSpec, (parametersBody != null) ? parametersBody.getParameters() : null);
             return ApiResponse.created(proxy);
+        } catch (InvalidParametersException ex) {
+            return ApiResponse.fail(ex.getMessage());
         } catch (Throwable t ) {
             return ApiResponse.error("Failed to start proxy");
         }
 	}
+
+    public static class ParametersBody {
+        private Map<String, String> parameters;
+
+        @Schema(description = "Map of parameters for the app.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        public Map<String, String> getParameters() {
+            return parameters;
+        }
+
+        public void setParameters(Map<String, String> parameters) {
+            this.parameters = parameters;
+        }
+
+    }
 
 }

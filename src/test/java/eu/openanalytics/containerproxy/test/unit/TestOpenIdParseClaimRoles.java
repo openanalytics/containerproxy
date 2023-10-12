@@ -22,8 +22,7 @@ package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestProxyService;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import net.minidev.json.JSONArray;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 
 
-@SpringBootTest(classes = {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)

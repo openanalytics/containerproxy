@@ -18,24 +18,16 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service.leader.memory;
+package eu.openanalytics.containerproxy.test.helpers;
 
-import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+public class TestUtil {
 
-import javax.annotation.PreDestroy;
-
-public class MemoryLeaderService implements ILeaderService {
-
-    private volatile boolean leader = true;
-
-    @Override
-    public boolean isLeader() {
-        return leader;
-    }
-
-    @PreDestroy
-    public void preDestroy() {
-        leader = false;
+    public static void sleep(int ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            throw new TestHelperException("Error while sleeping", e);
+        }
     }
 
 }

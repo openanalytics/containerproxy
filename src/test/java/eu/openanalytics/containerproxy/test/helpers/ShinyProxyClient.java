@@ -20,12 +20,24 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
-import okhttp3.*;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.util.Retrying;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.json.*;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class ShinyProxyClient {
@@ -34,57 +46,106 @@ public class ShinyProxyClient {
     private final String baseUrl;
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private ObjectMapper objectMapper = new ObjectMapper();
 
-    public ShinyProxyClient(String username, String password, int port) {
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    public ShinyProxyClient(String usernameAndPassword, int port) {
         this.baseUrl = "http://localhost:" + port;
         client = new OkHttpClient.Builder()
-                .addInterceptor(new BasicAuthInterceptor(username, password))
+            .addInterceptor(new BasicAuthInterceptor(usernameAndPassword, usernameAndPassword))
                 .callTimeout(Duration.ofSeconds(120))
                 .readTimeout(Duration.ofSeconds(120))
                 .build();
-        objectMapper.registerModule(new JSR353Module());
-    }
-
-    public ShinyProxyClient(String username, String password) {
-        this(username, password, 7583);
     }
 
     public String startProxy(String specId) {
+        return startProxy(specId, null);
+    }
+
+    public String startProxy(String specId, HashMap<String, String> parameters) {
+        RequestBody body = RequestBody.create("", null);
+        if (parameters != null) {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                body = RequestBody.create(
+                    objectMapper.writeValueAsString(new HashMap<String, Object>() {{
+                    put("parameters", parameters);
+                }}), MediaType.get("application/json"));
+            } catch (JsonProcessingException e) {
+                throw new TestHelperException("JSON error", e);
+            }
+        }
         Request request = new Request.Builder()
-                .post(RequestBody.create(null, new byte[0]))
+                .post(body)
                 .url(baseUrl + "/api/proxy/" + specId)
                 .build();
 
+        JsonObject response = call(request, 201);
+        String id = response.getJsonObject("data").getString("id");
+        ProxyStatus proxyStatus = waitForProxyStatus(id);
+        if (proxyStatus != ProxyStatus.Up) {
+            throw new TestHelperException(String.format("Proxy with id %s failed to reach Up status", id));
+        }
+        return id;
+    }
+
+    public JsonObject startProxyError(String specId, HashMap<String, String> parameters) {
+        RequestBody body = RequestBody.create("", null);
+        if (parameters != null) {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                body = RequestBody.create(
+                    objectMapper.writeValueAsString(new HashMap<String, Object>() {{
+                        put("parameters", parameters);
+                    }}), MediaType.get("application/json"));
+            } catch (JsonProcessingException e) {
+                throw new TestHelperException("JSON error", e);
+            }
+        }
+        Request request = new Request.Builder()
+            .post(body)
+            .url(baseUrl + "/api/proxy/" + specId)
+            .build();
+
         try (Response response = client.newCall(request).execute()) {
-            if (response.code() == 201) {
-                JsonReader jsonReader = Json.createReader(response.body().byteStream());
-                JsonObject object = jsonReader.readObject();
-                jsonReader.close();
-                return object.getJsonObject("data").getString("id");
-            } else {
-                System.out.println("BODY: " + response.body().string());
-                System.out.println("CODE: " + response.code());
+            if (response.body() == null) {
                 return null;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            JsonReader jsonReader = Json.createReader(response.body().byteStream());
+            JsonObject object = jsonReader.readObject();
+            jsonReader.close();
+            return object;
+        } catch (Throwable t) {
+            throw new TestHelperException("Error during http request", t);
         }
     }
 
-    public boolean stopProxy(String proxyId) {
+    private ProxyStatus waitForProxyStatus(String proxyId) {
+        for (int i = 0; i < 3; i++) {
+            Request request = new Request.Builder()
+                .get()
+                .url(baseUrl + "/api/" + proxyId + "/status?watch=true&timeout=60")
+                .build();
+
+            JsonObject response = call(request, 200);
+            ProxyStatus proxyStatus = ProxyStatus.valueOf(response.getJsonObject("data").getString("status"));
+            if (proxyStatus.equals(ProxyStatus.Up) || proxyStatus.equals(ProxyStatus.Stopped) || proxyStatus.equals(ProxyStatus.Paused)) {
+                return proxyStatus;
+            }
+        }
+        throw new TestHelperException(String.format("Proxy with id %s failed to reach status", proxyId));
+    }
+
+    public void stopProxy(String proxyId) {
         Request request = new Request.Builder()
                 .put(RequestBody.create("{\"desiredState\":\"Stopping\"}", JSON))
                 .url(baseUrl + "/api/" + proxyId + "/status")
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            Thread.sleep(2_000);
-            return response.code() == 200;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+        call(request, 200);
+        ProxyStatus status = waitForProxyStatus(proxyId);
+        if (status != ProxyStatus.Stopped) {
+            throw new TestHelperException(String.format("Failed to stop proxy: %s, status: %s", proxyId, status));
         }
     }
 
@@ -94,36 +155,61 @@ public class ShinyProxyClient {
                 .url(baseUrl + "/api/proxy/")
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            JsonObject resp = objectMapper.readValue(response.body().byteStream(), JsonObject.class);
+        JsonObject response = call(request, 200);
+        HashSet<JsonObject> result = new HashSet<>();
 
-            HashSet<JsonObject> result = new HashSet<>();
+        for (JsonObject proxy : response.getJsonArray("data").getValuesAs(JsonObject.class)) {
+            JsonObjectBuilder builder = Json.createObjectBuilder();
+            proxy.forEach(builder::add);
+            // remove startupTimestamp since it is different after app recovery
+            builder.add("startupTimestamp", "null");
+            result.add(builder.build());
+        }
 
-            for (JsonObject proxy : resp.getJsonArray("data").getValuesAs(JsonObject.class)) {
-                JsonObjectBuilder builder = Json.createObjectBuilder();
-                proxy.forEach(builder::add);
-                // remove startupTimestamp since it is different after app recovery
-                builder.add("startupTimestamp", "null");
-                result.add(builder.build());
+        return result;
+    }
+
+    public void testProxyReachable(String id) {
+        boolean res = Retrying.retry((c, m) -> {
+            try {
+                Request request = new Request.Builder()
+                    .get()
+                    .url(baseUrl + "/api/route/" + id + "/")
+                    .build();
+
+                try (Response response = client.newCall(request).execute()) {
+                    if (response.code() == 200) {
+                        return true;
+                    }
+                }
+                return false;
+            } catch (Throwable t) {
+                throw new TestHelperException("Error during http request", t);
             }
-
-            return result;
-        } catch (Exception e) {
-            return null;
+        }, 60_000, "proxy is reachable", 1, true);
+        if (!res) {
+            throw new TestHelperException("Proxy not reachable");
         }
     }
 
-    public boolean getProxyRequest(String id) {
-        Request request = new Request.Builder()
-                .get()
-                .url(baseUrl + "/api/route/" + id + "/")
-                .build();
-
+    private JsonObject call(Request request, int expectedStatusCode) {
         try (Response response = client.newCall(request).execute()) {
-            return response.code() == 200;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+            if (response.code() == expectedStatusCode) {
+                if (response.body() == null) {
+                    throw new TestHelperException("Response null during http request");
+                }
+                JsonReader jsonReader = Json.createReader(response.body().byteStream());
+                JsonObject object = jsonReader.readObject();
+                jsonReader.close();
+                return object;
+            } else {
+                if (response.body() != null) {
+                    logger.info("Response body: " + response.body().string());
+                }
+                throw new TestHelperException(String.format("Unexpected status code %s (expected %s) during http request", response.code(), expectedStatusCode));
+            }
+        } catch (Throwable t) {
+            throw new TestHelperException("Error during http request", t);
         }
     }
 

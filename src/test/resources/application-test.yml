@@ -7,12 +7,15 @@ spring:
            enabled: false
 proxy:
   authentication: simple
-  container-backend: docker
+  container-backend: kubernetes
 
 
   users:
   - name: demo
     password: demo
+    groups:
+      - group1
+      - group2
   - name: demo2
     password: demo2
 

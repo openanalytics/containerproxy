@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Retrying {
+
+    private static final Logger log = LoggerFactory.getLogger(Retrying.class);
 
     @FunctionalInterface
     public interface Attempt {
@@ -32,6 +37,10 @@ public class Retrying {
     }
 
     public static boolean retry(Attempt job, int maxDelay, boolean retryOnException) {
+        return retry(job, maxDelay, null, -1, retryOnException);
+    }
+
+    public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttmepts, boolean retryOnException) {
         boolean retVal = false;
         RuntimeException exception = null;
         int maxAttempts = numberOfAttempts(maxDelay);
@@ -46,6 +55,9 @@ public class Retrying {
             } catch (RuntimeException e) {
                 if (retryOnException) exception = e;
                 else throw e;
+            }
+            if (currentAttempt > logAfterAttmepts && logMessage != null) {
+                log.info(String.format("Retry: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
             }
         }
         if (exception == null) return retVal;

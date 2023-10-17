@@ -25,10 +25,9 @@ public class DisplayNameKey extends RuntimeValueKey<String> {
     private DisplayNameKey() {
         super("openanalytics.eu/sp-display-name",
                 "SHINYPROXY_DISPLAY_NAME",
-                "openanalytics.eu/sp-display-name",
-                false,
+            false,
                 true,
-                true,
+            // TODO
                 false,
                 true, // no need to expose in API
                true,

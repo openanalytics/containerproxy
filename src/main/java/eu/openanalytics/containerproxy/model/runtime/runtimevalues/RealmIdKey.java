@@ -25,11 +25,9 @@ public class RealmIdKey extends RuntimeValueKey<String> {
     private RealmIdKey() {
         super("openanalytics.eu/sp-realm-id",
                 "SHINYPROXY_REALM_ID",
-                "openanalytics.eu/sp-realm-id",
-                false,
+            false,
                 true,
-                true,
-                true,
+            true,
                 false, // no need to expose in API
                 false,
                 false,

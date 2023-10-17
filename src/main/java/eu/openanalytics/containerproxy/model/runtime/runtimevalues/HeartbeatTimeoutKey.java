@@ -25,11 +25,9 @@ public class HeartbeatTimeoutKey extends RuntimeValueKey<Long> {
     private HeartbeatTimeoutKey() {
         super("openanalytics.eu/sp-heartbeat-timeout",
                 "SHINYPROXY_HEARTBEAT_TIMEOUT",
-                "openanalytics.eu/sp-heartbeat-timeout",
-                false,
+            false,
                 true,
-                true,
-                false,
+            false,
                 true,
                 true,
                 false,

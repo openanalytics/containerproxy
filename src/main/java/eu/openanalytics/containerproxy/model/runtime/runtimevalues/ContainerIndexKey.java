@@ -25,11 +25,9 @@ public class ContainerIndexKey extends RuntimeValueKey<Integer> {
     private ContainerIndexKey() {
         super("openanalytics.eu/sp-container-index",
                 "SHINYPROXY_CONTAINER_INDEX",
-                "openanalytics.eu/sp-container-index",
-                false,
+            false,
                 true,
-                true,
-                false,
+            false,
                 true,
                 true,
                 true,

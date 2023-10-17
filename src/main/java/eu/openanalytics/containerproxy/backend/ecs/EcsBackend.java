@@ -30,11 +30,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
@@ -48,8 +44,6 @@ import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
-import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
-import software.amazon.awssdk.services.ecs.model.NetworkBinding;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
@@ -67,8 +61,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -95,86 +89,6 @@ public class EcsBackend extends AbstractContainerBackend {
         super.initialize();
         ecsClient = client;
     }
-
-
-    private Map<RuntimeValueKey<?>, RuntimeValue> parseTagsAsRuntimeValues(String taskArn, String containerId) {
-        Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
-
-        HashMap<String, String> tags = ecsClient.listTagsForResource(builder -> builder.resourceArn(taskArn)).tags().stream().collect(
-                HashMap::new,
-                (m, v) -> m.put(v.key(), v.value()),
-                HashMap::putAll
-        );
-
-
-        for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
-            if (key.getIncludeAsTag()) {
-                String value = tags.get(key.getKeyAsTag());
-                if (value != null) {
-                    runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
-                } else if (key.isRequired()) {
-                    // value is null but is required
-                    log.warn("Ignoring container {} because no tag named {} is found!", containerId, key.getKeyAsLabel());
-                    return null;
-                }
-            }
-        }
-
-        return runtimeValues;
-    }
-
-    @Override
-    public List<ExistingContainerInfo> scanExistingContainers() {
-        ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
-
-        ListTasksResponse ecsTasks = ecsClient.listTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)));
-        List<String> taskArns = ecsTasks.taskArns();
-
-        DescribeTasksResponse tasks = ecsClient
-                .describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArns));
-        tasks.tasks().forEach(task -> {
-            task.containers().forEach(container -> {
-
-                Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseTagsAsRuntimeValues(
-                        task.taskArn(), container.runtimeId());
-
-                if (runtimeValues == null) {
-                    return;
-                }
-
-                runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, container.image()));
-                runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, getProperty(PROPERTY_CLUSTER) + "/" + container.name()));
-
-
-                String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
-                if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
-                    log.warn("Ignoring container {} because instanceId {} is not correct", container.runtimeId(), containerInstanceId);
-                    return;
-                }
-
-                Map<Integer, Integer> portBindings = new HashMap<>();
-                PortMappings portMappings = new PortMappings();
-                for (NetworkBinding binding : container.networkBindings()) {
-                    Integer hostPort = binding.hostPort();
-                    Integer containerPort = binding.containerPort();
-                    portBindings.put(containerPort, hostPort);
-                    // TODO: figure out name and targetPath
-                    portMappings.addPortMapping(new PortMappings.PortMappingEntry("default", containerPort, ""));
-                }
-
-                runtimeValues.put(PortMappingsKey.inst, new RuntimeValue(PortMappingsKey.inst, portMappings));
-
-                containers.add(new ExistingContainerInfo(
-                        container.runtimeId(),
-                        runtimeValues,
-                        container.image(),
-                        portBindings));
-            });
-        });
-
-        return containers;
-    }
-
 
     @Override
     protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
@@ -204,17 +118,25 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         List<Tag> tags = new ArrayList<>();
-
         Stream.concat(
                 proxy.getRuntimeValues().values().stream(),
                 initialContainer.getRuntimeValues().values().stream()
         ).forEach(runtimeValue -> {
-            if (runtimeValue.getKey().getIncludeAsTag()) {
-                tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsTag()).value(runtimeValue.toString()).build());
+            String value = runtimeValue.toString();
+            if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+                if (validateEcsTagValue(proxy, runtimeValue.getKey().getKeyAsLabel(), value)) {
+                    tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsLabel()).value(value).build());
+                }
             }
         });
 
-        String taskDefinitionArn = getTaskDefinition(user, spec, proxy, containerId, tags);
+        for (Map.Entry<String, String> label : spec.getLabels().getValueOrDefault(new HashMap<>()).entrySet()) {
+            if (validateEcsTagValue(proxy, label.getKey(), label.getValue())) {
+                tags.add(Tag.builder().key(label.getKey()).value(label.getValue()).build());
+            }
+        }
+
+        String taskDefinitionArn = getTaskDefinition(user, spec, proxy, initialContainer, containerId, tags);
 
         RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
             .cluster(getProperty(PROPERTY_CLUSTER))
@@ -242,7 +164,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .cluster(getProperty(PROPERTY_CLUSTER))
                 .tasks(taskArn));
 
-            if (response.tasks().get(0).lastStatus().equals("RUNNING")) {
+            if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
                 return true;
             } else {
                 if (currentAttempt > 10) {
@@ -269,7 +191,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
     }
 
-    private String getTaskDefinition(Authentication user, ContainerSpec spec, Proxy proxy, String containerId, List<Tag> tags) throws IOException {
+    private String getTaskDefinition(Authentication user, ContainerSpec spec, Proxy proxy, Container initialContainer,  String containerId, List<Tag> tags) throws IOException {
         if (spec.getImage().getValue().startsWith("arn:aws:ecs:")) {
             // external task definition
             return spec.getImage().getValue();
@@ -278,6 +200,16 @@ public class EcsBackend extends AbstractContainerBackend {
         List<KeyValuePair> env = buildEnv(user, spec, proxy).entrySet().stream()
             .map(v -> KeyValuePair.builder().name(v.getKey()).value(v.getValue()).build())
             .collect(Collectors.toList());
+
+        Map<String, String> dockerLabels = spec.getLabels().getValueOrDefault(new HashMap<>());
+        Stream.concat(
+            proxy.getRuntimeValues().values().stream(),
+            initialContainer.getRuntimeValues().values().stream()
+        ).forEach(runtimeValue -> {
+            if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+                dockerLabels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
+            }
+        });
 
         RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
@@ -289,6 +221,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .command(spec.getCmd().getValueOrNull())
                 .environment(env)
                 .stopTimeout(2)
+                .dockerLabels(dockerLabels)
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
             .requiresCompatibilities(Compatibility.FARGATE)
@@ -341,6 +274,11 @@ public class EcsBackend extends AbstractContainerBackend {
         return PROPERTY_PREFIX;
     }
 
+    @Override
+    public List<ExistingContainerInfo> scanExistingContainers() {
+        return new ArrayList<>();
+    }
+
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
         String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
         String targetHostName = "";
@@ -387,6 +325,21 @@ public class EcsBackend extends AbstractContainerBackend {
         ).tasks();
 
         return Optional.ofNullable(tasks.get(0));
+    }
+
+    private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
+
+    private boolean validateEcsTagValue(Proxy proxy, String key, String value) {
+        if (value.length() > 256) {
+            slog.warn(proxy, String.format("Not adding ECS tag \"%s\" because it is longer than 256 characters", key));
+            return false;
+        }
+        if (!TAG_VALUE_PATTERN.matcher(value).matches()) {
+            slog.warn(proxy, String.format("Not adding ECS tag \"%s\" because it is contains invalid characters (only a-zA-Z0-9 +-=._:/@ allowed)", key));
+            return false;
+        }
+
+        return true;
     }
 
 }

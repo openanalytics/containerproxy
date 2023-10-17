@@ -25,11 +25,9 @@ public class TaskDefinitionKey extends RuntimeValueKey<String> {
     private TaskDefinitionKey() {
         super("openanalytics.eu/sp-task-defintion",
                 "SHINYPROXY_TASK_DEFINITION",
-                "openanalytics.eu/sp-task-defintion",
+            false,
                 false,
-                false,
-                false,
-                false,
+            false,
                 false, // important: may not be exposed in API for security
                 false,
                 true,

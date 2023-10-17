@@ -61,11 +61,13 @@ import software.amazon.awssdk.services.ecs.model.Task;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -212,7 +214,7 @@ public class EcsBackend extends AbstractContainerBackend {
             }
         });
 
-            String taskDefinitionArn = getTaskDefinition(user, spec, proxy, containerId, tags);
+        String taskDefinitionArn = getTaskDefinition(user, spec, proxy, containerId, tags);
 
         RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
             .cluster(getProperty(PROPERTY_CLUSTER))
@@ -286,6 +288,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .privileged(isPrivileged() || spec.isPrivileged())
                 .command(spec.getCmd().getValueOrNull())
                 .environment(env)
+                .stopTimeout(2)
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
             .requiresCompatibilities(Compatibility.FARGATE)
@@ -308,6 +311,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
 
         int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "120000"));
+        List<String> stoppingState = Arrays.asList("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
 
         boolean isInactive = Retrying.retry((currentAttempt, maxAttempts) -> {
             for (Container container : proxy.getContainers()) {
@@ -316,9 +320,10 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(getProperty(PROPERTY_CLUSTER))
                     .tasks(taskArn));
 
-                if (response.hasTasks() && !response.tasks().get(0).lastStatus().equals("STOPPED") && !response.tasks().get(0).lastStatus().equals("DELETED")) {
+                System.out.println(response.tasks().get(0).lastStatus());
+                if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
                     if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                        slog.info(proxy, String.format("Container not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }
                     return false;
                 }
@@ -327,7 +332,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }, totalWaitMs);
 
         if (!isInactive) {
-            throw new Exception("Service failed to stop, still draining after" + totalWaitMs + "ms");
+            slog.warn(proxy, "Container did not get into stopping state");
         }
     }
 

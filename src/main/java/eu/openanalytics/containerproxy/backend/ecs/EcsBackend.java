@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.springframework.security.core.Authentication;
 import software.amazon.awssdk.regions.Region;
@@ -74,6 +75,10 @@ public class EcsBackend extends AbstractContainerBackend {
 
     private EcsClient ecsClient;
 
+    private List<String> subnets;
+    private List<String> securityGroups;
+    private int totalWaitMs;
+
     @Override
     public void initialize() {
         super.initialize();
@@ -83,11 +88,10 @@ public class EcsBackend extends AbstractContainerBackend {
         ecsClient = EcsClient.builder()
                 .region(region)
                 .build();
-    }
 
-    public void initialize(EcsClient client) {
-        super.initialize();
-        ecsClient = client;
+        subnets = EnvironmentUtils.readList(environment, "proxy.ecs.subnets");
+        securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
+        totalWaitMs = environment.getProperty("proxy.ecs.service-wait-time", Integer.class, 180000);
     }
 
     @Override
@@ -96,93 +100,73 @@ public class EcsBackend extends AbstractContainerBackend {
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         String containerId = UUID.randomUUID().toString();
         rContainerBuilder.id(containerId);
+
         try {
-//        EcsSpecExtension specExtension = proxySpec.getSpecExtension(EcsSpecExtension.class);
+            List<Tag> tags = new ArrayList<>();
+            Stream.concat(
+                    proxy.getRuntimeValues().values().stream(),
+                    initialContainer.getRuntimeValues().values().stream()
+            ).forEach(runtimeValue -> {
+                String value = runtimeValue.toString();
+                if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+                    if (validateEcsTagValue(proxy, runtimeValue.getKey().getKeyAsLabel(), value)) {
+                        tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsLabel()).value(value).build());
+                    }
+                }
+            });
 
-        List<String> subnets = new ArrayList<>();
-        int index = 0;
-        String subnet = environment.getProperty(String.format("proxy.ecs.subnets[%d]", index));
-        while (subnet != null) {
-            subnets.add(subnet);
-            index++;
-            subnet = environment.getProperty(String.format("proxy.ecs.subnets[%d]", index));
-        }
-
-        List<String> securityGroups = new ArrayList<>();
-        index = 0;
-        String securityGroup = environment.getProperty(String.format("proxy.ecs.security-groups[%d]", index));
-        while (securityGroup != null) {
-            securityGroups.add(securityGroup);
-            index++;
-            securityGroup = environment.getProperty(String.format("proxy.ecs.security-groups[%d]", index)); // TODO + spec extension
-        }
-
-        List<Tag> tags = new ArrayList<>();
-        Stream.concat(
-                proxy.getRuntimeValues().values().stream(),
-                initialContainer.getRuntimeValues().values().stream()
-        ).forEach(runtimeValue -> {
-            String value = runtimeValue.toString();
-            if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-                if (validateEcsTagValue(proxy, runtimeValue.getKey().getKeyAsLabel(), value)) {
-                    tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsLabel()).value(value).build());
+            for (Map.Entry<String, String> label : spec.getLabels().getValueOrDefault(new HashMap<>()).entrySet()) {
+                if (validateEcsTagValue(proxy, label.getKey(), label.getValue())) {
+                    tags.add(Tag.builder().key(label.getKey()).value(label.getValue()).build());
                 }
             }
-        });
 
-        for (Map.Entry<String, String> label : spec.getLabels().getValueOrDefault(new HashMap<>()).entrySet()) {
-            if (validateEcsTagValue(proxy, label.getKey(), label.getValue())) {
-                tags.add(Tag.builder().key(label.getKey()).value(label.getValue()).build());
-            }
-        }
+            String taskDefinitionArn = getTaskDefinition(user, spec, proxy, initialContainer, containerId, tags);
 
-        String taskDefinitionArn = getTaskDefinition(user, spec, proxy, initialContainer, containerId, tags);
-
-        RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
-            .cluster(getProperty(PROPERTY_CLUSTER))
-            .count(1)
-            .taskDefinition(taskDefinitionArn)
-            .propagateTags(PropagateTags.TASK_DEFINITION)
-            .networkConfiguration(NetworkConfiguration.builder()
-                .awsvpcConfiguration(AwsVpcConfiguration.builder()
-                    .subnets(subnets)
-                    .securityGroups(securityGroups)
-                    .build())
-                .build())
-            .launchType(LaunchType.FARGATE)
-            .tags(tags));
-
-        if (!runTaskResponse.hasTasks()) {
-            throw new ContainerFailedToStartException("No task in taskResponse", null, rContainerBuilder.build());
-        }
-
-        String taskArn = runTaskResponse.tasks().get(0).taskArn();
-
-        int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "180000")); // TODO
-        boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
-            DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
+            RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
                 .cluster(getProperty(PROPERTY_CLUSTER))
-                .tasks(taskArn));
+                .count(1)
+                .taskDefinition(taskDefinitionArn)
+                .propagateTags(PropagateTags.TASK_DEFINITION)
+                .networkConfiguration(NetworkConfiguration.builder()
+                    .awsvpcConfiguration(AwsVpcConfiguration.builder()
+                        .subnets(subnets)
+                        .securityGroups(securityGroups)
+                        .build())
+                    .build())
+                .launchType(LaunchType.FARGATE)
+                .tags(tags));
 
-            if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
-                return true;
-            } else {
-                if (currentAttempt > 10) {
-                    slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                }
-                return false;
+            if (!runTaskResponse.hasTasks()) {
+                throw new ContainerFailedToStartException("No task in taskResponse", null, rContainerBuilder.build());
             }
-        }, totalWaitMs);
 
-        String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-        rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
-        rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
+            String taskArn = runTaskResponse.tasks().get(0).taskArn();
 
-        if (!serviceReady) {
-            throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
-        }
+            boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
+                DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
+                    .cluster(getProperty(PROPERTY_CLUSTER))
+                    .tasks(taskArn));
 
-        Map<Integer, Integer> portBindings = new HashMap<>();
+                if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
+                    return true;
+                } else {
+                    if (currentAttempt > 10) {
+                        slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                    }
+                    return false;
+                }
+            }, totalWaitMs);
+
+            String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
+
+            if (!serviceReady) {
+                throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
+            }
+
+            Map<Integer, Integer> portBindings = new HashMap<>();
             return setupPortMappingExistingProxy(proxy, rContainerBuilder.build(), portBindings);
         } catch (ContainerFailedToStartException t) {
             throw t;
@@ -242,8 +226,6 @@ public class EcsBackend extends AbstractContainerBackend {
             ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
         }
 
-
-        int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.ecs.service-wait-time", "120000"));
         List<String> stoppingState = Arrays.asList("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
 
         boolean isInactive = Retrying.retry((currentAttempt, maxAttempts) -> {
@@ -253,7 +235,6 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(getProperty(PROPERTY_CLUSTER))
                     .tasks(taskArn));
 
-                System.out.println(response.tasks().get(0).lastStatus());
                 if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
                     if (currentAttempt > 10) {
                         slog.info(proxy, String.format("Container not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));

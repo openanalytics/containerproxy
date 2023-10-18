@@ -50,7 +50,7 @@ public class KubernetesManifestsRemover {
 
     private final String realmId;
 
-    public KubernetesManifestsRemover(KubernetesClient kubeClient, HashSet<String> namespaces, IdentifierService identifierService) {
+    public KubernetesManifestsRemover(KubernetesClient kubeClient, List<String> namespaces, IdentifierService identifierService) {
         this.kubeClient = kubeClient;
         realmId = identifierService.realmId;
         for (ResourceDefinitionContext resourceDefinition : getSupportedResources()) {

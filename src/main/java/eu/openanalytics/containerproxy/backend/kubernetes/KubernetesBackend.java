@@ -42,6 +42,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -102,7 +103,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -142,10 +142,18 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
 
-	@Override
-	public void initialize() throws ContainerProxyException {
-		super.initialize();
+    private int totalWaitMs;
 
+    private List<String> appNamespaces;
+    private String nodeSelectorString;
+    private String kubeNamespace;
+    private String apiVersion;
+    private String imagePullPolicy;
+    private List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
+    private String targetProtocol;
+
+    @Override
+	public void initialize() throws ContainerProxyException {
 		ConfigBuilder configBuilder = new ConfigBuilder();
 
 		String masterUrl = getProperty(PROPERTY_URL);
@@ -160,18 +168,36 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			certFilePath = Paths.get(certPath, "key.pem");
 			if (Files.exists(certFilePath)) configBuilder.withClientKeyFile(certFilePath.toString());
 		}
-
-		kubeClient = new DefaultKubernetesClient(configBuilder.build());
-		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
-		logManifests = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
+        initialize(new DefaultKubernetesClient(configBuilder.build()));
 	}
 
 	public void initialize(KubernetesClient client) {
 		super.initialize();
 		kubeClient = client;
-		kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, getAppNamespaces(), identifierService);
+        kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
+        appNamespaces = EnvironmentUtils.readList(environment, "app-namespaces");
+        if (appNamespaces == null) {
+            appNamespaces = new ArrayList<>();
+        }
+        appNamespaces.add(kubeNamespace);
 		logManifests = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
-	}
+        totalWaitMs = environment.getProperty("proxy.kubernetes.pod-wait-time", Integer.class, 60000);
+        nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
+        apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
+        imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
+
+        String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
+        if (imagePullSecret == null) {
+            String imagePullSecretArray = getProperty(PROPERTY_IMG_PULL_SECRETS);
+            if (imagePullSecretArray != null) {
+                imagePullSecrets = Arrays.stream(imagePullSecretArray.split(",")).map(LocalObjectReference::new).collect(Collectors.toList());
+            }
+        } else {
+            imagePullSecrets.add(new LocalObjectReference(imagePullSecret));
+        }
+        targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
+        kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, appNamespaces, identifierService);
+    }
 
 	@Override
 	protected Container startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
@@ -181,8 +207,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 		KubernetesSpecExtension specExtension = proxySpec.getSpecExtension(KubernetesSpecExtension.class);
 		try {
-			String kubeNamespace = getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE);
-			String apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
 
 			List<String> volumeStrings = spec.getVolumes().getValueOrDefault(Collections.emptyList());
 			List<Volume> volumes = new ArrayList<>();
@@ -245,17 +269,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 					.withResources(resourceRequirementsBuilder.build())
 					.withEnv(envVars);
 
-			String imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
 			if (imagePullPolicy != null) containerBuilder.withImagePullPolicy(imagePullPolicy);
-
-			String[] imagePullSecrets = {};
-			String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
-			if (imagePullSecret == null) {
-				String imagePullSecretArray = getProperty(PROPERTY_IMG_PULL_SECRETS);
-				if (imagePullSecretArray != null) imagePullSecrets = imagePullSecretArray.split(",");
-			} else {
-				imagePullSecrets = new String[]{imagePullSecret};
-			}
 
 			Map<String, String> serviceLabels = new HashMap<>();
 			Map<String, String> podLabels = new HashMap<>();
@@ -292,10 +306,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			PodSpec podSpec = new PodSpec();
 			podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
 			podSpec.setVolumes(volumes);
-			podSpec.setImagePullSecrets(Arrays.stream(imagePullSecrets)
-					.map(LocalObjectReference::new).collect(Collectors.toList()));
+			podSpec.setImagePullSecrets(imagePullSecrets);
 
-			String nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
 			if (nodeSelectorString != null) {
 				podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
 			}
@@ -317,7 +329,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 			// create and start the pod
 			Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 
-			int totalWaitMs = Integer.parseInt(environment.getProperty("proxy.kubernetes.pod-wait-time", "60000"));
 			boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
 				if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
 					if (currentAttempt > 10 && log != null) {
@@ -572,7 +583,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 	}
 
 	protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
-		String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
 		String targetHostName;
 		int targetPort;
 
@@ -646,13 +656,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	@Override
 	public List<ExistingContainerInfo> scanExistingContainers() {
-        HashSet<String> namespaces = getAppNamespaces();
-
-		log.debug("Looking for existing pods in namespaces {}", namespaces);
+		log.debug("Looking for existing pods in namespaces {}", appNamespaces);
 
 		ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
-		for (String namespace : namespaces) {
+		for (String namespace : appNamespaces) {
             List<Pod> pods = kubeClient.pods().inNamespace(namespace)
 					.withLabel(ProxiedAppKey.inst.getKeyAsLabel(), "true")
 					.list().getItems();
@@ -747,19 +755,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 	private Optional<Pod> getPod(Pair<String, String> podInfo) {
 		return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getFirst()).withName(podInfo.getSecond()).get());
-	}
-
-	private HashSet<String> getAppNamespaces() {
-		HashSet<String> namespaces = new HashSet<>();
-		int i = 0;
-		String appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
-		while (appNamespace != null) {
-			namespaces.add(appNamespace);
-			i++;
-			appNamespace = environment.getProperty(String.format("app-namespaces[%d]", i));
-		}
-		namespaces.add(getProperty(PROPERTY_NAMESPACE, DEFAULT_NAMESPACE));
-		return namespaces;
 	}
 
 }

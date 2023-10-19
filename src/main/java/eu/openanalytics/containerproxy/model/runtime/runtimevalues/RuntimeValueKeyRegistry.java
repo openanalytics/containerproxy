@@ -51,6 +51,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(DisplayNameKey.inst);
         addRuntimeValueKey(PublicPathKey.inst);
         addRuntimeValueKey(HttpHeadersKey.inst);
+        addRuntimeValueKey(TargetIdKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

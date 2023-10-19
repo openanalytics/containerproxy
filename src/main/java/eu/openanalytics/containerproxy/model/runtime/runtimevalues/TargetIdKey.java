@@ -18,24 +18,22 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
+package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+public class TargetIdKey extends RuntimeValueKey<String> {
 
-public class SeatIdRuntimeValue extends RuntimeValueKey<String> {
+    public static final TargetIdKey inst = new TargetIdKey();
 
-    public static final SeatIdRuntimeValue inst = new SeatIdRuntimeValue();
-
-    private SeatIdRuntimeValue() {
-        super("openanalytics.eu/sp-seat-id",
-            "SHINYPROXY_SEAT_ID",
-            false,
-            true,
-            false,
-            false,
-            false,
-            false,
-            String.class);
+    private TargetIdKey() {
+        super("openanalytics.eu/sp-target-id",
+                "SHINYPROXY_TARGET_ID",
+                false,
+                true,
+                false,
+                false, // no need to expose in API
+                true,
+                false,
+                String.class);
     }
 
     @Override

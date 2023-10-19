@@ -231,7 +231,6 @@ public class ProxyService {
             }
             Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
             proxyBuilder.id(proxyId);
-            proxyBuilder.targetId(proxyId);
             proxyBuilder.status(ProxyStatus.New);
             proxyBuilder.userId(user.getName());
             proxyBuilder.specId(spec.getId());

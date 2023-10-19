@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimest
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.DisplayNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import org.apache.logging.log4j.LogManager;
@@ -95,6 +96,7 @@ public class AppRecoveryService {
                     Proxy.ProxyBuilder proxy = Proxy.builder();
                     proxy.id(proxyId);
                     proxy.specId(containerInfo.getRuntimeValue(ProxySpecIdKey.inst).getObject());
+                    proxy.targetId(containerInfo.getRuntimeValue(TargetIdKey.inst).getObject());
                     proxy.status(ProxyStatus.Stopped);
                     long createdTimestamp = Long.parseLong(containerInfo.getRuntimeValue(CreatedTimestampKey.inst).getObject());
                     proxy.createdTimestamp(createdTimestamp);

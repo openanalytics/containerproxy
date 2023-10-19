@@ -25,9 +25,12 @@ import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.SwaggerDto;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -43,8 +46,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 
 @RestController
@@ -55,6 +60,9 @@ public class ProxyController extends BaseController {
 
     @Inject
     private ApiSecurityService apiSecurityService;
+
+    @Inject
+    private ContextPathHelper contextPathHelper;
 
     @Operation(summary = "Get configured proxy specs. A configuration property controls whether the full spec or a limited subset is returned.", tags = "ContainerProxy")
     @ApiResponses(value = {
@@ -248,7 +256,10 @@ public class ProxyController extends BaseController {
         }
 
         try {
-            Proxy proxy = proxyService.startProxy(baseSpec, (parametersBody != null) ? parametersBody.getParameters() : null);
+            String id = UUID.randomUUID().toString();
+            List<RuntimeValue> runtimeValues = new ArrayList<>();
+            runtimeValues.add(new RuntimeValue(PublicPathKey.inst, getPublicPath(id)));
+            Proxy proxy = proxyService.startProxy(baseSpec, runtimeValues, id, (parametersBody != null) ? parametersBody.getParameters() : null);
             return ApiResponse.created(proxy);
         } catch (InvalidParametersException ex) {
             return ApiResponse.fail(ex.getMessage());
@@ -269,6 +280,10 @@ public class ProxyController extends BaseController {
             this.parameters = parameters;
         }
 
+    }
+
+    private String getPublicPath(String proxyId) {
+        return contextPathHelper.withEndingSlash() + "/api/route/" + proxyId;
     }
 
 }

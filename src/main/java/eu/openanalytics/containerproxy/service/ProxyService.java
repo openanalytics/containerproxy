@@ -218,9 +218,8 @@ public class ProxyService {
         return getProxy(id);
     }
 
-    public Proxy startProxy(ProxySpec spec, Map<String, String> parameters) {
-        String id = UUID.randomUUID().toString();
-        startProxy(userService.getCurrentAuth(), spec, null, id, parameters).run();
+    public Proxy startProxy(ProxySpec spec, List<RuntimeValue> runtimeValues, String id, Map<String, String> parameters) {
+        startProxy(userService.getCurrentAuth(), spec, runtimeValues, id, parameters).run();
         return getProxy(id);
     }
 

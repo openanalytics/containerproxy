@@ -101,6 +101,7 @@ public class EcsBackend extends AbstractContainerBackend {
         String containerId = UUID.randomUUID().toString();
         rContainerBuilder.id(containerId);
 
+        EcsSpecExtension specExtension = proxySpec.getSpecExtension(EcsSpecExtension.class);
         try {
             List<Tag> tags = new ArrayList<>();
             Stream.concat(
@@ -121,7 +122,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 }
             }
 
-            String taskDefinitionArn = getTaskDefinition(user, spec, proxy, initialContainer, containerId, tags);
+            String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, containerId, tags);
 
             RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
                 .cluster(getProperty(PROPERTY_CLUSTER))
@@ -175,7 +176,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
     }
 
-    private String getTaskDefinition(Authentication user, ContainerSpec spec, Proxy proxy, Container initialContainer,  String containerId, List<Tag> tags) throws IOException {
+    private String getTaskDefinition(Authentication user, ContainerSpec spec, EcsSpecExtension specExtension, Proxy proxy, Container initialContainer, String containerId, List<Tag> tags) throws IOException {
         if (spec.getImage().getValue().startsWith("arn:aws:ecs:")) {
             // external task definition
             return spec.getImage().getValue();
@@ -211,6 +212,8 @@ public class EcsBackend extends AbstractContainerBackend {
             .requiresCompatibilities(Compatibility.FARGATE)
             .cpu(spec.getCpuRequest().getValue()) // required by fargate
             .memory(spec.getMemoryRequest().getValue()) // required by fargate
+            .taskRoleArn(specExtension.ecsTaskRole.getValueOrNull())
+            .executionRoleArn(specExtension.ecsTaskRole.getValueOrNull())
             .tags(tags));
 
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();

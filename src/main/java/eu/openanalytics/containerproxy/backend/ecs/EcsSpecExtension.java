@@ -24,11 +24,15 @@ import eu.openanalytics.containerproxy.model.spec.AbstractSpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import lombok.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -38,22 +42,24 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class EcsSpecExtension extends AbstractSpecExtension {
-    @Builder.Default
-    List<String> securityGroups = new ArrayList<>();
 
     @Builder.Default
-    List<String> subnets = new ArrayList<>();
+    SpelField.String ecsTaskRole = new SpelField.String();
+
+    @Builder.Default
+    SpelField.String ecsExecutionRole = new SpelField.String();
 
     @Override
     public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
-        return this;
+        return toBuilder()
+            .ecsTaskRole(ecsTaskRole.resolve(resolver, context))
+            .ecsExecutionRole(ecsExecutionRole.resolve(resolver, context))
+            .build();
     }
 
     @Override
     public ISpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
-        return toBuilder()
-                .securityGroups(securityGroups.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
-                .subnets(subnets.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
-                .build();
+        return this;
     }
+
 }

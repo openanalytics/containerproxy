@@ -31,6 +31,8 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerInde
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.DisplayNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeaders;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeadersKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
@@ -53,6 +55,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -111,6 +114,21 @@ public class RuntimeValueService {
 
         proxyBuilder.addRuntimeValue(new RuntimeValue(HeartbeatTimeoutKey.inst, spec.getHeartbeatTimeout().getValueOrDefault(defaultHeartbeatTimeout)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(MaxLifetimeKey.inst, spec.getMaxLifeTime().getValueOrDefault(defaultMaxLifetime)), true);
+
+        return proxyBuilder.build();
+    }
+
+    public Proxy addRuntimeValuesAfterFinalSpelResolve(ProxySpec spec, Proxy proxy) {
+        Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
+
+        Map<String, String> headers = new HashMap<>(spec.getHttpHeaders().getValueOrDefault(new HashMap<>()));
+
+        if (spec.getAddDefaultHttpHeaders() == null || spec.getAddDefaultHttpHeaders()) {
+            headers.put("X-SP-UserId", proxy.getRuntimeValue(UserIdKey.inst));
+            headers.put("X-SP-UserGroups", proxy.getRuntimeValue(UserGroupsKey.inst));
+        }
+
+        proxyBuilder.addRuntimeValue(new RuntimeValue(HttpHeadersKey.inst, new HttpHeaders(headers)), true);
 
         return proxyBuilder.build();
     }

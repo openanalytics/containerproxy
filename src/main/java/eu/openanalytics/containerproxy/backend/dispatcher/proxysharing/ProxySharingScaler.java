@@ -176,7 +176,7 @@ public class ProxySharingScaler {
             seatStore.addToUnclaimedSeats(seatId);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
             if (lastReconcileStatus.equals(ReconcileStatus.ScaleUp)) {
-                log(delegateProxy, String.format("Re-adding seat %s to unclaimed seath although it's marked for removal because there are pending delegating proxies", seatId));
+                log(delegateProxy, String.format("Re-adding seat %s to unclaimed seats although it's marked for removal because there are pending delegating proxies", seatId));
                 seatStore.addToUnclaimedSeats(seatId);
             } else {
                 // seat no longer needed, remove it

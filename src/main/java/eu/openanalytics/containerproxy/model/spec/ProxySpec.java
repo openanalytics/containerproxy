@@ -91,6 +91,11 @@ public class ProxySpec {
     @Builder.Default
     Map<String, ISpecExtension> specExtensions = new HashMap<>();
 
+    Boolean addDefaultHttpHeaders;
+
+    @Builder.Default
+    SpelField.StringMap httpHeaders = new SpelField.StringMap();
+
     public void setContainerIndex() {
         if (this.containerSpecs != null) {
             for (int i = 0; i < this.containerSpecs.size(); i++) {
@@ -99,6 +104,10 @@ public class ProxySpec {
                     .setIndex(i);
             }
         }
+    }
+
+    public void setHttpHeaders(Map<String, String> httpHeaders) {
+        this.httpHeaders = new SpelField.StringMap(httpHeaders);
     }
 
     public void addSpecExtension(ISpecExtension specExtension) {
@@ -130,6 +139,7 @@ public class ProxySpec {
 
     public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
+            .httpHeaders(httpHeaders.resolve(resolver, context))
             .specExtensions(
                 specExtensions.entrySet()
                     .stream()

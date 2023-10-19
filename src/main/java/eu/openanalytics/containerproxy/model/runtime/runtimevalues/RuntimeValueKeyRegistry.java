@@ -50,6 +50,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(PortMappingsKey.inst);
         addRuntimeValueKey(DisplayNameKey.inst);
         addRuntimeValueKey(PublicPathKey.inst);
+        addRuntimeValueKey(HttpHeadersKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

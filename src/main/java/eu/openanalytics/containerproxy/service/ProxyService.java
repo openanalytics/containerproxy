@@ -403,6 +403,8 @@ public class ProxyService {
 
             spec = spec.finalResolve(expressionResolver, context);
 
+            proxy = runtimeValueService.addRuntimeValuesAfterFinalSpelResolve(spec, proxy);
+
             return Pair.of(spec, proxy);
         } catch (Throwable t) {
             log.warn(proxy, t, "Failed to prepare proxy for start");

@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.util;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeaders;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeadersKey;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
@@ -39,6 +41,7 @@ import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.Headers;
+import io.undertow.util.HttpString;
 import io.undertow.util.PathMatcher;
 import io.undertow.util.StatusCodes;
 import jakarta.servlet.ServletException;
@@ -55,6 +58,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -173,25 +177,25 @@ public class ProxyMappingManager {
      * Note that clients can never access a proxy handler directly (for security reasons).
      * Dispatching is the only allowed method to access proxy handlers.
      *
-     * @param proxyId  The id of the proxy
+     * @param proxy    The proxy
      * @param mapping  The target mapping to dispatch to.
      * @param request  The request to dispatch.
      * @param response The response corresponding to the request.
      * @throws IOException      If the dispatch fails for an I/O reason.
      * @throws ServletException If the dispatch fails for any other reason.
      */
-    public void dispatchAsync(String proxyId, String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        dispatchAsync(proxyId, mapping, request, response, null);
+    public void dispatchAsync(Proxy proxy, String mapping, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        dispatchAsync(proxy, mapping, request, response, null);
     }
 
-    public void dispatchAsync(String proxyId, String mapping, HttpServletRequest request, HttpServletResponse response, Consumer<HttpServerExchange> exchangeCustomizer) throws IOException, ServletException {
+    public void dispatchAsync(Proxy proxy, String mapping, HttpServletRequest request, HttpServletResponse response, Consumer<HttpServerExchange> exchangeCustomizer) throws IOException, ServletException {
         HttpServerExchange exchange = ServletRequestContext.current().getExchange();
         exchange.putAttachment(ATTACHMENT_KEY_DISPATCHER, this);
-        exchange.putAttachment(ATTACHMENT_KEY_PROXY_ID, new ProxyIdAttachment(proxyId));
+        exchange.putAttachment(ATTACHMENT_KEY_PROXY_ID, new ProxyIdAttachment(proxy.getId()));
 
         String queryString = request.getQueryString();
         queryString = (queryString == null) ? "" : "?" + queryString;
-        String targetPath = getPrefixPath(proxyId, mapping) + queryString;
+        String targetPath = getPrefixPath(proxy.getId(), mapping) + queryString;
 
         if (exchangeCustomizer != null) {
             exchangeCustomizer.accept(exchange);
@@ -204,6 +208,11 @@ public class ProxyMappingManager {
         // note: if we set the header here, undertow does not override it
         exchange.getRequestHeaders().put(Headers.X_FORWARDED_HOST, exchange.getHostAndPort());
         exchange.addDefaultResponseListener(defaultResponseListener);
+
+        // add headers
+        HttpHeaders headers = proxy.getRuntimeObject(HttpHeadersKey.inst);
+        exchange.getRequestHeaders().putAll(headers.getUndertowHeaderMap());
+
         request.startAsync();
         request.getRequestDispatcher(targetPath).forward(request, response);
     }

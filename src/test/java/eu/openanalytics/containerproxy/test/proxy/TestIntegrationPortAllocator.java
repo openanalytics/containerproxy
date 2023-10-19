@@ -20,54 +20,45 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 import eu.openanalytics.containerproxy.service.portallocator.memory.MemoryPortAllocator;
 import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.support.TestPropertySourceUtils;
 
-import javax.annotation.Nonnull;
-import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-
 
 /**
  * These tests require redis to be running...
  */
-@SpringBootTest(classes = {ContainerProxyApplication.class})
-@ContextConfiguration(initializers = TestIntegrationPortAllocator.PropertyOverride.class)
-@ActiveProfiles("redis-integration")
-@TestInstance(PER_CLASS)
 public class TestIntegrationPortAllocator {
 
-    @Inject
-    private RedisTemplate<String, RedisPortAllocator.PortList> portTemplate;
+    private static final ShinyProxyInstance inst = new ShinyProxyInstance("application-redis-integration.yml", new HashMap<>());
+    private static final RedisTemplate<String, RedisPortAllocator.PortList> portTemplate = inst.getBean("porRedisTemplate", RedisTemplate.class);
+    private static final IdentifierService identifierService = inst.getBean("identifierService", IdentifierService.class);
+    private static final RedisPortAllocator redisPortAllocator = inst.getBean("portAllocator", RedisPortAllocator.class);
 
-    @Inject
-    private IdentifierService identifierService;
+    @AfterAll
+    public static void afterAll() {
+        inst.close();
+    }
 
-    private Stream<Arguments> parameters() {
+    private static Stream<Arguments> parameters() {
         return Stream.of(
-                Arguments.of(new RedisPortAllocator(portTemplate, identifierService)),
+                Arguments.of(redisPortAllocator),
                 Arguments.of(new MemoryPortAllocator())
         );
     }
@@ -104,9 +95,9 @@ public class TestIntegrationPortAllocator {
 
         List<Integer> allAllocatedPorts = Stream.concat(portsThread1.stream(), portsThread2.stream())
                 .sorted()
-                .toList();
+                .collect(Collectors.toList());
 
-        List<Integer> expectedPorts = IntStream.range(100, 300).boxed().toList();
+        List<Integer> expectedPorts = IntStream.range(100, 300).boxed().collect(Collectors.toList());
 
         Assertions.assertEquals(expectedPorts, allAllocatedPorts);
     }
@@ -206,9 +197,9 @@ public class TestIntegrationPortAllocator {
         List<Integer> allAllocatedPorts = Stream.concat(portAllocator.getOwnedPorts("owner1_2").stream(),
                         portAllocator.getOwnedPorts("owner2_2").stream())
                 .sorted()
-                .toList();
+                .collect(Collectors.toList());
 
-        List<Integer> expectedPorts = IntStream.range(100, 110).boxed().toList();
+        List<Integer> expectedPorts = IntStream.range(100, 110).boxed().collect(Collectors.toList());
         Assertions.assertEquals(expectedPorts, allAllocatedPorts);
     }
 
@@ -221,19 +212,6 @@ public class TestIntegrationPortAllocator {
         Assertions.assertThrows(ContainerProxyException.class, () -> {
             portAllocator.allocate(100, 104, "owner1_1");
         }, "Cannot create container: all allocated ports are currently in use. Please try again later or contact an administrator.");
-    }
-
-    public static class PropertyOverride extends PropertyOverrideContextInitializer {
-
-        @Override
-        public void initialize(@Nonnull ConfigurableApplicationContext configurableApplicationContext) {
-            super.initialize(configurableApplicationContext);
-
-            TestPropertySourceUtils.addInlinedPropertiesToEnvironment(configurableApplicationContext,
-                    "proxy.realm-id=" + UUID.randomUUID());
-
-        }
-
     }
 
 }

@@ -10,7 +10,7 @@ proxy:
   specs:
     - id: 01_hello
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default

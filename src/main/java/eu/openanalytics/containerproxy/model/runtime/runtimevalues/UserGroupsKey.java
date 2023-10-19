@@ -27,9 +27,9 @@ public class UserGroupsKey extends RuntimeValueKey<String> {
     private UserGroupsKey() {
         super("openanalytics.eu/sp-user-groups",
                 "SHINYPROXY_USERGROUPS",
-                false,
+            false,
                 true,
-                true,
+            true,
                 false, // no need to expose in API
                 true,
                 false,

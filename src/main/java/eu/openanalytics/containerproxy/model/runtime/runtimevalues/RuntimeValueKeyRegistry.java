@@ -52,6 +52,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(PublicPathKey.inst);
         addRuntimeValueKey(HttpHeadersKey.inst);
         addRuntimeValueKey(TargetIdKey.inst);
+        addRuntimeValueKey(TaskDefinitionKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

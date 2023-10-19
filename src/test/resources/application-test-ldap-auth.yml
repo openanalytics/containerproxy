@@ -13,5 +13,3 @@ proxy:
     group-search-filter: (uniqueMember={0})
     manager-dn: cn=read-only-admin,dc=example,dc=com
     manager-password: password
-  test-username: tesla
-  test-password: password

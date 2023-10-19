@@ -20,38 +20,37 @@
  */
 package eu.openanalytics.containerproxy.test.auth;
 
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
+import eu.openanalytics.containerproxy.test.helpers.BasicAuthInterceptor;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
 
-import javax.inject.Inject;
+import java.time.Duration;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@SpringBootTest
-@ExtendWith(SpringExtension.class)
-@AutoConfigureMockMvc
-@ActiveProfiles("test-no-auth")
-@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class NoAuthenticationTest {
-
-    @Inject
-    private MockMvc mvc;
 
     @Test
     public void authenticateUser() throws Exception {
-        mvc
-                .perform(get("/api/proxyspec").accept(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isNotEmpty());
+        try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-no-auth.yml")) {
+            String baseUrl = "http://localhost:7583";
+            OkHttpClient client = new OkHttpClient.Builder()
+                .callTimeout(Duration.ofSeconds(120))
+                .readTimeout(Duration.ofSeconds(120))
+                .followRedirects(false)
+                .build();
+
+            Request request = new Request.Builder()
+                .url(baseUrl + "/api/proxyspec")
+                .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                Assertions.assertEquals(200, response.code());
+                Assertions.assertFalse(response.isRedirect());
+            }
+        }
     }
+
 }

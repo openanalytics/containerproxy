@@ -27,9 +27,9 @@ public class InstanceIdKey extends RuntimeValueKey<String> {
     private InstanceIdKey() {
         super("openanalytics.eu/sp-instance",
                 "SHINYPROXY_INSTANCE",
-                true,
+            true,
                 false,
-                false,
+            false,
                 true,
                 true,
                 false,

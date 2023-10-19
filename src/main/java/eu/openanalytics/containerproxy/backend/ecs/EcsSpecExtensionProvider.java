@@ -18,18 +18,23 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec;
+package eu.openanalytics.containerproxy.backend.ecs;
 
-public class ProxySpecException extends RuntimeException {
+import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesSpecExtension;
+import eu.openanalytics.containerproxy.spec.ISpecExtensionProvider;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
-    private static final long serialVersionUID = 331280631122317780L;
+import java.util.List;
 
-    public ProxySpecException(String message) {
-        super(message);
-    }
+@Setter
+@Getter
+@Configuration
+@ConfigurationProperties(prefix = "proxy")
+public class EcsSpecExtensionProvider implements ISpecExtensionProvider<EcsSpecExtension> {
 
-    public ProxySpecException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    private List<EcsSpecExtension> specs;
 
 }

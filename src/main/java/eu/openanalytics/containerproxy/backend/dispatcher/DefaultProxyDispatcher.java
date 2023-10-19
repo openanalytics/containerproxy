@@ -42,6 +42,7 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, proxy.getId()), true);
+        resultProxy.targetId(proxy.getId());
         return containerBackend.startProxy(user, resultProxy.build(), spec, proxyStartupLogBuilder);
     }
 

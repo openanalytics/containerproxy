@@ -21,8 +21,6 @@
 package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -43,9 +41,8 @@ public class TestParameterValidationService {
 
     private void test(String resource, String expectedError) {
         this.contextRunner
-                .withInitializer(new PropertyOverrideContextInitializer())
                 .withInitializer(new TestPropertyLoader(resource))
-                .withUserConfiguration(TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class)
+                .withUserConfiguration(ContainerProxyApplication.class)
                 .run(context -> {
                     assertThat(context)
                             .hasFailed();

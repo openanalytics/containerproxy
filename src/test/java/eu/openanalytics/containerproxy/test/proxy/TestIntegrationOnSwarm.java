@@ -26,150 +26,90 @@ import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.swarm.SecretBind;
 import com.spotify.docker.client.messages.swarm.SecretSpec;
 import com.spotify.docker.client.messages.swarm.Service;
-import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
-import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.UserService;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import eu.openanalytics.containerproxy.util.ProxyMappingManager;
-import org.junit.jupiter.api.AfterEach;
+import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
-import org.springframework.core.env.Environment;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-import javax.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 
-@SpringBootTest(classes = {TestIntegrationOnSwarm.TestConfiguration.class, ContainerProxyApplication.class})
-@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
-@ActiveProfiles("test-swarm")
 public class TestIntegrationOnSwarm {
 
-    @Inject
-    private Environment environment;
+    private static final ShinyProxyInstance inst = new ShinyProxyInstance("application-test-swarm.yml", new HashMap<>());
 
-    @Inject
-    private ProxyService proxyService;
-
-    @Inject
-    private IProxySpecProvider specProvider;
-
-    private boolean checkEverythingCleanedUp() throws DockerCertificateException, DockerException, InterruptedException {
-        try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
-
-            return dockerClient.listContainers().stream()
-                    .filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app"))
-                    .count() == 0
-                    && dockerClient.listServices().size() == 0;
-        }
-    }
-
-    @AfterEach
-    public void waitForCleanup() throws InterruptedException, DockerException, DockerCertificateException {
-        Thread.sleep(3_000); // wait before checking
-        for (int i = 0; i < 120; i++) {
-            if (checkEverythingCleanedUp()) {
-                break;
-            }
-            Thread.sleep(1_000);
-        }
-        Assertions.assertTrue(checkEverythingCleanedUp());
-    }
-
-    @BeforeEach
-    public void beforeEach() throws DockerCertificateException, DockerException, InterruptedException {
-        Assertions.assertTrue(checkEverythingCleanedUp());
+    @AfterAll
+    public static void afterAll() {
+        inst.close();
     }
 
     @Test
     public void launchProxy() throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
-        try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
-            String specId = environment.getProperty("proxy.specs[0].id");
+        try (ContainerSetup containerSetup = new ContainerSetup("docker-swarm")) {
+            try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
+                String id = inst.client.startProxy("01_hello");
+                Proxy proxy = inst.proxyService.getProxy(id);
 
-            ProxySpec spec = specProvider.getSpec(specId);
-            Proxy proxy = proxyService.startProxy(spec);
+                List<Service> services = dockerClient.listServices();
+                Assertions.assertEquals(1, services.size());
+                Service service = services.get(0);
+                Assertions.assertEquals("openanalytics/shinyproxy-integration-test-app", service.spec().taskTemplate().containerSpec().image());
 
-            List<Service> services = dockerClient.listServices();
-            Assertions.assertEquals(1, services.size());
-            Service service = services.get(0);
-            Assertions.assertEquals("openanalytics/shinyproxy-demo", service.spec().taskTemplate().containerSpec().image());
-
-            proxyService.stopProxy(null, proxy, true).run();
+                inst.proxyService.stopProxy(null, proxy, true).run();
+            }
         }
     }
 
     @Test
     public void launchProxyWithSecret() throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
-        try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
-            String secret1Id = dockerClient.createSecret(SecretSpec.builder()
+        try (ContainerSetup containerSetup = new ContainerSetup("docker-swarm")) {
+            try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
+                String secret1Id = dockerClient.createSecret(SecretSpec.builder()
                     .data(Base64.getEncoder().encodeToString("MySecret1".getBytes(StandardCharsets.UTF_8)))
                     .name("my_secret")
                     .build()).id();
 
-            String secret2Id = dockerClient.createSecret(SecretSpec.builder()
+                String secret2Id = dockerClient.createSecret(SecretSpec.builder()
                     .data(Base64.getEncoder().encodeToString("MySecret2".getBytes(StandardCharsets.UTF_8)))
                     .name("my_secret_2")
                     .build()).id();
 
-            String specId = environment.getProperty("proxy.specs[1].id");
+                String id = inst.client.startProxy("01_hello_secret");
+                Proxy proxy = inst.proxyService.getProxy(id);
 
-            ProxySpec spec = specProvider.getSpec(specId);
-            Proxy proxy = proxyService.startProxy(spec);
+                List<Service> services = dockerClient.listServices();
+                Assertions.assertEquals(1, services.size());
+                Service service = services.get(0);
+                Assertions.assertEquals("openanalytics/shinyproxy-integration-test-app", service.spec().taskTemplate().containerSpec().image());
 
-            List<Service> services = dockerClient.listServices();
-            Assertions.assertEquals(1, services.size());
-            Service service = services.get(0);
-            Assertions.assertEquals("openanalytics/shinyproxy-demo", service.spec().taskTemplate().containerSpec().image());
+                SecretBind secret1 = service.spec().taskTemplate().containerSpec().secrets().get(0);
 
-            SecretBind secret1 = service.spec().taskTemplate().containerSpec().secrets().get(0);
+                Assertions.assertEquals(secret1Id, secret1.secretId());
+                Assertions.assertEquals("my_secret", secret1.secretName());
+                Assertions.assertEquals("my_secret", secret1.file().name());
+                Assertions.assertEquals("0", secret1.file().gid());
+                Assertions.assertEquals("0", secret1.file().uid());
+                Assertions.assertEquals(292, secret1.file().mode()); // 0444 in decimal
 
-            Assertions.assertEquals(secret1Id, secret1.secretId());
-            Assertions.assertEquals("my_secret", secret1.secretName());
-            Assertions.assertEquals("my_secret", secret1.file().name());
-            Assertions.assertEquals("0", secret1.file().gid());
-            Assertions.assertEquals("0", secret1.file().uid());
-            Assertions.assertEquals(292, secret1.file().mode()); // 0444 in decimal
+                SecretBind secret2 = service.spec().taskTemplate().containerSpec().secrets().get(1);
 
-            SecretBind secret2 = service.spec().taskTemplate().containerSpec().secrets().get(1);
+                Assertions.assertEquals(secret2Id, secret2.secretId());
+                Assertions.assertEquals("my_secret_2", secret2.secretName());
+                Assertions.assertEquals("/var/pass", secret2.file().name());
+                Assertions.assertEquals("1000", secret2.file().gid());
+                Assertions.assertEquals("1000", secret2.file().uid());
+                Assertions.assertEquals(384, secret2.file().mode()); // 0444 in decimal
 
-            Assertions.assertEquals(secret2Id, secret2.secretId());
-            Assertions.assertEquals("my_secret_2", secret2.secretName());
-            Assertions.assertEquals("/var/pass", secret2.file().name());
-            Assertions.assertEquals("1000", secret2.file().gid());
-            Assertions.assertEquals("1000", secret2.file().uid());
-            Assertions.assertEquals(384, secret2.file().mode()); // 0444 in decimal
-
-            proxyService.stopProxy(null, proxy, true).run();
-            dockerClient.deleteSecret(secret1Id);
-            dockerClient.deleteSecret(secret2Id);
+                inst.proxyService.stopProxy(null, proxy, true).run();
+                dockerClient.deleteSecret(secret1Id);
+                dockerClient.deleteSecret(secret2Id);
+            }
         }
-    }
-
-
-    public static class TestConfiguration {
-
-        @Bean
-        @Primary
-        public ProxyMappingManager mappingManager() {
-            return new TestIntegrationOnKube.NoopMappingManager();
-        }
-
-        @Bean
-        @Primary
-        public UserService mockedUserService() {
-            return new MockedUserService();
-        }
-
     }
 
 }

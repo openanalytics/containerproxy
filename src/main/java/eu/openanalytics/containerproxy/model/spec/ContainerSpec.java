@@ -47,7 +47,8 @@ public class ContainerSpec {
      * Index in the array of ContainerSpecs of the ProxySpec.
      */
     private Integer index;
-    private SpelField.String image;
+    @Builder.Default
+    private SpelField.String image = new SpelField.String();
     @Builder.Default
     private SpelField.StringList cmd = new SpelField.StringList();
     @Builder.Default
@@ -107,26 +108,26 @@ public class ContainerSpec {
 
     public ContainerSpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .image(image.resolve(resolver, context))
-                .cmd(cmd.resolve(resolver, context))
-                .envFile(envFile.resolve(resolver, context))
-                .network(network.resolve(resolver, context))
-                .networkConnections(networkConnections.resolve(resolver, context))
-                .dns(dns.resolve(resolver, context))
-                .volumes(volumes.resolve(resolver, context))
-                .memoryRequest(memoryRequest.resolve(resolver, context))
-                .memoryLimit(memoryLimit.resolve(resolver, context))
-                .cpuRequest(cpuRequest.resolve(resolver, context))
-                .cpuLimit(cpuLimit.resolve(resolver, context))
-                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
-                .build();
+            .image(image.resolve(resolver, context))
+            .cmd(cmd.resolve(resolver, context))
+            .envFile(envFile.resolve(resolver, context))
+            .network(network.resolve(resolver, context))
+            .networkConnections(networkConnections.resolve(resolver, context))
+            .dns(dns.resolve(resolver, context))
+            .volumes(volumes.resolve(resolver, context))
+            .memoryRequest(memoryRequest.resolve(resolver, context))
+            .memoryLimit(memoryLimit.resolve(resolver, context))
+            .cpuRequest(cpuRequest.resolve(resolver, context))
+            .cpuLimit(cpuLimit.resolve(resolver, context))
+            .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
+            .build();
     }
 
     public ContainerSpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .env(env.resolve(resolver, context))
-                .labels(labels.resolve(resolver, context))
-                .build();
+            .env(env.resolve(resolver, context))
+            .labels(labels.resolve(resolver, context))
+            .build();
     }
 
 }

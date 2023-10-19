@@ -20,21 +20,21 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class ProxySpecIdKey extends RuntimeValueKey<String> {
+public class TaskDefinitionKey extends RuntimeValueKey<String> {
 
-    public static final ProxySpecIdKey inst = new ProxySpecIdKey();
-
-    private ProxySpecIdKey() {
-        super("openanalytics.eu/sp-spec-id",
-                "SHINYPROXY_SPEC_ID",
+    private TaskDefinitionKey() {
+        super("openanalytics.eu/sp-task-defintion",
+                "SHINYPROXY_TASK_DEFINITION",
             false,
-                true,
-            false,
-                false, // no need to expose in API
-                true,
                 false,
+            false,
+                false, // important: may not be exposed in API for security
+                false,
+                true,
                 String.class);
     }
+
+    public static TaskDefinitionKey inst = new TaskDefinitionKey();
 
     @Override
     public String deserializeFromString(String value) {

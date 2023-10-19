@@ -20,63 +20,94 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.util.Retrying;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 
-import java.io.File;
-import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
-public class ShinyProxyInstance {
+public class ShinyProxyInstance implements AutoCloseable {
 
-    private final ProcessBuilder processBuilder;
     private final int port;
+
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    private Process process;
 
-    public ShinyProxyInstance(String configFileName, int port, String extraArgs) {
-        this.port = port;
+    private ConfigurableApplicationContext app;
+    private final Thread thread;
 
-        int mgmtPort = port % 1000 + 9000;
+    public final ShinyProxyClient client;
+    public final ProxyService proxyService;
+    public final IProxySpecProvider specProvider;
 
-        String uuid = java.util.UUID.randomUUID().toString();
-
-        logger.info("Starting ShinyProxy server, with output in {}", uuid);
-
-        processBuilder = new ProcessBuilder("java", "-jar",
-                "target/containerproxy-app-recovery.jar",
-                "--spring.config.location=src/test/resources/" + configFileName,
-                "--server.port=" + port,
-                "--management.server.port=" + mgmtPort,
-                extraArgs)
-                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", uuid)))
-                .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", uuid)));
+    public ShinyProxyInstance(String configFileName, Map<String, String> properties) {
+        this(configFileName, 7583, "demo", properties, false);
     }
 
-    public ShinyProxyInstance(String configFileName, String extraArgs) {
-        this(configFileName, 7583, extraArgs);
+    public ShinyProxyInstance(String configFileName, Map<String, String> properties, boolean useNotInternalOnlyTestStrategyConfiguration) {
+        this(configFileName, 7583, "demo", properties, useNotInternalOnlyTestStrategyConfiguration);
     }
 
     public ShinyProxyInstance(String configFileName) {
-        this(configFileName, 7583, "");
+        this(configFileName, 7583, "demo", new HashMap<>(), false);
     }
 
-    public boolean start() throws IOException, InterruptedException {
-        process = processBuilder.start();
+    public ShinyProxyInstance(String configFileName, int port, String usernameAndPassword, Map<String, String> properties, boolean useNotInternalOnlyTestStrategyConfiguration) {
+        try {
+            this.port = port;
+            int mgmtPort = port % 1000 + 9000;
 
-        for (int i = 0; i < 20; i++) {
-            Thread.sleep(2_000);
-            if (checkAlive()) {
-                return true;
+            SpringApplication application = new SpringApplication(ContainerProxyApplication.class);
+            if (useNotInternalOnlyTestStrategyConfiguration) {
+                // only works if networking is NOT internal!
+                application.addPrimarySources(Collections.singletonList(NotInternalOnlyTestStrategyConfiguration.class));
             }
-        }
+            Properties allProperties = ContainerProxyApplication.getDefaultProperties();
+            allProperties.put("spring.config.location", "src/test/resources/" + configFileName);
+            allProperties.put("server.port", port);
+            allProperties.put("management.server.port", mgmtPort);
+            allProperties.put("proxy.kubernetes.namespace", "itest");
+            allProperties.putAll(properties);
+            application.setDefaultProperties(allProperties);
 
-        return false;
+            client = new ShinyProxyClient(usernameAndPassword, port);
+
+            thread = new Thread(() -> {
+                app = application.run();
+            });
+            thread.start();
+
+            Retrying.retry((c, m) -> checkAlive(), 60_000, "ShinyProxyInstance available", 1, true);
+            proxyService = app.getBean("proxyService", ProxyService.class);
+            specProvider = app.getBean("defaultSpecProvider", IProxySpecProvider.class);
+
+        } catch (Throwable t) {
+            throw new TestHelperException("Error during startup of ShinyProxy", t);
+        }
     }
 
-    public boolean checkAlive() {
+    public ShinyProxyClient getClient(String usernameAndPassword) {
+        return new ShinyProxyClient(usernameAndPassword, port);
+    }
+
+    public <T> T getBean(String name, Class<T> requiredType) throws BeansException {
+        return app.getBean(name, requiredType);
+    }
+
+    private boolean checkAlive() {
         OkHttpClient client = new OkHttpClient();
 
         Request request = new Request.Builder()
@@ -92,8 +123,25 @@ public class ShinyProxyInstance {
 
     }
 
-    public void stop() {
-        process.destroy();
+    @Override
+    public void close() {
+        app.stop();
+        app.close();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static class NotInternalOnlyTestStrategyConfiguration {
+
+        @Primary
+        @Bean
+        public NotInternalOnlyTestStrategy notInternalOnlyTestStrategy() {
+            return new NotInternalOnlyTestStrategy();
+        }
+
     }
 
 }

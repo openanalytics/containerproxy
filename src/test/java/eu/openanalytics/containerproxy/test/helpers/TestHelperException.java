@@ -18,32 +18,16 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
+package eu.openanalytics.containerproxy.test.helpers;
 
-public class ProxySpecIdKey extends RuntimeValueKey<String> {
+public class TestHelperException extends RuntimeException {
 
-    public static final ProxySpecIdKey inst = new ProxySpecIdKey();
-
-    private ProxySpecIdKey() {
-        super("openanalytics.eu/sp-spec-id",
-                "SHINYPROXY_SPEC_ID",
-            false,
-                true,
-            false,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+    public TestHelperException(String message) {
+        super(message);
     }
 
-    @Override
-    public String deserializeFromString(String value) {
-        return value;
-    }
-
-    @Override
-    public String serializeToString(String value) {
-        return value;
+    public TestHelperException(String message, Throwable t) {
+        super(message, t);
     }
 
 }

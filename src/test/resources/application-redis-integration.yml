@@ -5,6 +5,8 @@ proxy:
   store-mode: Redis
   authentication: simple
   container-backend: docker
+  realm-id: my-realm
+
 
   users: [ ]
 

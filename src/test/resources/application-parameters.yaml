@@ -22,7 +22,7 @@ proxy:
   specs:
     - id: big-parameters
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default
@@ -177,14 +177,14 @@ proxy:
                 - "yes"
     - id: no-parameters
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default
               port: 3838
     - id: with-access-control
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default
@@ -231,7 +231,7 @@ proxy:
                 - jeff
     - id: default-values
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default

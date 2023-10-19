@@ -27,9 +27,9 @@ public class MaxLifetimeKey extends RuntimeValueKey<Long> {
     private MaxLifetimeKey() {
         super("openanalytics.eu/sp-max-lifetime",
                 "SHINYPROXY_MAX_LIFETIME",
-                false,
+            false,
                 true,
-                false,
+            false,
                 true,
                 true,
                 false,

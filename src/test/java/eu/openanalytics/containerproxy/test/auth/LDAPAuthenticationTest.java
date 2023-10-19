@@ -48,7 +48,7 @@ public class LDAPAuthenticationTest {
 
 
             Request request = new Request.Builder()
-                .url(baseUrl + "/api/proxy/")
+                .url(baseUrl + "/api/proxy")
                 .build();
 
             try (Response response = client.newCall(request).execute()) {

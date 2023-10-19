@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import eu.openanalytics.containerproxy.test.helpers.TestUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

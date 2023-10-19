@@ -152,7 +152,7 @@ public class ShinyProxyClient {
     public HashSet<JsonObject> getProxies() {
         Request request = new Request.Builder()
                 .get()
-                .url(baseUrl + "/api/proxy/")
+                .url(baseUrl + "/api/proxy")
                 .build();
 
         JsonObject response = call(request, 200);

@@ -116,6 +116,9 @@ public class SpecExpressionResolver {
         if (res == null) {
             return "";
         }
+        if (res instanceof SpelField<?,?> spelfield) {
+            return spelfield.getValueAsString();
+        }
         return res.toString();
     }
 

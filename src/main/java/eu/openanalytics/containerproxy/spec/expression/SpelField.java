@@ -78,13 +78,27 @@ public abstract class SpelField<O, R> {
      *
      * @return string representation of the resolved value
      */
-    @Override
-    public java.lang.String toString() {
+    public java.lang.String getValueAsString() {
         R res = getValueOrNull();
         if (res == null) {
             return null;
         }
         return res.toString();
+    }
+
+    /**
+     * For debugging purposes only
+     * @return string representation for debugging purposes
+     */
+    @Override
+    public java.lang.String toString() {
+        if (resolved) {
+            return getType() + "(value=" + getValueAsString() + ")";
+        }
+        if (originalValue != null) {
+            return getType() + "(originalValue=" + originalValue + ")";
+        }
+        return null;
     }
 
     public R getValueOrDefault(R defaultValue) {
@@ -129,6 +143,8 @@ public abstract class SpelField<O, R> {
 
     public abstract SpelField<O, R> resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext);
 
+    public abstract java.lang.String getType();
+
     public static class String extends SpelField<java.lang.String, java.lang.String> {
 
         public String(java.lang.String originalValue) {
@@ -152,6 +168,11 @@ public abstract class SpelField<O, R> {
                 return new SpelField.String(null, null);
             }
             return new SpelField.String(originalValue, specExpressionResolver.evaluateToString(originalValue, specExpressionContext));
+        }
+
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.String";
         }
 
     }
@@ -189,6 +210,11 @@ public abstract class SpelField<O, R> {
             return new SpelField.Long(originalValue, specExpressionResolver.evaluateToLong(originalValue, specExpressionContext));
         }
 
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.Long";
+        }
+
     }
 
     public static class Integer extends SpelField<java.lang.String, java.lang.Integer> {
@@ -218,6 +244,11 @@ public abstract class SpelField<O, R> {
                 return new SpelField.Integer(null, null);
             }
             return new SpelField.Integer(originalValue, specExpressionResolver.evaluateToInteger(originalValue, specExpressionContext));
+        }
+
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.Integer";
         }
 
     }
@@ -259,6 +290,10 @@ public abstract class SpelField<O, R> {
             value.add(newValue);
         }
 
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.StringList";
+        }
     }
 
     public static class StringMap extends SpelField<Map<java.lang.String, java.lang.String>, Map<java.lang.String, java.lang.String>> {
@@ -287,6 +322,11 @@ public abstract class SpelField<O, R> {
             Map<java.lang.String, java.lang.String> newValue = new HashMap<>();
             originalValue.forEach((key, mapValue) -> newValue.put(key, specExpressionResolver.evaluateToString(mapValue, specExpressionContext)));
             return new SpelField.StringMap(originalValue, newValue);
+        }
+
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.StringMap";
         }
 
     }
@@ -318,6 +358,11 @@ public abstract class SpelField<O, R> {
                 return new SpelField.Boolean(null, null);
             }
             return new SpelField.Boolean(originalValue, specExpressionResolver.evaluateToBoolean(originalValue, specExpressionContext));
+        }
+
+        @Override
+        public java.lang.String getType() {
+            return "SpelField.Boolean";
         }
 
     }

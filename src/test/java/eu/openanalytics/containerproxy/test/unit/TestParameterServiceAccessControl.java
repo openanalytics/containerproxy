@@ -70,8 +70,6 @@ public class TestParameterServiceAccessControl {
     @Inject
     private ObjectMapper objectMapper;
 
-    @Inject
-    private ProxyService proxyService;
     private UserService userService;
 
     @PostConstruct
@@ -88,7 +86,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControl() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getUserSpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -157,7 +155,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithGroupMembership() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getUserSpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -218,7 +216,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessExpression() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getUserSpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -289,7 +287,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessUsers() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getUserSpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("jeff");

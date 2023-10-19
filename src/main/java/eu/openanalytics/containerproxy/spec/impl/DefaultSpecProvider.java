@@ -58,8 +58,10 @@ public class DefaultSpecProvider implements IProxySpecProvider {
     public void init() {
         specs.forEach(ProxySpec::setContainerIndex);
         for (ISpecExtensionProvider<?> specExtensionProvider : specExtensionProviders) {
-            for (ISpecExtension specExtension : specExtensionProvider.getSpecs()) {
-                getSpec(specExtension.getId()).addSpecExtension(specExtension);
+            if (specExtensionProvider.getSpecs() != null) {
+                for (ISpecExtension specExtension : specExtensionProvider.getSpecs()) {
+                    getSpec(specExtension.getId()).addSpecExtension(specExtension);
+                }
             }
         }
     }

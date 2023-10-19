@@ -100,9 +100,9 @@ public class RedisStoreConfiguration {
     }
 
     @Bean
-    public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate,
+    public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> portRedisTemplate,
                                             IdentifierService identifierService) {
-        return new RedisPortAllocator(porRedisTemplate, identifierService);
+        return new RedisPortAllocator(portRedisTemplate, identifierService);
     }
 
     // Beans used internally by Redis store

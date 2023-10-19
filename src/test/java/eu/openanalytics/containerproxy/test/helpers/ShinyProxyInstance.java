@@ -90,7 +90,13 @@ public class ShinyProxyInstance implements AutoCloseable {
             });
             thread.start();
 
-            Retrying.retry((c, m) -> checkAlive(), 60_000, "ShinyProxyInstance available", 1, true);
+            boolean available = Retrying.retry((c, m) -> client.checkAlive(), 60_000, "ShinyProxyInstance available", 1, true);
+            if (!available) {
+                throw new TestHelperException("ShinyProxy did not become available!");
+            } else {
+                logger.info("ShinyProxy available!");
+            }
+
             proxyService = app.getBean("proxyService", ProxyService.class);
             specProvider = app.getBean("defaultSpecProvider", IProxySpecProvider.class);
 
@@ -107,21 +113,6 @@ public class ShinyProxyInstance implements AutoCloseable {
         return app.getBean(name, requiredType);
     }
 
-    private boolean checkAlive() {
-        OkHttpClient client = new OkHttpClient();
-
-        Request request = new Request.Builder()
-                .get()
-                .url("http://localhost:" + this.port)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            return response.code() == 200;
-        } catch (Exception e) {
-            return false;
-        }
-
-    }
 
     @Override
     public void close() {

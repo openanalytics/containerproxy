@@ -47,7 +47,7 @@ import java.util.stream.Stream;
 public class TestIntegrationPortAllocator {
 
     private static final ShinyProxyInstance inst = new ShinyProxyInstance("application-redis-integration.yml", new HashMap<>());
-    private static final RedisTemplate<String, RedisPortAllocator.PortList> portTemplate = inst.getBean("porRedisTemplate", RedisTemplate.class);
+    private static final RedisTemplate<String, RedisPortAllocator.PortList> portTemplate = inst.getBean("portRedisTemplate", RedisTemplate.class);
     private static final IdentifierService identifierService = inst.getBean("identifierService", IdentifierService.class);
     private static final RedisPortAllocator redisPortAllocator = inst.getBean("portAllocator", RedisPortAllocator.class);
 

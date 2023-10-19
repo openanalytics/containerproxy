@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -54,13 +55,13 @@ public class TestParametersService {
 
     private final Authentication auth = mock(Authentication.class);
     @Inject
-    private ProxyService proxyService;
+    private IProxySpecProvider proxySpecProvider;
     @Inject
     private ParametersService parametersService;
 
     @Test
     public void testBigParameters() {
-        ProxySpec spec = proxyService.getUserSpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
         AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
@@ -153,7 +154,7 @@ public class TestParametersService {
 
     @Test
     public void testDefaultValues() {
-        ProxySpec spec = proxyService.getUserSpec("default-values");
+        ProxySpec spec = proxySpecProvider.getSpec("default-values");
 
         Authentication authJack = mock(Authentication.class);
         when(authJack.getName()).thenReturn("jack");
@@ -207,7 +208,7 @@ public class TestParametersService {
     @Test
     public void testParseAndValidateRequest() throws InvalidParametersException {
         // test that all allowed values are allowed by the parseAndValidateRequest function
-        ProxySpec spec = proxyService.getUserSpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         // make sure that using the backend values is not allowed
         testNotAllowedValue(spec, "A", "1", "foo", "yes");
@@ -264,14 +265,14 @@ public class TestParametersService {
 
     @Test
     public void testParseAndValidateRequestNoParameters() throws InvalidParametersException {
-        ProxySpec spec = proxyService.getUserSpec("no-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("no-parameters");
 
         Assertions.assertFalse(parametersService.parseAndValidateRequest(auth, spec, new HashMap<>()).isPresent());
     }
 
     @Test
     public void testInvalidNumberOfParameters() {
-        ProxySpec spec = proxyService.getUserSpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         // too many parameters
         Map<String, String> providedParameters = new HashMap<>() {{
@@ -300,7 +301,7 @@ public class TestParametersService {
 
     @Test
     public void testInvalidParameterIds() {
-        ProxySpec spec = proxyService.getUserSpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         Map<String, String> providedParameters = new HashMap<>() {{
             put("parameter1", "The letter A");

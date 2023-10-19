@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.test.unit;
 
+import com.google.common.base.Throwables;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
@@ -29,6 +30,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.Resource;
+import reactor.core.Exceptions;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,8 +48,9 @@ public class TestParameterValidationService {
                 .run(context -> {
                     assertThat(context)
                             .hasFailed();
-                    assertThat(context.getStartupFailure().getMessage())
+                    assertThat(Throwables.getRootCause(context.getStartupFailure()).getMessage())
                             .contains(expectedError);
+
                 });
     }
 

@@ -36,7 +36,7 @@ public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
 
     @Override
     public boolean testProxy(Proxy proxy) {
-        URI targetURI = proxy.getTargets().get(proxy.getId());
+        URI targetURI = proxy.getTargets().get("");
 
         return Retrying.retry((currentAttempt, maxAttempts) -> {
             try {

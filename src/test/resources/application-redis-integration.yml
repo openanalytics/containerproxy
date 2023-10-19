@@ -1,6 +1,9 @@
 spring:
-  redis:
-    localhost
+  session:
+    store-type: redis
+  data:
+    redis:
+      host: localhost
 proxy:
   store-mode: Redis
   authentication: simple

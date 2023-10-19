@@ -192,6 +192,26 @@ public class ShinyProxyClient {
         }
     }
 
+    public boolean checkAlive() {
+        // client without auth
+        OkHttpClient client = new OkHttpClient.Builder()
+            .callTimeout(Duration.ofSeconds(120))
+            .readTimeout(Duration.ofSeconds(120))
+            .build();
+
+        Request request = new Request.Builder()
+            .get()
+            .url(baseUrl + "/logout-success")
+            .build();
+
+       try (Response response = client.newCall(request).execute()) {
+            return response.code() == 200;
+        } catch (Exception e) {
+            return false;
+        }
+
+    }
+
     private JsonObject call(Request request, int expectedStatusCode) {
         try (Response response = client.newCall(request).execute()) {
             if (response.code() == expectedStatusCode) {

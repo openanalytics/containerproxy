@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.test.proxy;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -1274,13 +1275,14 @@ public class TestIntegrationOnKube {
             }, "The parameter with id \"non-existing-parameter\" does not exist");
 
             Assertions.assertEquals("Container failed to start", ex.getMessage());
-            Assertions.assertEquals(SpelException.class, ex.getCause().getClass());
+            Assertions.assertEquals(ProxyFailedToStartException.class, ex.getCause().getClass());
+            Assertions.assertEquals(SpelException.class, ex.getCause().getCause().getClass());
             Assertions.assertEquals("Error while resolving expression: \"- op: add\n" +
                 "  path: /spec/containers/0/env/-\n" +
                 "  value:\n" +
                 "    name: ERROR\n" +
                 "    value: \"#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}\"\n" +
-                "\", error: The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getMessage());
+                "\", error: The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getCause().getMessage());
 
             // no pods created
             assertNoPods(k8s);

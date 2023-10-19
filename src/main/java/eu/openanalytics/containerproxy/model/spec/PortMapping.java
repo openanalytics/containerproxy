@@ -35,7 +35,7 @@ import lombok.Setter;
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class PortMapping {
 

@@ -47,6 +47,8 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
     boolean allowContainerReUse = true;
 
+    int scaleDownDelay = 2;
+
     @Override
     public ProxySharingSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return this;

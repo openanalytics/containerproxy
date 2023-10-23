@@ -54,6 +54,8 @@ import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -89,6 +91,7 @@ public class ProxySharingScaler {
     private final String proxySpecHash;
     private final ILeaderService leaderService;
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
+    private Instant lastScaleUp = null;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -203,12 +206,21 @@ public class ProxySharingScaler {
             lastReconcileStatus = ReconcileStatus.ScaleUp;
             long numToScaleUp = specExtension.minimumSeatsAvailable - num;
             scaleUp(numToScaleUp);
+            lastScaleUp = Instant.now();
         } else if (numPendingSeats > 0) {
             // still scaling up
             lastReconcileStatus = ReconcileStatus.ScaleUp;
+            lastScaleUp = Instant.now();
         } else if (num > specExtension.maximumSeatsAvailable) {
-            lastReconcileStatus = ReconcileStatus.ScaleDown;
             long numToScaleDown = num - specExtension.maximumSeatsAvailable;
+            if (lastScaleUp != null) {
+                long scaleUpDeltaMinutes = Duration.between(lastScaleUp, Instant.now()).toMinutes();
+                if (scaleUpDeltaMinutes < specExtension.scaleDownDelay) {
+                    logger.info(String.format("Not scaling down because last scaleUp was %s minutes ago (%s proxies to remove, delay is %s)", scaleUpDeltaMinutes, numToScaleDown, specExtension.scaleDownDelay));
+                    return;
+                }
+            }
+            lastReconcileStatus = ReconcileStatus.ScaleDown;
             scaleDown(numToScaleDown);
         } else {
             lastReconcileStatus = ReconcileStatus.Stable;

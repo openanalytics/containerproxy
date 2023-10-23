@@ -24,11 +24,14 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 @Component
 public class UserAndTargetIdProxyIndex extends ProxyIdIndex<UserAndTargetIdProxyIndex.UserAndTargetIdKey> {
 
     public UserAndTargetIdProxyIndex(IProxyStore proxyStore) {
-        super(proxyStore, (key, proxy) -> proxy.getTargetId().equals(key.targetId) && proxy.getUserId().equals(key.userId));
+        super(proxyStore, (key, proxy) -> Objects.equals(proxy.getTargetId(), key.targetId) && Objects.equals(proxy.getUserId(), key.userId));
+        // use Objects.equals because some proxies might not yet be initialized
     }
 
     public Proxy getProxy(String userId, String targetId) {

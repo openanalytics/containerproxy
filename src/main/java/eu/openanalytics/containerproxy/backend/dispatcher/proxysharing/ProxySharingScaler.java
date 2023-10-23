@@ -76,8 +76,7 @@ public class ProxySharingScaler {
     private final IDelegateProxyStore delegateProxyStore;
     private final IProxyTestStrategy testStrategy;
     private final ISeatStore seatStore;
-    private final Integer maximumSeatsAvailable;
-    private final Integer minimumSeatsAvailable;
+    private final ProxySharingSpecExtension specExtension;
     private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
@@ -100,8 +99,7 @@ public class ProxySharingScaler {
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
                               RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService) {
         this.proxySpec = proxySpec;
-        this.minimumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable;
-        this.maximumSeatsAvailable = proxySpec.getSpecExtension(ProxySharingSpecExtension.class).maximumSeatsAvailable;
+        this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.globalEventLoop = globalEventLoop;
         this.seatStore = seatStore;
         this.delegateProxyStore = delegateProxyStore;
@@ -172,7 +170,16 @@ public class ProxySharingScaler {
             logWarn(String.format("ProxySharing: DelegateProxy %s not found during processing of SeatReleasedEvent with seatId: %s", seat.getDelegateProxyId(), seatId));
             return;
         }
-        if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
+        if (!specExtension.allowContainerReUse) {
+            // TODO allow only one seat if container is not allowed to be re-used
+            // container cannot be re-used -> mark delegateProxy as ToRemove
+            // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
+            delegateProxy = delegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.ToRemove).build();
+            delegateProxyStore.updateDelegateProxy(delegateProxy);
+            // seat cannot be re-used remove it
+            // note: this seat is never re-added to the pool of unclaimedSeats, therefore it can never be claimed for a second time
+            removeSeat(delegateProxy, seatId);
+        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
             seatStore.addToUnclaimedSeats(seatId);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
             if (lastReconcileStatus.equals(ReconcileStatus.ScaleUp)) {
@@ -191,17 +198,17 @@ public class ProxySharingScaler {
         long num = seatStore.getNumUnclaimedSeats() + numPendingSeats - pendingDelegatingProxies.size() - numToRemove;
         debug(String.format("Status: %s, Unclaimed: %s + PendingDelegate: %s - PendingDelegating: %s - UnclaimedToRemove: %s = %s -> minimum: %s",
             lastReconcileStatus, seatStore.getNumUnclaimedSeats(), numPendingSeats,
-            pendingDelegatingProxies.size(), numToRemove, num, minimumSeatsAvailable));
-        if (num < minimumSeatsAvailable) {
+            pendingDelegatingProxies.size(), numToRemove, num, specExtension.minimumSeatsAvailable));
+        if (num < specExtension.minimumSeatsAvailable) {
             lastReconcileStatus = ReconcileStatus.ScaleUp;
-            long numToScaleUp = minimumSeatsAvailable - num;
+            long numToScaleUp = specExtension.minimumSeatsAvailable - num;
             scaleUp(numToScaleUp);
         } else if (numPendingSeats > 0) {
             // still scaling up
             lastReconcileStatus = ReconcileStatus.ScaleUp;
-        } else if (num > maximumSeatsAvailable) {
+        } else if (num > specExtension.maximumSeatsAvailable) {
             lastReconcileStatus = ReconcileStatus.ScaleDown;
-            long numToScaleDown = num - maximumSeatsAvailable;
+            long numToScaleDown = num - specExtension.maximumSeatsAvailable;
             scaleDown(numToScaleDown);
         } else {
             lastReconcileStatus = ReconcileStatus.Stable;
@@ -358,7 +365,7 @@ public class ProxySharingScaler {
             debug("Stopping cleanup because a seat was claimed");
         }
         if (!delegateProxiesToRemove.isEmpty()) {
-            log(String.format("Removing %s DelegateProxies that are using outdated spec", delegateProxiesToRemove.size()));
+            log(String.format("Removing %s DelegateProxies (they have outdated spec or cannot be re-used)", delegateProxiesToRemove.size()));
             // only now remove the proxies (this takes the most time)
             removeDelegateProxies(delegateProxiesToRemove);
         }
@@ -412,9 +419,7 @@ public class ProxySharingScaler {
     }
 
     private void removeSeat(DelegateProxy delegateProxy, String seatId) {
-        Set<String> seatIds = delegateProxy.getSeatIds();
-        seatIds.remove(seatId);
-        delegateProxy = delegateProxy.toBuilder().seatIds(seatIds).build();
+        delegateProxy = delegateProxy.toBuilder().removeSeatId(seatId).build();
         delegateProxyStore.updateDelegateProxy(delegateProxy);
         seatStore.removeSeatInfo(seatId);
         logger.info("[{} {} {}] Removed seat", kv("specId", proxySpec.getId()), kv("delegateProxyId", delegateProxy.getProxy().getId()), kv("seatId", seatId));

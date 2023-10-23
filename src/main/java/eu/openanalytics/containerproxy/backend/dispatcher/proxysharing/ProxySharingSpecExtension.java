@@ -45,6 +45,8 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
     Integer maximumSeatsAvailable;
 
+    boolean allowContainerReUse = true;
+
     @Override
     public ProxySharingSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return this;

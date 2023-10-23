@@ -30,6 +30,7 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Value
@@ -57,6 +58,15 @@ public class DelegateProxy {
             .delegateProxyStatus(delegateProxyStatus)
             .proxySpecHash(proxySpecHash)
             .build();
+    }
+
+    public static class DelegateProxyBuilder {
+        public DelegateProxyBuilder removeSeatId(String seatId) {
+            Set<String> seatIds = new HashSet<>(this.seatIds);
+            seatIds.remove(seatId);
+            this.seatIds(seatIds);
+            return this;
+        }
     }
 
 }

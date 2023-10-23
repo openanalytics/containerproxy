@@ -43,8 +43,6 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
     Integer minimumSeatsAvailable;
 
-    Integer maximumSeatsAvailable;
-
     boolean allowContainerReUse = true;
 
     int scaleDownDelay = 2;

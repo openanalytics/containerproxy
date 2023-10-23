@@ -211,8 +211,8 @@ public class ProxySharingScaler {
             // still scaling up
             lastReconcileStatus = ReconcileStatus.ScaleUp;
             lastScaleUp = Instant.now();
-        } else if (num > specExtension.maximumSeatsAvailable) {
-            long numToScaleDown = num - specExtension.maximumSeatsAvailable;
+        } else if (num > specExtension.minimumSeatsAvailable) {
+            long numToScaleDown = num - specExtension.minimumSeatsAvailable;
             if (lastScaleUp != null) {
                 long scaleUpDeltaMinutes = Duration.between(lastScaleUp, Instant.now()).toMinutes();
                 if (scaleUpDeltaMinutes < specExtension.scaleDownDelay) {

@@ -244,7 +244,6 @@ public class EcsBackend extends AbstractContainerBackend {
                 .name("sp-container-" + containerId)
                 .image(spec.getImage().getValue())
                 .dnsServers(spec.getDns().getValueOrNull())
-                .privileged(isPrivileged() || spec.isPrivileged())
                 .command(spec.getCmd().getValueOrNull())
                 .environment(env)
                 .stopTimeout(2)

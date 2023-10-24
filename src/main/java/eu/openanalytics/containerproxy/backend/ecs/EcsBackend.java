@@ -126,7 +126,6 @@ public class EcsBackend extends AbstractContainerBackend {
 
     @Override
     public Proxy startContainer(Authentication user, Container initialContainer, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException {
-        proxyStartupLogBuilder.startingContainer(spec.getIndex());
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         String containerId = UUID.randomUUID().toString();
         rContainerBuilder.id(containerId);
@@ -154,6 +153,8 @@ public class EcsBackend extends AbstractContainerBackend {
 
             String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, containerId, tags);
 
+            // tell the status service we are starting the pod/container
+            proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
                 .cluster(cluster)
                 .count(1)
@@ -188,6 +189,8 @@ public class EcsBackend extends AbstractContainerBackend {
                     return false;
                 }
             }, totalWaitMs);
+
+            proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn), false);

@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
 import software.amazon.awssdk.services.ecs.model.Compatibility;
 import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
+import software.amazon.awssdk.services.ecs.model.EphemeralStorage;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
 import software.amazon.awssdk.services.ecs.model.LogConfiguration;
@@ -261,6 +262,11 @@ public class EcsBackend extends AbstractContainerBackend {
             logConfiguration.options(options);
         }
 
+        EphemeralStorage ephemeralStorage = EphemeralStorage
+            .builder()
+            .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
+            .build();
+
         RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
             .containerDefinitions(ContainerDefinition.builder()
@@ -284,6 +290,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .operatingSystemFamily(specExtension.ecsOperationSystemFamily.getValueOrNull())
                 .build()
             )
+            .ephemeralStorage(ephemeralStorage)
             .tags(tags));
 
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();

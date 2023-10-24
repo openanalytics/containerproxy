@@ -55,6 +55,9 @@ public class EcsSpecExtension extends AbstractSpecExtension {
     @Builder.Default
     SpelField.String ecsOperationSystemFamily = new SpelField.String();
 
+    @Builder.Default
+    SpelField.Integer ecsEphemeralStorageSize = new SpelField.Integer();
+
     @Override
     public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
@@ -62,6 +65,7 @@ public class EcsSpecExtension extends AbstractSpecExtension {
             .ecsExecutionRole(ecsExecutionRole.resolve(resolver, context))
             .ecsCpuArchitecture(ecsCpuArchitecture.resolve(resolver, context))
             .ecsOperationSystemFamily(ecsOperationSystemFamily.resolve(resolver, context))
+            .ecsEphemeralStorageSize(ecsEphemeralStorageSize.resolve(resolver, context))
             .build();
     }
 

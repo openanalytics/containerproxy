@@ -146,6 +146,10 @@ public abstract class SpelField<O, R> {
 
     public abstract java.lang.String getType();
 
+    public boolean isOriginalValuePresent() {
+        return originalValue != null;
+    }
+
     public static class String extends SpelField<java.lang.String, java.lang.String> {
 
         public String(java.lang.String originalValue) {

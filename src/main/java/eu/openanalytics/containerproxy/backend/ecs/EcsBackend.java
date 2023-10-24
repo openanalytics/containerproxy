@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -57,6 +58,7 @@ import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -85,6 +87,10 @@ public class EcsBackend extends AbstractContainerBackend {
     private int totalWaitMs;
     private String cluster;
 
+    @Inject
+    private IProxySpecProvider proxySpecProvider;
+
+    @Override
     @PostConstruct
     public void initialize() {
         super.initialize();
@@ -99,6 +105,23 @@ public class EcsBackend extends AbstractContainerBackend {
         subnets = EnvironmentUtils.readList(environment, "proxy.ecs.subnets");
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
         totalWaitMs = environment.getProperty(PROPERTY_PREFIX + PROPERTY_SERVICE_WAIT_TIME, Integer.class, 180000);
+
+        if (subnets.isEmpty()) {
+            throw new IllegalStateException("Error in configuration of ECS backend: need at least one subnet in proxy.ecs.subnets");
+        }
+
+        if (securityGroups.isEmpty()) {
+            throw new IllegalStateException("Error in configuration of ECS backend: need at least one security group in proxy.ecs.security-groups");
+        }
+
+        for (ProxySpec spec : proxySpecProvider.getSpecs()) {
+            if (!spec.getContainerSpecs().get(0).getMemoryRequest().isOriginalValuePresent()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'memory-request' configured, this is required for running on ECS fargate", spec.getId()));
+            }
+            if (!spec.getContainerSpecs().get(0).getCpuRequest().isOriginalValuePresent()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'cpu-request' configured, this is required for running on ECS fargate", spec.getId()));
+            }
+        }
     }
 
     @Override

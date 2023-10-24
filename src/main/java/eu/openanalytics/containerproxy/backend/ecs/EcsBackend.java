@@ -133,11 +133,21 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         for (ProxySpec spec : proxySpecProvider.getSpecs()) {
-            if (!spec.getContainerSpecs().get(0).getMemoryRequest().isOriginalValuePresent()) {
+            ContainerSpec containerSpec = spec.getContainerSpecs().get(0);
+            if (!containerSpec.getMemoryRequest().isOriginalValuePresent()) {
                 throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'memory-request' configured, this is required for running on ECS fargate", spec.getId()));
             }
-            if (!spec.getContainerSpecs().get(0).getCpuRequest().isOriginalValuePresent()) {
+            if (!containerSpec.getCpuRequest().isOriginalValuePresent()) {
                 throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'cpu-request' configured, this is required for running on ECS fargate", spec.getId()));
+            }
+            if (containerSpec.getMemoryLimit().isOriginalValuePresent()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has 'memory-limit' configured, this is not supported by ECS fargate", spec.getId()));
+            }
+            if (containerSpec.getCpuLimit().isOriginalValuePresent()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has 'cpu-limit' configured, this is not supported by ECS fargate", spec.getId()));
+            }
+            if (containerSpec.isPrivileged()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has 'privileged: true' configured, this is not supported by ECS fargate", spec.getId()));
             }
         }
     }

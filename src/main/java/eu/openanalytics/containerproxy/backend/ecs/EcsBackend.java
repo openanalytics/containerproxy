@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
+import eu.openanalytics.containerproxy.util.LoggingConfigurer;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
@@ -50,6 +51,8 @@ import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
+import software.amazon.awssdk.services.ecs.model.LogConfiguration;
+import software.amazon.awssdk.services.ecs.model.LogDriver;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
@@ -87,6 +90,10 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Collections.singletonList(PortMappingsKey.inst);
 
     private EcsClient ecsClient;
+    private Boolean enableCloudWatch;
+    private String cloudWatchGroupPrefix;
+    private String cloudWatchRegion;
+    private String cloudWatchStreamPrefix;
     private List<String> subnets;
     private List<String> securityGroups;
     private int totalWaitMs;
@@ -110,6 +117,11 @@ public class EcsBackend extends AbstractContainerBackend {
         subnets = EnvironmentUtils.readList(environment, "proxy.ecs.subnets");
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
         totalWaitMs = environment.getProperty(PROPERTY_PREFIX + PROPERTY_SERVICE_WAIT_TIME, Integer.class, 180000);
+
+        enableCloudWatch = environment.getProperty("proxy.ecs.enable-cloudwatch", Boolean.class, false);
+        cloudWatchGroupPrefix = environment.getProperty("proxy.ecs.cloud-watch-group-prefix", String.class, "/ecs/");
+        cloudWatchRegion = environment.getProperty("proxy.ecs.cloud-watch-region", String.class, getProperty(PROPERTY_REGION));
+        cloudWatchStreamPrefix =  environment.getProperty("proxy.ecs.cloud-watch-stream-prefix", String.class, "ecs");
 
         if (subnets.isEmpty()) {
             throw new IllegalStateException("Error in configuration of ECS backend: need at least one subnet in proxy.ecs.subnets");
@@ -238,6 +250,17 @@ public class EcsBackend extends AbstractContainerBackend {
             }
         });
 
+        LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
+        if (enableCloudWatch) {
+            logConfiguration.logDriver(LogDriver.AWSLOGS);
+            HashMap<String, String> options = new HashMap<>();
+            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxy.getId());
+            options.put("awslogs-region", cloudWatchRegion);
+            options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
+            options.put("awslogs-create-group", "true");
+            logConfiguration.options(options);
+        }
+
         RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
             .containerDefinitions(ContainerDefinition.builder()
@@ -248,6 +271,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .environment(env)
                 .stopTimeout(2)
                 .dockerLabels(dockerLabels)
+                .logConfiguration(logConfiguration.build())
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
             .requiresCompatibilities(Compatibility.FARGATE)

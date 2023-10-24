@@ -30,7 +30,9 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
@@ -63,6 +65,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +84,8 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_REGION = "region";
     private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
+    private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Collections.singletonList(PortMappingsKey.inst);
+
     private EcsClient ecsClient;
     private List<String> subnets;
     private List<String> securityGroups;
@@ -134,16 +139,18 @@ public class EcsBackend extends AbstractContainerBackend {
         try {
             List<Tag> tags = new ArrayList<>();
             Stream.concat(
-                proxy.getRuntimeValues().values().stream(),
-                initialContainer.getRuntimeValues().values().stream()
-            ).forEach(runtimeValue -> {
-                String value = runtimeValue.toString();
-                if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
-                    if (validateEcsTagValue(proxy, runtimeValue.getKey().getKeyAsLabel(), value)) {
-                        tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsLabel()).value(value).build());
+                    proxy.getRuntimeValues().values().stream(),
+                    initialContainer.getRuntimeValues().values().stream()
+                )
+                .filter(v -> !IGNORED_RUNTIME_VALUES.contains(v.getKey()))
+                .forEach(runtimeValue -> {
+                    String value = runtimeValue.toString();
+                    if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
+                        if (validateEcsTagValue(proxy, runtimeValue.getKey().getKeyAsLabel(), value)) {
+                            tags.add(Tag.builder().key(runtimeValue.getKey().getKeyAsLabel()).value(value).build());
+                        }
                     }
-                }
-            });
+                });
 
             for (Map.Entry<String, String> label : spec.getLabels().getValueOrDefault(new HashMap<>()).entrySet()) {
                 if (validateEcsTagValue(proxy, label.getKey(), label.getValue())) {

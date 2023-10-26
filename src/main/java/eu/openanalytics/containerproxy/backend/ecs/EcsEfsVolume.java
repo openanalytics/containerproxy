@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.ecs;
 
-import eu.openanalytics.containerproxy.model.spec.AbstractSpecExtension;
-import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
@@ -29,57 +27,50 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
 @Setter
 @Getter
 @Builder(toBuilder = true)
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
-public class EcsSpecExtension extends AbstractSpecExtension {
+public class EcsEfsVolume {
 
     @Builder.Default
-    SpelField.String ecsTaskRole = new SpelField.String();
+    SpelField.String name = new SpelField.String();
 
     @Builder.Default
-    SpelField.String ecsExecutionRole = new SpelField.String();
+    SpelField.String fileSystemId = new SpelField.String();
 
     @Builder.Default
-    SpelField.String ecsCpuArchitecture = new SpelField.String();
+    SpelField.String rootDirectory = new SpelField.String();
 
     @Builder.Default
-    SpelField.String ecsOperationSystemFamily = new SpelField.String();
+    SpelField.Boolean transitEncryption = new SpelField.Boolean();
 
     @Builder.Default
-    SpelField.Integer ecsEphemeralStorageSize = new SpelField.Integer();
+    SpelField.Integer transitEncryptionPort = new SpelField.Integer();
 
     @Builder.Default
-    List<EcsEfsVolume> ecsEfsVolumes = new ArrayList<>();
+    SpelField.String accessPointId = new SpelField.String();
 
-    @Override
-    public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
+    @Builder.Default
+    SpelField.Boolean enableIam = new SpelField.Boolean();
+
+    public EcsEfsVolume resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-            .ecsTaskRole(ecsTaskRole.resolve(resolver, context))
-            .ecsExecutionRole(ecsExecutionRole.resolve(resolver, context))
-            .ecsCpuArchitecture(ecsCpuArchitecture.resolve(resolver, context))
-            .ecsOperationSystemFamily(ecsOperationSystemFamily.resolve(resolver, context))
-            .ecsEphemeralStorageSize(ecsEphemeralStorageSize.resolve(resolver, context))
-            .ecsEfsVolumes(ecsEfsVolumes.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+            .name(name.resolve(resolver, context))
+            .fileSystemId(fileSystemId.resolve(resolver, context))
+            .rootDirectory(rootDirectory.resolve(resolver, context))
+            .transitEncryption(transitEncryption.resolve(resolver, context))
+            .transitEncryptionPort(transitEncryptionPort.resolve(resolver, context))
+            .accessPointId(accessPointId.resolve(resolver, context))
+            .enableIam(enableIam.resolve(resolver, context))
             .build();
-    }
-
-    @Override
-    public ISpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
-        return this;
     }
 
 }

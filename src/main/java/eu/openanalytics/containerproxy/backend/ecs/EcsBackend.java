@@ -37,9 +37,9 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
-import eu.openanalytics.containerproxy.util.LoggingConfigurer;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
@@ -49,11 +49,14 @@ import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
 import software.amazon.awssdk.services.ecs.model.Compatibility;
 import software.amazon.awssdk.services.ecs.model.ContainerDefinition;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
+import software.amazon.awssdk.services.ecs.model.EFSAuthorizationConfig;
+import software.amazon.awssdk.services.ecs.model.EFSVolumeConfiguration;
 import software.amazon.awssdk.services.ecs.model.EphemeralStorage;
 import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
 import software.amazon.awssdk.services.ecs.model.LogConfiguration;
 import software.amazon.awssdk.services.ecs.model.LogDriver;
+import software.amazon.awssdk.services.ecs.model.MountPoint;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
@@ -62,6 +65,7 @@ import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
 import software.amazon.awssdk.services.ecs.model.RuntimePlatform;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
+import software.amazon.awssdk.services.ecs.model.Volume;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -214,7 +218,7 @@ public class EcsBackend extends AbstractContainerBackend {
                     return true;
                 } else {
                     if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                        slog.info(proxy, String.format("ECS Task not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }
                     return false;
                 }
@@ -261,23 +265,14 @@ public class EcsBackend extends AbstractContainerBackend {
             }
         });
 
-        LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
-        if (enableCloudWatch) {
-            logConfiguration.logDriver(LogDriver.AWSLOGS);
-            HashMap<String, String> options = new HashMap<>();
-            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxy.getId());
-            options.put("awslogs-region", cloudWatchRegion);
-            options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
-            options.put("awslogs-create-group", "true");
-            logConfiguration.options(options);
-        }
+        Pair<List<Volume>, List<MountPoint>> volumes = getVolumes(spec, specExtension);
 
         EphemeralStorage ephemeralStorage = EphemeralStorage
             .builder()
             .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
             .build();
 
-        RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
+       RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
             .containerDefinitions(ContainerDefinition.builder()
                 .name("sp-container-" + containerId)
@@ -287,7 +282,8 @@ public class EcsBackend extends AbstractContainerBackend {
                 .environment(env)
                 .stopTimeout(2)
                 .dockerLabels(dockerLabels)
-                .logConfiguration(logConfiguration.build())
+                .logConfiguration(getLogConfiguration(proxy.getId()))
+                .mountPoints(volumes.getSecond())
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
             .requiresCompatibilities(Compatibility.FARGATE)
@@ -301,9 +297,84 @@ public class EcsBackend extends AbstractContainerBackend {
                 .build()
             )
             .ephemeralStorage(ephemeralStorage)
+            .volumes(volumes.getFirst())
             .tags(tags));
 
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();
+    }
+
+    private LogConfiguration getLogConfiguration(String proxyId) {
+        LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
+        if (enableCloudWatch) {
+            logConfiguration.logDriver(LogDriver.AWSLOGS);
+            HashMap<String, String> options = new HashMap<>();
+            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxyId);
+            options.put("awslogs-region", cloudWatchRegion);
+            options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
+            options.put("awslogs-create-group", "true");
+            logConfiguration.options(options);
+        }
+        return logConfiguration.build();
+    }
+
+    private Pair<List<Volume>, List<MountPoint>> getVolumes(ContainerSpec spec, EcsSpecExtension specExtension) {
+        List<String> volumeNames = new ArrayList<>();
+        List<Volume> efsVolumeConfigurations = new ArrayList<>();
+        for (EcsEfsVolume volume : specExtension.getEcsEfsVolumes()) {
+            EFSVolumeConfiguration.Builder efsVolumeConfiguration = EFSVolumeConfiguration.builder();
+            efsVolumeConfiguration.fileSystemId(volume.getFileSystemId().getValue());
+            efsVolumeConfiguration.rootDirectory(volume.getRootDirectory().getValueOrNull());
+            if (volume.getTransitEncryption().getValueOrDefault(false)) {
+                efsVolumeConfiguration.transitEncryption("ENABLED");
+            }
+            efsVolumeConfiguration.transitEncryptionPort(volume.getTransitEncryptionPort().getValueOrNull());
+
+            EFSAuthorizationConfig.Builder authorizationConfig = EFSAuthorizationConfig.builder();
+            authorizationConfig.accessPointId(volume.getAccessPointId().getValueOrNull());
+            if (volume.getEnableIam().getValueOrDefault(false)) {
+                authorizationConfig.iam("ENABLED");
+            }
+            efsVolumeConfiguration.authorizationConfig(authorizationConfig.build());
+
+            Volume finalVolume = Volume.builder()
+                .efsVolumeConfiguration(efsVolumeConfiguration.build())
+                .name(volume.getName().getValue())
+                .build();
+
+            efsVolumeConfigurations.add(finalVolume);
+            volumeNames.add(volume.getName().getValue());
+        }
+
+        List<MountPoint> mountPoints = new ArrayList<>();
+        if (spec.getVolumes().isPresent()) {
+            for (String volume : spec.getVolumes().getValue()) {
+                String[] components = volume.split(":");
+                if (components.length != 2 && components.length != 3) {
+                    throw new IllegalArgumentException(String.format("Invalid volume configuration: %s, did not found correct components (e.g. 'myname:/mnt' or 'myname:/mnt:readonly')", volume));
+                }
+                String name = components[0];
+                String containerPath = components[1];
+                if (!volumeNames.contains(name)) {
+                    throw new IllegalArgumentException(String.format("Invalid volume configuration: %s, no corresponding EFS volume definition found", volume));
+                }
+
+                MountPoint.Builder mountPoint = MountPoint.builder();
+                mountPoint.sourceVolume(name);
+                mountPoint.containerPath(containerPath);
+
+                if (components.length == 3) {
+                    if (Objects.equals(components[2], "readonly")) {
+                        mountPoint.readOnly(true);
+                    } else {
+                        throw new IllegalArgumentException(String.format("Invalid volume configuration: %s, third component must be equal to 'readonly' (or removed)", volume));
+                    }
+                }
+
+                mountPoints.add(mountPoint.build());
+            }
+        }
+
+        return Pair.of(efsVolumeConfigurations, mountPoints);
     }
 
     @Override
@@ -327,7 +398,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
                 if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
                     if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("Container not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                        slog.info(proxy, String.format("ECS Task not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }
                     return false;
                 }

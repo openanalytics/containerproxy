@@ -201,6 +201,7 @@ public class EcsBackend extends AbstractContainerBackend {
                         .build())
                     .build())
                 .launchType(LaunchType.FARGATE)
+                .enableExecuteCommand(specExtension.getEcsEnableExecuteCommand().getValueOrDefault(false))
                 .tags(tags));
 
             if (!runTaskResponse.hasTasks()) {

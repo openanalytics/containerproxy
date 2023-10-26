@@ -305,8 +305,8 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     private LogConfiguration getLogConfiguration(String proxyId) {
-        LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
         if (enableCloudWatch) {
+            LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
             logConfiguration.logDriver(LogDriver.AWSLOGS);
             HashMap<String, String> options = new HashMap<>();
             options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxyId);
@@ -314,8 +314,9 @@ public class EcsBackend extends AbstractContainerBackend {
             options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
             options.put("awslogs-create-group", "true");
             logConfiguration.options(options);
+            return logConfiguration.build();
         }
-        return logConfiguration.build();
+        return null;
     }
 
     private Pair<List<Volume>, List<MountPoint>> getVolumes(ContainerSpec spec, EcsSpecExtension specExtension) {

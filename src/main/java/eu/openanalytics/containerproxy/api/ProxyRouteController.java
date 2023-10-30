@@ -32,28 +32,35 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import javax.inject.Inject;
-
 @Controller
 public class ProxyRouteController extends BaseController {
 
-    @Inject
-    private ContextPathHelper contextPathHelper;
+    private final ProxyMappingManager mappingManager;
 
-    @Inject
-    private ProxyMappingManager mappingManager;
+    private final UserAndTargetIdProxyIndex userAndTargetIdProxyIndex;
 
-    @Inject
-    private UserAndTargetIdProxyIndex userAndTargetIdProxyIndex;
+    private final UserService userService;
 
-    @Inject
-    private UserService userService;
+    private final int baseUrlLength;
+
+    public ProxyRouteController(ContextPathHelper contextPathHelper, ProxyMappingManager mappingManager, UserAndTargetIdProxyIndex userAndTargetIdProxyIndex, UserService userService) {
+        this.mappingManager = mappingManager;
+        this.userAndTargetIdProxyIndex = userAndTargetIdProxyIndex;
+        this.userService = userService;
+        String baseURL = contextPathHelper.withEndingSlash() + "api/route/";
+        baseUrlLength = baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH;
+    }
 
     @RequestMapping(value = "/api/route/{targetId}/**")
     public void route(@PathVariable String targetId, HttpServletRequest request, HttpServletResponse response) {
         try {
-            String baseURL = contextPathHelper.withEndingSlash() + "api/route/";
-            String mapping = request.getRequestURI().substring(baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH);
+            if (request.getRequestURI().length() < baseUrlLength + 1) {
+                response.setStatus(403);
+                response.getWriter().write("Not authorized to access this proxy");
+                return;
+            }
+
+            String mapping = request.getRequestURI().substring(baseUrlLength);
             Proxy proxy = userAndTargetIdProxyIndex.getProxy(userService.getCurrentUserId(), targetId);
 
             if (proxy != null) {
@@ -66,4 +73,5 @@ public class ProxyRouteController extends BaseController {
             throw new RuntimeException("Error routing proxy request", e);
         }
     }
+
 }

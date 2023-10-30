@@ -93,6 +93,9 @@ public class ProxySharingScaler {
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
 
+    private final String cleanupEventType;
+    private final String reconcileEventType;
+
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
     }
@@ -113,18 +116,20 @@ public class ProxySharingScaler {
         this.identifierService = identifierService;
         this.leaderService = leaderService;
         proxySpecHash = getProxySpecHash(proxySpec);
-        globalEventLoop.addCallback("ProxySharingScaler::cleanup", this::cleanup);
-        globalEventLoop.addCallback("ProxySharingScaler:reconcile", this::reconcile);
+        cleanupEventType = "ProxySharingScaler::cleanup::" + proxySpec.getId();
+        reconcileEventType = "ProxySharingScaler:reconcile::" + proxySpec.getId();
+        globalEventLoop.addCallback(cleanupEventType, this::cleanup);
+        globalEventLoop.addCallback(reconcileEventType, this::reconcile);
     }
 
     @Scheduled(fixedDelay = 20, timeUnit = TimeUnit.SECONDS)
     public void scheduleCleanup() {
-        globalEventLoop.schedule("ProxySharingScaler::cleanup");
+        globalEventLoop.schedule(cleanupEventType);
     }
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
     public void scheduleReconcile() {
-        globalEventLoop.schedule("ProxySharingScaler:reconcile");
+        globalEventLoop.schedule(reconcileEventType);
     }
 
     @EventListener
@@ -134,7 +139,7 @@ public class ProxySharingScaler {
             return;
         }
         pendingDelegatingProxies.add(pendingProxyEvent.getProxyId());
-        globalEventLoop.schedule("ProxySharingScaler:reconcile");
+        globalEventLoop.schedule(reconcileEventType);
     }
 
     @EventListener
@@ -143,7 +148,7 @@ public class ProxySharingScaler {
             // only handle events for this spec
             return;
         }
-        globalEventLoop.schedule("ProxySharingScaler:reconcile");
+        globalEventLoop.schedule(reconcileEventType);
         // if the seat was claimed by a pending proxy we need to remove it from the pendingDelegatingProxies
         pendingDelegatingProxies.remove(seatClaimedEvent.getClaimingProxyId());
     }
@@ -293,7 +298,7 @@ public class ProxySharingScaler {
                         logWarn(delegateProxy, "Error while stopping failed DelegateProxy");
                     }
                     delegateProxyStore.removeDelegateProxy(id);
-                    globalEventLoop.schedule("ProxySharingScaler:reconcile");
+                    globalEventLoop.schedule(reconcileEventType);
                     return;
                 }
 
@@ -322,11 +327,11 @@ public class ProxySharingScaler {
                     logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
                 }
                 delegateProxyStore.removeDelegateProxy(id);
-                globalEventLoop.schedule("ProxySharingScaler:reconcile");
+                globalEventLoop.schedule(reconcileEventType);
             } catch (Throwable t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
                 delegateProxyStore.removeDelegateProxy(id);
-                globalEventLoop.schedule("ProxySharingScaler:reconcile");
+                globalEventLoop.schedule(reconcileEventType);
             }
         };
     }

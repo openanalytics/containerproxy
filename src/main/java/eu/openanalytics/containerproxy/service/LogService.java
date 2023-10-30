@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.leader.event.OnRevokedEvent;
@@ -44,6 +45,8 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +61,7 @@ public class LogService {
     @Inject
     ILeaderService iLeaderService;
     @Inject
+    @Lazy
     ProxyService proxyService;
     @Inject
     IContainerBackend backend;
@@ -179,14 +183,21 @@ public class LogService {
             executor.shutdown();
         }
         executor = null;
-        for (Proxy proxy : proxyService.getAllProxies()) {
-            detach(proxy);
+        for (Map.Entry<String, LogStreams> streams : proxyStreams.entrySet()) {
+            detach(streams.getKey(), streams.getValue());
         }
         proxyStreams = ProxyHashMap.create();
         logStorage.stopService();
     }
 
-    private void attachToOutput(Proxy proxy) {
+    public void attachToOutput(Proxy proxy) {
+        if (!isLoggingEnabled() || !Objects.equals(proxy.getId(), proxy.getTargetId())) {
+            return;
+        }
+        if (!iLeaderService.isLeader()) {
+            log.warn("Cannot log proxy output: not the leader.");
+            return;
+        }
         BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
         if (outputAttacher == null) {
             log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
@@ -211,12 +222,19 @@ public class LogService {
         });
     }
 
-    private void detach(Proxy proxy) {
+    public void detach(Proxy proxy) {
+        if (!isLoggingEnabled() || !Objects.equals(proxy.getId(), proxy.getTargetId())) {
+            return;
+        }
         LogStreams streams = proxyStreams.get(proxy.getId());
         if (streams == null) {
             log.warn("Cannot detach container logging: streams not found");
             return;
         }
+        detach(proxy.getId(), streams);
+    }
+
+    private void detach(String proxyId, LogStreams streams) {
         try {
             streams.getStdout().flush();
             streams.getStdout().close();
@@ -225,7 +243,7 @@ public class LogService {
         } catch (IOException e) {
             log.error("Failed to close container logging streams", e);
         }
-        proxyStreams.remove(proxy.getId());
+        proxyStreams.remove(proxyId);
     }
 
 }

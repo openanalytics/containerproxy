@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.service.LogService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
@@ -85,6 +86,7 @@ public class ProxySharingScaler {
     private final RuntimeValueService runtimeValueService;
     private final SpecExpressionResolver expressionResolver;
     private final IdentifierService identifierService;
+    private final LogService logService;
 
     private static String publicPathPrefix = "/api/route/";
     private final GlobalEventLoopService globalEventLoop;
@@ -102,8 +104,10 @@ public class ProxySharingScaler {
 
     // TODO add cleanup of proxies that never became ready
 
-    public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend, SpecExpressionResolver expressionResolver,
-                              RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy, GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService) {
+    public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend,
+                              SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy,
+                              GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService,
+                              LogService logService) {
         this.proxySpec = proxySpec;
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.globalEventLoop = globalEventLoop;
@@ -115,6 +119,7 @@ public class ProxySharingScaler {
         this.testStrategy = testStrategy;
         this.identifierService = identifierService;
         this.leaderService = leaderService;
+        this.logService = logService;
         proxySpecHash = getProxySpecHash(proxySpec);
         cleanupEventType = "ProxySharingScaler::cleanup::" + proxySpec.getId();
         reconcileEventType = "ProxySharingScaler:reconcile::" + proxySpec.getId();
@@ -316,6 +321,7 @@ public class ProxySharingScaler {
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
                 seatStore.addSeat(seat);
                 log(seat, "Created Seat");
+                logService.attachToOutput(proxy);
                 log(delegateProxy, "Started DelegateProxy");
             } catch (ProxyFailedToStartException t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
@@ -400,13 +406,19 @@ public class ProxySharingScaler {
             } catch (Throwable t) {
                 logError(delegateProxy, t, "Failed to remove delegateProxy");
             }
+            try {
+                logService.detach(delegateProxy.getProxy());
+            } catch (Throwable t) {
+                logError(delegateProxy, t, "Failed to de-attach log collector");
+            }
         }
     }
 
     @Async
     @EventListener
-    public void compareConfigs(OnGrantedEvent event) {
-        // server is now the leader, check if running proxies are using the latest config
+    public void onLeaderGranted(OnGrantedEvent event) {
+        // server is now the leader...
+        // ... check if running proxies are using the latest config
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
             if (delegateProxy.getProxySpecHash().equals(proxySpecHash)) {
                 log(delegateProxy, "DelegateProxy created by this config instance");
@@ -422,6 +434,13 @@ public class ProxySharingScaler {
                 }
             }
         }
+        // ... attach log collectors
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
+                logService.attachToOutput(delegateProxy.getProxy());
+            }
+        }
+        // note: onLeaderRevoked the streams are detached by the LogService
     }
 
     private String getProxySpecHash(ProxySpec proxySpec) {

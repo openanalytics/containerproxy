@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
+import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
@@ -43,6 +44,7 @@ import org.springframework.security.core.Authentication;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -123,6 +125,9 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, delegateProxy.getId()), true);
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdRuntimeValue.inst, seat.getId()), true);
+
+        Container resultContainer = proxy.getContainer(0).toBuilder().id(UUID.randomUUID().toString()).build();
+        resultProxy.updateContainer(resultContainer);
 
         return resultProxy.build();
     }

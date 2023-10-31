@@ -70,6 +70,11 @@ public class RedisCheckLatestConfigService {
     @Async
     @EventListener
     public void init(ApplicationReadyEvent event) {
+        if (identifierService.version == null) {
+            logger.info("No proxy.version property found, assuming this server is running the latest configuration, taking part in leader election.");
+            lockRegistryLeaderInitiator.start();
+            return;
+        }
         Optional<Boolean> result = redisTemplate.execute(new VersionChecker(versionKey, identifierService.version));
         if (result != null && result.isPresent()) {
             isLatest = result.get();

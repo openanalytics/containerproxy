@@ -203,7 +203,7 @@ public class ProxyController extends BaseController {
     @JsonView(Views.UserApi.class)
     @RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Proxy>> getProxy(@PathVariable String proxyId) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
             return ApiResponse.failForbidden();
         }

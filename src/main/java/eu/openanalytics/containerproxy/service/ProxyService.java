@@ -162,6 +162,20 @@ public class ProxyService {
     }
 
     /**
+     * Find a proxy using its ID owner by the current user.
+     *
+     * @param id The ID of the proxy to find.
+     * @return The matching proxy, or null if no match was found.
+     */
+    public Proxy getUserProxy(String id) {
+        Proxy proxy = proxyStore.getProxy(id);
+        if (userService.isOwner(proxy)) {
+            return proxy;
+        }
+        return null;
+    }
+
+    /**
      * Get the proxies of the given specId that are owned by the current user.
      *
      * @return A List of matching proxies, may be empty.

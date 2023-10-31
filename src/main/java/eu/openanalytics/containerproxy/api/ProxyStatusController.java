@@ -118,7 +118,7 @@ public class ProxyStatusController {
     @ResponseBody
     @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
             return ApiResponse.failForbidden();
         }
@@ -187,7 +187,7 @@ public class ProxyStatusController {
                                                                              @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,
                                                                              @Parameter(description = "Time to wait for status to change, must be between 10 and 60 seconds (inclusive).")
                                                                              @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
             // proxy not found -> assume it has been stopped
             DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();

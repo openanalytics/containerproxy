@@ -30,11 +30,11 @@ import eu.openanalytics.containerproxy.log.LogPaths;
 import eu.openanalytics.containerproxy.log.LogStreams;
 import eu.openanalytics.containerproxy.log.NoopLogStorage;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.leader.event.OnRevokedEvent;
@@ -61,8 +61,7 @@ public class LogService {
     @Inject
     ILeaderService iLeaderService;
     @Inject
-    @Lazy
-    ProxyService proxyService;
+    IProxyStore proxyStore;
     @Inject
     IContainerBackend backend;
     private ExecutorService executor;
@@ -108,7 +107,7 @@ public class LogService {
     @EventListener
     public void onProxyStarted(ProxyStartEvent event) {
         if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-        Proxy proxy = proxyService.getProxy(event.getProxyId());
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
         if (proxy == null) {
             return;
         }
@@ -119,7 +118,7 @@ public class LogService {
     @EventListener
     public void onProxyResumed(ProxyResumeEvent event) {
         if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-        Proxy proxy = proxyService.getProxy(event.getProxyId());
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
         if (proxy == null) {
             return;
         }
@@ -130,7 +129,7 @@ public class LogService {
     @EventListener
     public void onProxyStopped(ProxyStopEvent event) {
         if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-        Proxy proxy = proxyService.getProxy(event.getProxyId());
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
         if (proxy == null) {
             return;
         }
@@ -141,7 +140,7 @@ public class LogService {
     @EventListener
     public void onProxyPaused(ProxyPauseEvent event) {
         if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-        Proxy proxy = proxyService.getProxy(event.getProxyId());
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
         if (proxy == null) {
             return;
         }
@@ -169,7 +168,7 @@ public class LogService {
         }
         log.info("Container logging enabled. Log files will be saved to " + logStorage.getStorageLocation());
         // attach existing proxies
-        for (Proxy proxy : proxyService.getAllProxies()) {
+        for (Proxy proxy : proxyStore.getAllProxies()) {
             attachToOutput(proxy);
         }
     }

@@ -626,6 +626,18 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
     }
 
+    private boolean canAccessLogs(Proxy proxy, Pair<String, String> pod) {
+        try {
+            // try to access logs and see if we get an exception
+            // must be checked for each pod, since pods may be in different namespaces
+            kubeClient.pods().inNamespace(pod.getFirst()).withName(pod.getSecond()).getLog();
+            return true;
+        } catch (KubernetesClientException ex) {
+            slog.warn(proxy, ex, "Cannot access pod logs, not collecting logs");
+            return false;
+        }
+    }
+
     @Override
     public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
         if (proxy.getContainers().isEmpty()) return null;
@@ -635,8 +647,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 Container container = proxy.getContainers().get(0);
                 Optional<Pair<String, String>> pod = getPodInfo(container);
                 if (pod.isPresent()) {
-                    watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
-                    IOUtils.copy(watcher.getOutput(), stdOut);
+                    if (canAccessLogs(proxy, pod.get())) {
+                        watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
+                        IOUtils.copy(watcher.getOutput(), stdOut);
+                    }
                 } else {
                     slog.warn(proxy, "Error while attaching to container output: pod info not found");
                 }

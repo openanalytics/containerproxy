@@ -47,6 +47,7 @@ import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
 import eu.openanalytics.containerproxy.util.Sha1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +109,6 @@ public class ProxySharingScaler {
                               SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy,
                               GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService,
                               LogService logService) {
-        this.proxySpec = proxySpec;
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.globalEventLoop = globalEventLoop;
         this.seatStore = seatStore;
@@ -120,6 +120,8 @@ public class ProxySharingScaler {
         this.identifierService = identifierService;
         this.leaderService = leaderService;
         this.logService = logService;
+        // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
+        this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
         cleanupEventType = "ProxySharingScaler::cleanup::" + proxySpec.getId();
         reconcileEventType = "ProxySharingScaler:reconcile::" + proxySpec.getId();

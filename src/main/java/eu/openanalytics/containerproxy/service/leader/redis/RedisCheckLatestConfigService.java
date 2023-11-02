@@ -95,6 +95,9 @@ public class RedisCheckLatestConfigService {
     }
 
     public boolean check() {
+        if (identifierService.version == null) {
+            return true;
+        }
         if (!isLatest) {
             // this server is not the latest, no need to check
             return false;

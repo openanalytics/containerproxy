@@ -48,7 +48,7 @@ public class ProxyRouteController extends BaseController {
         this.userAndTargetIdProxyIndex = userAndTargetIdProxyIndex;
         this.userService = userService;
         String baseURL = contextPathHelper.withEndingSlash() + "api/route/";
-        baseUrlLength = baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH;
+        baseUrlLength = baseURL.length() + DefaultTargetMappingStrategy.TARGET_ID_LENGTH + 1;
     }
 
     @RequestMapping(value = "/api/route/{targetId}/**")

@@ -41,7 +41,6 @@ import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.Headers;
-import io.undertow.util.HttpString;
 import io.undertow.util.PathMatcher;
 import io.undertow.util.StatusCodes;
 import jakarta.servlet.ServletException;
@@ -58,7 +57,6 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -73,6 +71,7 @@ public class ProxyMappingManager {
     private static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
     private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
     private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
+    private static final AttachmentKey<OriginalUrlAttachmentKey> ATTACHMENT_ORIGINAL_URL = AttachmentKey.create(OriginalUrlAttachmentKey.class);
 
     private final StructuredLogger logger = StructuredLogger.create(getClass());
     // the current set of prefixPaths registered in the pathHandler
@@ -103,7 +102,10 @@ public class ProxyMappingManager {
                 try {
                     proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
                     if (proxy != null && !proxy.getStatus().isUnavailable() && !isShuttingDown) {
-                        logger.info(proxy, "Proxy unreachable/crashed, stopping it now");
+                        String originalURL = responseExchange.getAttachment(ATTACHMENT_ORIGINAL_URL).url;
+                        String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
+                        logger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
+                            responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
                         asyncProxyService.stopProxy(proxy, true);
                     }
                 } catch (Throwable t) {
@@ -209,6 +211,8 @@ public class ProxyMappingManager {
         exchange.getRequestHeaders().put(Headers.X_FORWARDED_HOST, exchange.getHostAndPort());
         exchange.addDefaultResponseListener(defaultResponseListener);
 
+        exchange.putAttachment(ATTACHMENT_ORIGINAL_URL, new OriginalUrlAttachmentKey(request.getRequestURL().toString()));
+
         // add headers
         HttpHeaders headers = proxy.getRuntimeObject(HttpHeadersKey.inst);
         exchange.getRequestHeaders().putAll(headers.getUndertowHeaderMap());
@@ -220,7 +224,7 @@ public class ProxyMappingManager {
     /**
      * Get the internal endpoint (path) used inside the undertow container.
      * This endpoint proxies to the corresponding target URI of the proxy.
-     * The mapping can be an empty string or a string starting with a "/"; TODO
+     * The mapping can be an empty string or a string NOT starting with a "/";
      *
      * @param proxyId
      * @param mapping the mapping (a sub-path)
@@ -266,6 +270,36 @@ public class ProxyMappingManager {
 
         public ProxyIdAttachment(String proxyId) {
             this.proxyId = proxyId;
+        }
+    }
+
+    private String getProxiedToFromResponseExchange(Proxy proxy, HttpServerExchange responseExchange) {
+        String relativePath = responseExchange.getRelativePath();
+        URI target = getTargetFromResponseExchange(proxy, relativePath);
+
+        return target + relativePath + responseExchange.getQueryString();
+    }
+
+    private URI getTargetFromResponseExchange(Proxy proxy, String relativePath) {
+        if (proxy.getTargets().size() > 1) {
+            int pos = relativePath.indexOf("/");
+            if (pos > 0) {
+                String targetName = relativePath.substring(0, pos);
+                URI target = proxy.getTargets().get(targetName);
+                if (target != null) {
+                    return target;
+                }
+            }
+        }
+
+        return proxy.getTargets().get("");
+    }
+
+    private static class OriginalUrlAttachmentKey {
+        public final String url;
+
+        public OriginalUrlAttachmentKey(String url) {
+            this.url = url;
         }
     }
 

@@ -109,7 +109,7 @@ public class RedisProxyStore implements IProxyStore {
         Map<String, URI> newTargets = proxy.getTargets();
         Map<String, URI> oldTargets = targetsCache.put(proxy.getId(), newTargets);
 
-        if (oldTargets == null || oldTargets != newTargets) {
+        if (oldTargets == null || !oldTargets.equals(newTargets)) {
             for (Map.Entry<String, URI> target : newTargets.entrySet()) {
                 mappingManager.addMapping(proxy, target.getKey(), target.getValue());
             }

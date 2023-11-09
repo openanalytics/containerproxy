@@ -386,6 +386,7 @@ public class EcsBackend extends AbstractContainerBackend {
             ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
 
             // delete is ignored if task definition does not exist, this is the case if the task definition was not created by shinyproxy
+            ecsClient.deregisterTaskDefinition(builder -> builder.taskDefinition("sp-task-definition-" + proxy.getId() + ":1"));
             ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
         }
 

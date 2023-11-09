@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImag
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserGroupsKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
@@ -73,7 +74,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +92,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_REGION = "region";
     private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
-    private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Collections.singletonList(PortMappingsKey.inst);
+    private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
 
     private EcsClient ecsClient;
     private Boolean enableCloudWatch;

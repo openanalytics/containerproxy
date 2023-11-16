@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.service.hearbeat;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.util.ChannelActiveListener;
 import eu.openanalytics.containerproxy.util.DelegatingStreamSinkConduit;
@@ -75,18 +76,18 @@ public class HeartbeatService {
         heartbeatRate = environment.getProperty(ActiveProxiesService.PROP_RATE, Long.class, ActiveProxiesService.DEFAULT_RATE);
     }
 
-    public void attachHeartbeatChecker(HttpServerExchange exchange, String proxyId) {
+    public void attachHeartbeatChecker(HttpServerExchange exchange, Proxy proxy) {
         if (exchange.isUpgrade()) {
             // For websockets, attach a ping-pong listener to the underlying TCP channel.
             String sessionId = sessionService.extractSessionIdFromExchange(exchange);
             HttpServerConnection httpConn = (HttpServerConnection) exchange.getConnection();
-            HeartbeatConnector connector = new HeartbeatConnector(proxyId, sessionId, httpConn.getChannel());
+            HeartbeatConnector connector = new HeartbeatConnector(proxy, sessionId, httpConn.getChannel());
             // Delay the wrapping, because Undertow will make changes to the channel while the upgrade is being performed.
             heartbeatExecutor.schedule(() -> connector.wrapChannels(httpConn.getChannel()), 3000, TimeUnit.MILLISECONDS);
             heartbeatConnectors.put(sessionId, connector);
         } else {
             // For regular HTTP requests, just trigger one heartbeat.
-            self.heartbeatReceived(HeartbeatSource.HTTP_REQUEST, proxyId, null);
+            self.heartbeatReceived(HeartbeatSource.HTTP_REQUEST, proxy, null);
         }
     }
 
@@ -99,11 +100,11 @@ public class HeartbeatService {
      * in order to execute the tasks.
      */
     @Async
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
         for (IHeartbeatProcessor heartbeatProcessor : heartbeatProcessors) {
-            heartbeatProcessor.heartbeatReceived(heartbeatSource, proxyId, sessionId);
+            heartbeatProcessor.heartbeatReceived(heartbeatSource, proxy, sessionId);
         }
-        if (log.isDebugEnabled()) log.debug(String.format("Heartbeat received [proxyId: %s] [source: %s]", proxyId, heartbeatSource));
+        if (log.isDebugEnabled()) log.debug(String.format("Heartbeat received [proxyId: %s] [source: %s]", proxy, heartbeatSource));
     }
 
     public long getHeartbeatRate() {
@@ -140,14 +141,14 @@ public class HeartbeatService {
 
     private class HeartbeatConnector {
 
-        private final String proxyId;
+        private final Proxy proxy;
 
         private final String sessionId;
 
         private StreamConnection streamConnection;
 
-        private HeartbeatConnector(String proxyId, String sessionId, StreamConnection streamConnection) {
-            this.proxyId = proxyId;
+        private HeartbeatConnector(Proxy proxyId, String sessionId, StreamConnection streamConnection) {
+            this.proxy = proxyId;
             this.sessionId = sessionId;
             this.streamConnection = streamConnection;
         }
@@ -176,7 +177,7 @@ public class HeartbeatService {
                 // reschedule ping
                 heartbeatExecutor.schedule(() -> sendPing(writeListener, streamConn), getHeartbeatRate(), TimeUnit.MILLISECONDS);
                 // mark as we received a heartbeat
-                self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxyId, sessionId);
+                self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxy, sessionId);
                 return;
             }
             if (!streamConn.isOpen()) return;
@@ -193,7 +194,7 @@ public class HeartbeatService {
 
         private void checkPong(byte[] response) {
             if (response.length > 0 && response[0] == WEBSOCKET_PONG) {
-                self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxyId, sessionId);
+                self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxy, sessionId);
             }
         }
 

@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -28,6 +30,6 @@ import javax.annotation.Nullable;
  */
 public interface IHeartbeatProcessor {
 
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId);
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId);
 
 }

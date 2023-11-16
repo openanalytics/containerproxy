@@ -140,7 +140,7 @@ public class AppRecoveryService {
             for (Proxy.ProxyBuilder proxyBuilder : proxies.values()) {
                 Proxy proxy = proxyBuilder.build();
                 proxyService.addExistingProxy(proxy);
-                heartbeatService.heartbeatReceived(HeartbeatService.HeartbeatSource.INTERNAL, proxy.getId(), null);
+                heartbeatService.heartbeatReceived(HeartbeatService.HeartbeatSource.INTERNAL, proxy, null);
             }
 
         } else {

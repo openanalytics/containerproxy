@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +39,7 @@ public class SessionReActivatorService implements IHeartbeatProcessor {
     private ISessionService sessionService;
 
     @Override
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
         if (heartbeatSource != HeartbeatService.HeartbeatSource.WEBSOCKET_PONG || sessionId == null) {
             return;
         }

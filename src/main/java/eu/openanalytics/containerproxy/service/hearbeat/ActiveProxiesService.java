@@ -79,11 +79,9 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     }
 
     @Override
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
-        if (proxyService.getProxy(proxyId) != null) {
-            if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxyId);
-            heartbeatStore.update(proxyId, System.currentTimeMillis());
-        }
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
+        if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxy.getId());
+        heartbeatStore.update(proxy.getId(), System.currentTimeMillis());
     }
 
     public Long getLastHeartBeat(String proxyId) {

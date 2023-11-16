@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -53,14 +54,13 @@ public class WebSocketCounterService implements IHeartbeatProcessor {
         }, cleanupInterval, cleanupInterval);
     }
 
-
     @Override
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
         if (heartbeatSource != HeartbeatService.HeartbeatSource.WEBSOCKET_PONG) {
             return;
         }
 
-        wsHeartbeats.put(proxyId, System.currentTimeMillis());
+        wsHeartbeats.put(proxy.getId(), System.currentTimeMillis());
     }
 
     private synchronized void updateCount() {

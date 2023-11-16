@@ -56,8 +56,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -75,7 +77,7 @@ public class ProxyMappingManager {
 
     private final StructuredLogger logger = StructuredLogger.create(getClass());
     // the current set of prefixPaths registered in the pathHandler
-    private final Set<String> prefixPaths = new HashSet<>();
+    private final Map<String, List<String>> prefixPaths = new HashMap<>();
     private PathHandler pathHandler;
     private volatile boolean isShuttingDown = false;
 
@@ -136,21 +138,31 @@ public class ProxyMappingManager {
         return pathHandler;
     }
 
-    @SuppressWarnings("deprecation")
-    public synchronized void addMapping(Proxy proxy, String mapping, URI target) {
+    public synchronized void addMappings(Proxy proxy) {
         if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
 
-        String prefixPath = getPrefixPath(proxy.getId(), mapping);
-        if (prefixPaths.contains(prefixPath)) {
+        if (proxy.getTargets().isEmpty() || prefixPaths.containsKey(proxy.getId())) {
             return;
         }
-        prefixPaths.add(prefixPath);
 
+
+        List<String> newPrefixPaths = new ArrayList<>();
+
+        for (Map.Entry<String, URI> target : proxy.getTargets().entrySet()) {
+            newPrefixPaths.add(addMapping(proxy, target.getKey(), target.getValue()));
+        }
+
+        prefixPaths.put(proxy.getId(), newPrefixPaths);
+    }
+
+    @SuppressWarnings("deprecation")
+    private synchronized String addMapping(Proxy proxy, String mapping, URI target) {
+        String prefixPath = getPrefixPath(proxy.getId(), mapping);
         LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
             @Override
             public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
                 try {
-                    exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxy.getId()));
+                    exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxy));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -161,13 +173,18 @@ public class ProxyMappingManager {
         proxyClient.addHost(target);
 
         pathHandler.addPrefixPath(prefixPath, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
+        return prefixPath;
     }
 
-    public synchronized void removeMapping(Proxy proxy, String mapping) {
+    public synchronized void removeMappings(String proxyId) {
         if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
-        String prefixPath = getPrefixPath(proxy.getId(), mapping);
-        prefixPaths.remove(prefixPath);
-        pathHandler.removePrefixPath(prefixPath);
+        List<String> prefixPathsOfProxy = prefixPaths.remove(proxyId);
+        if (prefixPathsOfProxy == null) {
+            return;
+        }
+        for (String prefixPath : prefixPathsOfProxy) {
+            pathHandler.removePrefixPath(prefixPath);
+        }
     }
 
     /**

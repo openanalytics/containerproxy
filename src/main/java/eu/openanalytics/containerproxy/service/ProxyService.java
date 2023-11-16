@@ -302,9 +302,7 @@ public class ProxyService {
             Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Stopping);
             proxyStore.updateProxy(stoppingProxy);
 
-            for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                mappingManager.removeMapping(proxy, target.getKey());
-            }
+            mappingManager.removeMappings(proxy.getId());
             return stoppingProxy;
         }, (stoppingProxy) -> {
             Proxy stoppedProxy = stoppingProxy.withStatus(ProxyStatus.Stopped);
@@ -342,9 +340,7 @@ public class ProxyService {
             Proxy stoppingProxy = proxy.withStatus(ProxyStatus.Pausing);
             proxyStore.updateProxy(stoppingProxy);
 
-            for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                mappingManager.removeMapping(proxy, target.getKey());
-            }
+            mappingManager.removeMappings(proxy.getId());
             return stoppingProxy;
 
         }, (pausingProxy) -> {
@@ -533,9 +529,7 @@ public class ProxyService {
      * Setups the Mapping of proxy.
      */
     private void setupProxy(Proxy proxy) {
-        for (Entry<String, URI> target : proxy.getTargets().entrySet()) {
-            mappingManager.addMapping(proxy, target.getKey(), target.getValue());
-        }
+        mappingManager.addMappings(proxy);
     }
 
     /**

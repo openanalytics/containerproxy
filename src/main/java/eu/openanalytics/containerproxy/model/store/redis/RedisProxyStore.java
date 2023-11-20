@@ -94,13 +94,13 @@ public class RedisProxyStore implements IProxyStore {
 
     @EventListener
     public void onProxyStopped(ProxyStopEvent event) {
-        logger.info("Redis: remove mappings (event) {}", event.getProxyId());
+        logger.debug("Redis: remove mappings (event) {}", event.getProxyId());
         mappingManager.removeMappings(event.getProxyId());
     }
 
     private void updateMappings(String proxyId, Proxy proxy) {
         if (proxy == null || proxy.getStatus().isUnavailable()) {
-            logger.info("Redis: remove mappings for {}", proxyId);
+            logger.debug("Redis: remove mappings for {}", proxyId);
             mappingManager.removeMappings(proxyId);
             return;
         }

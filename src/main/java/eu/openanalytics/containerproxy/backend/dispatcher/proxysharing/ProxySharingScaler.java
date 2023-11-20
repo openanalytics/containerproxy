@@ -268,7 +268,7 @@ public class ProxySharingScaler {
                 proxyBuilder.specId(proxySpec.getId());
                 proxyBuilder.createdTimestamp(System.currentTimeMillis());
                 // TODO add minimal set of runtimevalues
-                proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPathPrefix + id), false);
+                proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, getPublicPath(id)), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
 
                 Proxy proxy = proxyBuilder.build();
@@ -465,6 +465,10 @@ public class ProxySharingScaler {
 
     public Long getNumPendingSeats() {
         return delegateProxyStore.getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.Pending)).count();
+    }
+
+    private String getPublicPath(String targetId) {
+        return publicPathPrefix + targetId + "/";
     }
 
     /**

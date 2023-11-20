@@ -54,8 +54,8 @@ public abstract class RuntimeValueKey<T> {
         this.includeAsAnnotation = includeAsAnnotation;
         this.includeAsEnvironmentVariable = includeAsEnvironmentVariable;
         this.includeInApi = includeInApi;
-        this.isContainerSpecific = isContainerSpecific;
         this.isRequired = isRequired;
+        this.isContainerSpecific = isContainerSpecific;
         this.clazz = clazz;
     }
 

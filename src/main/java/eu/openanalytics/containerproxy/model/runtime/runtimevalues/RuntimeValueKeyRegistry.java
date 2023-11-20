@@ -53,6 +53,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(HttpHeadersKey.inst);
         addRuntimeValueKey(TargetIdKey.inst);
         addRuntimeValueKey(TaskDefinitionKey.inst);
+        addRuntimeValueKey(CacheHeadersModeKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeaders;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeadersKey;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
+import eu.openanalytics.containerproxy.service.ProxyCacheHeadersService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
@@ -92,6 +93,10 @@ public class ProxyMappingManager {
     @Inject
     @Lazy
     private AsyncProxyService asyncProxyService;
+
+    @Inject
+    private ProxyCacheHeadersService proxyCacheHeadersService;
+
     private final DefaultResponseListener defaultResponseListener = responseExchange -> {
         // note: if ShinyProxy was restarted it can take up to one minute for the request to timeout/fail
         if (!responseExchange.isResponseChannelAvailable()) {
@@ -233,6 +238,11 @@ public class ProxyMappingManager {
         // add headers
         HttpHeaders headers = proxy.getRuntimeObject(HttpHeadersKey.inst);
         exchange.getRequestHeaders().putAll(headers.getUndertowHeaderMap());
+
+        exchange.addResponseWrapper((f, exchange1) -> {
+            proxyCacheHeadersService.addAppCacheHeaders(proxy, exchange1);
+            return f.create();
+        });
 
         request.startAsync();
         request.getRequestDispatcher(targetPath).forward(request, response);

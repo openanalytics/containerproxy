@@ -26,6 +26,8 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersMode;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersModeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
@@ -70,11 +72,14 @@ public class RuntimeValueService {
 
     private static final String PROP_DEFAULT_PROXY_MAX_LIFETIME = "proxy.default-proxy-max-lifetime";
 
+    private static final String PROP_DEFAULT_CACHE_HEADERS_MODE = "proxy.default-cache-headers-mode";
+
     private static final Long DEFAULT_TIMEOUT = 60000L;
     @Inject
     protected IdentifierService identifierService;
     private long defaultHeartbeatTimeout;
     private long defaultMaxLifetime;
+    private CacheHeadersMode defaultCacheHeadersMode;
     @Inject
     private ParametersService parametersService;
     @Inject
@@ -84,6 +89,7 @@ public class RuntimeValueService {
     public void init() {
         defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
+        defaultCacheHeadersMode = environment.getProperty(PROP_DEFAULT_CACHE_HEADERS_MODE, CacheHeadersMode.class, CacheHeadersMode.EnforceNoCache);
     }
 
     public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy) {
@@ -105,6 +111,12 @@ public class RuntimeValueService {
         List<String> groups = UserService.getGroups(user);
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
+
+        if (spec.getCacheHeadersMode() != null) {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(CacheHeadersModeKey.inst, spec.getCacheHeadersMode()), true);
+        } else {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(CacheHeadersModeKey.inst, defaultCacheHeadersMode), true);
+        }
 
         return proxyBuilder.build();
     }
@@ -141,8 +153,8 @@ public class RuntimeValueService {
         PortMappings portMappings = new PortMappings();
         for (PortMapping portMapping : containerSpec.getPortMapping()) {
             portMappings.addPortMapping(new PortMappings.PortMappingEntry(
-                    portMapping.getName(), portMapping.getPort(),
-                    AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
+                portMapping.getName(), portMapping.getPort(),
+                AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
         }
 
         containerBuilder.addRuntimeValue(new RuntimeValue(PortMappingsKey.inst, portMappings), false);

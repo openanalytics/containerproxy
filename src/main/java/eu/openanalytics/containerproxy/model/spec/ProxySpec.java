@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.model.spec;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersMode;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
@@ -95,6 +96,8 @@ public class ProxySpec {
     @Builder.Default
     SpelField.StringMap httpHeaders = new SpelField.StringMap();
 
+    CacheHeadersMode cacheHeadersMode;
+
     public void setContainerIndex() {
         if (this.containerSpecs != null) {
             for (int i = 0; i < this.containerSpecs.size(); i++) {
@@ -133,6 +136,7 @@ public class ProxySpec {
                     .map(c -> c.firstResolve(resolver, context.copy(c)))
                     .toList()
             )
+            .cacheHeadersMode(cacheHeadersMode)
             .build();
     }
 

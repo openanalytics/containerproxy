@@ -193,6 +193,10 @@ public class WebSecurityConfig {
             if (!customHeaders.isEmpty()) {
                 headers.addHeaderWriter(new OverridingHeaderWriter(customHeaders));
             }
+
+            // override CacheControl to preserver cache headers of proxied apps
+            headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable);
+            headers.addHeaderWriter(new CustomCacheControlHeadersWriter());
         });
 
         http.authorizeHttpRequests(authz -> authz

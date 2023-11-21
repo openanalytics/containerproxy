@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -39,6 +40,7 @@ import org.thymeleaf.templateresolver.FileTemplateResolver;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
 @Configuration
@@ -59,6 +61,7 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
             .addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/")
             .setOptimizeLocations(true)
             .setUseLastModified(false)
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(1)))
             .resourceChain(true)
             .addResolver(resolver);
 
@@ -67,6 +70,7 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
             .addResourceLocations("classpath:/static/")
             .setOptimizeLocations(true)
             .setUseLastModified(false)
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(1)))
             .resourceChain(true)
             .addResolver(resolver);
 
@@ -74,6 +78,7 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
             .addResourceLocations("classpath:/META-INF/resources/webjars/")
             .setOptimizeLocations(true)
             .setUseLastModified(false)
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(1)))
             .resourceChain(true)
             .addResolver(resolver);
 
@@ -81,6 +86,7 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
             .addResourceLocations("file:" + environment.getProperty(PROP_TEMPLATE_PATH) + "/assets/")
             .setOptimizeLocations(true)
             .setUseLastModified(false)
+            .setCacheControl(CacheControl.maxAge(Duration.ofDays(1)))
             .resourceChain(true)
             .addResolver(resolver);
     }

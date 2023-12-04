@@ -39,9 +39,11 @@ import eu.openanalytics.containerproxy.service.leader.redis.RedisCheckLatestConf
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -61,6 +63,7 @@ import javax.inject.Inject;
 
 @Configuration
 @ConditionalOnProperty(name = "proxy.store-mode", havingValue = "Redis")
+@Import(RedisAutoConfiguration.class)
 public class RedisStoreConfiguration {
 
     @Inject

@@ -139,6 +139,7 @@ public class ContainerProxyApplication {
         properties.put("spring.session.store-type", "none");
         // required for proper working of the SP_USER_INITIATED_LOGOUT session attribute in the UserService
         properties.put("spring.session.redis.flush-mode", "IMMEDIATE");
+        properties.put("spring.session.redis.repository-type", "indexed");
 
         // disable multi-part handling by Spring. We don't need this anywhere in the application.
         // When enabled this will cause problems when proxying file-uploads to the shiny apps.

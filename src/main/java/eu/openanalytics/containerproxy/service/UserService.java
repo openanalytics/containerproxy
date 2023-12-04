@@ -45,6 +45,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.session.HttpSessionDestroyedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -161,10 +162,11 @@ public class UserService {
     }
 
     public boolean isAdmin(Authentication auth) {
-        if (!authBackend.hasAuthorization() || auth == null) {
+        if (!authBackend.hasAuthorization() || authNull(auth)) {
             return false;
         }
 
+        String userName = auth.getName();
         String sessionId = Objects.requireNonNull(RequestContextHolder.getRequestAttributes()).getSessionId();
         return isAdminCache.get(sessionId, s -> {
             for (String adminGroup : getAdminGroups()) {
@@ -173,9 +175,8 @@ public class UserService {
                 }
             }
 
-            String userName = auth.getName();
             for (String adminUser : getAdminUsers()) {
-                if (userName != null && userName.equalsIgnoreCase(adminUser)) {
+                if (userName.equalsIgnoreCase(adminUser)) {
                     return true;
                 }
             }
@@ -210,9 +211,10 @@ public class UserService {
 
     @EventListener
     public void onAbstractAuthenticationFailureEvent(AbstractAuthenticationFailureEvent event) {
-        Authentication source = event.getAuthentication();
+        Authentication auth = event.getAuthentication();
+        if (authNull(auth)) return;
         Exception e = event.getException();
-        String userId = source.getName();
+        String userId = auth.getName();
         log.info(String.format("Authentication failure [user: %s] [error: %s]", userId, e.getMessage()));
 
         applicationEventPublisher.publishEvent(new AuthFailedEvent(
@@ -221,8 +223,8 @@ public class UserService {
     }
 
     public void logout(Authentication auth) {
+        if (authNull(auth)) return;
         String userId = auth.getName();
-        if (userId == null) return;
 
         if (logoutStrategy != null) logoutStrategy.onLogout(userId);
         log.info(String.format("User logged out [user: %s]", userId));
@@ -239,6 +241,7 @@ public class UserService {
     @EventListener
     public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
         Authentication auth = event.getAuthentication();
+        if (authNull(auth)) return;
         String userId = auth.getName();
 
         log.info(String.format("User logged in [user: %s]", userId));
@@ -260,7 +263,7 @@ public class UserService {
             // not already handled by any other handler
             if (!event.getSecurityContexts().isEmpty()) {
                 SecurityContext securityContext = event.getSecurityContexts().get(0);
-                if (securityContext == null) return;
+                if (securityContext == null || authNull(securityContext.getAuthentication())) return;
 
                 String userId = securityContext.getAuthentication().getName();
                 if (logoutStrategy != null) logoutStrategy.onLogout(userId);
@@ -284,6 +287,10 @@ public class UserService {
                 ));
             }
         }
+    }
+
+    private boolean authNull(Authentication auth) {
+        return auth == null || auth.getName() == null;
     }
 
 }

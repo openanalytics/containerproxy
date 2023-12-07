@@ -203,6 +203,15 @@ public class ProxyService {
     }
 
     /**
+     * Number of running proxies for the given specId.
+     * @return number of running proxies for the given specId.
+     */
+    public long getNumberOfProxiesBySpecId(String specId) {
+        return proxyStore.getAllProxies().stream().filter(p -> p.getSpecId().equals(specId)).count();
+    }
+
+
+    /**
      * Get all proxies.
      *
      * @return A List of all proxies.

@@ -193,6 +193,7 @@ public class ProxySharingScaler {
             // TODO allow only one seat if container is not allowed to be re-used
             // container cannot be re-used -> mark delegateProxy as ToRemove
             // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
+            log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
             delegateProxy = delegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.ToRemove).build();
             delegateProxyStore.updateDelegateProxy(delegateProxy);
             // seat cannot be re-used remove it
@@ -376,7 +377,9 @@ public class ProxySharingScaler {
             log("No proxy found to remove during scale-down.");
             return;
         }
-        log(String.format("Stopping %s DelegateProxies", delegateProxiesToRemove.size()));
+        for (DelegateProxy delegateProxy: delegateProxiesToRemove) {
+            log(delegateProxy, "Selected DelegateProxy for removal during scale-down");
+        }
         // only now remove the proxies (this takes the most time)
         removeDelegateProxies(delegateProxiesToRemove);
     }
@@ -402,7 +405,6 @@ public class ProxySharingScaler {
             debug("Stopping cleanup because a seat was claimed");
         }
         if (!delegateProxiesToRemove.isEmpty()) {
-            log(String.format("Removing %s DelegateProxies (they have outdated spec or cannot be re-used)", delegateProxiesToRemove.size()));
             // only now remove the proxies (this takes the most time)
             removeDelegateProxies(delegateProxiesToRemove);
         }
@@ -410,6 +412,7 @@ public class ProxySharingScaler {
 
     private void removeDelegateProxies(List<DelegateProxy> delegateProxies) {
         for (DelegateProxy delegateProxy : delegateProxies) {
+            log(delegateProxy, "Stopping DelegateProxy");
             try {
                 containerBackend.stopProxy(delegateProxy.getProxy());
             } catch (Throwable t) {

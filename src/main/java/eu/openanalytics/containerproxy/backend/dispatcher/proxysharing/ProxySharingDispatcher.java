@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
@@ -59,7 +58,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final ProxySharingScaler proxySharingScaler;
 
     static {
-        RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdRuntimeValue.inst);
+        RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
+        RuntimeValueKeyRegistry.addRuntimeValueKey(DelegateProxyKey.inst);
     }
 
     public ProxySharingDispatcher(IDelegateProxyStore delegateProxyStore,
@@ -124,7 +124,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPath.replaceAll(proxy.getId(), delegateProxy.getId())), true);
         }
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, delegateProxy.getId()), true);
-        resultProxy.addRuntimeValue(new RuntimeValue(SeatIdRuntimeValue.inst, seat.getId()), true);
+        resultProxy.addRuntimeValue(new RuntimeValue(SeatIdKey.inst, seat.getId()), true);
 
         Container resultContainer = proxy.getContainer(0).toBuilder().id(UUID.randomUUID().toString()).build();
         resultProxy.updateContainer(resultContainer);
@@ -134,7 +134,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     @Override
     public void stopProxy(Proxy proxy) throws ContainerProxyException {
-        String seatId = proxy.getRuntimeObjectOrNull(SeatIdRuntimeValue.inst);
+        String seatId = proxy.getRuntimeObjectOrNull(SeatIdKey.inst);
         if (seatId != null) {
             seatStore.releaseSeat(seatId);
             info(proxy, seatStore.getSeat(seatId), "Seat released");

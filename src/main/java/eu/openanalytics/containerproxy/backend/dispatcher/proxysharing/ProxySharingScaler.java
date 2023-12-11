@@ -34,8 +34,12 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
@@ -266,10 +270,18 @@ public class ProxySharingScaler {
                 proxyBuilder.targetId(id);
                 proxyBuilder.status(ProxyStatus.New);
                 proxyBuilder.specId(proxySpec.getId());
-                proxyBuilder.createdTimestamp(System.currentTimeMillis());
+                long createdTimestamp = System.currentTimeMillis();
+                proxyBuilder.createdTimestamp(createdTimestamp);
                 // TODO add minimal set of runtimevalues
+                proxyBuilder.addRuntimeValue(new RuntimeValue(DelegateProxyKey.inst, true), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, getPublicPath(id)), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
+                proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(createdTimestamp)), false);
+                proxyBuilder.addRuntimeValue(new RuntimeValue(ProxyIdKey.inst, id), false);
+                if (identifierService.realmId != null) {
+                    proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
+                }
+                proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()), false);
 
                 Proxy proxy = proxyBuilder.build();
                 DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.Pending).proxy(proxy).build();

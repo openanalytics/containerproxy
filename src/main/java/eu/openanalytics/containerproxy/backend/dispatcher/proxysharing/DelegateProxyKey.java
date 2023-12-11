@@ -22,30 +22,30 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 
-public class SeatIdRuntimeValue extends RuntimeValueKey<String> {
+public class DelegateProxyKey extends RuntimeValueKey<Boolean> {
 
-    public static final SeatIdRuntimeValue inst = new SeatIdRuntimeValue();
+    public static final DelegateProxyKey inst = new DelegateProxyKey();
 
-    private SeatIdRuntimeValue() {
-        super("openanalytics.eu/sp-seat-id",
-            "SHINYPROXY_SEAT_ID",
-            false,
+    private DelegateProxyKey() {
+        super("openanalytics.eu/sp-delegate-proxy",
+            "SHINYPROXY_DELEGATE_PROXYS",
             true,
             false,
             false,
             false,
             false,
-            String.class);
+            false,
+            Boolean.class);
     }
 
     @Override
-    public String deserializeFromString(String value) {
-        return value;
+    public Boolean deserializeFromString(String value) {
+        return Boolean.valueOf(value);
     }
 
     @Override
-    public String serializeToString(String value) {
-        return value;
+    public String serializeToString(Boolean value) {
+        return value.toString();
     }
 
 }

@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.service.hearbeat;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.util.ChannelActiveListener;
@@ -64,6 +65,7 @@ public class HeartbeatService {
     // keep track of the HeartbeatConnector for every SessionId so that the websocket connection can be closed
     // when the user logs out from that session. This is required for apps that keep running even if when the user signs out.
     private final ListMultimap<String, HeartbeatConnector> heartbeatConnectors = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
+    private final ListMultimap<String, HeartbeatConnector> heartbeatConnectorsByProxyId = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
     private final Long heartbeatRate;
     @Inject
     private ISessionService sessionService;
@@ -85,6 +87,7 @@ public class HeartbeatService {
             // Delay the wrapping, because Undertow will make changes to the channel while the upgrade is being performed.
             heartbeatExecutor.schedule(() -> connector.wrapChannels(httpConn.getChannel()), 3000, TimeUnit.MILLISECONDS);
             heartbeatConnectors.put(sessionId, connector);
+            heartbeatConnectorsByProxyId.put(proxy.getId(), connector);
         } else {
             // For regular HTTP requests, just trigger one heartbeat.
             self.heartbeatReceived(HeartbeatSource.HTTP_REQUEST, proxy, null);
@@ -117,6 +120,14 @@ public class HeartbeatService {
         heartbeatConnectors.get(event.getId()).forEach(HeartbeatConnector::closeConnection);
         // remove the session from the map
         heartbeatConnectors.removeAll(event.getId());
+    }
+
+    @EventListener
+    public void onProxyStoppedEvent(ProxyStopEvent event) {
+        // stop every websocket connection started by this proxy
+        heartbeatConnectorsByProxyId.get(event.getProxyId()).forEach(HeartbeatConnector::closeConnection);
+        // remove the session from the map
+        heartbeatConnectorsByProxyId.removeAll(event.getProxyId());
     }
 
     public enum HeartbeatSource {

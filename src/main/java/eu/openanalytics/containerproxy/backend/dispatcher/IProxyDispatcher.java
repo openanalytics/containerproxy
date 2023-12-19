@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
 
@@ -31,7 +32,11 @@ public interface IProxyDispatcher {
 
     public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
 
-    public void stopProxy(Proxy proxy) throws ContainerProxyException;
+    public void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException;
+
+    public default void stopProxy(Proxy proxy) throws ContainerProxyException {
+        stopProxy(proxy, ProxyStopReason.Unknown);
+    }
 
     public void pauseProxy(Proxy proxy);
 

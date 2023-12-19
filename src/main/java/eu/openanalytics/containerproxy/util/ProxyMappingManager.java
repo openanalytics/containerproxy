@@ -20,8 +20,10 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingScaler;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeaders;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeadersKey;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
@@ -113,7 +115,7 @@ public class ProxyMappingManager {
                         String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
                         logger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
                             responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
-                        asyncProxyService.stopProxy(proxy, true);
+                        asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
                     }
                 } catch (Throwable t) {
                     // ignore in order to complete request

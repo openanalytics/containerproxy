@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -294,11 +295,23 @@ public class ProxyService {
     /**
      * Stop a running proxy.
      *
-     * @param user
+     * @param user                The current user.
      * @param proxy               The proxy to stop.
      * @param ignoreAccessControl True to allow access to any proxy, regardless of the current security context.
      */
     public Command stopProxy(Authentication user, Proxy proxy, boolean ignoreAccessControl) {
+        return stopProxy(user, proxy, ignoreAccessControl, ProxyStopReason.Unknown);
+    }
+
+    /**
+     * Stop a running proxy.
+     *
+     * @param user                The current user.
+     * @param proxy               The proxy to stop.
+     * @param ignoreAccessControl True to allow access to any proxy, regardless of the current security context.
+     * @param proxyStopReason     The reason to stop this proxy.
+     */
+    public Command stopProxy(Authentication user, Proxy proxy, boolean ignoreAccessControl, ProxyStopReason proxyStopReason) {
         return action(proxy.getId(), () -> {
             if (!ignoreAccessControl && !userService.isAdmin(user) && !userService.isOwner(user, proxy)) {
                 throw new AccessDeniedException(String.format("Cannot stop proxy %s: access denied", proxy.getId()));
@@ -316,7 +329,7 @@ public class ProxyService {
         }, (stoppingProxy) -> {
             Proxy stoppedProxy = stoppingProxy.withStatus(ProxyStatus.Stopped);
             try {
-                proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(stoppedProxy);
+                proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(stoppedProxy, proxyStopReason);
             } catch (Throwable t) {
                 log.error(stoppedProxy, t, "Failed to stop proxy");
             }
@@ -327,7 +340,7 @@ public class ProxyService {
             }
             log.info(stoppedProxy, "Proxy released");
 
-            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy));
+            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy, proxyStopReason));
         });
     }
 

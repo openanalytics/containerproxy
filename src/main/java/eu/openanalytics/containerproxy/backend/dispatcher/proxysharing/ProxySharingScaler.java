@@ -34,6 +34,7 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
@@ -189,16 +190,17 @@ public class ProxySharingScaler {
             logWarn(String.format("ProxySharing: DelegateProxy %s not found during processing of SeatReleasedEvent with seatId: %s", seat.getDelegateProxyId(), seatId));
             return;
         }
-        if (!specExtension.allowContainerReUse) {
+
+        if (seatReleasedEvent.getProxyStopReason() == ProxyStopReason.Crashed) {
+            // proxy crashed -> mark delegateProxy as ToRemove
+            // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
+            log(delegateProxy, "DelegateProxy crashed, marking for removal");
+            markDelegateProxyForRemoval(delegateProxy, seatId);
+        } else if (!specExtension.allowContainerReUse) {
             // TODO allow only one seat if container is not allowed to be re-used
             // container cannot be re-used -> mark delegateProxy as ToRemove
-            // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
             log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
-            delegateProxy = delegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.ToRemove).build();
-            delegateProxyStore.updateDelegateProxy(delegateProxy);
-            // seat cannot be re-used remove it
-            // note: this seat is never re-added to the pool of unclaimedSeats, therefore it can never be claimed for a second time
-            removeSeat(delegateProxy, seatId);
+            markDelegateProxyForRemoval(delegateProxy, seatId);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
             seatStore.addToUnclaimedSeats(seatId);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
@@ -210,6 +212,16 @@ public class ProxySharingScaler {
                 removeSeat(delegateProxy, seatId);
             }
         }
+    }
+
+    private void markDelegateProxyForRemoval(DelegateProxy delegateProxy, String seatId) {
+        // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
+        delegateProxy = delegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.ToRemove).build();
+        delegateProxyStore.updateDelegateProxy(delegateProxy);
+        // seat cannot be re-used remove it
+        // note: this seat is never re-added to the pool of unclaimedSeats, therefore it can never be claimed for a second time
+        removeSeat(delegateProxy, seatId);
+        globalEventLoop.schedule(reconcileEventType);
     }
 
     private void reconcile() {
@@ -539,9 +551,9 @@ public class ProxySharingScaler {
 
     private void logError(DelegateProxy delegateProxy, Throwable throwable, String message) {
         if (delegateProxy.getProxy() != null) {
-            logger.error("[{} {} {}] " + message, kv("proxyId", delegateProxy.getProxy().getId()), kv("specId", proxySpec.getId()), throwable);
+            logger.error("[{} {}] " + message, kv("delegateProxyId", delegateProxy.getProxy().getId()), kv("specId", proxySpec.getId()), throwable);
         } else {
-            logger.error("[{} {} {}] " + message, kv("proxyId", null), kv("specId", proxySpec.getId()), throwable);
+            logger.error("[{} {}] " + message, kv("delegateProxyId", null), kv("specId", proxySpec.getId()), throwable);
         }
     }
 

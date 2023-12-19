@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
@@ -52,8 +53,12 @@ public class AsyncProxyService {
     }
 
     public void stopProxy(Proxy proxy, boolean ignoreAccessControl) {
+        stopProxy(proxy, ignoreAccessControl, ProxyStopReason.Unknown);
+    }
+
+    public void stopProxy(Proxy proxy, boolean ignoreAccessControl, ProxyStopReason proxyStopReason) {
         Authentication user = userService.getCurrentAuth();
-        ProxyService.Command command = proxyService.stopProxy(user, proxy, ignoreAccessControl);
+        ProxyService.Command command = proxyService.stopProxy(user, proxy, ignoreAccessControl, proxyStopReason);
         executor.submit(command);
     }
 

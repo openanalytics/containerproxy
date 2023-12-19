@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -47,7 +48,7 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
     }
 
     @Override
-    public void stopProxy(Proxy proxy) throws ContainerProxyException {
+    public void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException {
         containerBackend.stopProxy(proxy);
     }
 

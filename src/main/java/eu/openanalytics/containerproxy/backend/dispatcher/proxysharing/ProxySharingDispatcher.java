@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -133,12 +134,12 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     }
 
     @Override
-    public void stopProxy(Proxy proxy) throws ContainerProxyException {
+    public void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException {
         String seatId = proxy.getRuntimeObjectOrNull(SeatIdKey.inst);
         if (seatId != null) {
             seatStore.releaseSeat(seatId);
             info(proxy, seatStore.getSeat(seatId), "Seat released");
-            applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), seatId, proxy.getId()));
+            applicationEventPublisher.publishEvent(new SeatReleasedEvent(proxy.getSpecId(), seatId, proxy.getId(), proxyStopReason));
         }
     }
 

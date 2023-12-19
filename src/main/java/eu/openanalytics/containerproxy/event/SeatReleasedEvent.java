@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -42,11 +43,14 @@ public class SeatReleasedEvent extends BridgeableEvent {
 
     String seatId;
 
-    public SeatReleasedEvent(String specId, String seatId, String claimingProxyId) {
+    ProxyStopReason proxyStopReason;
+
+    public SeatReleasedEvent(String specId, String seatId, String claimingProxyId, ProxyStopReason proxyStopReason) {
         source = "SOURCE_NOT_AVAILABLE";
         this.specId = specId;
         this.seatId = seatId;
         this.claimingProxyId = claimingProxyId;
+        this.proxyStopReason = proxyStopReason;
     }
 
 }

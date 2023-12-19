@@ -119,7 +119,10 @@ public class HeartbeatService {
         // stop every websocket connection started by the session
         heartbeatConnectors.get(event.getId()).forEach(HeartbeatConnector::closeConnection);
         // remove the session from the map
-        heartbeatConnectors.removeAll(event.getId());
+        List<HeartbeatConnector> removedConnectors = heartbeatConnectors.removeAll(event.getId());
+        for (HeartbeatConnector connector : removedConnectors) {
+            heartbeatConnectorsByProxyId.remove(connector.proxy.getId(), connector);
+        }
     }
 
     @EventListener
@@ -127,7 +130,23 @@ public class HeartbeatService {
         // stop every websocket connection started by this proxy
         heartbeatConnectorsByProxyId.get(event.getProxyId()).forEach(HeartbeatConnector::closeConnection);
         // remove the session from the map
-        heartbeatConnectorsByProxyId.removeAll(event.getProxyId());
+
+        List<HeartbeatConnector> removedConnectors = heartbeatConnectorsByProxyId.removeAll(event.getProxyId());
+        for (HeartbeatConnector connector : removedConnectors) {
+            heartbeatConnectors.remove(connector.sessionId, connector);
+        }
+    }
+
+    private void onConnectionClosed(HeartbeatConnector connector) {
+        if (connector == null) {
+            return;
+        }
+        if (connector.sessionId != null) {
+            heartbeatConnectors.remove(connector.sessionId, connector);
+        }
+        if (connector.proxy != null && connector.proxy.getId() != null) {
+            heartbeatConnectorsByProxyId.remove(connector.proxy.getId(), connector);
+        }
     }
 
     public enum HeartbeatSource {
@@ -162,10 +181,16 @@ public class HeartbeatService {
             this.proxy = proxyId;
             this.sessionId = sessionId;
             this.streamConnection = streamConnection;
+            streamConnection.setCloseListener((connection) -> {
+                onConnectionClosed(this);
+            });
         }
 
         private void wrapChannels(StreamConnection streamConn) {
-            if (!streamConn.isOpen()) return;
+            if (!streamConn.isOpen())  {
+                onConnectionClosed(this);
+                return;
+            }
             this.streamConnection = streamConn; // save final streamConnection
 
             ConduitStreamSinkChannel sinkChannel = streamConn.getSinkChannel();
@@ -191,7 +216,10 @@ public class HeartbeatService {
                 self.heartbeatReceived(HeartbeatSource.WEBSOCKET_PONG, proxy, sessionId);
                 return;
             }
-            if (!streamConn.isOpen()) return;
+            if (!streamConn.isOpen()) {
+                onConnectionClosed(this);
+                return;
+            };
 
             try {
                 ((DelegatingStreamSinkConduit) streamConn.getSinkChannel().getConduit()).writeWithoutNotifying(ByteBuffer.wrap(WEBSOCKET_PING));

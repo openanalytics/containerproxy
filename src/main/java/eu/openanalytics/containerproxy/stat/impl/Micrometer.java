@@ -72,7 +72,6 @@ public class Micrometer implements IStatCollector {
     private ISessionService sessionService;
     @Inject
     private IProxySpecProvider specProvider;
-    private Counter appStartFailedCounter;
 
     private Counter authFailedCounter;
 
@@ -100,7 +99,6 @@ public class Micrometer implements IStatCollector {
     public void init() {
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
-        appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
         registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getLoggedInUsersCount));
         registry.gauge("absolute_users_active", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getActiveUsersCount));
@@ -109,6 +107,7 @@ public class Micrometer implements IStatCollector {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
             registry.counter("appCrashes", "spec.id", spec.getId());
+            registry.counter("startFailed", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
             proxyCounters.add(proxyCounter);
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
@@ -190,7 +189,7 @@ public class Micrometer implements IStatCollector {
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
         logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
-        appStartFailedCounter.increment();
+        registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
     }
 
     @EventListener

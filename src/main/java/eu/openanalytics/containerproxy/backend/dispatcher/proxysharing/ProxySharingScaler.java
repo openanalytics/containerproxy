@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.redis.RedisSeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
+import eu.openanalytics.containerproxy.event.SeatAvailableEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -54,8 +55,10 @@ import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
 import eu.openanalytics.containerproxy.util.Sha1;
+import net.logstash.logback.encoder.com.lmax.disruptor.EventSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.scheduling.annotation.Async;
@@ -103,6 +106,7 @@ public class ProxySharingScaler {
 
     private final String cleanupEventType;
     private final String reconcileEventType;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -113,7 +117,7 @@ public class ProxySharingScaler {
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend,
                               SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy,
                               GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService,
-                              LogService logService) {
+                              LogService logService, ApplicationEventPublisher applicationEventPublisher) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.globalEventLoop = globalEventLoop;
         this.seatStore = seatStore;
@@ -125,6 +129,7 @@ public class ProxySharingScaler {
         this.identifierService = identifierService;
         this.leaderService = leaderService;
         this.logService = logService;
+        this.applicationEventPublisher = applicationEventPublisher;
         // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
         this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
@@ -350,6 +355,10 @@ public class ProxySharingScaler {
                 log(seat, "Created Seat");
                 logService.attachToOutput(proxy);
                 log(delegateProxy, "Started DelegateProxy");
+                if (!pendingDelegatingProxies.isEmpty()) {
+                    String intendedProxyId = pendingDelegatingProxies.remove(0);
+                    applicationEventPublisher.publishEvent(new SeatAvailableEvent(proxySpec.getId(), intendedProxyId));
+                }
             } catch (ProxyFailedToStartException t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
                 try {

@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IPr
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.LogService;
 import eu.openanalytics.containerproxy.service.RuntimeValueService;
@@ -59,6 +60,7 @@ public class ProxyDispatcherService {
     private final IdentifierService identifierService;
     private final ILeaderService leaderService;
     private final LogService logService;
+    private final IProxyStore proxyStore;
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IContainerBackend containerBackend,
@@ -71,7 +73,8 @@ public class ProxyDispatcherService {
                                   GlobalEventLoopService globalEventLoop,
                                   IdentifierService identifierService,
                                   ILeaderService leaderService,
-                                  LogService logService) {
+                                  LogService logService,
+                                  IProxyStore proxyStore) {
         this.proxySpecProvider = proxySpecProvider;
         this.containerBackend = containerBackend;
         this.expressionResolver = expressionResolver;
@@ -84,6 +87,7 @@ public class ProxyDispatcherService {
         this.identifierService = identifierService;
         this.leaderService = leaderService;
         this.logService = logService;
+        this.proxyStore = proxyStore;
     }
 
     @PostConstruct
@@ -105,17 +109,25 @@ public class ProxyDispatcherService {
                     globalEventLoop,
                     identifierService,
                     leaderService,
-                    logService);
+                    logService,
+                    applicationEventPublisher);
 
                 proxySharingScaler = (ProxySharingScaler) beanFactory.initializeBean(proxySharingScaler,"proxySharingScaler_" + proxySpec.getId());
                 beanFactory.registerSingleton("proxySharingScaler_" + proxySpec.getId(), proxySharingScaler);
 
-                dispatchers.put(proxySpec.getId(), new ProxySharingDispatcher(
+                ProxySharingDispatcher proxySharingDispatcher = new ProxySharingDispatcher(
+                    proxySpec,
                     delegateProxyStore,
                     seatStore,
                     applicationEventPublisher,
-                    proxySharingScaler
-                ));
+                    proxySharingScaler,
+                    proxyStore
+                );
+
+                proxySharingDispatcher = (ProxySharingDispatcher) beanFactory.initializeBean(proxySharingDispatcher,"proxySharingDispatcher_" + proxySpec.getId());
+                beanFactory.registerSingleton("proxySharingDispatcher_" + proxySpec.getId(), proxySharingDispatcher);
+
+                dispatchers.put(proxySpec.getId(), proxySharingDispatcher);
 
             } else {
                 dispatchers.put(proxySpec.getId(), defaultProxyDispatcher);

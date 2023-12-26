@@ -30,7 +30,9 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
 
+@Component
 public class DefaultProxyDispatcher implements IProxyDispatcher {
 
     private final IContainerBackend containerBackend;

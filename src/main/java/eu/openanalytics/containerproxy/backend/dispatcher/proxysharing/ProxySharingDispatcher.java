@@ -48,6 +48,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.Authentication;
 
+import javax.inject.Inject;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -64,28 +65,26 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private ProxySharingMicrometer proxySharingMicrometer = null;
     private final ProxySpec proxySpec;
-    private final ApplicationEventPublisher applicationEventPublisher;
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final StructuredLogger slogger = new StructuredLogger(logger);
-    private final IProxyStore proxyStore;
     private final Cache<String, CompletableFuture<Void>> pendingDelegatingProxies;
+
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
+    @Inject
+    private IProxyStore proxyStore;
 
     static {
         RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
         RuntimeValueKeyRegistry.addRuntimeValueKey(DelegateProxyKey.inst);
     }
 
-    public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore,
-                                  ISeatStore seatStore,
-                                  ApplicationEventPublisher applicationEventPublisher,
-                                  IProxyStore proxyStore) {
+    public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, ISeatStore seatStore) {
         this.proxySpec = proxySpec;
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
-        this.applicationEventPublisher = applicationEventPublisher;
-        this.proxyStore = proxyStore;
         pendingDelegatingProxies = Caffeine
             .newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES) // TODO consider configurable timeout

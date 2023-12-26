@@ -64,6 +64,8 @@ import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -84,29 +86,37 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 public class ProxySharingScaler {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    private final IContainerBackend containerBackend;
     private final IDelegateProxyStore delegateProxyStore;
-    private final IProxyTestStrategy testStrategy;
     private final ISeatStore seatStore;
     private final ProxySharingSpecExtension specExtension;
     private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
-    private final RuntimeValueService runtimeValueService;
-    private final SpecExpressionResolver expressionResolver;
-    private final IdentifierService identifierService;
-    private final LogService logService;
-
     private static String publicPathPrefix = "/api/route/";
-    private final GlobalEventLoopService globalEventLoop;
     private final String proxySpecHash;
-    private final ILeaderService leaderService;
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
-
     private final String cleanupEventType;
     private final String reconcileEventType;
-    private final ApplicationEventPublisher applicationEventPublisher;
+
+    @Inject
+    private IProxyTestStrategy testStrategy;
+    @Inject
+    private IContainerBackend containerBackend;
+    @Inject
+    private RuntimeValueService runtimeValueService;
+    @Inject
+    private SpecExpressionResolver expressionResolver;
+    @Inject
+    private IdentifierService identifierService;
+    @Inject
+    private LogService logService;
+    @Inject
+    private GlobalEventLoopService globalEventLoop;
+    @Inject
+    private ILeaderService leaderService;
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
@@ -114,27 +124,19 @@ public class ProxySharingScaler {
 
     // TODO add cleanup of proxies that never became ready
 
-    public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, IContainerBackend containerBackend,
-                              SpecExpressionResolver expressionResolver, RuntimeValueService runtimeValueService, IProxyTestStrategy testStrategy,
-                              GlobalEventLoopService globalEventLoop, IdentifierService identifierService, ILeaderService leaderService,
-                              LogService logService, ApplicationEventPublisher applicationEventPublisher) {
+    public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
-        this.globalEventLoop = globalEventLoop;
         this.seatStore = seatStore;
         this.delegateProxyStore = delegateProxyStore;
-        this.containerBackend = containerBackend;
-        this.expressionResolver = expressionResolver;
-        this.runtimeValueService = runtimeValueService;
-        this.testStrategy = testStrategy;
-        this.identifierService = identifierService;
-        this.leaderService = leaderService;
-        this.logService = logService;
-        this.applicationEventPublisher = applicationEventPublisher;
         // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
         this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
         cleanupEventType = "ProxySharingScaler::cleanup::" + proxySpec.getId();
         reconcileEventType = "ProxySharingScaler:reconcile::" + proxySpec.getId();
+    }
+
+    @PostConstruct
+    public void init() {
         globalEventLoop.addCallback(cleanupEventType, this::cleanup);
         globalEventLoop.addCallback(reconcileEventType, this::reconcile);
     }

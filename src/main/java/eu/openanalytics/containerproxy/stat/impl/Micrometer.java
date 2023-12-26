@@ -29,6 +29,7 @@ import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
@@ -107,6 +108,7 @@ public class Micrometer implements IStatCollector {
         for (ProxySpec spec : specProvider.getSpecs()) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
+            registry.counter("appCrashes", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
             proxyCounters.add(proxyCounter);
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
@@ -179,6 +181,9 @@ public class Micrometer implements IStatCollector {
         registry.counter("appStops", "spec.id", event.getSpecId()).increment();
         if (event.getUsageTime() != null) {
             registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
+        }
+        if (event.getProxyStopReason() == ProxyStopReason.Crashed) {
+            registry.counter("appCrashes", "spec.id", event.getSpecId()).increment();
         }
     }
 

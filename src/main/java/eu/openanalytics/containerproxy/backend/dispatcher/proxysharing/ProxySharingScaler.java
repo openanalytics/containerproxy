@@ -481,6 +481,10 @@ public class ProxySharingScaler {
         // note: onLeaderRevoked the streams are detached by the LogService
     }
 
+    public ProxySpec getSpec() {
+        return proxySpec;
+    }
+
     private String getProxySpecHash(ProxySpec proxySpec) {
         // remove ProxySharing SpecExtension, so it's ignored in the hash
         Map<String, ISpecExtension> specExtensions = new HashMap<>(proxySpec.getSpecExtensions());

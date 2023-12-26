@@ -120,7 +120,6 @@ public class ProxyDispatcherService {
                     delegateProxyStore,
                     seatStore,
                     applicationEventPublisher,
-                    proxySharingScaler,
                     proxyStore
                 );
 

@@ -20,29 +20,26 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
+import java.util.List;
 import java.util.function.ToDoubleFunction;
 
 public class ProxySharingMicrometer implements IStatCollector {
 
-    private final Logger logger = LogManager.getLogger(getClass());
     @Inject
     private MeterRegistry registry;
+
     @Inject
-    private IProxySpecProvider proxySpecProvider;
+    private List<ProxySharingDispatcher> proxySharingDispatchers;
+
     @Inject
-    private ProxyDispatcherService proxyDispatcherService;
+    private List<ProxySharingScaler> proxySharingScalers;
 
     /**
      * Wraps a function that returns an Integer into a function that returns a double.
@@ -62,15 +59,16 @@ public class ProxySharingMicrometer implements IStatCollector {
 
     @PostConstruct
     public void init() {
-        for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
-            if (ProxySharingDispatcher.supportSpec(proxySpec)) {
-                ProxySharingDispatcher dispatcher = (ProxySharingDispatcher) proxyDispatcherService.getDispatcher(proxySpec.getId());
-                registry.gauge("seats_unclaimed", Tags.of("spec.id", proxySpec.getId()), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumUnclaimedSeats));
-                registry.gauge("seats_claimed", Tags.of("spec.id", proxySpec.getId()), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumClaimedSeats));
-                registry.gauge("seats_creating", Tags.of("spec.id", proxySpec.getId()), dispatcher.getProxySharingScaler(), wrapHandleNull(ProxySharingScaler::getNumPendingSeats));
-                registry.timer("seats_wait_time", "spec.id", proxySpec.getId());
-                dispatcher.setProxySharingMicrometer(this);
-            }
+        for (ProxySharingDispatcher dispatcher : proxySharingDispatchers) {
+            String specId = dispatcher.getSpec().getId();
+            registry.gauge("seats_unclaimed", Tags.of("spec.id", specId), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumUnclaimedSeats));
+            registry.gauge("seats_claimed", Tags.of("spec.id", specId), dispatcher, wrapHandleNull(ProxySharingDispatcher::getNumClaimedSeats));
+            registry.timer("seats_wait_time", "spec.id", specId);
+            dispatcher.setProxySharingMicrometer(this);
+        }
+        for (ProxySharingScaler scaler : proxySharingScalers) {
+            String specId = scaler.getSpec().getId();
+            registry.gauge("seats_creating", Tags.of("spec.id", specId), scaler, wrapHandleNull(ProxySharingScaler::getNumPendingSeats));
         }
     }
 

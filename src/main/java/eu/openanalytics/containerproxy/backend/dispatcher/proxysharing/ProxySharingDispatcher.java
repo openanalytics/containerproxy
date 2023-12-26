@@ -69,7 +69,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final ISeatStore seatStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final StructuredLogger slogger = new StructuredLogger(logger);
-    private final ProxySharingScaler proxySharingScaler;
     private final IProxyStore proxyStore;
     private final Cache<String, CompletableFuture<Void>> pendingDelegatingProxies;
 
@@ -78,16 +77,14 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         RuntimeValueKeyRegistry.addRuntimeValueKey(DelegateProxyKey.inst);
     }
 
-
     public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore,
                                   ISeatStore seatStore,
                                   ApplicationEventPublisher applicationEventPublisher,
-                                  ProxySharingScaler proxySharingScaler, IProxyStore proxyStore) {
+                                  IProxyStore proxyStore) {
         this.proxySpec = proxySpec;
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
         this.applicationEventPublisher = applicationEventPublisher;
-        this.proxySharingScaler = proxySharingScaler;
         this.proxyStore = proxyStore;
         pendingDelegatingProxies = Caffeine
             .newBuilder()
@@ -233,8 +230,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         this.proxySharingMicrometer = proxySharingMicrometer;
     }
 
-    public ProxySharingScaler getProxySharingScaler() {
-        return proxySharingScaler;
+    public ProxySpec getSpec() {
+        return proxySpec;
     }
 
     private void info(Proxy proxy, Seat seat, String message) {

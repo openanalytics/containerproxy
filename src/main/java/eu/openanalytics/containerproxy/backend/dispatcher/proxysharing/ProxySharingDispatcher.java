@@ -46,8 +46,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -63,18 +65,23 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class ProxySharingDispatcher implements IProxyDispatcher {
 
+    private static final String PROPERTY_SEAT_WAIT_TIME = "proxy.seat-wait-time";
+
     private ProxySharingMicrometer proxySharingMicrometer = null;
     private final ProxySpec proxySpec;
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final StructuredLogger slogger = new StructuredLogger(logger);
-    private final Cache<String, CompletableFuture<Void>> pendingDelegatingProxies;
+    private Cache<String, CompletableFuture<Void>> pendingDelegatingProxies;
+    private Long seatWaitIterations;
 
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
     @Inject
     private IProxyStore proxyStore;
+    @Inject
+    private Environment environment;
 
     static {
         RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
@@ -85,9 +92,19 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         this.proxySpec = proxySpec;
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
+    }
+
+    @PostConstruct
+    public void init() {
+        long seatWaitTime = environment.getProperty(PROPERTY_SEAT_WAIT_TIME, Long.class, 300000L);
+        if (seatWaitTime < 3000) {
+            throw new IllegalStateException("Invalid configuration: proxy.seat-wait-time must be larger than 3000 (3 seconds).");
+        }
+        seatWaitIterations = seatWaitTime / 3000 + (((seatWaitTime % 3000) == 0) ? 0: 1);
         pendingDelegatingProxies = Caffeine
             .newBuilder()
-            .expireAfterWrite(10, TimeUnit.MINUTES) // TODO consider configurable timeout
+            // use iterations to compute the expire time, since this may be larger than the requested time
+            .expireAfterWrite(seatWaitIterations * 3000L * 2, TimeUnit.MILLISECONDS)
             .build();
     }
 
@@ -113,7 +130,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             applicationEventPublisher.publishEvent(new PendingProxyEvent(proxySpec.getId(), proxy.getId()));
 
             // no seat available, wait until one becomes available
-            for (int i = 0; i < 600; i++) { // TODO make limit configurable?
+            for (int i = 0; i < seatWaitIterations; i++) {
                 try {
                     future.get(3, TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException e) {
@@ -135,7 +152,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 }
             }
             if (seat == null) {
-                throw new ProxyFailedToStartException("Could not claim a seat", null, proxy);
+                cancelPendingDelegateProxy(proxy.getId());
+                throw new ProxyFailedToStartException("Could not claim a seat within the configured wait-time", null, proxy);
             }
         }
         info(proxy, seat, "Seat claimed");
@@ -145,7 +163,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
         }
 
-        // TODO NPE
         Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId()).getProxy();
 
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
@@ -174,12 +191,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
 
         // if proxy is still starting, cancel the future
-        CompletableFuture<Void> future = pendingDelegatingProxies.getIfPresent(proxy.getId());
-        if (future == null) {
-            return;
-        }
-        pendingDelegatingProxies.invalidate(proxy.getId());
-        future.cancel(true);
+        cancelPendingDelegateProxy(proxy.getId());
     }
 
     @Override
@@ -245,6 +257,18 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             return true;
         }
         return false;
+    }
+
+    private void cancelPendingDelegateProxy(String proxyId) {
+        if (proxyId == null) {
+            return;
+        }
+        CompletableFuture<Void> future = pendingDelegatingProxies.getIfPresent(proxyId);
+        if (future == null) {
+            return;
+        }
+        pendingDelegatingProxies.invalidate(proxyId);
+        future.cancel(true);
     }
 
 }

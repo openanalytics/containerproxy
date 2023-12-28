@@ -28,6 +28,8 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISe
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.redis.RedisSeatStore;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.event.SeatAvailableEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
@@ -219,6 +221,28 @@ public class ProxySharingScaler {
                 removeSeat(delegateProxy, seatId);
             }
         }
+    }
+
+    @EventListener
+    public void onProxyStopEvent(ProxyStopEvent proxyStopEvent) {
+        if (!Objects.equals(proxyStopEvent.getSpecId(), proxySpec.getId()) || !leaderService.isLeader()) {
+            // only handle events for this spec
+            return;
+        }
+        // remove pending proxy if any
+        // this can happen if the proxy was stopped (by a user) before a seat was claimed
+        pendingDelegatingProxies.remove(proxyStopEvent.getProxyId());
+    }
+
+    @EventListener
+    public void onProxyStartFailed(ProxyStartFailedEvent proxyStartFailedEvent) {
+        if (!Objects.equals(proxyStartFailedEvent.getSpecId(), proxySpec.getId()) || !leaderService.isLeader()) {
+            // only handle events for this spec
+            return;
+        }
+        // remove pending proxy if any
+        // this can happen if the proxy was unable to claim a seat within the waiting time
+        pendingDelegatingProxies.remove(proxyStartFailedEvent.getProxyId());
     }
 
     private void markDelegateProxyForRemoval(DelegateProxy delegateProxy, String seatId) {

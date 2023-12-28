@@ -67,6 +67,13 @@ public class DelegateProxy {
             this.seatIds(seatIds);
             return this;
         }
+
+        public DelegateProxyBuilder addSeatId(String seatId) {
+            Set<String> seatIds = new HashSet<>(this.seatIds);
+            seatIds.add(seatId);
+            this.seatIds(seatIds);
+            return this;
+        }
     }
 
 }

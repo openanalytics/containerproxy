@@ -42,6 +42,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
+import eu.openanalytics.containerproxy.util.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -100,7 +101,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         if (seatWaitTime < 3000) {
             throw new IllegalStateException("Invalid configuration: proxy.seat-wait-time must be larger than 3000 (3 seconds).");
         }
-        seatWaitIterations = seatWaitTime / 3000 + (((seatWaitTime % 3000) == 0) ? 0: 1);
+        seatWaitIterations = MathUtil.divideAndCeil(seatWaitTime, 3000);
         pendingDelegatingProxies = Caffeine
             .newBuilder()
             // use iterations to compute the expire time, since this may be larger than the requested time

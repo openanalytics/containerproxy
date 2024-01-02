@@ -66,7 +66,6 @@ import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -98,8 +97,6 @@ public class ProxySharingScaler {
     private final String proxySpecHash;
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
-    private final String cleanupEventType;
-    private final String reconcileEventType;
 
     @Inject
     private IProxyTestStrategy testStrategy;
@@ -133,24 +130,16 @@ public class ProxySharingScaler {
         // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
         this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
-        cleanupEventType = "ProxySharingScaler::cleanup::" + proxySpec.getId();
-        reconcileEventType = "ProxySharingScaler:reconcile::" + proxySpec.getId();
-    }
-
-    @PostConstruct
-    public void init() {
-        globalEventLoop.addCallback(cleanupEventType, this::cleanup);
-        globalEventLoop.addCallback(reconcileEventType, this::reconcile);
     }
 
     @Scheduled(fixedDelay = 20, timeUnit = TimeUnit.SECONDS)
     public void scheduleCleanup() {
-        globalEventLoop.schedule(cleanupEventType);
+        globalEventLoop.schedule(this::cleanup);
     }
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.SECONDS)
     public void scheduleReconcile() {
-        globalEventLoop.schedule(reconcileEventType);
+        globalEventLoop.schedule(this::reconcile);
     }
 
     @EventListener
@@ -160,7 +149,7 @@ public class ProxySharingScaler {
             return;
         }
         pendingDelegatingProxies.add(pendingProxyEvent.getProxyId());
-        globalEventLoop.schedule(reconcileEventType);
+        globalEventLoop.schedule(this::reconcile);
     }
 
     @EventListener
@@ -169,7 +158,7 @@ public class ProxySharingScaler {
             // only handle events for this spec
             return;
         }
-        globalEventLoop.schedule(reconcileEventType);
+        globalEventLoop.schedule(this::reconcile);
         // if the seat was claimed by a pending proxy we need to remove it from the pendingDelegatingProxies
         pendingDelegatingProxies.remove(seatClaimedEvent.getClaimingProxyId());
     }
@@ -262,7 +251,7 @@ public class ProxySharingScaler {
             }
         }
         delegateProxyStore.updateDelegateProxy(delegateProxyBuilder.build());
-        globalEventLoop.schedule(reconcileEventType);
+        globalEventLoop.schedule(this::reconcile);
     }
 
     private void reconcile() {
@@ -374,7 +363,7 @@ public class ProxySharingScaler {
                         logWarn(delegateProxy, "Error while stopping failed DelegateProxy");
                     }
                     delegateProxyStore.removeDelegateProxy(id);
-                    globalEventLoop.schedule(reconcileEventType);
+                    globalEventLoop.schedule(this::reconcile);
                     return;
                 }
 
@@ -416,11 +405,11 @@ public class ProxySharingScaler {
                     logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
                 }
                 delegateProxyStore.removeDelegateProxy(id);
-                globalEventLoop.schedule(reconcileEventType);
+                globalEventLoop.schedule(this::reconcile);
             } catch (Throwable t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
                 delegateProxyStore.removeDelegateProxy(id);
-                globalEventLoop.schedule(reconcileEventType);
+                globalEventLoop.schedule(this::reconcile);
             }
         };
     }

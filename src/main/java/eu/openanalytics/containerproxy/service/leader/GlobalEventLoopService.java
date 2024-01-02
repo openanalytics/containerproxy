@@ -24,8 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -37,30 +35,23 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Service
 public class GlobalEventLoopService {
 
-    private final LinkedBlockingQueue<String> channel = new LinkedBlockingQueue<>();
-    private final Map<String, Callback> callbacks = new ConcurrentHashMap<String, Callback>();
+    private final LinkedBlockingQueue<Callback> channel = new LinkedBlockingQueue<>();
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     public GlobalEventLoopService(ILeaderService leaderService) {
         Thread eventProcessor = new Thread(() -> {
             while (true) {
                 try {
-                    String event = channel.take();
+                    Callback event = channel.take();
                     try {
-                        logger.debug("Processing event: {}", event);
+                        logger.debug("Processing event");
 
-                        Callback callback = callbacks.get(event);
-                        if (callback == null) {
-                            logger.warn("No callback found for event: {}", event);
-                            continue;
-                        }
-
-                        if (callback.onlyIfLeader && !leaderService.isLeader()) {
+                        if (event.onlyIfLeader && !leaderService.isLeader()) {
                             // not the leader -> ignore events send to this channel
                             continue;
                         }
 
-                        callback.callback.run();
+                        event.callback.run();
                     } catch (Exception ex) {
                         logger.error("Error while processing event in the GlobalEventLoop {}: ", event, ex);
                     }
@@ -73,19 +64,15 @@ public class GlobalEventLoopService {
         eventProcessor.start();
     }
 
-    public void addCallback(String type, Runnable callback, boolean onlyIfLeader) {
-        callbacks.put(type, new Callback(type, callback, onlyIfLeader));
+    public void schedule(Runnable runnable) {
+        channel.add(new Callback(runnable, true));
     }
 
-    public void addCallback(String type, Runnable callback) {
-        callbacks.put(type, new Callback(type, callback, true));
+    public void schedule(Runnable runnable, boolean onlyIfLeader) {
+        channel.add(new Callback(runnable, onlyIfLeader));
     }
 
-    public void schedule(String type) {
-        channel.add(type);
-    }
-
-    private record Callback(String type, Runnable callback, boolean onlyIfLeader) {
+    private record Callback(Runnable callback, boolean onlyIfLeader) {
 
     }
 

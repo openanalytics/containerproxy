@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.util;
 
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingScaler;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;

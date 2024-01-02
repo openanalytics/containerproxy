@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -56,12 +55,7 @@ public class ProxyMaxLifetimeService {
 
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void scheduleCleanup() {
-        globalEventLoop.schedule("ProxyMaxLifetimeService::performCleanup");
-    }
-
-    @PostConstruct
-    public void init() {
-        globalEventLoop.addCallback("ProxyMaxLifetimeService::performCleanup", this::performCleanup);
+        globalEventLoop.schedule(this::performCleanup);
     }
 
     private void performCleanup() {

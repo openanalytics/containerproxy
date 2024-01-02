@@ -72,10 +72,9 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                globalEventLoop.schedule("ActiveProxiesService::performCleanup");
+                globalEventLoop.schedule(ActiveProxiesService.this::performCleanup);
             }
         }, cleanupInterval, cleanupInterval);
-        globalEventLoop.addCallback("ActiveProxiesService::performCleanup", this::performCleanup);
     }
 
     @Override

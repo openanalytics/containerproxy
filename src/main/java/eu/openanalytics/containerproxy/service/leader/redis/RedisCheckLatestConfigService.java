@@ -63,7 +63,6 @@ public class RedisCheckLatestConfigService {
         this.globalEventLoop = globalEventLoop;
         this.leaderService = leaderService;
         lockRegistryLeaderInitiator.setAutoStartup(false);
-        globalEventLoop.addCallback("CheckLatestLeaderService::check", this::check, false);
         versionKey = "shinyproxy_" + identifierService.realmId + "__version";
     }
 
@@ -91,7 +90,7 @@ public class RedisCheckLatestConfigService {
 
     @Scheduled(fixedDelay = 20, timeUnit = TimeUnit.SECONDS)
     public void schedule() {
-        globalEventLoop.schedule("CheckLatestLeaderService::check");
+        globalEventLoop.schedule(this::check);
     }
 
     public boolean check() {

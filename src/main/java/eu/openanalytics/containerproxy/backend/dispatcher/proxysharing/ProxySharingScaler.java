@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.integration.leader.event.OnGrantedEvent;
+import org.springframework.integration.leader.event.OnRevokedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -521,6 +522,12 @@ public class ProxySharingScaler {
     @EventListener
     public void onLeaderGranted(OnGrantedEvent event) {
         globalEventLoop.schedule(this::processOnLeaderGranted);
+    }
+
+    @Async
+    @EventListener
+    public void onLeaderRevoked(OnRevokedEvent event) {
+        executor.shutdownNow();
     }
 
     /**

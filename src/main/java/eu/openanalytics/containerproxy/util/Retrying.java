@@ -74,7 +74,8 @@ public class Retrying {
             } else {
                 Thread.sleep(2_000);
             }
-        } catch (InterruptedException ignore) {
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
         }
     }
 

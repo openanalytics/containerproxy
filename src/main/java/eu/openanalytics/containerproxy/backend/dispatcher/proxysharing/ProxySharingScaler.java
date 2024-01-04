@@ -247,11 +247,12 @@ public class ProxySharingScaler {
         DelegateProxy.DelegateProxyBuilder delegateProxyBuilder = delegateProxy.toBuilder()
             .delegateProxyStatus(DelegateProxyStatus.ToRemove);
 
-        // seat cannot be re-used remove it
-        // note: this seat is never re-added to the pool of unclaimedSeats, therefore it can never be claimed for a second time
         for (String seatId : seatIds) {
             // make sure other seats cannot be claimed any-more
-            if (seatStore.removeSeatsIfUnclaimed(Set.of(seatId))) {
+            if (seatStore.removeSeatsIfUnclaimed(Set.of(seatId)) // seat not claimed
+                || seatStore.getSeat(seatId) == null // seat does not exist
+                || seatStore.getSeat(seatId).getDelegatingProxyId() == null // seat not yet added to unclaimed seats
+            ) {
                 // remove seat info
                 seatStore.removeSeatInfo(seatId);
                 delegateProxyBuilder.removeSeatId(seatId);
@@ -318,6 +319,7 @@ public class ProxySharingScaler {
     private Runnable createDelegateProxyJob(DelegateProxy originalDelegateProxy) {
         String id = originalDelegateProxy.getProxy().getId();
         return () -> {
+            Proxy proxy = null;
             try {
                 Proxy.ProxyBuilder proxyBuilder = originalDelegateProxy.getProxy().toBuilder();
                 log(originalDelegateProxy, "Preparing DelegateProxy");
@@ -338,7 +340,7 @@ public class ProxySharingScaler {
                 }
                 proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()), false);
 
-                Proxy proxy = proxyBuilder.build();
+                proxy = proxyBuilder.build();
                 DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().proxy(proxy).build();
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
 
@@ -385,15 +387,22 @@ public class ProxySharingScaler {
                     .delegateProxyStatus(DelegateProxyStatus.Available)
                     .proxy(proxy);
 
+                List<Seat> seats = new ArrayList<>();
                 for (int i = 0; i < specExtension.seatsPerContainer; i++) {
                     Seat seat = new Seat(proxy.getId());
-                    seatStore.addSeat(seat);
+                    seats.add(seat);
                     delegateProxyBuilder.addSeatId(seat.getId());
                     log(seat, "Created Seat");
                 }
 
                 delegateProxy = delegateProxyBuilder.build();
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
+
+                // only make seats available if DelegateProxy has been completely updated in store
+                // if an error happens here the seatIds are already stored and can be removed again
+                for (Seat seat : seats) {
+                    seatStore.addSeat(seat);
+                }
 
                 logService.attachToOutput(proxy);
                 log(delegateProxy, "Started DelegateProxy");
@@ -407,17 +416,30 @@ public class ProxySharingScaler {
             } catch (ProxyFailedToStartException t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
                 try {
+                    // try to remove container if any
                     containerBackend.stopProxy(t.getProxy());
                 } catch (Throwable t2) {
                     // log error, but ignore it otherwise
                     // most important is that we remove the proxy from memory
                     logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
                 }
-                delegateProxyStore.removeDelegateProxy(id);
+                // remove seats and other data + trigger reconcile
+                globalEventLoop.schedule(() -> markDelegateProxyForRemoval(id));
                 globalEventLoop.schedule(this::reconcile);
             } catch (Throwable t) {
                 logError(originalDelegateProxy, t, "Failed to start DelegateProxy");
-                delegateProxyStore.removeDelegateProxy(id);
+                if (proxy != null) {
+                    try {
+                        // try to remove container if any
+                        containerBackend.stopProxy(proxy);
+                    } catch (Throwable t2) {
+                        // log error, but ignore it otherwise
+                        // most important is that we remove the proxy from memory
+                        logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
+                    }
+                }
+                // remove seats and other data + trigger reconcile
+                globalEventLoop.schedule(() -> markDelegateProxyForRemoval(id));
                 globalEventLoop.schedule(this::reconcile);
             }
         };

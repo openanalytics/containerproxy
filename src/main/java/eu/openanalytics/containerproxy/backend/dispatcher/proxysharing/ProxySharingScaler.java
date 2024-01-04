@@ -121,8 +121,6 @@ public class ProxySharingScaler {
         ProxySharingScaler.publicPathPrefix = publicPathPrefix;
     }
 
-    // TODO add cleanup of proxies that never became ready
-
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.seatStore = seatStore;
@@ -225,12 +223,14 @@ public class ProxySharingScaler {
             log(delegateProxy, "DelegateProxy crashed, marking for removal");
             removeSeat(delegateProxy, seatId);
             markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+            globalEventLoop.schedule(this::reconcile);
         } else if (!specExtension.allowContainerReUse) {
             // TODO allow only one seat if container is not allowed to be re-used
             // container cannot be re-used -> mark delegateProxy as ToRemove
             log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
             removeSeat(delegateProxy, seatId);
             markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+            globalEventLoop.schedule(this::reconcile);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
             seatStore.addToUnclaimedSeats(seatId);
         } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
@@ -261,7 +261,6 @@ public class ProxySharingScaler {
             }
         }
         delegateProxyStore.updateDelegateProxy(delegateProxyBuilder.build());
-        globalEventLoop.schedule(this::reconcile);
     }
 
     private void reconcile() {
@@ -340,7 +339,7 @@ public class ProxySharingScaler {
                 proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()), false);
 
                 Proxy proxy = proxyBuilder.build();
-                DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().delegateProxyStatus(DelegateProxyStatus.Pending).proxy(proxy).build();
+                DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().proxy(proxy).build();
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
 
                 SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
@@ -510,9 +509,10 @@ public class ProxySharingScaler {
         // server is now the leader...
         // ... check if running proxies are using the latest config
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
-            if (delegateProxy.getProxySpecHash().equals(proxySpecHash)) {
-                log(delegateProxy, "DelegateProxy created by this config instance");
-            } else {
+            if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Pending)) {
+                log(delegateProxy, "Pending DelegateProxy not created by this instance, marking for removal");
+                markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+            } else if (!delegateProxy.getProxySpecHash().equals(proxySpecHash)) {
                 log(delegateProxy, "DelegateProxy not created by this config instance, marking for removal");
                 markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
             }
@@ -524,6 +524,7 @@ public class ProxySharingScaler {
             }
         }
         // note: onLeaderRevoked the streams are detached by the LogService
+        globalEventLoop.schedule(this::reconcile);
     }
 
     public ProxySpec getSpec() {

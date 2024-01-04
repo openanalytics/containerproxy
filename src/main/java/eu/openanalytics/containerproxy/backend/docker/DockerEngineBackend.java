@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient.ListContainersParam;
 import com.spotify.docker.client.DockerClient.RemoveContainerParam;
+import com.spotify.docker.client.exceptions.ContainerNotFoundException;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.exceptions.NotFoundException;
 import com.spotify.docker.client.messages.AttachedNetwork;
@@ -192,14 +193,18 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             if (container.getId() == null) {
                 continue;
             }
-            ContainerInfo containerInfo = dockerClient.inspectContainer(container.getId());
-            if (containerInfo != null && containerInfo.networkSettings() != null
-                && containerInfo.networkSettings().networks() != null) {
-                for (AttachedNetwork network : containerInfo.networkSettings().networks().values()) {
-                    dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
+            try {
+                ContainerInfo containerInfo = dockerClient.inspectContainer(container.getId());
+                if (containerInfo != null && containerInfo.networkSettings() != null
+                    && containerInfo.networkSettings().networks() != null) {
+                    for (AttachedNetwork network : containerInfo.networkSettings().networks().values()) {
+                        dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
+                    }
                 }
+                dockerClient.removeContainer(container.getId(), RemoveContainerParam.forceKill());
+            } catch (ContainerNotFoundException e) {
+                // ignore, container is already removed
             }
-            dockerClient.removeContainer(container.getId(), RemoveContainerParam.forceKill());
         }
         portAllocator.release(proxy.getId());
     }

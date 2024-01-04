@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.exceptions.ServiceNotFoundException;
 import com.spotify.docker.client.messages.RegistryAuth;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.DnsConfig;
@@ -278,7 +279,13 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
             String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
-            if (serviceId != null) dockerClient.removeService(serviceId);
+            if (serviceId != null) {
+                try {
+                    dockerClient.removeService(serviceId);
+                } catch (ServiceNotFoundException e) {
+                    // ignore, service is already removed
+                }
+            }
         }
         portAllocator.release(proxy.getId());
     }

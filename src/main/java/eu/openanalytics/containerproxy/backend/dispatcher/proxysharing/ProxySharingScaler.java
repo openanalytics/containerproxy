@@ -169,42 +169,7 @@ public class ProxySharingScaler {
             // only handle events for this spec
             return;
         }
-
-        // remove the claimingProxyId from pending in case the proxy stopped (or failed) while starting up
-        pendingDelegatingProxies.remove(seatReleasedEvent.getClaimingProxyId());
-
-        String seatId = seatReleasedEvent.getSeatId();
-        if (seatId == null) {
-            logWarn("ProxySharing: SeatId null during processing of SeatReleasedEvent");
-            return;
-        }
-        Seat seat = seatStore.getSeat(seatId);
-        if (seat == null) {
-            logWarn(String.format("ProxySharing: Seat %s not found during processing of SeatReleasedEvent", seatId));
-            return;
-        }
-        DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId());
-        if (delegateProxy == null) {
-            logWarn(String.format("ProxySharing: DelegateProxy %s not found during processing of SeatReleasedEvent with seatId: %s", seat.getDelegateProxyId(), seatId));
-            return;
-        }
-
-        if (seatReleasedEvent.getProxyStopReason() == ProxyStopReason.Crashed) {
-            // proxy crashed -> mark delegateProxy as ToRemove
-            // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
-            log(delegateProxy, "DelegateProxy crashed, marking for removal");
-            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
-        } else if (!specExtension.allowContainerReUse) {
-            // TODO allow only one seat if container is not allowed to be re-used
-            // container cannot be re-used -> mark delegateProxy as ToRemove
-            log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
-            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
-        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
-            seatStore.addToUnclaimedSeats(seatId);
-        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
-            // seat no longer needed, remove it
-            removeSeat(delegateProxy, seatId);
-        }
+        globalEventLoop.schedule(() -> processReleasedSeat(seatReleasedEvent));
     }
 
     @EventListener
@@ -229,8 +194,53 @@ public class ProxySharingScaler {
         pendingDelegatingProxies.remove(proxyStartFailedEvent.getProxyId());
     }
 
-    // TODO better alternative for synchronized?
-    private synchronized void markDelegateProxyForRemoval(String delegateProxyId) {
+    /**
+     * Processes the SeatReleasedEvent, should only process one event a a time (i.e. using the event loop),
+     * since it modifies the Delegateproxy.
+     * @param seatReleasedEvent the event to process
+     */
+    private void processReleasedSeat(SeatReleasedEvent seatReleasedEvent) {
+        // remove the claimingProxyId from pending in case the proxy stopped (or failed) while starting up
+        pendingDelegatingProxies.remove(seatReleasedEvent.getClaimingProxyId());
+
+        String seatId = seatReleasedEvent.getSeatId();
+        if (seatId == null) {
+            logWarn("ProxySharing: SeatId null during processing of SeatReleasedEvent");
+            return;
+        }
+        Seat seat = seatStore.getSeat(seatId);
+        if (seat == null) {
+            logWarn(String.format("ProxySharing: Seat %s not found during processing of SeatReleasedEvent", seatId));
+            return;
+        }
+        DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId());
+        if (delegateProxy == null) {
+            logWarn(String.format("ProxySharing: DelegateProxy %s not found during processing of SeatReleasedEvent with seatId: %s", seat.getDelegateProxyId(), seatId));
+            return;
+        }
+
+        if (seatReleasedEvent.getProxyStopReason() == ProxyStopReason.Crashed) {
+            // proxy crashed -> mark delegateProxy as ToRemove
+            // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
+            log(delegateProxy, "DelegateProxy crashed, marking for removal");
+            removeSeat(delegateProxy, seatId);
+            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+        } else if (!specExtension.allowContainerReUse) {
+            // TODO allow only one seat if container is not allowed to be re-used
+            // container cannot be re-used -> mark delegateProxy as ToRemove
+            log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
+            removeSeat(delegateProxy, seatId);
+            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.Available)) {
+            seatStore.addToUnclaimedSeats(seatId);
+        } else if (delegateProxy.getDelegateProxyStatus().equals(DelegateProxyStatus.ToRemove)) {
+            // seat no longer needed, remove it
+            removeSeat(delegateProxy, seatId);
+        }
+
+    }
+
+    private void markDelegateProxyForRemoval(String delegateProxyId) {
         // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
         DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(delegateProxyId);
         Set<String> seatIds = delegateProxy.getSeatIds();
@@ -489,6 +499,14 @@ public class ProxySharingScaler {
     @Async
     @EventListener
     public void onLeaderGranted(OnGrantedEvent event) {
+        globalEventLoop.schedule(this::processOnLeaderGranted);
+    }
+
+    /**
+     * Runs when this ShinyProxy server becomes the leader, potentially with new config.
+     * Should be run using the event loop.
+     */
+    private void processOnLeaderGranted() {
         // server is now the leader...
         // ... check if running proxies are using the latest config
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
@@ -523,7 +541,7 @@ public class ProxySharingScaler {
         return Sha1.hash(canonicalSpec);
     }
 
-    private synchronized void removeSeat(DelegateProxy delegateProxy, String seatId) {
+    private void removeSeat(DelegateProxy delegateProxy, String seatId) {
         delegateProxy = delegateProxy.toBuilder().removeSeatId(seatId).build();
         delegateProxyStore.updateDelegateProxy(delegateProxy);
         seatStore.removeSeatInfo(seatId);

@@ -41,6 +41,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -105,7 +106,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -138,6 +138,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
     @Inject
     private PodPatcher podPatcher;
+    @Inject
+    private AccessControlEvaluationService accessControlEvaluationService;
     private KubernetesClient kubeClient;
     private KubernetesManifestsRemover kubernetesManifestsRemover;
     private Boolean logManifests;
@@ -313,16 +315,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
             }
 
-            JsonPatch patch = readPatchFromSpec(specExtension);
 
             Pod startupPod = podBuilder.withSpec(podSpec).build();
-            Pod patchedPod = podPatcher.patchWithDebug(proxy, startupPod, patch);
+            Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod);
             final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
 
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
-            createAdditionalManifests(proxy, specExtension, effectiveKubeNamespace);
+            createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace);
 
             // tell the status service we are starting the pod/container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -393,6 +394,18 @@ public class KubernetesBackend extends AbstractContainerBackend {
         } catch (Throwable throwable) {
             throw new ContainerFailedToStartException("Kubernetes container failed to start", throwable, rContainerBuilder.build());
         }
+    }
+
+    private Pod applyPodPatches(Authentication auth, ProxySpec proxySpec, KubernetesSpecExtension specExtension, Proxy proxy, Pod startupPod) throws JsonProcessingException {
+        Pod patchedPod = podPatcher.patchWithDebug(proxy, startupPod, readPatchFromSpec(specExtension.kubernetesPodPatches));
+
+        for (AuthorizedPodPatches authorizedPodPatches : specExtension.kubernetesAuthorizedPodPatches) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedPodPatches.accessControl)) {
+                patchedPod = podPatcher.patchWithDebug(proxy, patchedPod, readPatchFromSpec(authorizedPodPatches.patches));
+            }
+        }
+
+        return patchedPod;
     }
 
     private void logKubernetesWarnings(Proxy proxy, Pod pod) {
@@ -477,8 +490,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
     }
 
-    private JsonPatch readPatchFromSpec(KubernetesSpecExtension specExtension) throws JsonProcessingException {
-        String patchAsString = specExtension.getKubernetesPodPatches();
+    private JsonPatch readPatchFromSpec(String patchAsString) throws JsonProcessingException {
         if (patchAsString == null || StringUtils.isBlank(patchAsString)) {
             return null;
         }
@@ -493,12 +505,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
      *
      * The resource will only be created if it does not already exist.
      */
-    private void createAdditionalManifests(Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
+    private void createAdditionalManifests(Authentication auth, ProxySpec proxySpec, Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
         for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
             applyAdditionalManifest(proxy, fullObject);
         }
+        for (AuthorizedAdditionalManifests authorizedAdditionalManifests: specExtension.kubernetesAuthorizedAdditionalManifests) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
+                for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, false)) {
+                    applyAdditionalManifest(proxy, fullObject);
+                }
+            }
+        }
         for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
             applyAdditionalManifest(proxy, fullObject);
+        }
+        for (AuthorizedAdditionalManifests authorizedAdditionalManifests: specExtension.kubernetesAuthorizedAdditionalPersistentManifests) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
+                for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, true)) {
+                    applyAdditionalManifest(proxy, fullObject);
+                }
+            }
         }
     }
 

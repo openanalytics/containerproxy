@@ -48,10 +48,19 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     String kubernetesPodPatches;
 
     @Builder.Default
+    List<AuthorizedPodPatches> kubernetesAuthorizedPodPatches = new ArrayList<>();
+
+    @Builder.Default
     List<String> kubernetesAdditionalManifests = new ArrayList<>();
 
     @Builder.Default
+    List<AuthorizedAdditionalManifests> kubernetesAuthorizedAdditionalManifests = new ArrayList<>();
+
+    @Builder.Default
     List<String> kubernetesAdditionalPersistentManifests = new ArrayList<>();
+
+    @Builder.Default
+    List<AuthorizedAdditionalManifests> kubernetesAuthorizedAdditionalPersistentManifests = new ArrayList<>();
 
     @Override
     public KubernetesSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
@@ -64,6 +73,9 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
                 .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
                 .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
                 .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
+                .kubernetesAuthorizedPodPatches(kubernetesAuthorizedPodPatches.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
+                .kubernetesAuthorizedAdditionalManifests(kubernetesAuthorizedAdditionalManifests.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
+                .kubernetesAuthorizedAdditionalPersistentManifests(kubernetesAuthorizedAdditionalPersistentManifests.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
                 .build();
     }
 

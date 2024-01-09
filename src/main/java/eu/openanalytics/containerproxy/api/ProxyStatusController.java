@@ -125,27 +125,32 @@ public class ProxyStatusController {
             return ApiResponse.failForbidden();
         }
 
-        if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Up)) {
-                return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+        try {
+
+            if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
+                if (!proxy.getStatus().equals(ProxyStatus.Up)) {
+                    return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+                }
+                asyncProxyService.pauseProxy(proxy, false);
+            } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
+                if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
+                    return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+                }
+                try {
+                    asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
+                } catch (InvalidParametersException ex) {
+                    return ApiResponse.fail(ex.getMessage());
+                }
+            } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
+                if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                    return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+                }
+                asyncProxyService.stopProxy(proxy, false);
+            } else {
+                return ApiResponse.fail("Invalid desiredState");
             }
-            asyncProxyService.pauseProxy(proxy, false);
-        } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
-                return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
-            }
-            try {
-                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
-            } catch (InvalidParametersException ex) {
-                return ApiResponse.fail(ex.getMessage());
-            }
-        } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-            if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
-                return ApiResponse.fail("Cannot stop proxy because it is already stopped");
-            }
-            asyncProxyService.stopProxy(proxy, false);
-        } else {
-            return ApiResponse.fail("Invalid desiredState");
+        } catch (AccessDeniedException ex) {
+            return ApiResponse.failForbidden();
         }
 
         return ApiResponse.success();
@@ -185,18 +190,14 @@ public class ProxyStatusController {
                                                                              @Parameter(description = "Time to wait for status to change, must be between 10 and 60 seconds (inclusive).")
                                                                              @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
         Proxy proxy = proxyService.getProxy(proxyId);
-        if (proxy == null) {
-            // proxy not found -> assume it has been stopped
+        if (proxy == null || !userService.isOwner(proxy)) {
+            // proxy not found or no access -> assume it has been stopped
             DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();
             res.setResult(ApiResponse.success(Proxy.builder()
                     .id(proxyId)
                     .status(ProxyStatus.Stopped)
                     .build()));
             return res;
-        }
-
-        if (!userService.isOwner(proxy)) {
-            throw new AccessDeniedException("Cannot get state of proxy %s: access denied");
         }
 
         if (!watch) {

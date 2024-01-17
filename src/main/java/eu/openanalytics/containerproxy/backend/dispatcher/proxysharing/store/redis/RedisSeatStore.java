@@ -143,7 +143,7 @@ public class RedisSeatStore implements ISeatStore {
         @SuppressWarnings("unchecked")
         @Override
         public <K, V> Boolean execute(@Nonnull RedisOperations<K, V> operations) throws DataAccessException {
-            return internalExecute((RedisOperations<String, String>)operations);
+            return internalExecute((RedisOperations<String, String>) operations);
         }
 
         private Boolean internalExecute(@Nonnull RedisOperations<String, String> operations) throws DataAccessException {

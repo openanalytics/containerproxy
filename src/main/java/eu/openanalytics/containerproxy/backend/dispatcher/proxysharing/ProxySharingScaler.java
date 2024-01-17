@@ -56,6 +56,7 @@ import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import eu.openanalytics.containerproxy.util.ExecutorServiceFactory;
 import eu.openanalytics.containerproxy.util.MathUtil;
 import eu.openanalytics.containerproxy.util.Sha1;
 import org.slf4j.Logger;
@@ -80,14 +81,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class ProxySharingScaler {
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
     private final ProxySharingSpecExtension specExtension;

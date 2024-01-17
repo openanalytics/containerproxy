@@ -59,7 +59,7 @@ public class GlobalEventLoopService {
                     break;
                 }
             }
-        });
+        }, "GlobalEventLoop");
         eventProcessor.setDaemon(true);
         eventProcessor.start();
     }

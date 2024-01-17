@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.util.DelegatingStreamSinkConduit;
 import eu.openanalytics.containerproxy.util.DelegatingStreamSourceConduit;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.protocol.http.HttpServerConnection;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
@@ -50,6 +51,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 public class HeartbeatService {
@@ -60,7 +62,8 @@ public class HeartbeatService {
 
     private final Logger log = LogManager.getLogger(HeartbeatService.class);
 
-    private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(3);
+    private final ThreadFactory threadFactory = new BasicThreadFactory.Builder().namingPattern("HeartbeatService-%d").build();
+    private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(8, threadFactory);
     private final List<IHeartbeatProcessor> heartbeatProcessors;
     // keep track of the HeartbeatConnector for every SessionId so that the websocket connection can be closed
     // when the user logs out from that session. This is required for apps that keep running even if when the user signs out.
@@ -187,7 +190,7 @@ public class HeartbeatService {
         }
 
         private void wrapChannels(StreamConnection streamConn) {
-            if (!streamConn.isOpen())  {
+            if (!streamConn.isOpen()) {
                 onConnectionClosed(this);
                 return;
             }
@@ -219,7 +222,7 @@ public class HeartbeatService {
             if (!streamConn.isOpen()) {
                 onConnectionClosed(this);
                 return;
-            };
+            }
 
             try {
                 ((DelegatingStreamSinkConduit) streamConn.getSinkChannel().getConduit()).writeWithoutNotifying(ByteBuffer.wrap(WEBSOCKET_PING));

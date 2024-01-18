@@ -98,6 +98,9 @@ public class ProxySpec {
 
     CacheHeadersMode cacheHeadersMode;
 
+    @Builder.Default
+    Integer maxTotalInstances = -1;
+
     public void setContainerIndex() {
         if (this.containerSpecs != null) {
             for (int i = 0; i < this.containerSpecs.size(); i++) {
@@ -124,6 +127,7 @@ public class ProxySpec {
         return toBuilder()
             .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
             .maxLifeTime(maxLifeTime.resolve(resolver, context))
+            .maxTotalInstances(maxTotalInstances)
             .specExtensions(
                 specExtensions.entrySet()
                     .stream()

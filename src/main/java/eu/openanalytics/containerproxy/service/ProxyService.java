@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
+import eu.openanalytics.containerproxy.ProxyStartValidationException;
+import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
@@ -104,10 +106,12 @@ public class ProxyService {
     private SpecExpressionResolver expressionResolver;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
+    protected Integer maxTotalInstances;
 
     @PostConstruct
     public void init() {
         stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, "true"));
+        maxTotalInstances = environment.getProperty("proxy.max-total-instances", Integer.class, -1);
     }
 
     @PreDestroy
@@ -258,6 +262,11 @@ public class ProxyService {
             if (!userService.canAccess(user, spec)) {
                 throw new AccessDeniedException(String.format("Cannot start proxy %s: access denied", spec.getId()));
             }
+
+            if (!maxTotalInstancesPerApp(spec) || !maxTotalInstances()) {
+                throw new ProxyStartValidationException("The server does not have enough capacity to start this app, please try again later.");
+            }
+
             Proxy.ProxyBuilder proxyBuilder = Proxy.builder();
             proxyBuilder.id(proxyId);
             proxyBuilder.status(ProxyStatus.New);
@@ -585,6 +594,37 @@ public class ProxyService {
     private synchronized void actionFinished(String proxyId) {
         actionsInProgress.remove(proxyId);
         lastStop = Pair.of(proxyId, Instant.now());
+    }
+
+    /**
+     * Checks whether starting a proxy violates the max total instances (for all apps and users).
+     * This corresponds to the `proxy.max-total-instances` property.
+     */
+    protected boolean maxTotalInstances() {
+        if (maxTotalInstances == -1) {
+            return true;
+        }
+
+        long currentAmountOfInstances = getAllProxies().size();
+
+        return currentAmountOfInstances < maxTotalInstances;
+    }
+
+
+    /**
+     * Checks whether starting a proxy violates the max total instances of this spec.
+     * This corresponds to the `max-total-instances` property of an app.
+     */
+    protected boolean maxTotalInstancesPerApp(ProxySpec spec) {
+        Integer maxTotalInstances = spec.getMaxTotalInstances();
+
+        if (maxTotalInstances == -1) {
+            return true;
+        }
+
+        long currentAmountOfInstances = getNumberOfProxiesBySpecId(spec.getId());
+
+        return currentAmountOfInstances < maxTotalInstances;
     }
 
     private Command action(String proxyId, BlockingAction blocking, AsyncAction async) {

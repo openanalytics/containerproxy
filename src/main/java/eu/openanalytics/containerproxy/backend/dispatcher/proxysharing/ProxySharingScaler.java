@@ -273,6 +273,10 @@ public class ProxySharingScaler {
             pendingDelegatingProxies.size(), num, specExtension.minimumSeatsAvailable));
 
         if (num < specExtension.minimumSeatsAvailable) {
+            if (proxySpec.getMaxTotalInstances() > -1 && seatStore.getNumSeats() >= proxySpec.getMaxTotalInstances()) {
+                logWarn(String.format("Not scaling up: currently %s seats, scale up would create more than maximum number of instances: %s", seatStore.getNumSeats(), proxySpec.getMaxTotalInstances()));
+                return;
+            }
             lastReconcileStatus = ReconcileStatus.ScaleUp;
             long numToScaleUp = specExtension.minimumSeatsAvailable - num;
             scaleUp(MathUtil.divideAndCeil(numToScaleUp, specExtension.seatsPerContainer));

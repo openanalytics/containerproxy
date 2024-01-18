@@ -98,6 +98,11 @@ public class MemorySeatStore implements ISeatStore {
     }
 
     @Override
+    public Long getNumSeats() {
+        return (long) seats.size();
+    }
+
+    @Override
     public void removeSeatInfo(String seatId) {
         seats.remove(seatId);
     }

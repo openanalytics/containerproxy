@@ -43,5 +43,7 @@ public interface ISeatStore {
 
     Long getNumClaimedSeats();
 
+    Long getNumSeats();
+
     void removeSeatInfo(String seatId);
 }

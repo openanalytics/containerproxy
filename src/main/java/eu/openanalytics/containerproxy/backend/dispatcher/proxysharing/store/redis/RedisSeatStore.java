@@ -120,6 +120,11 @@ public class RedisSeatStore implements ISeatStore {
         return (long) seatsOperations.size() - unClaimedSeatsIdsOperations.size();
     }
 
+    @Override
+    public Long getNumSeats() {
+        return seatsOperations.size();
+    }
+
     public static class SeatClaimedDuringRemovalException extends RuntimeException {
 
     }

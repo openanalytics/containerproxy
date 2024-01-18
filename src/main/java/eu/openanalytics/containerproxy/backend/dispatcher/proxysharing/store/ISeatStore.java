@@ -43,7 +43,5 @@ public interface ISeatStore {
 
     Long getNumClaimedSeats();
 
-    boolean isSeatClaimable(String seatId);
-
     void removeSeatInfo(String seatId);
 }

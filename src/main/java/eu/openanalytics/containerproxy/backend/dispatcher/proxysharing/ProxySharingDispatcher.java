@@ -45,7 +45,9 @@ import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.util.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -68,7 +70,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private static final String PROPERTY_SEAT_WAIT_TIME = "proxy.seat-wait-time";
 
-    private ProxySharingMicrometer proxySharingMicrometer = null;
     private final ProxySpec proxySpec;
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
@@ -83,6 +84,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private IProxyStore proxyStore;
     @Inject
     private Environment environment;
+
+    @Lazy
+    @Autowired(required = false)
+    private ProxySharingMicrometer proxySharingMicrometer = null;
 
     static {
         RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
@@ -228,18 +233,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         }
         pendingDelegatingProxies.invalidate(event.getIntendedProxyId());
         future.complete(null);
-    }
-
-    public Long getNumUnclaimedSeats() {
-        return seatStore.getNumUnclaimedSeats();
-    }
-
-    public Long getNumClaimedSeats() {
-        return seatStore.getNumClaimedSeats();
-    }
-
-    public void setProxySharingMicrometer(ProxySharingMicrometer proxySharingMicrometer) {
-        this.proxySharingMicrometer = proxySharingMicrometer;
     }
 
     public ProxySpec getSpec() {

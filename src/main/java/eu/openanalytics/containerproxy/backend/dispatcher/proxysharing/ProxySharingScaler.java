@@ -590,6 +590,14 @@ public class ProxySharingScaler {
             * specExtension.seatsPerContainer;
     }
 
+    public Long getNumUnclaimedSeats() {
+        return seatStore.getNumUnclaimedSeats();
+    }
+
+    public Long getNumClaimedSeats() {
+        return seatStore.getNumClaimedSeats();
+    }
+
     private String getPublicPath(String targetId) {
         return publicPathPrefix + targetId + "/";
     }

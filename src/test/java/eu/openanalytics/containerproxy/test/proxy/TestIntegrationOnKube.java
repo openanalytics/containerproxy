@@ -55,7 +55,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import javax.json.JsonObject;
 import java.io.ByteArrayInputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -303,10 +302,10 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             try {
                 k8s.client.serviceAccounts().inNamespace(k8s.overriddenNamespace).create(new ServiceAccountBuilder()
-                        .withNewMetadata()
+                    .withNewMetadata()
                     .withName(serviceAccountName).withNamespace(k8s.overriddenNamespace)
-                        .endMetadata()
-                        .build());
+                    .endMetadata()
+                    .build());
 
                 // Give Kube time to setup ServiceAccount
                 TestUtil.sleep(2000);
@@ -460,18 +459,19 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // create the PVC
             String pvcSpec =
-                    "apiVersion: v1\n" +
-                        "kind: PersistentVolumeClaim\n" +
-                        "metadata:\n" +
-                        "   name: manifests-pvc\n" +
-                        "   namespace: itest-overridden\n" +
-                        "spec:\n" +
-                        "   storageClassName: standard\n" +
-                        "   accessModes:\n" +
-                        "     - ReadWriteOnce\n" +
-                        "   resources:\n" +
-                        "      requests:\n" +
-                        "          storage: 5Gi";
+                """
+                    apiVersion: v1
+                    kind: PersistentVolumeClaim
+                    metadata:
+                       name: manifests-pvc
+                       namespace: itest-overridden
+                    spec:
+                       storageClassName: standard
+                       accessModes:
+                         - ReadWriteOnce
+                       resources:
+                          requests:
+                              storage: 5Gi""";
 
 
             k8s.client.inNamespace(k8s.overriddenNamespace).load(new ByteArrayInputStream(pvcSpec.getBytes())).createOrReplace();
@@ -655,16 +655,16 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
             k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
-                    .withNewMetadata()
-                    .withName("manifests-secret")
-                    .withLabels(new HashMap<String, String>() {{
-                        put("openanalytics.eu/sp-additional-manifest", "true");
-                        put("openanalytics.eu/sp-persistent-manifest", "false");
-                        put("openanalytics.eu/sp-manifest-id", "994e40ac66b4bc9329b97d776146b66679afb2b9");
-                    }})
-                    .endMetadata()
-                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                    .build());
+                .withNewMetadata()
+                .withName("manifests-secret")
+                .withLabels(Map.of(
+                    "openanalytics.eu/sp-additional-manifest", "true",
+                    "openanalytics.eu/sp-persistent-manifest", "false",
+                    "openanalytics.eu/sp-manifest-id", "994e40ac66b4bc9329b97d776146b66679afb2b9"
+                ))
+                .endMetadata()
+                .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                .build());
 
             String id = inst.client.startProxy("01_hello_manifests_policy_create_once");
             Proxy proxy = inst.proxyService.getProxy(id);
@@ -735,11 +735,11 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
             Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
-                    .withNewMetadata()
-                    .withName("manifests-secret")
-                    .endMetadata()
-                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                    .build());
+                .withNewMetadata()
+                .withName("manifests-secret")
+                .endMetadata()
+                .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                .build());
 
             String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
 
@@ -784,11 +784,11 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
             k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
-                    .withNewMetadata()
-                    .withName("manifests-secret")
-                    .endMetadata()
-                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                    .build());
+                .withNewMetadata()
+                .withName("manifests-secret")
+                .endMetadata()
+                .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                .build());
 
             String id = inst.client.startProxy("01_hello_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
@@ -854,11 +854,11 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
             Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
-                    .withNewMetadata()
-                    .withName("manifests-secret")
-                    .endMetadata()
-                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                    .build());
+                .withNewMetadata()
+                .withName("manifests-secret")
+                .endMetadata()
+                .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                .build());
 
             String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
 
@@ -933,7 +933,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, k8s.getSecrets(k8s.namespace).size());
 
             String originalCreationTimestamp = k8s.client.secrets().inNamespace(k8s.namespace)
-                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+                .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // step 2: secret does already exist, check that it gets overridden
             id = inst.client.startProxy("01_hello_persistent_manifests_policy_create_once");
@@ -990,7 +990,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, k8s.getSecrets(k8s.namespace).size());
 
             String originalCreationTimestamp = k8s.client.secrets().inNamespace(k8s.namespace)
-                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+                .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // same spec, different value
             id = inst.client.startProxy("01_hello_persistent_manifests_policy_patch2");
@@ -1020,11 +1020,11 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
             k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
-                    .withNewMetadata()
-                    .withName("manifests-secret")
-                    .endMetadata()
-                    .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                    .build());
+                .withNewMetadata()
+                .withName("manifests-secret")
+                .endMetadata()
+                .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
+                .build());
 
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
@@ -1085,7 +1085,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, k8s.getSecrets(k8s.namespace).size());
 
             String originalCreationTimestamp = k8s.client.secrets().inNamespace(k8s.namespace)
-                    .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
+                .withName("manifests-secret").get().getMetadata().getCreationTimestamp();
 
             // same spec, different value
             id = inst.client.startProxy("01_hello_persistent_manifests_policy_replace2");
@@ -1180,12 +1180,11 @@ public class TestIntegrationOnKube {
     @Test
     public void launchProxyWithParameters() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
-            String id = inst.client.startProxy("parameters",
-                new HashMap<String, String>() {{
-                    put("environment", "base_r");
-                    put("version", "4.0.5");
-                    put("memory", "2G");
-                }});
+            String id = inst.client.startProxy("parameters", Map.of(
+                "environment", "base_r",
+                "version", "4.0.5",
+                "memory", "2G"
+            ));
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
@@ -1218,12 +1217,11 @@ public class TestIntegrationOnKube {
     @Test
     public void launchProxyWithParametersWithNullValueSetName() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
-            String id = inst.client.startProxy("parameters-null",
-                new HashMap<String, String>() {{
-                    put("environment", "base_r");
-                    put("version", "4.0.5");
-                    put("memory", "2G");
-                }});
+            String id = inst.client.startProxy("parameters-null", Map.of(
+                "environment", "base_r",
+                "version", "4.0.5",
+                "memory", "2G"
+            ));
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
@@ -1251,38 +1249,38 @@ public class TestIntegrationOnKube {
     public void launchProxyWithParametersWithError() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // case 1: test using API
-            JsonObject resp = inst.client.startProxyError("parameters-error",
-                new HashMap<String, String>() {{
-                    put("environment", "base_r");
-                    put("version", "4.0.5");
-                    put("memory", "2G");
-                }});
+            JsonObject resp = inst.client.startProxyError("parameters-error", Map.of(
+                "environment", "base_r",
+                "version", "4.0.5",
+                "memory", "2G"
+            ));
             Assertions.assertEquals(resp.getString("status"), "error");
             Assertions.assertEquals(resp.getString("data"), "Failed to start proxy");
 
             // case 2: test using ProxyService
-            Authentication auth = UsernamePasswordAuthenticationToken.authenticated("demo", null, Arrays.asList(new SimpleGrantedAuthority("ROLE_GROUP1")));
+            Authentication auth = UsernamePasswordAuthenticationToken.authenticated("demo", null, List.of(new SimpleGrantedAuthority("ROLE_GROUP1")));
             ProxySpec spec = inst.specProvider.getSpec("parameters-error");
             ContainerProxyException ex = Assertions.assertThrows(ContainerProxyException.class, () -> {
                 inst.proxyService.startProxy(auth, spec, null,
                         UUID.randomUUID().toString(),
-                        new HashMap<String, String>() {{
-                            put("environment", "base_r");
-                            put("version", "4.0.5");
-                            put("memory", "2G");
-                        }})
+                        Map.of(
+                            "environment", "base_r",
+                            "version", "4.0.5",
+                            "memory", "2G"
+                        ))
                     .run();
             }, "The parameter with id \"non-existing-parameter\" does not exist");
 
             Assertions.assertEquals("Container failed to start", ex.getMessage());
             Assertions.assertEquals(ProxyFailedToStartException.class, ex.getCause().getClass());
             Assertions.assertEquals(SpelException.class, ex.getCause().getCause().getClass());
-            Assertions.assertEquals("Error while resolving expression: \"- op: add\n" +
-                "  path: /spec/containers/0/env/-\n" +
-                "  value:\n" +
-                "    name: ERROR\n" +
-                "    value: \"#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}\"\n" +
-                "\", error: The parameter with id \"non-existing-parameter\" does not exist!", ex.getCause().getCause().getMessage());
+            Assertions.assertEquals("""
+                Error while resolving expression: "- op: add
+                  path: /spec/containers/0/env/-
+                  value:
+                    name: ERROR
+                    value: "#{proxy.getRuntimeObject('SHINYPROXY_PARAMETERS').getValue('non-existing-parameter')}"
+                ", error: The parameter with id "non-existing-parameter" does not exist!""", ex.getCause().getCause().getMessage());
 
             // no pods created
             assertNoPods(k8s);
@@ -1292,12 +1290,11 @@ public class TestIntegrationOnKube {
     @Test
     public void launchProxyWithParametersFinalResolve() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
-            String id = inst.client.startProxy("parameters-final-resolve",
-                new HashMap<String, String>() {{
-                    put("environment", "base_r");
-                    put("version", "4.0.5");
-                    put("memory", "2G");
-                }});
+            String id = inst.client.startProxy("parameters-final-resolve", Map.of(
+                "environment", "base_r",
+                "version", "4.0.5",
+                "memory", "2G"
+            ));
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();

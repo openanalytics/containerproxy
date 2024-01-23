@@ -39,6 +39,7 @@ import javax.json.JsonReader;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class ShinyProxyClient {
 
@@ -62,7 +63,7 @@ public class ShinyProxyClient {
         return startProxy(specId, null);
     }
 
-    public String startProxy(String specId, HashMap<String, String> parameters) {
+    public String startProxy(String specId, Map<String, String> parameters) {
         RequestBody body = RequestBody.create("", null);
         if (parameters != null) {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -89,15 +90,12 @@ public class ShinyProxyClient {
         return id;
     }
 
-    public JsonObject startProxyError(String specId, HashMap<String, String> parameters) {
+    public JsonObject startProxyError(String specId, Map<String, String> parameters) {
         RequestBody body = RequestBody.create("", null);
         if (parameters != null) {
             ObjectMapper objectMapper = new ObjectMapper();
             try {
-                body = RequestBody.create(
-                    objectMapper.writeValueAsString(new HashMap<String, Object>() {{
-                        put("parameters", parameters);
-                    }}), MediaType.get("application/json"));
+                body = RequestBody.create(objectMapper.writeValueAsString(Map.of("parameters", parameters)), MediaType.get("application/json"));
             } catch (JsonProcessingException e) {
                 throw new TestHelperException("JSON error", e);
             }

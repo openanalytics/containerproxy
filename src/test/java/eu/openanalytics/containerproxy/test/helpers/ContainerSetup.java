@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ContainerSetup implements AutoCloseable {
 
@@ -95,7 +94,7 @@ public class ContainerSetup implements AutoCloseable {
     }
 
     public List<Secret> getSecrets(String namespace) {
-        return client.secrets().inNamespace(namespace).list().getItems().stream().filter(it -> !it.getMetadata().getName().startsWith("default-token")).collect(Collectors.toList());
+        return client.secrets().inNamespace(namespace).list().getItems().stream().filter(it -> !it.getMetadata().getName().startsWith("default-token")).toList();
     }
 
     public Secret getSingleSecret(String namespace) {
@@ -107,17 +106,21 @@ public class ContainerSetup implements AutoCloseable {
     public boolean checkDockerIsClean() {
         return Retrying.retry((c, m) -> {
             try {
-                if (backend.equals("docker")) {
-                    DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
-                    long count = dockerClient.listContainers().stream().filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app")).count();
-                    return count <= 0;
-                } else if (backend.equals("docker-swarm")) {
-                    DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
-                    return dockerClient.listServices().isEmpty();
-                } else if (backend.equals("kubernetes")) {
-                    List<Pod> pods1 = client.pods().inNamespace(namespace).list().getItems();
-                    List<Pod> pods2 = client.pods().inNamespace(overriddenNamespace).list().getItems();
-                    return pods1.isEmpty() && pods2.isEmpty();
+                switch (backend) {
+                    case "docker" -> {
+                        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+                        long count = dockerClient.listContainers().stream().filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app")).count();
+                        return count <= 0;
+                    }
+                    case "docker-swarm" -> {
+                        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+                        return dockerClient.listServices().isEmpty();
+                    }
+                    case "kubernetes" -> {
+                        List<Pod> pods1 = client.pods().inNamespace(namespace).list().getItems();
+                        List<Pod> pods2 = client.pods().inNamespace(overriddenNamespace).list().getItems();
+                        return pods1.isEmpty() && pods2.isEmpty();
+                    }
                 }
                 return true;
             } catch (DockerException | InterruptedException | DockerCertificateException e) {

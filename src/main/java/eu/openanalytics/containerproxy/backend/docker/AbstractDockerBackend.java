@@ -67,7 +67,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     public void initialize() throws ContainerProxyException {
         super.initialize();
 
-        DefaultDockerClient.Builder builder = null;
+        DefaultDockerClient.Builder builder;
         try {
             builder = DefaultDockerClient.fromEnv();
         } catch (DockerCertificateException e) {

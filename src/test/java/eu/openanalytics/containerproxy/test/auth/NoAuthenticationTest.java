@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.test.auth;
 
-import eu.openanalytics.containerproxy.test.helpers.BasicAuthInterceptor;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;

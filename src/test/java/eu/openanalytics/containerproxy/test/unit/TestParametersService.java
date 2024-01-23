@@ -27,7 +27,6 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
-import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import org.junit.jupiter.api.Assertions;
@@ -180,12 +179,12 @@ public class TestParametersService {
     }
 
     private Pair<ParameterNames, ParameterValues> testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
-        Map<String, String> providedParameters = new HashMap<>() {{
-            put("parameter1", parameter1);
-            put("parameter2", parameter2);
-            put("parameter3", parameter3);
-            put("parameter4", parameter4);
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", parameter1,
+            "parameter2", parameter2,
+            "parameter3", parameter3,
+            "parameter4", parameter4
+        );
 
         Optional<Pair<ParameterNames, ParameterValues>> res = parametersService.parseAndValidateRequest(auth, spec, providedParameters);
         Assertions.assertTrue(res.isPresent());
@@ -193,12 +192,12 @@ public class TestParametersService {
     }
 
     private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
-        Map<String, String> providedParameters = new HashMap<>() {{
-            put("parameter1", parameter1);
-            put("parameter2", parameter2);
-            put("parameter3", parameter3);
-            put("parameter4", parameter4);
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", parameter1,
+            "parameter2", parameter2,
+            "parameter3", parameter3,
+            "parameter4", parameter4
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
@@ -275,24 +274,24 @@ public class TestParametersService {
         ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         // too many parameters
-        Map<String, String> providedParameters = new HashMap<>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-            put("parameter4", "NO");
-            put("parameter5", "NO");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo",
+            "parameter4", "NO",
+            "parameter5", "NO"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
                 "Invalid number of parameters provided");
 
         // too few parameters
-        Map<String, String> providedParameters2 = new HashMap<>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
@@ -303,23 +302,23 @@ public class TestParametersService {
     public void testInvalidParameterIds() {
         ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
-        Map<String, String> providedParameters = new HashMap<>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-            put("parameterXXXX", "NO");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo",
+            "parameterXXXX", "NO"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
                 "Missing value for parameter parameter4");
 
-        Map<String, String> providedParameters2 = new HashMap<>() {{
-            put("parameterABC", "The letter A");
-            put("parameter#$#$", "The number 1");
-            put("parameter3343434", "Foo");
-            put("parameterXXXX", "NO");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "parameterABC", "The letter A",
+            "parameter#$#$", "The number 1",
+            "parameter3343434", "Foo",
+            "parameterXXXX", "NO"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
                 () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),

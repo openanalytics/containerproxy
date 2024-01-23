@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.ecs;
 
-import eu.openanalytics.containerproxy.backend.kubernetes.KubernetesSpecExtension;
 import eu.openanalytics.containerproxy.spec.ISpecExtensionProvider;
 import lombok.Getter;
 import lombok.Setter;

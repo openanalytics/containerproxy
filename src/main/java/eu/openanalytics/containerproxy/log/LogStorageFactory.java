@@ -45,7 +45,7 @@ public class LogStorageFactory extends AbstractFactoryBean<ILogStorage> {
 
     @Override
     protected ILogStorage createInstance() {
-        ILogStorage storage = null;
+        ILogStorage storage;
 
         String containerLogPath = environment.getProperty("proxy.container-log-path");
         if (containerLogPath == null || containerLogPath.trim().isEmpty()) {

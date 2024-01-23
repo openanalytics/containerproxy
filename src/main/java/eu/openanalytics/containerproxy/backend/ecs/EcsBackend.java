@@ -64,7 +64,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class EcsBackend extends AbstractContainerBackend {
@@ -186,7 +185,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
         List<KeyValuePair> env = buildEnv(user, spec, proxy).entrySet().stream()
             .map(v -> KeyValuePair.builder().name(v.getKey()).value(v.getValue()).build())
-            .collect(Collectors.toList());
+            .toList();
 
         Map<String, String> dockerLabels = spec.getLabels().getValueOrDefault(new HashMap<>());
         Stream.concat(

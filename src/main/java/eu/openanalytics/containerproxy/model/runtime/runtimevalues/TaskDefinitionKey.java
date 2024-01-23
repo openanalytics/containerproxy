@@ -22,6 +22,8 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class TaskDefinitionKey extends RuntimeValueKey<String> {
 
+    public static final TaskDefinitionKey inst = new TaskDefinitionKey();
+
     private TaskDefinitionKey() {
         super("openanalytics.eu/sp-task-defintion",
                 "SHINYPROXY_TASK_DEFINITION",
@@ -33,8 +35,6 @@ public class TaskDefinitionKey extends RuntimeValueKey<String> {
                 true,
                 String.class);
     }
-
-    public static TaskDefinitionKey inst = new TaskDefinitionKey();
 
     @Override
     public String deserializeFromString(String value) {

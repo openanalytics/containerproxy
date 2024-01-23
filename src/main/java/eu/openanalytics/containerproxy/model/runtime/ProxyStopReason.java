@@ -23,6 +23,6 @@ package eu.openanalytics.containerproxy.model.runtime;
 public enum ProxyStopReason {
 
     Unknown,
-    Crashed;
+    Crashed
 
 }

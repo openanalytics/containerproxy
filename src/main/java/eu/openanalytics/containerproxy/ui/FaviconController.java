@@ -147,7 +147,7 @@ public class FaviconController {
             return CONTENT_TYPE_ICO;
         }
         Optional<MediaType> mediaType = MediaTypeFactory.getMediaType(path);
-        if (!mediaType.isPresent()) {
+        if (mediaType.isEmpty()) {
             logger.warn(String.format("Content-Type of favicon: %s not recognized", path));
             return null;
         }

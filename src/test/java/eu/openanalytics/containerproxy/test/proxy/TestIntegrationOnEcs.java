@@ -20,20 +20,12 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.messages.swarm.Service;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.List;
 
 public class TestIntegrationOnEcs {
 

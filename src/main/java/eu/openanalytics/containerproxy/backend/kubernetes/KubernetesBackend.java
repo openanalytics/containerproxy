@@ -196,7 +196,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         if (imagePullSecret == null) {
             String imagePullSecretArray = getProperty(PROPERTY_IMG_PULL_SECRETS);
             if (imagePullSecretArray != null) {
-                imagePullSecrets = Arrays.stream(imagePullSecretArray.split(",")).map(LocalObjectReference::new).collect(Collectors.toList());
+                imagePullSecrets = Arrays.stream(imagePullSecretArray.split(",")).map(LocalObjectReference::new).toList();
             }
         } else {
             imagePullSecrets.add(new LocalObjectReference(imagePullSecret));
@@ -356,7 +356,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
             parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
 
-            Service service = null;
+            Service service;
             Map<Integer, Integer> portBindings = new HashMap<>();
             if (isUseInternalNetwork()) {
                 // If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.

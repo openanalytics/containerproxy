@@ -184,9 +184,7 @@ public class HeartbeatService {
             this.proxy = proxyId;
             this.sessionId = sessionId;
             this.streamConnection = streamConnection;
-            streamConnection.setCloseListener((connection) -> {
-                onConnectionClosed(this);
-            });
+            streamConnection.setCloseListener((connection) -> onConnectionClosed(this));
         }
 
         private void wrapChannels(StreamConnection streamConn) {

@@ -49,9 +49,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.BiConsumer;
@@ -93,7 +91,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
      * - Ensures the path is empty when not path is defined (or when a single / is defined)
      */
     public static String computeTargetPath(String targetPath) {
-        if (targetPath == null || targetPath.equals("")) {
+        if (targetPath == null || targetPath.isEmpty()) {
             return "";
         }
 

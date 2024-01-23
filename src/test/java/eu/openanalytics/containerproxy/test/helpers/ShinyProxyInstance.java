@@ -24,9 +24,6 @@ import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.Retrying;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -85,9 +82,7 @@ public class ShinyProxyInstance implements AutoCloseable {
 
             client = new ShinyProxyClient(usernameAndPassword, port);
 
-            thread = new Thread(() -> {
-                app = application.run();
-            });
+            thread = new Thread(() -> app = application.run());
             thread.start();
 
             boolean available = Retrying.retry((c, m) -> client.checkAlive(), 60_000, "ShinyProxyInstance available", 1, true);

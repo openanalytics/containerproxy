@@ -33,10 +33,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.net.URI;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisProxyStore implements IProxyStore {
 

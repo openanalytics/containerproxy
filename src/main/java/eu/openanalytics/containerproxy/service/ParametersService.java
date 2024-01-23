@@ -69,11 +69,11 @@ public class ParametersService {
             return;
         }
 
-        if (spec.getParameters().getDefinitions() == null || spec.getParameters().getDefinitions().size() == 0) {
+        if (spec.getParameters().getDefinitions() == null || spec.getParameters().getDefinitions().isEmpty()) {
             throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', no definitions found", spec.getId()));
         }
 
-        if (spec.getParameters().getValueSets() == null || spec.getParameters().getValueSets().size() == 0) {
+        if (spec.getParameters().getValueSets() == null || spec.getParameters().getValueSets().isEmpty()) {
             throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', no value sets found", spec.getId()));
         }
 

@@ -26,14 +26,14 @@ public class TargetIdKey extends RuntimeValueKey<String> {
 
     private TargetIdKey() {
         super("openanalytics.eu/sp-target-id",
-                "SHINYPROXY_TARGET_ID",
-                false,
-                true,
-                false,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+            "SHINYPROXY_TARGET_ID",
+            false,
+            true,
+            false,
+            false, // no need to expose in API
+            true,
+            false,
+            String.class);
     }
 
     @Override

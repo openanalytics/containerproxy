@@ -71,10 +71,10 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
     private static final RequestMatcher REFRESH_OPENID_MATCHER = new AntPathRequestMatcher("/refresh-openid");
 
     private static final RequestMatcher REQUEST_MATCHER = new OrRequestMatcher(
-            new AntPathRequestMatcher("/app/**"),
-            new AntPathRequestMatcher("/app_i/**"),
-            new AntPathRequestMatcher("/"),
-            REFRESH_OPENID_MATCHER);
+        new AntPathRequestMatcher("/app/**"),
+        new AntPathRequestMatcher("/app_i/**"),
+        new AntPathRequestMatcher("/"),
+        REFRESH_OPENID_MATCHER);
     private final Clock clock = Clock.systemUTC();
     // use clock skew of 40 seconds instead of 60 seconds. Otherwise, if the access token is valid for 1 minute, it would get refreshed at each request.
     private final Duration clockSkew = Duration.ofSeconds(40);
@@ -107,9 +107,9 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
                 } else {
                     if (accessTokenExpired(authorizedClient)) {
                         OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
-                                .withAuthorizedClient(authorizedClient)
-                                .principal(auth)
-                                .build();
+                            .withAuthorizedClient(authorizedClient)
+                            .principal(auth)
+                            .build();
 
                         try {
                             oAuth2AuthorizedClientManager.authorize(authorizeRequest);

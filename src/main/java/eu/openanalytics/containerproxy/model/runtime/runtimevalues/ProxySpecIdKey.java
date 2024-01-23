@@ -26,14 +26,14 @@ public class ProxySpecIdKey extends RuntimeValueKey<String> {
 
     private ProxySpecIdKey() {
         super("openanalytics.eu/sp-spec-id",
-                "SHINYPROXY_SPEC_ID",
+            "SHINYPROXY_SPEC_ID",
             false,
-                true,
+            true,
             false,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+            false, // no need to expose in API
+            true,
+            false,
+            String.class);
     }
 
     @Override

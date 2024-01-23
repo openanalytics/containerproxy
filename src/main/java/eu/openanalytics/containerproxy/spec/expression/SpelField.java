@@ -88,6 +88,7 @@ public abstract class SpelField<O, R> {
 
     /**
      * For debugging purposes only
+     *
      * @return string representation for debugging purposes
      */
     @Override

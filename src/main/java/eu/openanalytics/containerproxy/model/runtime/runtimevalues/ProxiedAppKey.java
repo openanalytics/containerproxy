@@ -26,14 +26,14 @@ public class ProxiedAppKey extends RuntimeValueKey<String> {
 
     private ProxiedAppKey() {
         super("openanalytics.eu/sp-proxied-app",
-                "SHINYPROXY_PROXIED_APP",
+            "SHINYPROXY_PROXIED_APP",
             true,
-                false,
             false,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+            false,
+            false, // no need to expose in API
+            true,
+            false,
+            String.class);
     }
 
     @Override

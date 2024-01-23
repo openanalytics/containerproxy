@@ -54,9 +54,9 @@ public class AppRecoveryFilter extends GenericFilterBean {
 
     @Override
     public void doFilter(
-            ServletRequest request,
-            ServletResponse response,
-            FilterChain chain) throws IOException, ServletException {
+        ServletRequest request,
+        ServletResponse response,
+        FilterChain chain) throws IOException, ServletException {
 
         if (appRecoveryService.isReady()) {
             // App Recovery is ready -> continue the application

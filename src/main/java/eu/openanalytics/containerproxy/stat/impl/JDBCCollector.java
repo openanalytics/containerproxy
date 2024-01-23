@@ -54,15 +54,13 @@ import java.sql.Timestamp;
  */
 public class JDBCCollector extends AbstractDbCollector {
 
-    private HikariDataSource ds;
-
-    @Inject
-    private Environment environment;
-
     private final String url;
     private final String username;
     private final String password;
     private final String tableName;
+    private HikariDataSource ds;
+    @Inject
+    private Environment environment;
 
     public JDBCCollector(String url, String username, String password, String tableNam) {
         this.url = url;

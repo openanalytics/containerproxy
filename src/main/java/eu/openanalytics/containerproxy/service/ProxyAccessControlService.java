@@ -107,8 +107,8 @@ public class ProxyAccessControlService {
      */
     private Optional<String> getSessionId() {
         return Optional
-                .ofNullable(RequestContextHolder.getRequestAttributes())
-                .map(RequestAttributes::getSessionId);
+            .ofNullable(RequestContextHolder.getRequestAttributes())
+            .map(RequestAttributes::getSessionId);
     }
 
     private boolean checkAccess(Authentication auth, ProxySpec spec) {

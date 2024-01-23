@@ -43,20 +43,18 @@ import java.util.Map;
 
 public class ShinyProxyClient {
 
+    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient client;
     private final String baseUrl;
-
-    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     public ShinyProxyClient(String usernameAndPassword, int port) {
         this.baseUrl = "http://localhost:" + port;
         client = new OkHttpClient.Builder()
             .addInterceptor(new BasicAuthInterceptor(usernameAndPassword, usernameAndPassword))
-                .callTimeout(Duration.ofSeconds(120))
-                .readTimeout(Duration.ofSeconds(120))
-                .build();
+            .callTimeout(Duration.ofSeconds(120))
+            .readTimeout(Duration.ofSeconds(120))
+            .build();
     }
 
     public String startProxy(String specId) {
@@ -136,9 +134,9 @@ public class ShinyProxyClient {
 
     public void stopProxy(String proxyId) {
         Request request = new Request.Builder()
-                .put(RequestBody.create("{\"desiredState\":\"Stopping\"}", JSON))
-                .url(baseUrl + "/api/" + proxyId + "/status")
-                .build();
+            .put(RequestBody.create("{\"desiredState\":\"Stopping\"}", JSON))
+            .url(baseUrl + "/api/" + proxyId + "/status")
+            .build();
 
         call(request, 200);
         ProxyStatus status = waitForProxyStatus(proxyId);
@@ -149,9 +147,9 @@ public class ShinyProxyClient {
 
     public HashSet<JsonObject> getProxies() {
         Request request = new Request.Builder()
-                .get()
-                .url(baseUrl + "/api/proxy")
-                .build();
+            .get()
+            .url(baseUrl + "/api/proxy")
+            .build();
 
         JsonObject response = call(request, 200);
         HashSet<JsonObject> result = new HashSet<>();
@@ -202,7 +200,7 @@ public class ShinyProxyClient {
             .url(baseUrl + "/logout-success")
             .build();
 
-       try (Response response = client.newCall(request).execute()) {
+        try (Response response = client.newCall(request).execute()) {
             return response.code() == 200;
         } catch (Exception e) {
             return false;

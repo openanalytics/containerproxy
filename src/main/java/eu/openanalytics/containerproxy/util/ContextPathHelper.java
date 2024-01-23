@@ -30,14 +30,6 @@ public class ContextPathHelper {
     private static String contextPathWithoutSlash = null;
     private static String contextPathWithSlash = null;
 
-    public String withEndingSlash() {
-        return contextPathWithSlash;
-    }
-
-    public String withoutEndingSlash() {
-        return contextPathWithoutSlash;
-    }
-
     private static String getContextPath(Environment environment, boolean endWithSlash) {
         String contextPath = environment.getProperty("server.servlet.context-path");
         if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
@@ -46,6 +38,14 @@ public class ContextPathHelper {
         if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
 
         return contextPath;
+    }
+
+    public String withEndingSlash() {
+        return contextPathWithSlash;
+    }
+
+    public String withoutEndingSlash() {
+        return contextPathWithoutSlash;
     }
 
     @Autowired

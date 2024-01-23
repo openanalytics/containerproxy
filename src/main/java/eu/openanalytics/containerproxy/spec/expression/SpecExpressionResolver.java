@@ -116,7 +116,7 @@ public class SpecExpressionResolver {
         if (res == null) {
             return "";
         }
-        if (res instanceof SpelField<?,?> spelfield) {
+        if (res instanceof SpelField<?, ?> spelfield) {
             return spelfield.getValueAsString();
         }
         return res.toString();
@@ -137,16 +137,16 @@ public class SpecExpressionResolver {
     public List<String> evaluateToList(List<String> expressions, SpecExpressionContext context) {
         if (expressions == null) return null;
         return expressions.stream()
-                .flatMap((el) -> {
-                    Object result = evaluate(el, context, Object.class);
-                    if (result == null) {
-                        result = new ArrayList<>();
-                    }
-                    if (result instanceof List) {
-                        return ((List<Object>) result).stream().map(Object::toString);
-                    }
-                    return Stream.of(result.toString());
-                })
-                .toList();
+            .flatMap((el) -> {
+                Object result = evaluate(el, context, Object.class);
+                if (result == null) {
+                    result = new ArrayList<>();
+                }
+                if (result instanceof List) {
+                    return ((List<Object>) result).stream().map(Object::toString);
+                }
+                return Stream.of(result.toString());
+            })
+            .toList();
     }
 }

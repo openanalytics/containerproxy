@@ -29,6 +29,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
 import java.io.IOException;
 
 public class AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
@@ -37,7 +38,7 @@ public class AuthenticationFailureHandler extends SimpleUrlAuthenticationFailure
 
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response, AuthenticationException exception)
-            throws IOException, ServletException {
+        throws IOException, ServletException {
 
         if (exception instanceof Saml2AuthenticationException) {
             if (exception.getMessage().contains("urn:oasis:names:tc:SAML:2.0:status:RequestDenied")) {

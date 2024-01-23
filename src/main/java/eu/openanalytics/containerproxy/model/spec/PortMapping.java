@@ -49,7 +49,7 @@ public class PortMapping {
 
     public PortMapping resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .targetPath(targetPath.resolve(resolver, context))
-                .build();
+            .targetPath(targetPath.resolve(resolver, context))
+            .build();
     }
 }

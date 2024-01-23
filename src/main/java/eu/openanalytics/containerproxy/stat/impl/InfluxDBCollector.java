@@ -46,9 +46,9 @@ public class InfluxDBCollector extends AbstractDbCollector {
     @Override
     protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
         String body = String.format("event,username=%s,type=%s data=\"%s\"",
-                userId.replace(" ", "\\ "),
-                type.replace(" ", "\\ "),
-                Optional.ofNullable(data).orElse(""));
+            userId.replace(" ", "\\ "),
+            type.replace(" ", "\\ "),
+            Optional.ofNullable(data).orElse(""));
 
         HttpURLConnection conn = (HttpURLConnection) new URL(destination).openConnection();
         conn.setRequestMethod("POST");

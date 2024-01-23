@@ -40,7 +40,7 @@ import lombok.Setter;
 public class AuthorizedPodPatches {
 
     String patches;
-    
+
     AccessControl accessControl;
 
     public AuthorizedPodPatches finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {

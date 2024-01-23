@@ -88,7 +88,7 @@ public class ParametersService {
             }
             if (!PARAMETER_ID_PATTERN.matcher(definition.getId()).matches()) {
                 throw new IllegalStateException(String.format("Configuration error: error in parameters of spec '%s', error: parameter id '%s' is invalid, id may only exists out of Latin letters, numbers, dash and underscore",
-                        spec.getId(), definition.getId()));
+                    spec.getId(), definition.getId()));
             }
             parameterIds.add(definition.getId());
             if (definition.getDisplayName() != null && StringUtils.isBlank(definition.getDisplayName())) {
@@ -255,8 +255,8 @@ public class ParametersService {
 
         // 1. check which ValueSets are allowed for this user
         List<Parameters.ValueSet> allowedValueSets = parameters.getValueSets().stream()
-                .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
-                .toList();
+            .filter(v -> accessControlEvaluationService.checkAccess(auth, proxySpec, v.getAccessControl()))
+            .toList();
 
         // 2. compute a unique (per parameter id) index for every value
         // mapping of parameter id to a mapping of an allowed value and its index

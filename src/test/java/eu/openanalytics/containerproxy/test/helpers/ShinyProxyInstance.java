@@ -39,16 +39,13 @@ import java.util.Properties;
 
 public class ShinyProxyInstance implements AutoCloseable {
 
-    private final int port;
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-
-    private ConfigurableApplicationContext app;
-    private final Thread thread;
-
     public final ShinyProxyClient client;
     public final ProxyService proxyService;
     public final IProxySpecProvider specProvider;
+    private final int port;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Thread thread;
+    private ConfigurableApplicationContext app;
 
     public ShinyProxyInstance(String configFileName, Map<String, String> properties) {
         this(configFileName, 7583, "demo", properties, false);

@@ -83,6 +83,7 @@ public class ProxyService {
     private final Set<String> actionsInProgress = new HashSet<>();
     @Inject
     protected IProxyTestStrategy testStrategy;
+    protected Integer maxTotalInstances;
     @Inject
     private IProxyStore proxyStore;
     @Inject
@@ -103,7 +104,6 @@ public class ProxyService {
     private SpecExpressionResolver expressionResolver;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
-    protected Integer maxTotalInstances;
 
     @PostConstruct
     public void init() {
@@ -129,7 +129,7 @@ public class ProxyService {
     /**
      * Find the ProxySpec that matches the given ID and check access control.
      *
-     * @param id    The ID to look for.
+     * @param id The ID to look for.
      * @return A matching ProxySpec, or null if no match was found.
      */
     public ProxySpec getUserSpec(String id) {
@@ -206,6 +206,7 @@ public class ProxyService {
 
     /**
      * Number of running proxies for the given specId.
+     *
      * @return number of running proxies for the given specId.
      */
     public long getNumberOfProxiesBySpecId(String specId) {

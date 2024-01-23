@@ -24,8 +24,8 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegate
 
 public interface IProxySharingStoreFactory {
 
-    public ISeatStore createSeatStore(String specId);
+    ISeatStore createSeatStore(String specId);
 
-    public IDelegateProxyStore createDelegateProxyStore(String specId);
+    IDelegateProxyStore createDelegateProxyStore(String specId);
 
 }

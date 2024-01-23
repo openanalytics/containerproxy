@@ -52,6 +52,10 @@ public class TestAppRecovery {
         );
     }
 
+    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
+        return Stream.of(Arguments.of("docker", new HashMap<String, String>()), Arguments.of("docker-swarm", new HashMap<String, String>()), Arguments.of("kubernetes", new HashMap<String, String>()));
+    }
+
     @ParameterizedTest
     @MethodSource("backends")
     public void simple_recover_single_app_after_shutdown(String backend, Map<String, String> properties) {
@@ -80,10 +84,6 @@ public class TestAppRecovery {
                 inst.client.stopProxy(id);
             }
         }
-    }
-
-    private static Stream<Arguments> new_app_should_work_after_recovery_src() {
-        return Stream.of(Arguments.of("docker", new HashMap<String, String>()), Arguments.of("docker-swarm", new HashMap<String, String>()), Arguments.of("kubernetes", new HashMap<String, String>()));
     }
 
     // note: this test only works with minikube running on the same local machine, because it uses the NodePort services

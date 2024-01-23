@@ -39,7 +39,7 @@ public class TestIntegrationOnEcs {
     @Test
     public void launchProxy() {
         try (ContainerSetup containerSetup = new ContainerSetup("ecs")) {
-                String id = inst.client.startProxy("01_hello");
+            String id = inst.client.startProxy("01_hello");
         }
     }
 

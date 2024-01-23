@@ -94,10 +94,6 @@ public class ProxyMappingManager {
     @Inject
     @Lazy
     private AsyncProxyService asyncProxyService;
-
-    @Inject
-    private ProxyCacheHeadersService proxyCacheHeadersService;
-
     private final DefaultResponseListener defaultResponseListener = responseExchange -> {
         // note: if ShinyProxy was restarted it can take up to one minute for the request to timeout/fail
         if (!responseExchange.isResponseChannelAvailable()) {
@@ -136,6 +132,8 @@ public class ProxyMappingManager {
         }
         return false;
     };
+    @Inject
+    private ProxyCacheHeadersService proxyCacheHeadersService;
 
     public synchronized HttpHandler createHttpHandler(HttpHandler defaultHandler) {
         if (pathHandler == null) {
@@ -268,6 +266,28 @@ public class ProxyMappingManager {
         isShuttingDown = true;
     }
 
+    private String getProxiedToFromResponseExchange(Proxy proxy, HttpServerExchange responseExchange) {
+        String relativePath = responseExchange.getRelativePath();
+        URI target = getTargetFromResponseExchange(proxy, relativePath);
+
+        return target + relativePath + responseExchange.getQueryString();
+    }
+
+    private URI getTargetFromResponseExchange(Proxy proxy, String relativePath) {
+        if (proxy.getTargets().size() > 1) {
+            int pos = relativePath.indexOf("/");
+            if (pos > 0) {
+                String targetName = relativePath.substring(0, pos);
+                URI target = proxy.getTargets().get(targetName);
+                if (target != null) {
+                    return target;
+                }
+            }
+        }
+
+        return proxy.getTargets().get("");
+    }
+
     private static class ProxyPathHandler extends PathHandler {
 
         public ProxyPathHandler(HttpHandler defaultHandler) {
@@ -299,28 +319,6 @@ public class ProxyMappingManager {
         public ProxyIdAttachment(String proxyId) {
             this.proxyId = proxyId;
         }
-    }
-
-    private String getProxiedToFromResponseExchange(Proxy proxy, HttpServerExchange responseExchange) {
-        String relativePath = responseExchange.getRelativePath();
-        URI target = getTargetFromResponseExchange(proxy, relativePath);
-
-        return target + relativePath + responseExchange.getQueryString();
-    }
-
-    private URI getTargetFromResponseExchange(Proxy proxy, String relativePath) {
-        if (proxy.getTargets().size() > 1) {
-            int pos = relativePath.indexOf("/");
-            if (pos > 0) {
-                String targetName = relativePath.substring(0, pos);
-                URI target = proxy.getTargets().get(targetName);
-                if (target != null) {
-                    return target;
-                }
-            }
-        }
-
-        return proxy.getTargets().get("");
     }
 
     private static class OriginalUrlAttachmentKey {

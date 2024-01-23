@@ -26,14 +26,14 @@ import java.util.Collection;
 
 public interface IDelegateProxyStore {
 
-    public Collection<DelegateProxy> getAllDelegateProxies();
+    Collection<DelegateProxy> getAllDelegateProxies();
 
-    public void addDelegateProxy(DelegateProxy delegateProxy);
+    void addDelegateProxy(DelegateProxy delegateProxy);
 
-    public void removeDelegateProxy(String delegateProxyId);
+    void removeDelegateProxy(String delegateProxyId);
 
-    public void updateDelegateProxy(DelegateProxy delegateProxy);
+    void updateDelegateProxy(DelegateProxy delegateProxy);
 
-    public DelegateProxy getDelegateProxy(String delegateProxyId);
+    DelegateProxy getDelegateProxy(String delegateProxyId);
 
 }

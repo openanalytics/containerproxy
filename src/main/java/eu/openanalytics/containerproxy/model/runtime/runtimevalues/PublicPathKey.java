@@ -26,14 +26,14 @@ public class PublicPathKey extends RuntimeValueKey<String> {
 
     public PublicPathKey() {
         super("openanalytics.eu/sp-public-path",
-                "SHINYPROXY_PUBLIC_PATH",
-                false,
-                true, // include as annotation so that the value can be recovered
-                true,
-                true,
-                true,
-                false,
-                String.class);
+            "SHINYPROXY_PUBLIC_PATH",
+            false,
+            true, // include as annotation so that the value can be recovered
+            true,
+            true,
+            true,
+            false,
+            String.class);
     }
 
     @Override

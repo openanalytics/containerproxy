@@ -27,14 +27,14 @@ public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
     private CreatedTimestampKey() {
         super("openanalytics.eu/sp-proxy-created-timestamp",
-                "SHINYPROXY_CREATED_TIMESTAMP",
+            "SHINYPROXY_CREATED_TIMESTAMP",
             false,
-                true,
+            true,
             false,
-                true,
-                true,
-                false,
-                String.class);
+            true,
+            true,
+            false,
+            String.class);
     }
 
     @Override

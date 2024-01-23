@@ -26,14 +26,14 @@ import java.io.IOException;
 
 public interface ILogStorage {
 
-    public void initialize() throws IOException;
+    void initialize() throws IOException;
 
-    public String getStorageLocation();
+    String getStorageLocation();
 
-    public LogStreams createOutputStreams(Proxy proxy) throws IOException;
+    LogStreams createOutputStreams(Proxy proxy) throws IOException;
 
-    public LogPaths getLogs(Proxy proxy) throws IOException;
+    LogPaths getLogs(Proxy proxy) throws IOException;
 
-    public void stopService();
+    void stopService();
 
 }

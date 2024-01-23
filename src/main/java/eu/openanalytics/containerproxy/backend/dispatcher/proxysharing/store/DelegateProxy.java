@@ -48,9 +48,9 @@ public class DelegateProxy {
 
     @JsonCreator
     public static DelegateProxy createDelegateProxy(@JsonProperty("proxy") Proxy proxy,
-                         @JsonProperty("seatIds") Set<String> seatIds,
-                         @JsonProperty("delegateProxyStatus") DelegateProxyStatus delegateProxyStatus,
-                         @JsonProperty("proxySpecHash") String proxySpecHash) {
+                                                    @JsonProperty("seatIds") Set<String> seatIds,
+                                                    @JsonProperty("delegateProxyStatus") DelegateProxyStatus delegateProxyStatus,
+                                                    @JsonProperty("proxySpecHash") String proxySpecHash) {
 
         return DelegateProxy.builder()
             .proxy(proxy)

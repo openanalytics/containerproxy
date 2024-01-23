@@ -98,7 +98,7 @@ public class ProxyController extends BaseController {
                 )
             }),
     })
-    @RequestMapping(value="/api/proxyspec", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/proxyspec", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MappingJacksonValue> listProxySpecs() {
         List<ProxySpec> specs = proxyService.getUserSpecs();
         return ApiResponse.success(apiSecurityService.protectSpecs(specs));
@@ -129,7 +129,7 @@ public class ProxyController extends BaseController {
                 )
             }),
     })
-    @RequestMapping(value="/api/proxyspec/{proxySpecId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/proxyspec/{proxySpecId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MappingJacksonValue> getProxySpec(@PathVariable String proxySpecId) {
         ProxySpec spec = proxyService.getUserSpec(proxySpecId);
         if (spec == null) {
@@ -165,7 +165,7 @@ public class ProxyController extends BaseController {
             }),
     })
     @JsonView(Views.UserApi.class)
-    @RequestMapping(value="/api/proxy", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/proxy", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<List<Proxy>>> listProxies() {
         return ApiResponse.success(proxyService.getUserProxies());
     }
@@ -201,7 +201,7 @@ public class ProxyController extends BaseController {
             }),
     })
     @JsonView(Views.UserApi.class)
-    @RequestMapping(value="/api/proxy/{proxyId}", method=RequestMethod.GET, produces=MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/proxy/{proxyId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Proxy>> getProxy(@PathVariable String proxyId) {
         Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
@@ -248,7 +248,7 @@ public class ProxyController extends BaseController {
             }),
     })
     @JsonView(Views.UserApi.class)
-    @RequestMapping(value="/api/proxy/{proxySpecId}", method=RequestMethod.POST, produces=MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/proxy/{proxySpecId}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Proxy>> startProxy(@PathVariable String proxySpecId, @RequestBody(required = false) ParametersBody parametersBody) throws InvalidParametersException {
         ProxySpec baseSpec = proxyService.getUserSpec(proxySpecId);
         if (baseSpec == null) {
@@ -263,9 +263,13 @@ public class ProxyController extends BaseController {
             return ApiResponse.created(proxy);
         } catch (InvalidParametersException ex) {
             return ApiResponse.fail(ex.getMessage());
-        } catch (Throwable t ) {
+        } catch (Throwable t) {
             return ApiResponse.error("Failed to start proxy");
         }
+    }
+
+    private String getPublicPath(String proxyId) {
+        return contextPathHelper.withEndingSlash() + "/api/route/" + proxyId;
     }
 
     public static class ParametersBody {
@@ -280,10 +284,6 @@ public class ProxyController extends BaseController {
             this.parameters = parameters;
         }
 
-    }
-
-    private String getPublicPath(String proxyId) {
-        return contextPathHelper.withEndingSlash() + "/api/route/" + proxyId;
     }
 
 }

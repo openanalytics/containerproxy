@@ -42,7 +42,7 @@ import java.util.List;
 public class AuthorizedAdditionalManifests {
 
     List<String> manifests;
-    
+
     AccessControl accessControl;
 
     public AuthorizedAdditionalManifests finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {

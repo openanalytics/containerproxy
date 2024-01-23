@@ -59,8 +59,8 @@ public class Container extends RuntimeValueStore {
                                            @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
         Container.ContainerBuilder builder = Container.builder()
-                .index(index)
-                .id(id);
+            .index(index)
+            .id(id);
 
         for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
             RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());

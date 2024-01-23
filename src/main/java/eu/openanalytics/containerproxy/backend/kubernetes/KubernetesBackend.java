@@ -140,8 +140,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private PodPatcher podPatcher;
     @Inject
     private AccessControlEvaluationService accessControlEvaluationService;
-    @Inject
-    private AccessControlEvaluationService accessControlEvaluationService;
     private KubernetesClient kubeClient;
     private KubernetesManifestsRemover kubernetesManifestsRemover;
     private Boolean logManifests;
@@ -511,7 +509,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
             applyAdditionalManifest(proxy, fullObject);
         }
-        for (AuthorizedAdditionalManifests authorizedAdditionalManifests: specExtension.kubernetesAuthorizedAdditionalManifests) {
+        for (AuthorizedAdditionalManifests authorizedAdditionalManifests : specExtension.kubernetesAuthorizedAdditionalManifests) {
             if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
                 for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, false)) {
                     applyAdditionalManifest(proxy, fullObject);
@@ -521,7 +519,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalPersistentManifests(), true)) {
             applyAdditionalManifest(proxy, fullObject);
         }
-        for (AuthorizedAdditionalManifests authorizedAdditionalManifests: specExtension.kubernetesAuthorizedAdditionalPersistentManifests) {
+        for (AuthorizedAdditionalManifests authorizedAdditionalManifests : specExtension.kubernetesAuthorizedAdditionalPersistentManifests) {
             if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
                 for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, true)) {
                     applyAdditionalManifest(proxy, fullObject);
@@ -605,11 +603,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         if (service.getStatus() == null) {
             return false;
         }
-        if (service.getStatus().getLoadBalancer() == null) {
-            return false;
-        }
-
-        return true;
+        return service.getStatus().getLoadBalancer() != null;
     }
 
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {

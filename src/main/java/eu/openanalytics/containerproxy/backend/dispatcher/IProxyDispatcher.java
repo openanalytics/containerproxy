@@ -30,19 +30,19 @@ import org.springframework.security.core.Authentication;
 
 public interface IProxyDispatcher {
 
-    public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
+    Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
 
-    public void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException;
+    void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException;
 
-    public default void stopProxy(Proxy proxy) throws ContainerProxyException {
+    default void stopProxy(Proxy proxy) throws ContainerProxyException {
         stopProxy(proxy, ProxyStopReason.Unknown);
     }
 
-    public void pauseProxy(Proxy proxy);
+    void pauseProxy(Proxy proxy);
 
-    public Proxy resumeProxy(Authentication user, Proxy proxy, ProxySpec proxySpec) throws ProxyFailedToStartException;
+    Proxy resumeProxy(Authentication user, Proxy proxy, ProxySpec proxySpec) throws ProxyFailedToStartException;
 
-    public boolean supportsPause();
+    boolean supportsPause();
 
-    public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy);
+    Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy);
 }

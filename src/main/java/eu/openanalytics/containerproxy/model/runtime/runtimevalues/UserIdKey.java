@@ -26,14 +26,14 @@ public class UserIdKey extends RuntimeValueKey<String> {
 
     private UserIdKey() {
         super("openanalytics.eu/sp-user-id",
-                "SHINYPROXY_USERNAME",
+            "SHINYPROXY_USERNAME",
             false,
-                true,
             true,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+            true,
+            false, // no need to expose in API
+            true,
+            false,
+            String.class);
     }
 
     @Override

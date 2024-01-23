@@ -87,6 +87,7 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class ProxySharingScaler {
 
+    private static String publicPathPrefix = "/api/route/";
     private final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
@@ -94,7 +95,6 @@ public class ProxySharingScaler {
     private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
-    private static String publicPathPrefix = "/api/route/";
     private final String proxySpecHash;
     private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
@@ -118,10 +118,6 @@ public class ProxySharingScaler {
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
 
-    public static void setPublicPathPrefix(String publicPathPrefix) {
-        ProxySharingScaler.publicPathPrefix = publicPathPrefix;
-    }
-
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
         this.seatStore = seatStore;
@@ -129,6 +125,10 @@ public class ProxySharingScaler {
         // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
         this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
+    }
+
+    public static void setPublicPathPrefix(String publicPathPrefix) {
+        ProxySharingScaler.publicPathPrefix = publicPathPrefix;
     }
 
     @Scheduled(fixedDelay = 20, timeUnit = TimeUnit.SECONDS)
@@ -196,6 +196,7 @@ public class ProxySharingScaler {
     /**
      * Processes the SeatReleasedEvent, should only process one event a a time (i.e. using the event loop),
      * since it modifies the Delegateproxy.
+     *
      * @param seatReleasedEvent the event to process
      */
     private void processReleasedSeat(SeatReleasedEvent seatReleasedEvent) {
@@ -470,7 +471,7 @@ public class ProxySharingScaler {
             log("No proxy found to remove during scale-down.");
             return;
         }
-        for (DelegateProxy delegateProxy: delegateProxiesToRemove) {
+        for (DelegateProxy delegateProxy : delegateProxiesToRemove) {
             log(delegateProxy, "Selected DelegateProxy for removal during scale-down");
         }
         // only now remove the proxies (this takes the most time)

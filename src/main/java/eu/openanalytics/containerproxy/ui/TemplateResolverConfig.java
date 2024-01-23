@@ -113,6 +113,11 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
         }
     }
 
+    @Override
+    public void configurePathMatch(PathMatchConfigurer configurer) {
+        configurer.setUseTrailingSlashMatch(true);
+    }
+
     /**
      * A resolver that loads the resource and returns the result as a @link ByteArrayResource.
      * Should be used in combination with @link ResourceChainRegistration where caching is enabled.
@@ -159,11 +164,6 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
             return lastModified;
         }
 
-    }
-
-    @Override
-    public void configurePathMatch(PathMatchConfigurer configurer) {
-        configurer.setUseTrailingSlashMatch(true);
     }
 
 }

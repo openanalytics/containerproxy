@@ -42,15 +42,15 @@ public class TestParameterValidationService {
 
     private void test(String resource, String expectedError) {
         this.contextRunner
-                .withInitializer(new TestPropertyLoader(resource))
-                .withUserConfiguration(ContainerProxyApplication.class)
-                .run(context -> {
-                    assertThat(context)
-                            .hasFailed();
-                    assertThat(Throwables.getRootCause(context.getStartupFailure()).getMessage())
-                            .contains(expectedError);
+            .withInitializer(new TestPropertyLoader(resource))
+            .withUserConfiguration(ContainerProxyApplication.class)
+            .run(context -> {
+                assertThat(context)
+                    .hasFailed();
+                assertThat(Throwables.getRootCause(context.getStartupFailure()).getMessage())
+                    .contains(expectedError);
 
-                });
+            });
     }
 
     @Test
@@ -60,7 +60,7 @@ public class TestParameterValidationService {
         test("classpath:application-parameters-validation-3.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: displayName may not be blank of parameter with id 'parameter1'");
         test("classpath:application-parameters-validation-4.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: description may not be blank of parameter with id 'parameter1'");
         test("classpath:application-parameters-validation-8.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: parameter id 'parameter1$#>>>.;;' is invalid, id may only exists out of Latin letters, numbers," +
-                " dash and underscore");
+            " dash and underscore");
     }
 
     @Test
@@ -73,7 +73,7 @@ public class TestParameterValidationService {
     @Test
     public void testDefaultValueErrors() {
         test("classpath:application-parameters-validation-9.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: not every parameter has a default value. Either define no defaults, or defaults for all " +
-                "parameters");
+            "parameters");
         test("classpath:application-parameters-validation-10.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: default value for parameter with id 'parameter2' is not defined in a value-set");
     }
 

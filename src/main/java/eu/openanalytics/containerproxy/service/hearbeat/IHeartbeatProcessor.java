@@ -30,6 +30,6 @@ import javax.annotation.Nullable;
  */
 public interface IHeartbeatProcessor {
 
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId);
+    void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId);
 
 }

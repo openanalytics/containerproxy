@@ -31,6 +31,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyTargetMappingStrategy {
 
-    public String createMapping(String mappingKey, Container container, Proxy proxy);
+    String createMapping(String mappingKey, Container container, Proxy proxy);
 
 }

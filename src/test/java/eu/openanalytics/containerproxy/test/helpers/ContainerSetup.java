@@ -39,9 +39,9 @@ public class ContainerSetup implements AutoCloseable {
 
     public final String namespace = "itest";
     public final String overriddenNamespace = "itest-overridden";
-    private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
     public final DefaultKubernetesClient client = new DefaultKubernetesClient();
     public final NamespacedKubernetesClient namespacedClient;
+    private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
     private final String backend;
 
     public ContainerSetup(String backend) {

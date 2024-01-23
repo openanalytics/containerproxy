@@ -25,8 +25,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.springframework.context.ApplicationEvent;
 
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.MINIMAL_CLASS,
-        property = "@class"
+    use = JsonTypeInfo.Id.MINIMAL_CLASS,
+    property = "@class"
 )
 public abstract class BridgeableEvent extends ApplicationEvent {
 

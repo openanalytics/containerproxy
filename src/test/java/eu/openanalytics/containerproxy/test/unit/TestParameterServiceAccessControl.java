@@ -48,7 +48,6 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -94,26 +93,26 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(10, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
@@ -135,8 +134,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
         Map<String, String> providedParameters3 = Map.of(
@@ -146,8 +145,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
@@ -164,28 +163,28 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "breeding_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "breeding_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G",
-                        "5G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G",
+                "5G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
@@ -207,8 +206,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
@@ -225,27 +224,27 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.1.13",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.1.13",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
@@ -267,8 +266,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
         Map<String, String> providedParameters3 = Map.of(
@@ -278,8 +277,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
@@ -295,27 +294,27 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G",
-                        "25G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G",
+                "25G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(2, 4, 4)));
@@ -338,8 +337,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
         Map<String, String> providedParameters3 = Map.of(
@@ -349,8 +348,8 @@ public class TestParameterServiceAccessControl {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
 }

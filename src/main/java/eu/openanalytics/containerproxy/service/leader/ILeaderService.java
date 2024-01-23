@@ -22,6 +22,6 @@ package eu.openanalytics.containerproxy.service.leader;
 
 public interface ILeaderService {
 
-    public boolean isLeader();
+    boolean isLeader();
 
 }

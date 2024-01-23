@@ -30,14 +30,14 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
 
     private PortMappingsKey() {
         super("openanalytics.eu/sp-port-mappings",
-                "SHINYPROXY_PORT_MAPPINGS",
+            "SHINYPROXY_PORT_MAPPINGS",
             false,
-                true,
+            true,
             false,
-                false, // important: may not be exposed in API for security
-                true,
-                true,
-                PortMappings.class);
+            false, // important: may not be exposed in API for security
+            true,
+            true,
+            PortMappings.class);
     }
 
     @Override

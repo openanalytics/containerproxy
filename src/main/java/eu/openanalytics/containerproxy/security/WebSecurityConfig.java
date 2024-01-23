@@ -275,7 +275,7 @@ public class WebSecurityConfig {
         }
 
         http.requestCache(requestCache -> {
-            requestCache.addObjectPostProcessor(      new ObjectPostProcessor<RequestCacheAwareFilter>() {
+            requestCache.addObjectPostProcessor(new ObjectPostProcessor<RequestCacheAwareFilter>() {
                 @Override
                 public <O extends RequestCacheAwareFilter> O postProcess(O object) {
                     // prevent RequestCacheAwareFilter from calling getParameter and eating the request body

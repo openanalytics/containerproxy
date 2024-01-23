@@ -53,8 +53,8 @@ public abstract class AbstractLogStorage implements ILogStorage {
         return proxyStreams.computeIfAbsent(proxy.getId(), (k) -> {
             String timestamp = new SimpleDateFormat("dd_MMM_yyyy_kk_mm_ss").format(new Date()); // TODO include time
             return new LogPaths(
-                    Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
-                    Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
+                Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
+                Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
             );
         });
     }

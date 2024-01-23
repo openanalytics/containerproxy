@@ -27,6 +27,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyReleaseStrategy {
 
-    public void releaseProxy(Proxy proxy);
+    void releaseProxy(Proxy proxy);
 
 }

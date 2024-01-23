@@ -69,13 +69,13 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     @Override
     public KubernetesSpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
-                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
-                .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
-                .kubernetesAuthorizedPodPatches(kubernetesAuthorizedPodPatches.stream().map(m -> m.finalResolve(resolver, context)).toList())
-                .kubernetesAuthorizedAdditionalManifests(kubernetesAuthorizedAdditionalManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
-                .kubernetesAuthorizedAdditionalPersistentManifests(kubernetesAuthorizedAdditionalPersistentManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
-                .build();
+            .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
+            .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
+            .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
+            .kubernetesAuthorizedPodPatches(kubernetesAuthorizedPodPatches.stream().map(m -> m.finalResolve(resolver, context)).toList())
+            .kubernetesAuthorizedAdditionalManifests(kubernetesAuthorizedAdditionalManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
+            .kubernetesAuthorizedAdditionalPersistentManifests(kubernetesAuthorizedAdditionalPersistentManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
+            .build();
     }
 
 }

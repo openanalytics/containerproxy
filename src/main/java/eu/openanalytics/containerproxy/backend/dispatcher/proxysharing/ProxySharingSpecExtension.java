@@ -43,10 +43,13 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
 
     Integer minimumSeatsAvailable;
 
+    @Builder.Default
     boolean allowContainerReUse = true;
 
+    @Builder.Default
     int scaleDownDelay = 2;
 
+    @Builder.Default
     int seatsPerContainer = 1;
 
     @Override

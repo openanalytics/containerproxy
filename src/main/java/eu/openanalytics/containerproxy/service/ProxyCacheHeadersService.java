@@ -57,6 +57,20 @@ public class ProxyCacheHeadersService {
     private static final List<MediaType> ASSET_MIME_TYPES = List.of(APPLICATION_JS, TEXT_JS, TEXT_CSS,
         APPLICATION_FONT_WOFF, APPLICATION_FONT_WOFF2, APPLICATION_FONT_SFNT, APPLICATION_FONT_TDPR);
 
+    private static List<Pair<HttpString, String>> createNoCacheHeaders() {
+        List<Pair<HttpString, String>> headers = new ArrayList<>(3);
+        headers.add(Pair.of(new HttpString(CACHE_CONTROL), "no-cache, no-store, max-age=0, must-revalidate"));
+        headers.add(Pair.of(new HttpString(PRAGMA), "no-cache"));
+        headers.add(Pair.of(new HttpString(EXPIRES), "0"));
+        return headers;
+    }
+
+    private static List<Pair<HttpString, String>> createCacheHeaders() {
+        List<Pair<HttpString, String>> headers = new ArrayList<>(1);
+        headers.add(Pair.of(new HttpString(CACHE_CONTROL), "max-age=86400"));
+        return headers;
+    }
+
     public void addAppCacheHeaders(Proxy proxy, HttpServerExchange exchange) {
         CacheHeadersMode mode = proxy.getRuntimeObject(CacheHeadersModeKey.inst);
         if (mode.equals(CacheHeadersMode.EnforceNoCache)) {
@@ -110,20 +124,6 @@ public class ProxyCacheHeadersService {
         for (Pair<HttpString, String> header : cacheHeaders) {
             exchange.getResponseHeaders().put(header.getFirst(), header.getSecond());
         }
-    }
-
-    private static List<Pair<HttpString, String>> createNoCacheHeaders() {
-        List<Pair<HttpString, String>> headers = new ArrayList<>(3);
-        headers.add(Pair.of(new HttpString(CACHE_CONTROL), "no-cache, no-store, max-age=0, must-revalidate"));
-        headers.add(Pair.of(new HttpString(PRAGMA), "no-cache"));
-        headers.add(Pair.of(new HttpString(EXPIRES), "0"));
-        return headers;
-    }
-
-    private static List<Pair<HttpString, String>> createCacheHeaders() {
-        List<Pair<HttpString, String>> headers = new ArrayList<>(1);
-        headers.add(Pair.of(new HttpString(CACHE_CONTROL), "max-age=86400"));
-        return headers;
     }
 
 }

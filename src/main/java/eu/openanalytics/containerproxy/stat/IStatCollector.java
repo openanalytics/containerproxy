@@ -33,27 +33,27 @@ import java.io.IOException;
 public interface IStatCollector {
 
     @EventListener
-    default public void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
+    default void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onUserLoginEvent(UserLoginEvent event) throws IOException {
+    default void onUserLoginEvent(UserLoginEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStartEvent(ProxyStartEvent event) throws IOException {
+    default void onProxyStartEvent(ProxyStartEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStopEvent(ProxyStopEvent event) throws IOException {
+    default void onProxyStopEvent(ProxyStopEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
+    default void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
     }
 
     @EventListener
-    default public void onAuthFailedEvent(AuthFailedEvent event) {
+    default void onAuthFailedEvent(AuthFailedEvent event) {
     }
 
 }

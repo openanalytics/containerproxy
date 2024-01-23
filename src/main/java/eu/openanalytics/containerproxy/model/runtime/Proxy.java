@@ -105,9 +105,9 @@ public class Proxy extends RuntimeValueStore {
 
     public Container getContainer(Integer containerIndex) {
         return containers.stream()
-                .filter(c -> Objects.equals(c.getIndex(), containerIndex))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No container found with this index"));
+            .filter(c -> Objects.equals(c.getIndex(), containerIndex))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No container found with this index"));
     }
 
     public List<Container> getContainers() {

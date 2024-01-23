@@ -43,10 +43,23 @@ import java.util.UUID;
 public class NoAuthenticationBackend implements IAuthenticationBackend {
 
     public static final String NAME = "none";
+    private static final String ANONYMOUS_USERID_SESSION_ATTRIBUTE = "ANONYMOUS_USER_ID";
     private final ApplicationEventPublisher applicationEventPublisher;
 
     public NoAuthenticationBackend(ApplicationEventPublisher applicationEventPublisher) {
         this.applicationEventPublisher = applicationEventPublisher;
+    }
+
+    public static String extractUserId(Session session) {
+        return session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
+    }
+
+    public static String extractUserId(io.undertow.server.session.Session session) {
+        return (String) session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
+    }
+
+    public static String extractUserId(HttpSession session) {
+        return (String) session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
     }
 
     @Override
@@ -71,8 +84,6 @@ public class NoAuthenticationBackend implements IAuthenticationBackend {
         // Configure a no-op authentication.
         auth.inMemoryAuthentication();
     }
-
-    private static final String ANONYMOUS_USERID_SESSION_ATTRIBUTE = "ANONYMOUS_USER_ID";
 
     /**
      * Extension of AnonymousAuthenticationFilter that generates a unique username for every user.
@@ -121,18 +132,6 @@ public class NoAuthenticationBackend implements IAuthenticationBackend {
             return token;
         }
 
-    }
-
-    public static String extractUserId(Session session) {
-        return session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
-    }
-
-    public static String extractUserId(io.undertow.server.session.Session session) {
-        return (String) session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
-    }
-
-    public static String extractUserId(HttpSession session) {
-        return (String) session.getAttribute(ANONYMOUS_USERID_SESSION_ATTRIBUTE);
     }
 
 }

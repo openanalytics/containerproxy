@@ -39,8 +39,8 @@ public class FileLogStorage extends AbstractLogStorage {
         // TODO buffer
         LogPaths paths = getLogs(proxy);
         return new LogStreams(
-                Files.newOutputStream(paths.getStdout()),
-                Files.newOutputStream(paths.getStderr())
+            Files.newOutputStream(paths.getStdout()),
+            Files.newOutputStream(paths.getStderr())
         );
     }
 

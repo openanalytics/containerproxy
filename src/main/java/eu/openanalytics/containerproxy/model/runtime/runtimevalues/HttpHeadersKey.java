@@ -29,13 +29,13 @@ public class HttpHeadersKey extends RuntimeValueKey<HttpHeaders> {
 
     public HttpHeadersKey() {
         super("openanalytics.eu/sp-http-headers",
-                "SHINYPROXY_HTTP_HEADERS",
-                false,
-                true,
-                false,
-                false, // IMPORTANT: may not be exposed through the API
-                false,
-                false,
+            "SHINYPROXY_HTTP_HEADERS",
+            false,
+            true,
+            false,
+            false, // IMPORTANT: may not be exposed through the API
+            false,
+            false,
             HttpHeaders.class);
     }
 

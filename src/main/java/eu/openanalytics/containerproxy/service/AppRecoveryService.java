@@ -108,10 +108,10 @@ public class AppRecoveryService {
                     proxy.displayName(containerInfo.getRuntimeValue(DisplayNameKey.inst).getObject());
 
                     proxy.addRuntimeValues(containerInfo.getRuntimeValues()
-                            .values()
-                            .stream()
-                            .filter(r -> !r.getKey().isContainerSpecific())
-                            .toList()
+                        .values()
+                        .stream()
+                        .filter(r -> !r.getKey().isContainerSpecific())
+                        .toList()
                     );
 
                     proxies.put(proxyId, proxy);
@@ -120,10 +120,10 @@ public class AppRecoveryService {
                 Container.ContainerBuilder containerBuilder = Container.builder();
                 containerBuilder.id(containerInfo.getContainerId());
                 containerBuilder.addRuntimeValues(containerInfo.getRuntimeValues()
-                        .values()
-                        .stream()
-                        .filter(r -> r.getKey().isContainerSpecific())
-                        .toList()
+                    .values()
+                    .stream()
+                    .filter(r -> r.getKey().isContainerSpecific())
+                    .toList()
                 );
                 containerBuilder.index(containerInfo.getRuntimeValue(ContainerIndexKey.inst).getObject());
 

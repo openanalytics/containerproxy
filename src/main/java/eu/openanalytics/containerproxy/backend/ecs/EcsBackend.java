@@ -71,9 +71,8 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_PREFIX = "proxy.ecs.";
     private static final String PROPERTY_CLUSTER = "name";
     private static final String PROPERTY_REGION = "region";
-
+    private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
     private EcsClient ecsClient;
-
     private List<String> subnets;
     private List<String> securityGroups;
     private int totalWaitMs;
@@ -85,8 +84,8 @@ public class EcsBackend extends AbstractContainerBackend {
         Region region = Region.of(getProperty(PROPERTY_REGION));
 
         ecsClient = EcsClient.builder()
-                .region(region)
-                .build();
+            .region(region)
+            .build();
 
         subnets = EnvironmentUtils.readList(environment, "proxy.ecs.subnets");
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
@@ -104,8 +103,8 @@ public class EcsBackend extends AbstractContainerBackend {
         try {
             List<Tag> tags = new ArrayList<>();
             Stream.concat(
-                    proxy.getRuntimeValues().values().stream(),
-                    initialContainer.getRuntimeValues().values().stream()
+                proxy.getRuntimeValues().values().stream(),
+                initialContainer.getRuntimeValues().values().stream()
             ).forEach(runtimeValue -> {
                 String value = runtimeValue.toString();
                 if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
@@ -159,8 +158,8 @@ public class EcsBackend extends AbstractContainerBackend {
             }, totalWaitMs);
 
             String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn),  false);
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image),  false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
             if (!serviceReady) {
                 throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
@@ -304,15 +303,13 @@ public class EcsBackend extends AbstractContainerBackend {
 
     private Optional<Task> getTask(String taskInfo) {
         List<Task> tasks = ecsClient.describeTasks(builder -> builder
-                .cluster(getProperty(PROPERTY_CLUSTER))
-                .tasks(taskInfo)
-                .build()
+            .cluster(getProperty(PROPERTY_CLUSTER))
+            .tasks(taskInfo)
+            .build()
         ).tasks();
 
         return Optional.ofNullable(tasks.get(0));
     }
-
-    private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
 
     private boolean validateEcsTagValue(Proxy proxy, String key, String value) {
         if (value.length() > 256) {

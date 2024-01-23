@@ -29,13 +29,13 @@ import java.util.Collection;
  */
 public interface IProxyStore {
 
-    public Collection<Proxy> getAllProxies();
+    Collection<Proxy> getAllProxies();
 
-    public void addProxy(Proxy proxy);
+    void addProxy(Proxy proxy);
 
-    public void removeProxy(Proxy proxy);
+    void removeProxy(Proxy proxy);
 
-    public void updateProxy(Proxy proxy);
+    void updateProxy(Proxy proxy);
 
-    public Proxy getProxy(String proxyId);
+    Proxy getProxy(String proxyId);
 }

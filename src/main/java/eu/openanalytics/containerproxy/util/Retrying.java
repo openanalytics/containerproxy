@@ -27,11 +27,6 @@ public class Retrying {
 
     private static final Logger log = LoggerFactory.getLogger(Retrying.class);
 
-    @FunctionalInterface
-    public interface Attempt {
-        boolean attempt(int currentAttempt, int maxAttempts);
-    }
-
     public static boolean retry(Attempt job, int maxDelay) {
         return retry(job, maxDelay, false);
     }
@@ -85,6 +80,11 @@ public class Retrying {
         }
         // it takes 11 attempts to have a delay of 3 000ms
         return (int) Math.ceil((maxDelay - 3_000) / 2_000.0) + 11;
+    }
+
+    @FunctionalInterface
+    public interface Attempt {
+        boolean attempt(int currentAttempt, int maxAttempts);
     }
 
 }

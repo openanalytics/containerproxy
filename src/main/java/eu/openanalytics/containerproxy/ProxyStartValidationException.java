@@ -22,7 +22,7 @@ package eu.openanalytics.containerproxy;
 
 public class ProxyStartValidationException extends RuntimeException {
 
-    public ProxyStartValidationException(String message){
+    public ProxyStartValidationException(String message) {
         super(message);
     }
 

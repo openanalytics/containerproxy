@@ -29,16 +29,16 @@ public interface ICleanupStoppedProxies {
 
     @Async
     @EventListener
-    public default void onProxyStopEvent(ProxyStopEvent event) {
+    default void onProxyStopEvent(ProxyStopEvent event) {
         cleanupProxy(event.getProxyId());
     }
 
     @Async
     @EventListener
-    public default void onProxyPauseEvent(ProxyPauseEvent event) {
+    default void onProxyPauseEvent(ProxyPauseEvent event) {
         cleanupProxy(event.getProxyId());
     }
 
-    public void cleanupProxy(String proxyId);
+    void cleanupProxy(String proxyId);
 
 }

@@ -67,6 +67,7 @@ public class UserService {
     private final Logger log = LogManager.getLogger(UserService.class);
     private final Set<String> adminGroups = new HashSet<>();
     private final Set<String> adminUsers = new HashSet<>();
+    private final Cache<String, Boolean> isAdminCache;
     @Inject
     private Environment environment;
     @Inject
@@ -80,8 +81,6 @@ public class UserService {
     @Inject
     @Lazy
     private ProxyAccessControlService accessControlService;
-
-    private final Cache<String, Boolean> isAdminCache;
 
     public UserService() {
         // cache isAdmin status results for (at least) 60 minutes, since this never changes during the lifetime of a session
@@ -217,8 +216,8 @@ public class UserService {
         log.info(String.format("Authentication failure [user: %s] [error: %s]", userId, e.getMessage()));
 
         applicationEventPublisher.publishEvent(new AuthFailedEvent(
-                this,
-                userId));
+            this,
+            userId));
     }
 
     public void logout(Authentication auth) {
@@ -232,9 +231,9 @@ public class UserService {
         session.setAttribute(ATTRIBUTE_USER_INITIATED_LOGOUT, "true"); // mark that the user initiated the logout
 
         applicationEventPublisher.publishEvent(new UserLogoutEvent(
-                this,
-                userId,
-                false));
+            this,
+            userId,
+            false));
     }
 
     @EventListener
@@ -246,8 +245,8 @@ public class UserService {
         log.info(String.format("User logged in [user: %s]", userId));
 
         applicationEventPublisher.publishEvent(new UserLoginEvent(
-                this,
-                userId));
+            this,
+            userId));
     }
 
     @EventListener
@@ -269,9 +268,9 @@ public class UserService {
 
                 log.info(String.format("User logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
-                        this,
-                        userId,
-                        true
+                    this,
+                    userId,
+                    true
                 ));
             } else if (authBackend.getName().equals("none")) {
                 String userId = NoAuthenticationBackend.extractUserId(event.getSession());
@@ -280,9 +279,9 @@ public class UserService {
 
                 log.info(String.format("Anonymous user logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
-                        this,
-                        userId,
-                        true
+                    this,
+                    userId,
+                    true
                 ));
             }
         }

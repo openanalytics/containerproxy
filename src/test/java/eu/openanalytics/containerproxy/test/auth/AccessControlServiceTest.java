@@ -208,9 +208,9 @@ public class AccessControlServiceTest {
 
     private ProxySpec createProxySpec(AccessControl proxyAccessControl) {
         return ProxySpec.builder()
-                .id("myId")
-                .accessControl(proxyAccessControl)
-                .build();
+            .id("myId")
+            .accessControl(proxyAccessControl)
+            .build();
     }
 
 }

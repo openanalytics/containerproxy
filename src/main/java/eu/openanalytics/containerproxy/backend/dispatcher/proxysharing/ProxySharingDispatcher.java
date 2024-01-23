@@ -70,6 +70,11 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     private static final String PROPERTY_SEAT_WAIT_TIME = "proxy.seat-wait-time";
 
+    static {
+        RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
+        RuntimeValueKeyRegistry.addRuntimeValueKey(DelegateProxyKey.inst);
+    }
+
     private final ProxySpec proxySpec;
     private final IDelegateProxyStore delegateProxyStore;
     private final ISeatStore seatStore;
@@ -77,27 +82,24 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private final StructuredLogger slogger = new StructuredLogger(logger);
     private Cache<String, CompletableFuture<Void>> pendingDelegatingProxies;
     private Long seatWaitIterations;
-
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
     @Inject
     private IProxyStore proxyStore;
     @Inject
     private Environment environment;
-
     @Lazy
     @Autowired(required = false)
     private ProxySharingMicrometer proxySharingMicrometer = null;
-
-    static {
-        RuntimeValueKeyRegistry.addRuntimeValueKey(SeatIdKey.inst);
-        RuntimeValueKeyRegistry.addRuntimeValueKey(DelegateProxyKey.inst);
-    }
 
     public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, ISeatStore seatStore) {
         this.proxySpec = proxySpec;
         this.delegateProxyStore = delegateProxyStore;
         this.seatStore = seatStore;
+    }
+
+    public static boolean supportSpec(ProxySpec proxySpec) {
+        return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable != null;
     }
 
     @PostConstruct
@@ -114,10 +116,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
             .build();
     }
 
-    public static boolean supportSpec(ProxySpec proxySpec) {
-        return proxySpec.getSpecExtension(ProxySharingSpecExtension.class).minimumSeatsAvailable != null;
-    }
-
     public Seat claimSeat(String claimingProxyId) {
         return seatStore.claimSeat(claimingProxyId).orElse(null);
     }
@@ -128,7 +126,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         LocalDateTime startTime = LocalDateTime.now();
         Seat seat = claimSeat(proxy.getId());
         if (seat == null) {
-            slogger.info(proxy,"Seat not immediately available");
+            slogger.info(proxy, "Seat not immediately available");
             CompletableFuture<Void> future = new CompletableFuture<>();
             pendingDelegatingProxies.put(proxy.getId(), future);
 
@@ -153,7 +151,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
                 }
                 seat = claimSeat(proxy.getId());
                 if (seat != null) {
-                    slogger.info(proxy,"Seat available attempt: " + i);
+                    slogger.info(proxy, "Seat available attempt: " + i);
                     break;
                 }
             }
@@ -246,11 +244,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private boolean proxyWasStopped(Proxy startingProxy) {
         // fetch proxy from proxyStore in order to check if it was stopped
         Proxy proxy = proxyStore.getProxy(startingProxy.getId());
-        if (proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
-            || proxy.getStatus().equals(ProxyStatus.Stopping)) {
-            return true;
-        }
-        return false;
+        return proxy == null || proxy.getStatus().equals(ProxyStatus.Stopped)
+            || proxy.getStatus().equals(ProxyStatus.Stopping);
     }
 
     private void cancelPendingDelegateProxy(String proxyId) {

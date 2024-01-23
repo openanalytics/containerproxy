@@ -57,8 +57,8 @@ public class TestIntegrationPortAllocator {
 
     private static Stream<Arguments> parameters() {
         return Stream.of(
-                Arguments.of(redisPortAllocator),
-                Arguments.of(new MemoryPortAllocator())
+            Arguments.of(redisPortAllocator),
+            Arguments.of(new MemoryPortAllocator())
         );
     }
 
@@ -93,7 +93,7 @@ public class TestIntegrationPortAllocator {
         Assertions.assertEquals(portAllocator.getOwnedPorts("thread2"), portsThread2);
 
         List<Integer> allAllocatedPorts = Stream.concat(portsThread1.stream(), portsThread2.stream())
-                .sorted()
+            .sorted()
             .toList();
 
         List<Integer> expectedPorts = IntStream.range(100, 300).boxed().toList();
@@ -194,8 +194,8 @@ public class TestIntegrationPortAllocator {
         Assertions.assertEquals(5, portAllocator.getOwnedPorts("owner1_2").size());
         Assertions.assertEquals(5, portAllocator.getOwnedPorts("owner2_2").size());
         List<Integer> allAllocatedPorts = Stream.concat(portAllocator.getOwnedPorts("owner1_2").stream(),
-                        portAllocator.getOwnedPorts("owner2_2").stream())
-                .sorted()
+                portAllocator.getOwnedPorts("owner2_2").stream())
+            .sorted()
             .toList();
 
         List<Integer> expectedPorts = IntStream.range(100, 110).boxed().toList();

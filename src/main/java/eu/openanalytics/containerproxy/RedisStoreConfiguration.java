@@ -175,9 +175,9 @@ public class RedisStoreConfiguration {
     @Bean
     public RedisEventBridge redisEventBridge(RedisTemplate<String, BridgeableEvent> eventRedisTemplate) {
         return new RedisEventBridge(
-                eventRedisTemplate,
-                topic(),
-                applicationEventPublisher);
+            eventRedisTemplate,
+            topic(),
+            applicationEventPublisher);
     }
 
     @Bean

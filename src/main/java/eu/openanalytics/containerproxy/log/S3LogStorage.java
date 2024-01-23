@@ -70,8 +70,8 @@ public class S3LogStorage extends AbstractLogStorage {
 
         if (accessKey != null && accessSecret != null) {
             AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-                    accessKey,
-                    accessSecret);
+                accessKey,
+                accessSecret);
             s3ClientBuilder.credentialsProvider(StaticCredentialsProvider.create(awsCreds));
         }
 
@@ -148,8 +148,8 @@ public class S3LogStorage extends AbstractLogStorage {
         if (log.isDebugEnabled()) log.debug(String.format("Writing log file to S3 [size: %d] [path: %s]", bytesToUpload.length, key));
 
         PutObjectRequest.Builder builder = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key);
+            .bucket(bucketName)
+            .key(key);
 
         if (enableSSE) {
             builder.serverSideEncryption(ServerSideEncryption.AES256);
@@ -165,10 +165,10 @@ public class S3LogStorage extends AbstractLogStorage {
     private byte[] getContent(String key) {
         try {
             ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
-                    GetObjectRequest.builder()
-                            .bucket(bucketName)
-                            .key(key)
-                            .build());
+                GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build());
 
             return object.asByteArray();
         } catch (NoSuchKeyException e) {

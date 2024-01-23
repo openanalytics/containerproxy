@@ -91,16 +91,16 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
         try {
             Mount[] mounts = spec.getVolumes()
-                    .mapOrNull(volumes -> volumes.stream()
-                            .map(b -> b.split(":"))
-                            .map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
-                            .toArray(Mount[]::new));
+                .mapOrNull(volumes -> volumes.stream()
+                    .map(b -> b.split(":"))
+                    .map(fromTo -> Mount.builder().source(fromTo[0]).target(fromTo[1]).type("bind").build())
+                    .toArray(Mount[]::new));
 
             Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
             Stream.concat(
-                    proxy.getRuntimeValues().values().stream(),
-                    initialContainer.getRuntimeValues().values().stream()
+                proxy.getRuntimeValues().values().stream(),
+                initialContainer.getRuntimeValues().values().stream()
             ).forEach(runtimeValue -> {
                 if (runtimeValue.getKey().getIncludeAsLabel() || runtimeValue.getKey().getIncludeAsAnnotation()) {
                     labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
@@ -113,21 +113,21 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             }
 
             com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
-                    com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
-                            .image(spec.getImage().getValue())
-                            .labels(labels)
-                            .command(spec.getCmd().getValueOrNull())
-                            .env(convertEnv(buildEnv(user, spec, proxy)))
-                            .dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
-                            .mounts(mounts)
-                            .secrets(secretBinds)
-                            .build();
+                com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
+                    .image(spec.getImage().getValue())
+                    .labels(labels)
+                    .command(spec.getCmd().getValueOrNull())
+                    .env(convertEnv(buildEnv(user, spec, proxy)))
+                    .dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
+                    .mounts(mounts)
+                    .secrets(secretBinds)
+                    .build();
 
             List<NetworkAttachmentConfig> networks = spec.getNetworkConnections()
-                    .getValueOrDefault(new ArrayList<>())
-                    .stream()
-                    .map(n -> NetworkAttachmentConfig.builder().target(n).build())
-                    .toList();
+                .getValueOrDefault(new ArrayList<>())
+                .stream()
+                .map(n -> NetworkAttachmentConfig.builder().target(n).build())
+                .toList();
 
             if (spec.getNetwork().isPresent()) {
                 networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
@@ -154,15 +154,15 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             String serviceName = "sp-service-" + UUID.randomUUID();
             ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
-                    .networks(networks)
-                    .name(serviceName)
-                    .taskTemplate(TaskSpec.builder()
-                            .containerSpec(containerSpec)
-                            .resources(ResourceRequirements.builder()
-                                    .reservations(reservationsBuilder.build())
-                                    .limits(limitsBuilder.build())
-                                    .build())
-                            .build());
+                .networks(networks)
+                .name(serviceName)
+                .taskTemplate(TaskSpec.builder()
+                    .containerSpec(containerSpec)
+                    .resources(ResourceRequirements.builder()
+                        .reservations(reservationsBuilder.build())
+                        .limits(limitsBuilder.build())
+                        .build())
+                    .build());
 
             List<PortConfig> portsToPublish = new ArrayList<>();
             Map<Integer, Integer> portBindings = new HashMap<>();
@@ -180,14 +180,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             String serviceId;
             if (spec.getDockerRegistryDomain() != null
-                    && spec.getDockerRegistryUsername() != null
-                    && spec.getDockerRegistryPassword() != null) {
+                && spec.getDockerRegistryUsername() != null
+                && spec.getDockerRegistryPassword() != null) {
 
                 RegistryAuth registryAuth = RegistryAuth.builder()
-                        .serverAddress(spec.getDockerRegistryDomain())
-                        .username(spec.getDockerRegistryUsername())
-                        .password(spec.getDockerRegistryPassword())
-                        .build();
+                    .serverAddress(spec.getDockerRegistryDomain())
+                    .username(spec.getDockerRegistryUsername())
+                    .password(spec.getDockerRegistryPassword())
+                    .build();
                 serviceId = dockerClient.createService(serviceSpecBuilder.build(), registryAuth).id();
             } else {
                 serviceId = dockerClient.createService(serviceSpecBuilder.build()).id();
@@ -201,8 +201,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             boolean containerFound = Retrying.retry((i, maxAttempts) -> {
                 try {
                     Task serviceTask = dockerClient
-                            .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
-                            .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
+                        .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
+                        .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
                     if (serviceTask.status().containerStatus() != null) {
                         rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
                         return true;
@@ -254,25 +254,25 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             throw new IllegalArgumentException("No name for a Docker swarm secret provided");
         }
         return SecretBind.builder()
-                .secretName(secret.getName())
-                .secretId(getSecretId(secret.getName()))
-                .file(
-                        SecretFile.builder()
-                                .name(Optional.ofNullable(secret.getTarget()).orElse(secret.getName()))
-                                .gid(Optional.ofNullable(secret.getGid()).orElse("0"))
-                                .uid(Optional.ofNullable(secret.getUid()).orElse("0"))
-                                .mode(Long.parseLong(Optional.ofNullable(secret.getMode()).orElse("444"), 8))
-                                .build()
-                )
-                .build();
+            .secretName(secret.getName())
+            .secretId(getSecretId(secret.getName()))
+            .file(
+                SecretFile.builder()
+                    .name(Optional.ofNullable(secret.getTarget()).orElse(secret.getName()))
+                    .gid(Optional.ofNullable(secret.getGid()).orElse("0"))
+                    .uid(Optional.ofNullable(secret.getUid()).orElse("0"))
+                    .mode(Long.parseLong(Optional.ofNullable(secret.getMode()).orElse("444"), 8))
+                    .build()
+            )
+            .build();
 
     }
 
     private String getSecretId(String secretName) throws DockerException, InterruptedException {
         return dockerClient.listSecrets().stream()
-                .filter(it -> it.secretSpec().name().equals(secretName))
-                .findFirst()
-                .map(Secret::id).orElseThrow(() -> new IllegalArgumentException("Secret not found!"));
+            .filter(it -> it.secretSpec().name().equals(secretName))
+            .findFirst()
+            .map(Secret::id).orElseThrow(() -> new IllegalArgumentException("Secret not found!"));
     }
 
     @Override
@@ -331,7 +331,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             }
 
             containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
-                    containerSpec.image(), portBindings));
+                containerSpec.image(), portBindings));
 
         }
 

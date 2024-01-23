@@ -60,8 +60,8 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
     @Override
     public AbstractAuthenticationToken convert(@Nonnull OpenSaml4AuthenticationProvider.ResponseToken responseToken) {
         Saml2Authentication authentication = OpenSaml4AuthenticationProvider
-                .createDefaultResponseAuthenticationConverter()
-                .convert(responseToken);
+            .createDefaultResponseAuthenticationConverter()
+            .convert(responseToken);
 
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("No authentication found to convert");
@@ -87,13 +87,13 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
                 logger.warn("[SAML] User: \"{}\" => roles attribute missing from SAML assertion", nameId);
             } else {
                 grantedAuthorities = rolesValue.get().stream()
-                        .map(r -> {
-                            if (!r.startsWith("ROLE_")) {
-                                r = "ROLE_" + r;
-                            }
-                            return new SimpleGrantedAuthority(r);
-                        })
-                        .toList();
+                    .map(r -> {
+                        if (!r.startsWith("ROLE_")) {
+                            r = "ROLE_" + r;
+                        }
+                        return new SimpleGrantedAuthority(r);
+                    })
+                    .toList();
             }
         }
 
@@ -102,17 +102,17 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
         }
 
         return new Saml2Authentication(
-                new Saml2AuthenticatedPrincipal(nameId, nameValue.get(), principal.getAttributes()),
-                authentication.getSaml2Response(),
-                grantedAuthorities);
+            new Saml2AuthenticatedPrincipal(nameId, nameValue.get(), principal.getAttributes()),
+            authentication.getSaml2Response(),
+            grantedAuthorities);
     }
 
     private void logAttributes(DefaultSaml2AuthenticatedPrincipal principal) {
         for (Map.Entry<String, List<Object>> attribute : principal.getAttributes().entrySet()) {
             logger.info(String.format("[SAML] User: \"%s\" => attribute => name=\"%s\" => value \"%s\"",
-                    principal.getName(),
-                    attribute.getKey(),
-                    attribute.getValue().stream().map(Object::toString).collect(Collectors.joining(", "))));
+                principal.getName(),
+                attribute.getKey(),
+                attribute.getValue().stream().map(Object::toString).collect(Collectors.joining(", "))));
         }
     }
 
@@ -126,20 +126,20 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
 
     private Optional<List<String>> getMultipleAttributeValues(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         return getAttributeIgnoringCase(principal, attributeName)
-                .map(objects -> objects
-                        .stream()
-                        .map(Object::toString)
-                        .toList()
-                );
+            .map(objects -> objects
+                .stream()
+                .map(Object::toString)
+                .toList()
+            );
     }
 
     private Optional<List<Object>> getAttributeIgnoringCase(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         return principal.getAttributes()
-                .entrySet()
-                .stream()
-                .filter(c -> c.getKey().equalsIgnoreCase(attributeName))
-                .findAny()
-                .map(Map.Entry::getValue);
+            .entrySet()
+            .stream()
+            .filter(c -> c.getKey().equalsIgnoreCase(attributeName))
+            .findAny()
+            .map(Map.Entry::getValue);
     }
 
     public static class Saml2AuthenticatedPrincipal extends DefaultSaml2AuthenticatedPrincipal {

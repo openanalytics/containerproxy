@@ -60,7 +60,7 @@ public final class Saml2MetadataFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull FilterChain chain)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
         RequestMatcher.MatchResult matcher = this.requestMatcher.matcher(request);
         if (!matcher.isMatch()) {
             chain.doFilter(request, response);
@@ -71,7 +71,7 @@ public final class Saml2MetadataFilter extends OncePerRequestFilter {
     }
 
     private void writeMetadataToResponse(HttpServletResponse response, String metadata)
-            throws IOException {
+        throws IOException {
         response.setContentType(MediaType.APPLICATION_XML_VALUE);
         String encodedFileName = URLEncoder.encode(DEFAULT_METADATA_FILE_NAME, StandardCharsets.UTF_8);
         String format = "attachment; filename=\"%s\"; filename*=UTF-8''%s";

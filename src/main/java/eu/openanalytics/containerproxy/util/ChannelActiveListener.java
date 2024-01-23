@@ -44,10 +44,7 @@ public class ChannelActiveListener implements Runnable {
             period = 5000;
         }
 
-        if (diff <= period) {
-            return true;
-        }
-        return false;
+        return diff <= period;
     }
 
 }

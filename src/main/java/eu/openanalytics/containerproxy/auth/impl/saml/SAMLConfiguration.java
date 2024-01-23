@@ -160,7 +160,7 @@ public class SAMLConfiguration {
     @Bean
     public Saml2AuthenticationTokenConverter saml2AuthenticationTokenConverter(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
         return new Saml2AuthenticationTokenConverter(
-                (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
+            (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
         );
     }
 
@@ -172,7 +172,7 @@ public class SAMLConfiguration {
     @Bean
     public Saml2LogoutRequestResolver saml2LogoutRequestResolver(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
         return new OpenSaml4LogoutRequestResolver(
-                (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
+            (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
         );
     }
 

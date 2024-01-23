@@ -105,12 +105,12 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
             authoritiesPopulator.setGroupSearchFilter(cfg.groupSearchFilter);
 
             configurer
-                    .userDnPatterns(userDnPatterns)
-                    .userSearchBase(cfg.userSearchBase)
-                    .userSearchFilter(cfg.userSearchFilter)
-                    .ldapAuthoritiesPopulator(authoritiesPopulator)
-                    .contextSource(contextSource)
-                    .configure(auth);
+                .userDnPatterns(userDnPatterns)
+                .userSearchBase(cfg.userSearchBase)
+                .userSearchFilter(cfg.userSearchFilter)
+                .ldapAuthoritiesPopulator(authoritiesPopulator)
+                .contextSource(contextSource)
+                .configure(auth);
         }
     }
 
@@ -180,14 +180,14 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 
             if (logger.isDebugEnabled()) {
                 logger.debug("Searching for roles for user '" + username + "', DN = " + "'"
-                        + userDn + "', with filter " + getGroupSearchFilter()
-                        + " in search base '" + getGroupSearchBase() + "'");
+                    + userDn + "', with filter " + getGroupSearchFilter()
+                    + " in search base '" + getGroupSearchBase() + "'");
             }
 
             // Here's the modification: added {2}, which refers to the user cn if available.
             Set<String> userRoles = getLdapTemplate().searchForSingleAttributeValues(
-                    getGroupSearchBase(), getGroupSearchFilter(),
-                    new String[]{userDn, username, getCn(userDn)}, getGroupRoleAttribute());
+                getGroupSearchBase(), getGroupSearchFilter(),
+                new String[]{userDn, username, getCn(userDn)}, getGroupRoleAttribute());
 
             if (logger.isDebugEnabled()) {
                 logger.debug("Roles from search: " + userRoles);

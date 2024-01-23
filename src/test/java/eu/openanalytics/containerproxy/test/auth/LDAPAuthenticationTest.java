@@ -32,8 +32,8 @@ import java.time.Duration;
 
 public class LDAPAuthenticationTest {
 
-	@Test
-	public void authenticateUser() throws Exception {
+    @Test
+    public void authenticateUser() throws Exception {
         try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-ldap-auth.yml")) {
             String username = "tesla";
             String password = "password";
@@ -56,5 +56,5 @@ public class LDAPAuthenticationTest {
                 Assertions.assertFalse(response.isRedirect());
             }
         }
-	}
+    }
 }

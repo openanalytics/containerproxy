@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.model.store;
 
 public interface IHeartbeatStore {
 
-    public void update(String proxyId, Long currentTimeMillis);
+    void update(String proxyId, Long currentTimeMillis);
 
-    public Long get(String proxyId);
+    Long get(String proxyId);
 
 }

@@ -57,7 +57,7 @@ public class KubernetesManifestsRemover {
                 try {
                     kubeClient.genericKubernetesResources(resourceDefinition).inNamespace(namespace).list();
                     logger.info("Kubernetes additional manifests is supported for resource [Group:{} Version:{} Kind:{}] in namespace: {}",
-                            resourceDefinition.getGroup(), resourceDefinition.getVersion(), resourceDefinition.getKind(), namespace);
+                        resourceDefinition.getGroup(), resourceDefinition.getVersion(), resourceDefinition.getKind(), namespace);
                     supportedNamespaces.add(namespace);
                 } catch (KubernetesClientException ex) {
                     // no access or invalid resource -> ignore
@@ -69,23 +69,23 @@ public class KubernetesManifestsRemover {
 
     private Set<ResourceDefinitionContext> getSupportedResources() {
         return Stream.concat(
-                kubeClient.getApiGroups().getGroups().stream().flatMap(g -> g.getVersions().stream()
-                        .flatMap(r -> getApiResources(r.getGroupVersion())
-                                .map(apiResource -> ResourceDefinitionContext.fromApiResource(r.getGroupVersion(), apiResource))
-                        )
-                ),
-                getApiResources("v1").map(apiResource -> ResourceDefinitionContext.fromApiResource("v1", apiResource))
+            kubeClient.getApiGroups().getGroups().stream().flatMap(g -> g.getVersions().stream()
+                .flatMap(r -> getApiResources(r.getGroupVersion())
+                    .map(apiResource -> ResourceDefinitionContext.fromApiResource(r.getGroupVersion(), apiResource))
+                )
+            ),
+            getApiResources("v1").map(apiResource -> ResourceDefinitionContext.fromApiResource("v1", apiResource))
         ).collect(Collectors.toSet());
     }
 
     private Stream<APIResource> getApiResources(String groupVersion) {
         try {
             return kubeClient.getApiResources(groupVersion)
-                    .getResources()
-                    .stream()
-                    .filter(apiResource -> !apiResource.getName().contains("/")
-                            && apiResource.getVerbs().contains("get")
-                            && apiResource.getVerbs().contains("list"));
+                .getResources()
+                .stream()
+                .filter(apiResource -> !apiResource.getName().contains("/")
+                    && apiResource.getVerbs().contains("get")
+                    && apiResource.getVerbs().contains("list"));
         } catch (KubernetesClientException ex) {
             // no access or invalid resource -> ignore
             return Stream.empty();
@@ -98,12 +98,12 @@ public class KubernetesManifestsRemover {
             ResourceDefinitionContext resourceDefinition = entry.getKey();
             for (String namespace : entry.getValue()) {
                 kubeClient.genericKubernetesResources(resourceDefinition)
-                        .inNamespace(namespace)
-                        .withLabel("openanalytics.eu/sp-additional-manifest", "true")
-                        .withLabel("openanalytics.eu/sp-persistent-manifest", "false")
-                        .withLabel("openanalytics.eu/sp-manifest-id", manifestId)
-                        .resources()
-                        .forEach(Deletable::delete);
+                    .inNamespace(namespace)
+                    .withLabel("openanalytics.eu/sp-additional-manifest", "true")
+                    .withLabel("openanalytics.eu/sp-persistent-manifest", "false")
+                    .withLabel("openanalytics.eu/sp-manifest-id", manifestId)
+                    .resources()
+                    .forEach(Deletable::delete);
 
             }
         }

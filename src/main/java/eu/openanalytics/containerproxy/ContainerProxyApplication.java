@@ -201,7 +201,7 @@ public class ContainerProxyApplication {
     public void init() {
         if (environment.getProperty("server.use-forward-headers") != null) {
             log.warn("WARNING: Using server.use-forward-headers will not work in this ShinyProxy release, you need to change your configuration to use another property. See https://shinyproxy.io/documentation/security/#forward-headers on" +
-                    " how to change your configuration.");
+                " how to change your configuration.");
         }
 
         sameSiteCookiePolicy = environment.getProperty(PROP_PROXY_SAME_SITE_COOKIE, SAME_SITE_COOKIE_DEFAULT_VALUE);
@@ -225,7 +225,7 @@ public class ContainerProxyApplication {
                 log.warn("WARNING: Invalid configuration detected: store-mode is set to Redis (i.e. High-Availability mode), but proxies are stopped at shutdown of server!");
             }
             if (environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
-                    environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
+                environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
                 log.warn("WARNING: Invalid configuration detected: cannot use store-mode with Redis (i.e. High-Availability mode) and app recovery at the same time. Disable app recovery!");
             }
         }
@@ -237,7 +237,7 @@ public class ContainerProxyApplication {
                 log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis, but store-more is not set to Redis. Change store-mode so that app sessions are stored in Redis!");
             }
             if (environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
-                    environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
+                environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
                 // using Redis sessions together with app recovery -> this does not make sense
                 // if already using Redis for sessions there is no reason to not store app sessions
                 log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
@@ -247,8 +247,8 @@ public class ContainerProxyApplication {
         boolean hideSpecDetails = environment.getProperty(PROP_API_SECURITY_HIDE_SPEC_DETAILS, Boolean.class, true);
         if (!hideSpecDetails) {
             log.warn("WARNING: Insecure configuration detected: The API is configured to return the full spec of proxies, " +
-                    "this may contain sensitive values such as the container image, secret environment variables etc. " +
-                    "Remove the proxy.api-security.hide-spec-details property to enable API security.");
+                "this may contain sensitive values such as the container image, secret environment variables etc. " +
+                "Remove the proxy.api-security.hide-spec-details property to enable API security.");
         }
 
     }
@@ -338,21 +338,21 @@ public class ContainerProxyApplication {
     @Bean
     public GroupedOpenApi groupOpenApi() {
         return GroupedOpenApi.builder()
-                .group("v1")
-                .addOpenApiCustomiser(openApi -> {
-                    Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
-                    openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
-                            .forEach(p -> {
-                                p.getValue().setHead(null);
-                                p.getValue().setPost(null);
-                                p.getValue().setDelete(null);
-                                p.getValue().setParameters(null);
-                                p.getValue().setOptions(null);
-                                p.getValue().setPut(null);
-                                p.getValue().setPatch(null);
-                            });
-                })
-                .build();
+            .group("v1")
+            .addOpenApiCustomiser(openApi -> {
+                Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
+                openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
+                    .forEach(p -> {
+                        p.getValue().setHead(null);
+                        p.getValue().setPost(null);
+                        p.getValue().setDelete(null);
+                        p.getValue().setParameters(null);
+                        p.getValue().setOptions(null);
+                        p.getValue().setPut(null);
+                        p.getValue().setPatch(null);
+                    });
+            })
+            .build();
     }
 
 }

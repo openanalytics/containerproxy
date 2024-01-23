@@ -83,70 +83,70 @@ public class TestParametersService {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 8, 4)));
 
         Assertions.assertEquals(
-                new HashSet<>(Arrays.asList("parameter1", "parameter2", "parameter3", "parameter4")),
-                allowedParametersForUser.getValues().keySet());
+            new HashSet<>(Arrays.asList("parameter1", "parameter2", "parameter3", "parameter4")),
+            allowedParametersForUser.getValues().keySet());
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "The letter A",
-                        "B",
-                        "C",
-                        "D",
-                        "E",
-                        "F",
-                        "G",
-                        "H",
-                        "I",
-                        "J"
-                ),
-                allowedParametersForUser.getValues().get("parameter1"));
+            Arrays.asList(
+                "The letter A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+            ),
+            allowedParametersForUser.getValues().get("parameter1"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "The number 1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
-                        "8",
-                        "9",
-                        "10",
-                        "11",
-                        "12",
-                        "13",
-                        "14",
-                        "15",
-                        "16",
-                        "17",
-                        "18",
-                        "19",
-                        "The number 20"
-                ),
-                allowedParametersForUser.getValues().get("parameter2"));
+            Arrays.asList(
+                "The number 1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "11",
+                "12",
+                "13",
+                "14",
+                "15",
+                "16",
+                "17",
+                "18",
+                "19",
+                "The number 20"
+            ),
+            allowedParametersForUser.getValues().get("parameter2"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "Foo",
-                        "Bar",
-                        "foobar",
-                        "barfoo",
-                        "bazz",
-                        "fozz",
-                        "foobarfoo",
-                        "barfoobar"
-                ),
-                allowedParametersForUser.getValues().get("parameter3"));
+            Arrays.asList(
+                "Foo",
+                "Bar",
+                "foobar",
+                "barfoo",
+                "bazz",
+                "fozz",
+                "foobarfoo",
+                "barfoobar"
+            ),
+            allowedParametersForUser.getValues().get("parameter3"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "YES",
-                        "NO",
-                        "maybe",
-                        "well"
-                ),
-                allowedParametersForUser.getValues().get("parameter4"));
+            Arrays.asList(
+                "YES",
+                "NO",
+                "maybe",
+                "well"
+            ),
+            allowedParametersForUser.getValues().get("parameter4"));
 
         Assertions.assertEquals(Arrays.asList(0, 0, 0, 0), allowedParametersForUser.getDefaultValue());
     }
@@ -200,8 +200,8 @@ public class TestParametersService {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Provided parameter values are not allowed");
     }
 
     @Test
@@ -283,8 +283,8 @@ public class TestParametersService {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Invalid number of parameters provided");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Invalid number of parameters provided");
 
         // too few parameters
         Map<String, String> providedParameters2 = Map.of(
@@ -294,8 +294,8 @@ public class TestParametersService {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Invalid number of parameters provided");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Invalid number of parameters provided");
     }
 
     @Test
@@ -310,8 +310,8 @@ public class TestParametersService {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Missing value for parameter parameter4");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Missing value for parameter parameter4");
 
         Map<String, String> providedParameters2 = Map.of(
             "parameterABC", "The letter A",
@@ -321,8 +321,8 @@ public class TestParametersService {
         );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Missing value for parameter parameter1");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Missing value for parameter parameter1");
     }
 
 }

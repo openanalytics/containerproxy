@@ -37,11 +37,11 @@ public class CustomSessionManagerFactory implements SessionManagerFactory {
     public SessionManager createSessionManager(Deployment deployment) {
         if (inMemorySessionManager == null) {
             inMemorySessionManager = new InMemorySessionManager(
-                    deployment.getDeploymentInfo().getSessionIdGenerator(),
-                    deployment.getDeploymentInfo().getDeploymentName(),
-                    -1,
-                    false,
-                    deployment.getDeploymentInfo().getMetricsCollector() != null);
+                deployment.getDeploymentInfo().getSessionIdGenerator(),
+                deployment.getDeploymentInfo().getDeploymentName(),
+                -1,
+                false,
+                deployment.getDeploymentInfo().getMetricsCollector() != null);
         }
         return inMemorySessionManager;
     }

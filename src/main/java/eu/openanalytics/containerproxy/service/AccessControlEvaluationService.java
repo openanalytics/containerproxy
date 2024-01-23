@@ -62,11 +62,7 @@ public class AccessControlEvaluationService {
             return true;
         }
 
-        if (allowedByExpression(auth, spec, accessControl)) {
-            return true;
-        }
-
-        return false;
+        return allowedByExpression(auth, spec, accessControl);
     }
 
     public boolean hasAccessControl(AccessControl accessControl) {
@@ -75,8 +71,8 @@ public class AccessControlEvaluationService {
         }
 
         return !accessControl.hasGroupAccess()
-                && !accessControl.hasUserAccess()
-                && !accessControl.hasExpressionAccess();
+            && !accessControl.hasUserAccess()
+            && !accessControl.hasExpressionAccess();
     }
 
     public boolean allowedByGroups(Authentication auth, AccessControl accessControl) {

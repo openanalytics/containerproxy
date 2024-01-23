@@ -33,7 +33,7 @@ public interface IAuthenticationBackend {
     /**
      * Get the name for this authentication backend, as used in the application.yml file.
      */
-    public String getName();
+    String getName();
 
     /**
      * Return true if this authentication backend supports authorization.
@@ -42,32 +42,32 @@ public interface IAuthenticationBackend {
      *
      * If there is no authorization, all users have the same (administrator) permissions.
      */
-    public boolean hasAuthorization();
+    boolean hasAuthorization();
 
     /**
      * Perform customization on the http level, such as filters and login forms.
      */
-    public void configureHttpSecurity(HttpSecurity http) throws Exception;
+    void configureHttpSecurity(HttpSecurity http) throws Exception;
 
     /**
      * Perform customization on the authentication manager level, such as authentication
      * handling and authority population.
      */
-    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception;
+    void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception;
 
-    public default String getLogoutSuccessURL() {
+    default String getLogoutSuccessURL() {
         return "/login";
     }
 
-    public default String getLogoutURL() {
+    default String getLogoutURL() {
         return "/logout";
     }
 
-    public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
+    default void customizeContainerEnv(Authentication user, Map<String, String> env) {
         // Default: do nothing.
     }
 
-    public default LogoutSuccessHandler getLogoutSuccessHandler() {
+    default LogoutSuccessHandler getLogoutSuccessHandler() {
         SimpleUrlLogoutSuccessHandler urlLogoutHandler = new SimpleUrlLogoutSuccessHandler();
         urlLogoutHandler.setDefaultTargetUrl(getLogoutSuccessURL());
         return urlLogoutHandler;

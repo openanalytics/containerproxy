@@ -40,13 +40,12 @@ import java.io.IOException;
  */
 public class FixedRequestCacheAwareFilter extends RequestCacheAwareFilter {
 
-    private final RequestCacheAwareFilter delegate;
-
     private static final RequestMatcher REQUEST_MATCHER = new OrRequestMatcher(
         new AntPathRequestMatcher("/app_proxy/**"),
         new AntPathRequestMatcher("/app_direct/**"),
         new AntPathRequestMatcher("/api/route/**")
     );
+    private final RequestCacheAwareFilter delegate;
 
     public FixedRequestCacheAwareFilter(RequestCacheAwareFilter delegate) {
         this.delegate = delegate;

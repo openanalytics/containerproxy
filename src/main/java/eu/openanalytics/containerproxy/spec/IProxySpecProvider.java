@@ -29,8 +29,8 @@ import java.util.List;
  */
 public interface IProxySpecProvider {
 
-    public List<ProxySpec> getSpecs();
+    List<ProxySpec> getSpecs();
 
-    public ProxySpec getSpec(String id);
+    ProxySpec getSpec(String id);
 
 }

@@ -22,21 +22,28 @@ package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.Seat;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 import eu.openanalytics.containerproxy.event.BridgeableEvent;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
+import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
+import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import eu.openanalytics.containerproxy.service.leader.redis.RedisCheckLatestConfigService;
 import eu.openanalytics.containerproxy.service.leader.redis.RedisLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.redis.RedisPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -48,13 +55,15 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.integration.leader.event.DefaultLeaderEventPublisher;
 import org.springframework.integration.redis.util.RedisLockRegistry;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
-import org.springframework.integration.support.locks.ExpirableLockRegistry;
+import org.springframework.integration.support.locks.LockRegistry;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 
 import javax.inject.Inject;
 
 @Configuration
 @ConditionalOnProperty(name = "proxy.store-mode", havingValue = "Redis")
+@Import(RedisAutoConfiguration.class)
 public class RedisStoreConfiguration {
 
     @Inject
@@ -65,6 +74,7 @@ public class RedisStoreConfiguration {
 
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
+    private RedisLockRegistry redisLockRegistry;
 
     // Store beans
 
@@ -84,16 +94,33 @@ public class RedisStoreConfiguration {
     }
 
     @Bean
-    public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate,
+    public RedisCheckLatestConfigService checkLatestLeaderService(IdentifierService identifierService,
+                                                                  LockRegistryLeaderInitiator lockRegistryLeaderInitiator,
+                                                                  RedisTemplate<String, Long> redisTemplate,
+                                                                  GlobalEventLoopService globalEventLoop,
+                                                                  ILeaderService leaderService) {
+        return new RedisCheckLatestConfigService(identifierService, lockRegistryLeaderInitiator, redisTemplate, globalEventLoop, leaderService);
+    }
+
+    @Bean
+    public RedisPortAllocator portAllocator(RedisTemplate<String, RedisPortAllocator.PortList> portRedisTemplate,
                                             IdentifierService identifierService) {
-        return new RedisPortAllocator( porRedisTemplate, identifierService);
+        return new RedisPortAllocator(portRedisTemplate, identifierService);
     }
 
     // Beans used internally by Redis store
 
     @Bean
-    public ExpirableLockRegistry expirableLockRegistry() {
-        return new RedisLockRegistry(connectionFactory, "shinyproxy_" + identifierService.realmId + "__locks");
+    public LockRegistry lockRegistry() {
+        redisLockRegistry = new RedisLockRegistry(connectionFactory, "shinyproxy_" + identifierService.realmId + "__locks");
+        return redisLockRegistry;
+    }
+
+    @Scheduled(fixedDelay = 5000)
+    private void cleanObsolete() {
+        if (redisLockRegistry != null) {
+            redisLockRegistry.expireUnusedOlderThan(5000);
+        }
     }
 
     @Bean
@@ -130,7 +157,7 @@ public class RedisStoreConfiguration {
 
     @Bean
     public LockRegistryLeaderInitiator leaderInitiator(ApplicationEventPublisher applicationEventPublisher) {
-        LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(expirableLockRegistry(), leaderService());
+        LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRegistry(), leaderService());
         initiator.setLeaderEventPublisher(new DefaultLeaderEventPublisher(applicationEventPublisher));
         return initiator;
     }
@@ -162,7 +189,7 @@ public class RedisStoreConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, RedisPortAllocator.PortList> porRedisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, RedisPortAllocator.PortList> portRedisTemplate(RedisConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, RedisPortAllocator.PortList.class);
     }
 
@@ -173,7 +200,22 @@ public class RedisStoreConfiguration {
         return template;
     }
 
-    private <K,V> RedisTemplate<K,V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {
+    @Bean
+    public RedisTemplate<String, String> unClaimSeatIdsTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, String.class);
+    }
+
+    @Bean
+    public RedisTemplate<String, Seat> seatsTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, Seat.class);
+    }
+
+    @Bean
+    public RedisTemplate<String, DelegateProxy> delegateProxyTemplate(RedisConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, DelegateProxy.class);
+    }
+
+    private <K, V> RedisTemplate<K, V> createRedisTemplate(RedisConnectionFactory connectionFactory, Class<V> clazz) {
         RedisTemplate<K, V> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 

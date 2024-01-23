@@ -34,14 +34,13 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class KubernetesSpecExtension extends AbstractSpecExtension {
 
@@ -70,12 +69,12 @@ public class KubernetesSpecExtension extends AbstractSpecExtension {
     @Override
     public KubernetesSpecExtension finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
-                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
+                .kubernetesAdditionalManifests(kubernetesAdditionalManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
+                .kubernetesAdditionalPersistentManifests(kubernetesAdditionalPersistentManifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
                 .kubernetesPodPatches(resolver.evaluateToString(kubernetesPodPatches, context))
-                .kubernetesAuthorizedPodPatches(kubernetesAuthorizedPodPatches.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
-                .kubernetesAuthorizedAdditionalManifests(kubernetesAuthorizedAdditionalManifests.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
-                .kubernetesAuthorizedAdditionalPersistentManifests(kubernetesAuthorizedAdditionalPersistentManifests.stream().map(m -> m.finalResolve(resolver, context)).collect(Collectors.toList()))
+                .kubernetesAuthorizedPodPatches(kubernetesAuthorizedPodPatches.stream().map(m -> m.finalResolve(resolver, context)).toList())
+                .kubernetesAuthorizedAdditionalManifests(kubernetesAuthorizedAdditionalManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
+                .kubernetesAuthorizedAdditionalPersistentManifests(kubernetesAuthorizedAdditionalPersistentManifests.stream().map(m -> m.finalResolve(resolver, context)).toList())
                 .build();
     }
 

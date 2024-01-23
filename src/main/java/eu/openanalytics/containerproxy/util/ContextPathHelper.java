@@ -27,31 +27,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class ContextPathHelper {
 
-	private static String contextPathWithoutSlash = null;
-	private static String contextPathWithSlash = null;
+    private static String contextPathWithoutSlash = null;
+    private static String contextPathWithSlash = null;
 
-	@Autowired
-	public void setEnvironment(Environment environment){
-		contextPathWithSlash = getContextPath(environment, true);
-		contextPathWithoutSlash = getContextPath(environment, false);
-	}
+    public String withEndingSlash() {
+        return contextPathWithSlash;
+    }
 
-	public static String withEndingSlash() {
-		return contextPathWithSlash;
-	}
+    public String withoutEndingSlash() {
+        return contextPathWithoutSlash;
+    }
 
-	public static String withoutEndingSlash() {
-		return contextPathWithoutSlash;
-	}
+    private static String getContextPath(Environment environment, boolean endWithSlash) {
+        String contextPath = environment.getProperty("server.servlet.context-path");
+        if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
 
-	private static String getContextPath(Environment environment, boolean endWithSlash) {
-		String contextPath = environment.getProperty("server.servlet.context-path");
-		if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
+        if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
+        if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
 
-		if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
-		if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
+        return contextPath;
+    }
 
-		return contextPath;
-	}
+    @Autowired
+    public void setEnvironment(Environment environment) {
+        contextPathWithSlash = getContextPath(environment, true);
+        contextPathWithoutSlash = getContextPath(environment, false);
+    }
 
 }

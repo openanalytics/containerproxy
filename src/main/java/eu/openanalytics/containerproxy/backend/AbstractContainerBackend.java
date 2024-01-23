@@ -60,195 +60,182 @@ import java.util.regex.Pattern;
 
 public abstract class AbstractContainerBackend implements IContainerBackend {
 
-	protected static final String PROPERTY_INTERNAL_NETWORKING = "internal-networking";
-	protected static final String PROPERTY_URL = "url";
-	protected static final String PROPERTY_CERT_PATH = "cert-path";
-	protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
-	protected static final String PROPERTY_PRIVILEGED = "privileged";
-	protected static final String DEFAULT_TARGET_PROTOCOL = "http";
-	protected final Logger log = LoggerFactory.getLogger(getClass());
-	protected final StructuredLogger slog = new StructuredLogger(log);
+    protected static final String PROPERTY_INTERNAL_NETWORKING = "internal-networking";
+    protected static final String PROPERTY_URL = "url";
+    protected static final String PROPERTY_CERT_PATH = "cert-path";
+    protected static final String PROPERTY_CONTAINER_PROTOCOL = "container-protocol";
+    protected static final String PROPERTY_PRIVILEGED = "privileged";
+    protected static final String DEFAULT_TARGET_PROTOCOL = "http";
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final StructuredLogger slog = new StructuredLogger(log);
+    @Inject
+    protected IProxyTargetMappingStrategy mappingStrategy;
+    @Inject
+    protected Environment environment;
+    @Inject
+    @Lazy
+    // Note: lazy needed to work around early initialization conflict
+    protected IAuthenticationBackend authBackend;
+    @Inject
+    @Lazy
+    // Note: lazy to prevent cyclic dependencies
+    protected AppRecoveryService appRecoveryService;
+    @Inject
+    protected IdentifierService identifierService;
+    private boolean useInternalNetwork;
+    private boolean privileged;
 
-	private boolean useInternalNetwork;
-	private boolean privileged;
+    /**
+     * Computes the correct targetPath to use, to make the configuration of the targetPath easier.
+     * - Removes any double slashes (can happen when using SpeL surrounded with static paths)
+     * - Ensures the path does not end with a slash. The rest of the code assumes the targetPath does not end with a slash.
+     * - Ensures the path starts with a slash (as it will be concatenated after the targetPort)
+     * - Ensures the path is empty when not path is defined (or when a single / is defined)
+     */
+    public static String computeTargetPath(String targetPath) {
+        if (targetPath == null || targetPath.equals("")) {
+            return "";
+        }
 
-	@Inject
-	protected IProxyTargetMappingStrategy mappingStrategy;
+        targetPath = targetPath.replaceAll("/+", "/"); // replace consecutive slashes
 
-	@Inject
-	protected Environment environment;
+        if (!targetPath.startsWith("/")) {
+            targetPath = "/" + targetPath;
+        }
 
-	@Inject
-	@Lazy
-	// Note: lazy needed to work around early initialization conflict
-	protected IAuthenticationBackend authBackend;
+        if (targetPath.endsWith("/")) {
+            // remove every ending /
+            targetPath = targetPath.substring(0, targetPath.length() - 1);
+        }
 
-	@Inject
-	@Lazy
-	// Note: lazy to prevent cyclic dependencies
-	protected AppRecoveryService appRecoveryService;
+        return targetPath;
+    }
 
-	@Inject
-	protected IdentifierService identifierService;
+    public void initialize() {
+        // If this application runs as a container itself, things like port publishing can be omitted.
+        useInternalNetwork = getProperty(PROPERTY_INTERNAL_NETWORKING, false);
+        privileged = getProperty(PROPERTY_PRIVILEGED, false);
+    }
 
-	@Override
-	public void initialize() throws ContainerProxyException {
-		// If this application runs as a container itself, things like port publishing can be omitted.
-		useInternalNetwork = Boolean.valueOf(getProperty(PROPERTY_INTERNAL_NETWORKING, "false"));
-		privileged = Boolean.valueOf(getProperty(PROPERTY_PRIVILEGED, "false"));
-	}
+    @Override
+    public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
+        for (ContainerSpec spec : proxySpec.getContainerSpecs()) {
+            try {
+                Container container = proxy.getContainer(spec.getIndex());
+                proxy = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
+                if (container.getIndex() == 0) {
+                    proxyStartupLogBuilder.startingApplication();
+                }
+            } catch (ContainerFailedToStartException t) {
+                proxy = proxy.toBuilder().updateContainer(t.getContainer()).build();
+                throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
+            }
+        }
+        return proxy;
+    }
 
-	@Override
-	public Proxy startProxy(Authentication user, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException {
-		List<Container> resultContainers = new ArrayList<>();
+    public abstract Proxy startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
 
-		for (ContainerSpec spec: proxySpec.getContainerSpecs()) {
-			try {
-				Container container = proxy.getContainer(spec.getIndex());
-				container = startContainer(user, container, spec, proxy, proxySpec, proxyStartupLogBuilder);
-				resultContainers.add(container);
-				if (container.getIndex() == 0) {
-					proxyStartupLogBuilder.startingApplication();
-				}
-			} catch (ContainerFailedToStartException t) {
-				resultContainers.add(t.getContainer());
-				proxy = proxy.toBuilder().containers(resultContainers).build();
-				throw new ProxyFailedToStartException(String.format("Container with index %s failed to start", spec.getIndex()), t, proxy);
-			}
-		}
+    @Override
+    public void stopProxy(Proxy proxy) throws ContainerProxyException {
+        try {
+            doStopProxy(proxy);
+        } catch (Exception e) {
+            throw new ContainerProxyException("Failed to stop container", e);
+        }
+    }
 
-		return proxy.toBuilder().containers(resultContainers).build();
-	}
+    protected abstract void doStopProxy(Proxy proxy) throws Exception;
 
-	protected abstract Container startContainer(Authentication user, Container Container, ContainerSpec spec, Proxy proxy, ProxySpec proxySpec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ContainerFailedToStartException;
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+        // Default: do not support output attaching.
+        return null;
+    }
 
-	@Override
-	public void stopProxy(Proxy proxy) throws ContainerProxyException {
-		try {
-			doStopProxy(proxy);
-		} catch (Exception e) {
-			throw new ContainerProxyException("Failed to stop container", e);
-		}
-	}
+    protected String getProperty(String key) {
+        return environment.getProperty(getPropertyPrefix() + key);
+    }
 
-	protected abstract void doStopProxy(Proxy proxy) throws Exception;
+    protected Boolean getProperty(String key, Boolean defaultValue) {
+        return environment.getProperty(getPropertyPrefix() + key, Boolean.class, defaultValue);
+    }
 
-	@Override
-	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
-		// Default: do not support output attaching.
-		return null;
-	}
+    protected String getProperty(String key, String defaultValue) {
+        return environment.getProperty(getPropertyPrefix() + key, defaultValue);
+    }
 
-	protected String getProperty(String key) {
-		return getProperty(key, null);
-	}
+    protected abstract String getPropertyPrefix();
 
-	protected String getProperty(String key, String defaultValue) {
-		return environment.getProperty(getPropertyPrefix() + key, defaultValue);
-	}
+    protected Long memoryToBytes(String memory) {
+        if (memory == null || memory.isEmpty()) return null;
+        Matcher matcher = Pattern.compile("(\\d+)([bkmg]?)").matcher(memory.toLowerCase());
+        if (!matcher.matches()) throw new IllegalArgumentException("Invalid memory argument: " + memory);
+        long mem = Long.parseLong(matcher.group(1));
+        String unit = matcher.group(2);
+        switch (unit) {
+            case "k" -> mem *= 1024;
+            case "m" -> mem *= 1024 * 1024;
+            case "g" -> mem *= 1024 * 1024 * 1024;
+            default -> {
+            }
+        }
+        return mem;
+    }
 
-	protected abstract String getPropertyPrefix();
-
-	protected Long memoryToBytes(String memory) {
-		if (memory == null || memory.isEmpty()) return null;
-		Matcher matcher = Pattern.compile("(\\d+)([bkmg]?)").matcher(memory.toLowerCase());
-		if (!matcher.matches()) throw new IllegalArgumentException("Invalid memory argument: " + memory);
-		long mem = Long.parseLong(matcher.group(1));
-		String unit = matcher.group(2);
-		switch (unit) {
-		case "k":
-			mem *= 1024;
-			break;
-		case "m":
-			mem *= 1024*1024;
-			break;
-		case "g":
-			mem *= 1024*1024*1024;
-			break;
-		default:
-		}
-		return mem;
-	}
-
-	protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {
+    protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {
         Map<String, String> env = new HashMap<>();
 
         for (RuntimeValue runtimeValue : proxy.getRuntimeValues().values()) {
-			if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
-				env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.toString());
-			}
+            if (runtimeValue.getKey().getIncludeAsEnvironmentVariable()) {
+                env.put(runtimeValue.getKey().getKeyAsEnvVar(), runtimeValue.toString());
+            }
 
-			Path envFile = containerSpec.getEnvFile().mapOrNull(Paths::get);
-			if (envFile != null && Files.isRegularFile(envFile)) {
-				Properties envProps = new Properties();
-				envProps.load(Files.newInputStream(envFile));
-				for (Object key : envProps.keySet()) {
-					env.put(key.toString(), envProps.get(key).toString());
-				}
-			}
+            Path envFile = containerSpec.getEnvFile().mapOrNull(Paths::get);
+            if (envFile != null && Files.isRegularFile(envFile)) {
+                Properties envProps = new Properties();
+                envProps.load(Files.newInputStream(envFile));
+                for (Object key : envProps.keySet()) {
+                    env.put(key.toString(), envProps.get(key).toString());
+                }
+            }
+        }
 
-			if (containerSpec.getEnv().isPresent()) {
-				env.putAll(containerSpec.getEnv().getValue());
-			}
-		}
+        if (containerSpec.getEnv().isPresent()) {
+            env.putAll(containerSpec.getEnv().getValue());
+        }
 
-		// Allow the authentication backend to add values to the environment, if needed.
-		if (authBackend != null) authBackend.customizeContainerEnv(user, env);
+        // Allow the authentication backend to add values to the environment, if needed.
+        if (user != null && authBackend != null) authBackend.customizeContainerEnv(user, env);
 
-		return env;
-	}
+        return env;
+    }
 
-	protected boolean isUseInternalNetwork() {
-		return useInternalNetwork;
-	}
+    protected boolean isUseInternalNetwork() {
+        return useInternalNetwork;
+    }
 
-	protected boolean isPrivileged() {
-		return privileged;
-	}
+    protected boolean isPrivileged() {
+        return privileged;
+    }
 
-	/**
-	 * Computes the correct targetPath to use, to make the configuration of the targetPath easier.
-	 *  - Removes any double slashes (can happen when using SpeL surrounded with static paths)
-	 *  - Ensures the path does not end with a slash. The rest of the code assumes the targetPath does not end with a slash.
-	 *  - Ensures the path starts with a slash (as it will be concatenated after the targetPort)
-	 *  - Ensures the path is empty when not path is defined (or when a single / is defined)
-	 */
-	public static String computeTargetPath(String targetPath) {
-		if (targetPath == null || targetPath.equals("")) {
-			return "";
-		}
+    abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
 
-		targetPath = targetPath.replaceAll("/+", "/"); // replace consecutive slashes
+    public Map<String, URI> setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
+        Map<String, URI> targets = new HashMap<>();
+        for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
 
-		if (!targetPath.startsWith("/")) {
-			targetPath = "/" + targetPath;
-		}
+            Integer boundPort = null; // in case of internal networking
+            if (!isUseInternalNetwork()) {
+                // in case of non-internal networking
+                boundPort = portBindings.get(portMapping.getPort());
+            }
 
-		if (targetPath.endsWith("/")) {
-			// remove every ending /
-			targetPath = targetPath.substring(0, targetPath.length() - 1);
-		}
-
-		return targetPath;
-	}
-
-	abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;
-
-	public Container setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception {
-		Container.ContainerBuilder containerBuilder = container.toBuilder();
-		for (PortMappings.PortMappingEntry portMapping : container.getRuntimeObject(PortMappingsKey.inst).getPortMappings()) {
-
-			Integer boundPort = null; // in case of internal networking
-			if (!isUseInternalNetwork()) {
-				// in case of non-internal networking
-				boundPort = portBindings.get(portMapping.getPort());
-			}
-
-			String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
-			URI target = calculateTarget(container, portMapping, boundPort);
-			containerBuilder.addTarget(mapping, target);
-		}
-		return containerBuilder.build();
-	}
+            String mapping = mappingStrategy.createMapping(portMapping.getName(), container, proxy);
+            URI target = calculateTarget(container, portMapping, boundPort);
+            targets.put(mapping, target);
+        }
+        return targets;
+    }
 
 }

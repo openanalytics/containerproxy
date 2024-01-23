@@ -43,7 +43,7 @@ public class EnvironmentUtils {
             value = environment.getProperty(String.format(propertyName + "[%d]", i));
         }
 
-        if (result.size() == 0) {
+        if (result.isEmpty()) {
             return null;
         }
 

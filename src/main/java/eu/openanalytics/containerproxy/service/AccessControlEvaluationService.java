@@ -98,7 +98,7 @@ public class AccessControlEvaluationService {
             return false;
         }
         for (String user : accessControl.getUsers()) {
-            if (UserService.getUserId(auth).equals(user)) {
+            if (auth.getName().equals(user)) {
                 return true;
             }
         }

@@ -33,12 +33,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractLogStorage implements ILogStorage {
 
-    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
-
     @Inject
     protected Environment environment;
-
     protected String containerLogPath;
+    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
 
     @Override
     public void initialize() throws IOException {

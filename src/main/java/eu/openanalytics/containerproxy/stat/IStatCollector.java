@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
-import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
@@ -44,11 +49,11 @@ public interface IStatCollector {
     }
 
     @EventListener
-    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) throws IOException {
+    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
     }
 
     @EventListener
-    default public void onAuthFailedEvent(AuthFailedEvent event) throws IOException {
+    default public void onAuthFailedEvent(AuthFailedEvent event) {
     }
 
 }

@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
-import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import org.springframework.context.event.EventListener;
 
@@ -55,12 +60,12 @@ public abstract class AbstractDbCollector implements IStatCollector {
     }
 
     @EventListener
-    public void onProxyStartFailedEvent(ProxyStartFailedEvent event) throws IOException {
+    public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
         // TODO
     }
 
     @EventListener
-    public void onAuthFailedEvent(AuthFailedEvent event) throws IOException {
+    public void onAuthFailedEvent(AuthFailedEvent event) {
         // TODO
     }
 

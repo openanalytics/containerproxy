@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.AuthenticationFailureHandler;
 import eu.openanalytics.containerproxy.auth.impl.saml.Saml2MetadataFilter;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Lazy;
@@ -32,14 +33,13 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
-import org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter;
+import org.springframework.security.saml2.provider.service.web.authentication.Saml2WebSsoAuthenticationFilter;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -49,7 +49,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_SAML_LOGOUT_METHOD;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_SUCCESS_LOGOUT_URL;
@@ -57,7 +56,6 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.R
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.SAML_SERVICE_LOCATION_PATH;
-import static eu.openanalytics.containerproxy.ui.AuthController.AUTH_SUCCESS_URL;
 
 @Component
 @ConditionalOnProperty(name = "proxy.authentication", havingValue = "saml")
@@ -70,7 +68,7 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
 
     @Inject
     @SuppressWarnings("deprecation")
-    private OpenSamlAuthenticationProvider samlAuthenticationProvider;
+    private OpenSaml4AuthenticationProvider samlAuthenticationProvider;
 
     @Autowired
     private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
@@ -81,6 +79,19 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     @Inject
     @Lazy
     private SavedRequestAwareAuthenticationSuccessHandler successHandler;
+
+    @Inject
+    private ContextPathHelper contextPathHelper;
+
+    public static String determineLogoutSuccessURL(Environment environment) {
+        String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
+        if (logoutURL == null || logoutURL
+            .trim()
+            .isEmpty()) {
+            logoutURL = "/";
+        }
+        return logoutURL;
+    }
 
     @Override
     public String getName() {
@@ -93,53 +104,40 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     }
 
     @Override
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
+    public void configureHttpSecurity(HttpSecurity http) throws Exception {
         Saml2MetadataFilter metadataFilter = new Saml2MetadataFilter(relyingPartyRegistrationRepository.findByRegistrationId(REG_ID), new OpenSamlMetadataResolver());
 
         AuthenticationFailureHandler failureHandler = new AuthenticationFailureHandler();
 
         http
-                .saml2Login(saml -> saml
-                        .loginPage("/login")
-                        .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
-                        .loginProcessingUrl(SAML_SERVICE_LOCATION_PATH)
-                        .authenticationManager(new ProviderManager(samlAuthenticationProvider))
-                        .failureHandler(failureHandler)
-                        .successHandler(successHandler))
-                .saml2Logout(saml -> saml
-                        .logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
-                        .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))
-                        .logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver))
-                        .addObjectPostProcessor(
-                                new ObjectPostProcessor<LogoutFilter>() {
-                                    @Override
-                                    public <O extends LogoutFilter> O postProcess(O object) {
-                                        // override method from POST to GET
-                                        RequestMatcher logout = new AntPathRequestMatcher(SAML_LOGOUT_SERVICE_LOCATION_PATH, "GET");
-                                        RequestMatcher samlRequestMatcher = new Saml2RequestMatcher();
-                                        object.setLogoutRequestMatcher(new AndRequestMatcher(logout, samlRequestMatcher));
-                                        return object;
-                                    }
-                                }
-                        ))
-                .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class);
-    }
-
-    private static class Saml2RequestMatcher implements RequestMatcher {
-
-        @Override
-        public boolean matches(HttpServletRequest request) {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null) {
-                return false;
-            }
-            return authentication.getPrincipal() instanceof Saml2AuthenticatedPrincipal;
-        }
-
+            .saml2Login(saml -> saml
+                .loginPage("/login")
+                .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
+                .loginProcessingUrl(SAML_SERVICE_LOCATION_PATH)
+                .authenticationManager(new ProviderManager(samlAuthenticationProvider))
+                .failureHandler(failureHandler)
+                .successHandler(successHandler))
+            .saml2Logout(saml -> saml
+                .logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
+                .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))
+                .logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver))
+                .addObjectPostProcessor(
+                    new ObjectPostProcessor<LogoutFilter>() {
+                        @Override
+                        public <O extends LogoutFilter> O postProcess(O object) {
+                            // override method from POST to GET
+                            RequestMatcher logout = new AntPathRequestMatcher(SAML_LOGOUT_SERVICE_LOCATION_PATH, "GET");
+                            RequestMatcher samlRequestMatcher = new Saml2RequestMatcher();
+                            object.setLogoutRequestMatcher(new AndRequestMatcher(logout, samlRequestMatcher));
+                            return object;
+                        }
+                    }
+                ))
+            .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class);
     }
 
     @Override
-    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) {
     }
 
     @Override
@@ -156,23 +154,30 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
         return determineLogoutSuccessURL(environment);
     }
 
-    public static String determineLogoutSuccessURL(Environment environment) {
-        String logoutURL = environment.getProperty(PROP_SUCCESS_LOGOUT_URL);
-        if (logoutURL == null || logoutURL.trim().isEmpty()) {
-            logoutURL = "/";
-        }
-        return logoutURL;
-    }
-
     public String getLoginRedirectURI() {
-        return ContextPathHelper.withoutEndingSlash()
-                + "/saml2/authenticate/"
-                + REG_ID;
+        return contextPathHelper.withoutEndingSlash()
+            + "/saml2/authenticate/"
+            + REG_ID;
     }
 
     private enum LogoutMethod {
         LOCAL,
         SAML
+    }
+
+    private static class Saml2RequestMatcher implements RequestMatcher {
+
+        @Override
+        public boolean matches(HttpServletRequest request) {
+            Authentication authentication = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+            if (authentication == null) {
+                return false;
+            }
+            return authentication.getPrincipal() instanceof Saml2AuthenticatedPrincipal;
+        }
+
     }
 
 }

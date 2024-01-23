@@ -20,25 +20,24 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import eu.openanalytics.containerproxy.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.service.UserService;
+import javax.inject.Inject;
 
 @Component
 public class UserLogoutHandler implements LogoutHandler {
 
-	@Inject
-	private UserService userService;
+    @Inject
+    private UserService userService;
 
-	@Override
-	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-		userService.logout(authentication);
-	}
-	
+    @Override
+    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+        userService.logout(authentication);
+    }
+
 }

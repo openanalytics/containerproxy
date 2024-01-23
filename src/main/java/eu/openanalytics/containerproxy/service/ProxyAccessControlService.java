@@ -20,19 +20,19 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Scheduler;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-import org.springframework.context.event.EventListener;
-import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.session.HttpSessionDestroyedEvent;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ProxyAccessControlService {
@@ -52,12 +52,17 @@ public class ProxyAccessControlService {
      *  - this ensures that the key is unique
      *  - the roles/properties of a user change when they re-login
      */
-    private final Map<Pair<String, String>, Boolean> authorizationCache = new ConcurrentHashMap<>();
+    private final Cache<SessionIdAndSpecId, Boolean> authorizationCache;
 
     public ProxyAccessControlService(ProxyService proxyService, IProxySpecProvider specProvider, AccessControlEvaluationService accessControlEvaluationService) {
         this.proxyService = proxyService;
         this.specProvider = specProvider;
         this.accessControlEvaluationService = accessControlEvaluationService;
+        // cache authorization results for (at least) 60 minutes, since this never changes during the lifetime of a session
+        authorizationCache = Caffeine.newBuilder()
+            .scheduler(Scheduler.systemScheduler())
+            .expireAfterAccess(60, TimeUnit.MINUTES)
+            .build();
     }
 
     public boolean canAccess(Authentication auth, String specId) {
@@ -65,18 +70,21 @@ public class ProxyAccessControlService {
     }
 
     /**
-     *
-     * @param auth the current user
+     * @param auth   the current user
      * @param specId the specId the user is trying to access
      * @return whether the user can access the given specId or when this spec does not exist whether the user already
      * has a proxy with this spec id
      */
-    public boolean canAccessOrHasExistingProxy(Authentication auth, String specId) {
+    public boolean canAccessOrHasExistingProxy(Authentication auth, RequestAuthorizationContext context) {
+        if (!context.getVariables().containsKey("specId")) {
+            return false;
+        }
+        String specId = context.getVariables().get("specId");
         ProxySpec spec = specProvider.getSpec(specId);
         if (spec != null) {
             return canAccess(auth, spec);
         }
-        return !proxyService.getProxiesOfCurrentUser(p -> p.getSpecId().equals(specId)).isEmpty();
+        return proxyService.getUserProxiesBySpecId(specId).findAny().isPresent();
     }
 
     public boolean canAccess(Authentication auth, ProxySpec spec) {
@@ -84,13 +92,14 @@ public class ProxyAccessControlService {
             return false;
         }
         Optional<String> sessionId = getSessionId();
-        if (!sessionId.isPresent()) {
+        if (sessionId.isEmpty()) {
             return checkAccess(auth, spec);
         }
+
         // we got a sessionId -> use the cache
-        return authorizationCache.computeIfAbsent(
-                Pair.of(sessionId.get(), spec.getId()),
-                (k) -> checkAccess(auth, spec));
+        return authorizationCache.get(
+            new SessionIdAndSpecId(sessionId.get(), spec.getId()),
+            (k) -> checkAccess(auth, spec));
     }
 
     /**
@@ -106,10 +115,7 @@ public class ProxyAccessControlService {
         return accessControlEvaluationService.checkAccess(auth, spec, spec.getAccessControl());
     }
 
-    @EventListener
-    public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
-        // remove all entries in cache for this sessionId
-        authorizationCache.keySet().removeIf(it -> it.getFirst().equals(event.getId()));
+    private record SessionIdAndSpecId(String userId, String specId) {
     }
 
 }

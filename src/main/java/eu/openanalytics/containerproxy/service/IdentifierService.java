@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Charsets;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.util.Sha1;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,12 +50,12 @@ import java.util.UUID;
 @Service
 public class IdentifierService {
 
+    private final Logger logger = LogManager.getLogger(getClass());
     /**
      * String that identifies this "run" or "server" of ShinyProxy.
      * This is unique every time ShinyProxy starts and independent of the InstanceId.
      */
     public String runtimeId = null;
-
     /**
      * String that identifies this "instance" of ShinyProxy Configuration.
      * This value is determined by the configuration (i.e. application.yml) of ShinyProxy.
@@ -62,13 +63,12 @@ public class IdentifierService {
      * This value only changes when the configuration changes.
      */
     public String instanceId = null;
-
     /**
      * String identifying the realm ShinyProxy operates in.
      */
     public String realmId = null;
 
-    private final Logger logger = LogManager.getLogger(getClass());
+    public Long version = null;
 
     @Inject
     private Environment environment;
@@ -90,6 +90,11 @@ public class IdentifierService {
         realmId = environment.getProperty("proxy.realm-id");
         if (realmId != null) {
             logger.info("ShinyProxy realmId:                     " + realmId);
+        }
+
+        version = environment.getProperty("proxy.version", Long.class);
+        if (version != null) {
+            logger.info("ShinyProxy version:                     " + version);
         }
     }
 
@@ -119,8 +124,6 @@ public class IdentifierService {
          * the order does not matter for the resulting hash.
          */
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-        objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-        objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
 
         File file = getPathToConfigFile();
         if (file == null) {
@@ -130,13 +133,7 @@ public class IdentifierService {
         }
 
         Object parsedConfig = objectMapper.readValue(file, Object.class);
-        String canonicalConfigFile =  objectMapper.writeValueAsString(parsedConfig);
-
-        // TODO
-        MessageDigest digest = MessageDigest.getInstance("SHA-1");
-        digest.reset();
-        digest.update(canonicalConfigFile.getBytes(Charsets.UTF_8));
-        instanceId = String.format("%040x", new BigInteger(1, digest.digest()));
+        instanceId = Sha1.hash(parsedConfig);
         return instanceId;
     }
 

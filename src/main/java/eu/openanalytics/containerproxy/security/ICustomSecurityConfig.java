@@ -25,8 +25,7 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 
 public interface ICustomSecurityConfig {
 
-	public default void apply(WebSecurity web) throws Exception {}
-	
-	public default void apply(HttpSecurity http) throws Exception {}
+    public default void apply(HttpSecurity http) throws Exception {
+    }
 
 }

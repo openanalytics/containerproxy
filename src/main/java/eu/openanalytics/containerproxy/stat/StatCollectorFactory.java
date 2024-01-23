@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingMicrometer;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
@@ -40,12 +41,12 @@ import javax.annotation.Nonnull;
 @Component
 public class StatCollectorFactory implements BeanFactoryPostProcessor, EnvironmentAware {
 
-    private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
-
     private static final String PROP_USAGE_STATS_MULTI_URL = "proxy.usage-stats[%d].url";
     private static final String PROP_USAGE_STATS_MULTI_USERNAME = "proxy.usage-stats[%d].username";
     private static final String PROP_USAGE_STATS_MULTI_PASSWORD = "proxy.usage-stats[%d].password";
     private static final String PROP_USAGE_STATS_MULTI_TABLE_NAME = "proxy.usage-stats[%d].table-name";
+
+    private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
 
     private Environment environment;
 
@@ -91,6 +92,10 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
             bd.getConstructorArgumentValues().addGenericArgumentValue(tableName == null ? "event" : tableName);
         } else if (url.equalsIgnoreCase("micrometer")) {
             bd.setBeanClassName(Micrometer.class.getName());
+
+            BeanDefinition bd2 = new GenericBeanDefinition();
+            bd2.setBeanClassName(ProxySharingMicrometer.class.getName());
+            registry.registerBeanDefinition("ProxySharingMicrometer", bd2);
         } else {
             throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", url));
         }

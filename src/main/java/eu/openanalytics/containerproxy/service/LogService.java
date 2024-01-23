@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.log.LogPaths;
 import eu.openanalytics.containerproxy.log.LogStreams;
 import eu.openanalytics.containerproxy.log.NoopLogStorage;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.apache.logging.log4j.LogManager;
@@ -44,6 +45,8 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,185 +55,194 @@ import java.util.function.BiConsumer;
 @Service
 public class LogService {
 
-	private ExecutorService executor;
-	private boolean loggingEnabled;
-	private final Logger log = LogManager.getLogger(LogService.class);
+    private final Logger log = LogManager.getLogger(LogService.class);
+    @Inject
+    ILogStorage logStorage;
+    @Inject
+    ILeaderService iLeaderService;
+    @Inject
+    IProxyStore proxyStore;
+    @Inject
+    IContainerBackend backend;
+    private ExecutorService executor;
+    private boolean loggingEnabled;
+    // do not use ProxyHashMap
+    private ConcurrentHashMap<String, LogStreams> proxyStreams = new ConcurrentHashMap<>();
 
-	// do not use ProxyHashMap
-	private ConcurrentHashMap<String, LogStreams> proxyStreams = new ConcurrentHashMap<>();
+    @PostConstruct
+    public void init() {
+        try {
+            logStorage.initialize();
+            loggingEnabled = !(logStorage instanceof NoopLogStorage);
+        } catch (IOException e) {
+            log.error("Failed to initialize container log storage", e);
+        }
 
-	@Inject
-	ILogStorage logStorage;
+        if (iLeaderService.isLeader()) {
+            startService();
+        }
+    }
 
-	@Inject
-	ILeaderService iLeaderService;
+    @PreDestroy
+    public void shutdown() {
+        stopService();
+    }
 
-	@Inject
-	ProxyService proxyService;
+    public boolean isLoggingEnabled() {
+        return loggingEnabled;
+    }
 
-	@Inject
-	IContainerBackend backend;
+    public LogPaths getLogs(Proxy proxy) {
+        if (!isLoggingEnabled()) return null;
 
-	@PostConstruct
-	public void init() {
-		try {
-			logStorage.initialize();
-			loggingEnabled = !(logStorage instanceof NoopLogStorage);
-		} catch (IOException e) {
-			log.error("Failed to initialize container log storage", e);
-		}
+        try {
+            return logStorage.getLogs(proxy);
+        } catch (IOException e) {
+            log.error("Failed to locate logs for proxy " + proxy.getId(), e);
+        }
 
-		if (iLeaderService.isLeader()) {
-			startService();
-		}
-	}
+        return null;
+    }
 
-	@PreDestroy
-	public void shutdown() {
-		stopService();
-	}
-
-	public boolean isLoggingEnabled() {
-		return loggingEnabled;
-	}
-
-	public LogPaths getLogs(Proxy proxy) {
-		if (!isLoggingEnabled()) return null;
-
-		try {
-			return logStorage.getLogs(proxy);
-		} catch (IOException e) {
-			log.error("Failed to locate logs for proxy " + proxy.getId(), e);
-		}
-
-		return null;
-	}
-
-	@EventListener
-	public void onProxyStarted(ProxyStartEvent event) {
+    @EventListener
+    public void onProxyStarted(ProxyStartEvent event) {
         if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-        Proxy proxy = proxyService.getProxy(event.getProxyId());
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
         if (proxy == null) {
             return;
         }
 
-		attachToOutput(proxy);
-	}
+        attachToOutput(proxy);
+    }
 
-	@EventListener
-	public void onProxyResumed(ProxyResumeEvent event) {
-		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-		Proxy proxy = proxyService.getProxy(event.getProxyId());
-		if (proxy == null) {
-			return;
-		}
+    @EventListener
+    public void onProxyResumed(ProxyResumeEvent event) {
+        if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
+        if (proxy == null) {
+            return;
+        }
 
-		attachToOutput(proxy);
-	}
+        attachToOutput(proxy);
+    }
 
-	@EventListener
-	public void onProxyStopped(ProxyStopEvent event) {
-		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-		Proxy proxy = proxyService.getProxy(event.getProxyId());
-		if (proxy == null) {
-			return;
-		}
+    @EventListener
+    public void onProxyStopped(ProxyStopEvent event) {
+        if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
+        if (proxy == null) {
+            return;
+        }
 
-		detach(proxy);
-	}
+        detach(proxy);
+    }
 
-	@EventListener
-	public void onProxyPaused(ProxyPauseEvent event) {
-		if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
-		Proxy proxy = proxyService.getProxy(event.getProxyId());
-		if (proxy == null) {
-			return;
-		}
+    @EventListener
+    public void onProxyPaused(ProxyPauseEvent event) {
+        if (!isLoggingEnabled() || !iLeaderService.isLeader()) return;
+        Proxy proxy = proxyStore.getProxy(event.getProxyId());
+        if (proxy == null) {
+            return;
+        }
 
-		detach(proxy);
-	}
+        detach(proxy);
+    }
 
     @EventListener(OnGrantedEvent.class)
     public void onLeaderGranted() {
         startService();
     }
 
-	@EventListener(OnRevokedEvent.class)
-	public void onLeaderRevoked() {
+    @EventListener(OnRevokedEvent.class)
+    public void onLeaderRevoked() {
         stopService();
-	}
+    }
 
-	/**
-	 * synchronized to avoid duplicate starts
-	 */
-	private synchronized void startService() {
-		if (!isLoggingEnabled()) return;
-		if (executor == null) {
-			executor = Executors.newCachedThreadPool();
-		}
-		log.info("Container logging enabled. Log files will be saved to " + logStorage.getStorageLocation());
-		// attach existing proxies
-		for (Proxy proxy : proxyService.getProxies(null, true)) {
-			attachToOutput(proxy);
-		}
-	}
+    /**
+     * synchronized to avoid duplicate starts
+     */
+    private synchronized void startService() {
+        if (!isLoggingEnabled()) return;
+        if (executor == null) {
+            executor = Executors.newCachedThreadPool();
+        }
+        log.info("Container logging enabled. Log files will be saved to " + logStorage.getStorageLocation());
+        // attach existing proxies
+        for (Proxy proxy : proxyStore.getAllProxies()) {
+            attachToOutput(proxy);
+        }
+    }
 
-	/**
-	 * synchronized to avoid duplicate starts
-	 */
-	private synchronized void stopService() {
-		if (!isLoggingEnabled()) return;
-		if (executor != null) {
-			executor.shutdown();
-		}
-		executor = null;
-		for (Proxy proxy : proxyService.getProxies(null, true)) {
-			detach(proxy);
-		}
-		proxyStreams = ProxyHashMap.create();
-		logStorage.stopService();
-	}
+    /**
+     * synchronized to avoid duplicate starts
+     */
+    private synchronized void stopService() {
+        if (!isLoggingEnabled()) return;
+        if (executor != null) {
+            executor.shutdown();
+        }
+        executor = null;
+        for (Map.Entry<String, LogStreams> streams : proxyStreams.entrySet()) {
+            detach(streams.getKey(), streams.getValue());
+        }
+        proxyStreams = ProxyHashMap.create();
+        logStorage.stopService();
+    }
 
-	private void attachToOutput(Proxy proxy) {
-		BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
-		if (outputAttacher == null) {
-			log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
-			return;
-		}
+    public void attachToOutput(Proxy proxy) {
+        if (!isLoggingEnabled() || !Objects.equals(proxy.getId(), proxy.getTargetId())) {
+            return;
+        }
+        if (!iLeaderService.isLeader()) {
+            log.warn("Cannot log proxy output: not the leader.");
+            return;
+        }
+        BiConsumer<OutputStream, OutputStream> outputAttacher = backend.getOutputAttacher(proxy);
+        if (outputAttacher == null) {
+            log.warn("Cannot log proxy output: " + backend.getClass() + " does not support output attaching.");
+            return;
+        }
 
-		executor.submit(() -> {
-			try {
-				LogStreams streams = logStorage.createOutputStreams(proxy);
-				if (streams == null) {
-					log.error("Failed to attach logging of proxy " + proxy.getId() + ": no output streams defined");
-					return;
-				}
-				proxyStreams.put(proxy.getId(), streams);
-				if (log.isDebugEnabled()) log.debug("Container logging started for proxy " + proxy.getId());
-				// Note that this call will block until the container is stopped.
-				outputAttacher.accept(streams.getStdout(), streams.getStderr());
-			} catch (Exception e) {
-				log.error("Failed to attach logging of proxy " + proxy.getId(), e);
-			}
-			if (log.isDebugEnabled()) log.debug("Container logging ended for proxy " + proxy.getId());
-		});
-	}
+        executor.submit(() -> {
+            try {
+                LogStreams streams = logStorage.createOutputStreams(proxy);
+                if (streams == null) {
+                    log.error("Failed to attach logging of proxy " + proxy.getId() + ": no output streams defined");
+                    return;
+                }
+                proxyStreams.put(proxy.getId(), streams);
+                if (log.isDebugEnabled()) log.debug("Container logging started for proxy " + proxy.getId());
+                // Note that this call will block until the container is stopped.
+                outputAttacher.accept(streams.getStdout(), streams.getStderr());
+            } catch (Exception e) {
+                log.error("Failed to attach logging of proxy " + proxy.getId(), e);
+            }
+            if (log.isDebugEnabled()) log.debug("Container logging ended for proxy " + proxy.getId());
+        });
+    }
 
-	private void detach(Proxy proxy) {
-		LogStreams streams = proxyStreams.get(proxy.getId());
-		if (streams == null) {
-			log.warn("Cannot detach container logging: streams not found");
-			return;
-		}
-		try {
-			streams.getStdout().flush();
-			streams.getStdout().close();
-			streams.getStderr().flush();
-			streams.getStderr().close();
-		} catch (IOException e) {
-			log.error("Failed to close container logging streams", e);
-		}
-		proxyStreams.remove(proxy.getId());
-	}
+    public void detach(Proxy proxy) {
+        if (!isLoggingEnabled() || !Objects.equals(proxy.getId(), proxy.getTargetId())) {
+            return;
+        }
+        LogStreams streams = proxyStreams.get(proxy.getId());
+        if (streams == null) {
+            log.warn("Cannot detach container logging: streams not found");
+            return;
+        }
+        detach(proxy.getId(), streams);
+    }
+
+    private void detach(String proxyId, LogStreams streams) {
+        try {
+            streams.getStdout().flush();
+            streams.getStdout().close();
+            streams.getStderr().flush();
+            streams.getStderr().close();
+        } catch (IOException e) {
+            log.error("Failed to close container logging streams", e);
+        }
+        proxyStreams.remove(proxyId);
+    }
 
 }

@@ -18,23 +18,32 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.util;
+package eu.openanalytics.containerproxy.event;
 
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.With;
 
-public class Sha256 {
+@Value
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
+public class SeatAvailableEvent extends BridgeableEvent {
 
-    public static String hash(String value)  {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.reset();
-            digest.update(value.getBytes());
-            return String.format("%040x", new BigInteger(1, digest.digest()));
-        } catch (NoSuchAlgorithmException ex) {
-            throw new RuntimeException(ex);
-        }
+    @With
+    String source;
+
+    String specId;
+
+    String intendedProxyId;
+
+    public SeatAvailableEvent(String specId, String claimingProxyId) {
+        source = "SOURCE_NOT_AVAILABLE";
+        this.specId = specId;
+        this.intendedProxyId = claimingProxyId;
     }
 
 }

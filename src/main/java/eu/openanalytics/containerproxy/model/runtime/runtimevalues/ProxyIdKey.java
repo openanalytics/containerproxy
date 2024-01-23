@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ProxyIdKey extends RuntimeValueKey<String> {
 
+    public static final ProxyIdKey inst = new ProxyIdKey();
+
     private ProxyIdKey() {
         super("openanalytics.eu/sp-proxy-id",
                 "SHINYPROXY_PROXY_ID",
-                false,
+            false,
                 true,
-                false,
+            false,
                 false, // no need to expose in API
                 true,
                 false,
                 String.class);
     }
-
-    public static ProxyIdKey inst = new ProxyIdKey();
 
     @Override
     public String deserializeFromString(String value) {

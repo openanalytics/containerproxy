@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ContainerIndexKey extends RuntimeValueKey<Integer> {
 
+    public static final ContainerIndexKey inst = new ContainerIndexKey();
+
     private ContainerIndexKey() {
         super("openanalytics.eu/sp-container-index",
                 "SHINYPROXY_CONTAINER_INDEX",
-                false,
+            false,
                 true,
-                false,
+            false,
                 true,
                 true,
                 true,
                 Integer.class);
     }
-
-    public static ContainerIndexKey inst = new ContainerIndexKey();
 
     @Override
     public Integer deserializeFromString(String value) {

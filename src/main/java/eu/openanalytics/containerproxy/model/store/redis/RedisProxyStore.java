@@ -20,12 +20,14 @@
  */
 package eu.openanalytics.containerproxy.model.store.redis;
 
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 
@@ -38,22 +40,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisProxyStore implements IProxyStore {
 
+    private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
     @Inject
     private RedisTemplate<String, Proxy> redisTemplate;
-
     @Inject
     private ProxyMappingManager mappingManager;
-
     @Inject
     private IdentifierService identifierService;
-
-    private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
-
     private String redisKey;
-
-    private HashOperations<String, String, Proxy> ops;
-
-    private final ConcurrentHashMap<String, Map<String, URI>> targetsCache = new ConcurrentHashMap<>();
+    private HashOperations<String, String, Proxy> ops; // TODO refactor to bound?
 
     @PostConstruct
     public void init() {
@@ -64,7 +59,7 @@ public class RedisProxyStore implements IProxyStore {
     @Override
     public List<Proxy> getAllProxies() {
         List<Proxy> res = ops.values(redisKey);
-        res.forEach(this::updateMappings);
+        res.forEach(proxy -> updateMappings(proxy.getId(), proxy));
         return res;
     }
 
@@ -72,54 +67,44 @@ public class RedisProxyStore implements IProxyStore {
     public void addProxy(Proxy proxy) {
         logger.debug("Add proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
-        updateMappings(proxy);
+        updateMappings(proxy.getId(), proxy);
     }
 
     @Override
     public void removeProxy(Proxy proxy) {
         logger.debug("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
-        updateMappings(proxy);
+        updateMappings(proxy.getId(), proxy);
     }
 
     @Override
     public void updateProxy(Proxy proxy) {
         logger.debug("Update proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
-        updateMappings(proxy);
+        updateMappings(proxy.getId(), proxy);
     }
 
     @Override
     public Proxy getProxy(String proxyId) {
         // TODO maybe use a cache for this (only for Up Proxies), first check how much this is used
         Proxy proxy = ops.get(redisKey, proxyId);
-        if (proxy != null) {
-            updateMappings(proxy);
-        }
+        updateMappings(proxyId, proxy);
         return proxy;
     }
 
-    public void updateMappings(Proxy proxy) {
-        if (proxy.getStatus().isUnavailable()) {
-            Map<String, URI> oldTargets = targetsCache.remove(proxy.getId());
-            if (oldTargets != null) {
-                // there were still some old mappings -> remove them
-                logger.debug("Redis: remove mappings for {}", proxy.getId());
-                for (Map.Entry<String, URI> target : proxy.getTargets().entrySet()) {
-                    mappingManager.removeMapping(target.getKey());
-                }
-            }
+    @EventListener
+    public void onProxyStopped(ProxyStopEvent event) {
+        logger.debug("Redis: remove mappings (event) {}", event.getProxyId());
+        mappingManager.removeMappings(event.getProxyId());
+    }
+
+    private void updateMappings(String proxyId, Proxy proxy) {
+        if (proxy == null || proxy.getStatus().isUnavailable()) {
+            logger.debug("Redis: remove mappings for {}", proxyId);
+            mappingManager.removeMappings(proxyId);
             return;
         }
-
-        Map<String, URI> newTargets = proxy.getTargets();
-        Map<String, URI> oldTargets = targetsCache.put(proxy.getId(), newTargets);
-
-        if (oldTargets == null || oldTargets != newTargets) {
-            for (Map.Entry<String, URI> target : newTargets.entrySet()) {
-                mappingManager.addMapping(proxy.getId(), target.getKey(), target.getValue());
-            }
-        }
+        mappingManager.addMappings(proxy);
     }
 
 }

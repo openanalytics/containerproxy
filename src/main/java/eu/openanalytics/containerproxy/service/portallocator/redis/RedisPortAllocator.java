@@ -52,7 +52,7 @@ public class RedisPortAllocator implements IPortAllocator {
 
     @Override
     public Integer allocate(int rangeFrom, int rangeTo, String ownerId) {
-        return portListRedisTemplate.execute(new SessionCallback<Integer>() {
+        return portListRedisTemplate.execute(new SessionCallback<>() {
             @SuppressWarnings({"unchecked", "rawtypes"})
             @Override
             public Integer execute(@Nonnull RedisOperations operations) throws DataAccessException {

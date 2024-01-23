@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.kubernetes;
 
-import com.google.common.collect.Streams;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.Sha1;
 import io.fabric8.kubernetes.api.model.APIResource;
@@ -50,7 +49,7 @@ public class KubernetesManifestsRemover {
 
     private final String realmId;
 
-    public KubernetesManifestsRemover(KubernetesClient kubeClient, HashSet<String> namespaces, IdentifierService identifierService) {
+    public KubernetesManifestsRemover(KubernetesClient kubeClient, List<String> namespaces, IdentifierService identifierService) {
         this.kubeClient = kubeClient;
         realmId = identifierService.realmId;
         for (ResourceDefinitionContext resourceDefinition : getSupportedResources()) {
@@ -70,7 +69,7 @@ public class KubernetesManifestsRemover {
     }
 
     private Set<ResourceDefinitionContext> getSupportedResources() {
-        return Streams.concat(
+        return Stream.concat(
                 kubeClient.getApiGroups().getGroups().stream().flatMap(g -> g.getVersions().stream()
                         .flatMap(r -> getApiResources(r.getGroupVersion())
                                 .map(apiResource -> ResourceDefinitionContext.fromApiResource(r.getGroupVersion(), apiResource))

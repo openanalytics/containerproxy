@@ -20,16 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import javax.inject.Inject;
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
-
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.core.env.Environment;
@@ -39,185 +30,192 @@ import org.springframework.ldap.core.support.ExternalTlsDirContextAuthentication
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.ldap.LdapAuthenticationProviderConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.ldap.DefaultSpringSecurityContextSource;
 import org.springframework.security.ldap.userdetails.DefaultLdapAuthoritiesPopulator;
 
-import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import javax.inject.Inject;
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 
-	public static final String NAME = "ldap";
-	
-	private static final String STARTTLS_SIMPLE = "simple";
-	private static final String STARTTLS_EXTERNAL = "external";
-	
-	@Inject
-	private Environment environment;
-	
-	@Override
-	public String getName() {
-		return NAME;
-	}
-	
-	@Override
-	public boolean hasAuthorization() {
-		return true;
-	}
-	
-	@Override
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
-		// Nothing to do.
-	}
+    public static final String NAME = "ldap";
 
-	@Override
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
-		LDAPProviderConfig[] configs = LDAPProviderConfig.loadAll(environment);
-		if (configs.length == 0) throw new RuntimeException("Cannot initialize LDAP backend: no LDAP configuration found");
-		
-		for (LDAPProviderConfig cfg: configs) {
-			LdapAuthenticationProviderConfigurer<AuthenticationManagerBuilder> configurer = new LdapAuthenticationProviderConfigurer<>();
-			
-			String[] userDnPatterns = { cfg.userDnPattern };
-			if (userDnPatterns[0] == null || userDnPatterns[0].isEmpty()) userDnPatterns = new String[0];
+    private static final String STARTTLS_SIMPLE = "simple";
+    private static final String STARTTLS_EXTERNAL = "external";
 
-			if (cfg.managerDn != null && cfg.managerDn.isEmpty()) cfg.managerDn = null;
-			
-			// Manually instantiate contextSource so it can be passed into authoritiesPopulator below.
-			DefaultSpringSecurityContextSource contextSource = new DefaultSpringSecurityContextSource(cfg.url);
-			if (cfg.managerDn != null) {
-				contextSource.setUserDn(cfg.managerDn);
-				contextSource.setPassword(cfg.managerPassword);
-			}
-			
-			if (Boolean.valueOf(cfg.startTLS) || STARTTLS_SIMPLE.equalsIgnoreCase(cfg.startTLS)) {
-				// Explicitly disable connection pooling, or Spring may attempt to StartTLS twice on the same connection.
-				contextSource.setPooled(false);
-				contextSource.setAuthenticationStrategy(new DefaultTlsDirContextAuthenticationStrategy());
-			} else if (STARTTLS_EXTERNAL.equalsIgnoreCase(cfg.startTLS)) {
-				contextSource.setAuthenticationStrategy(new ExternalTlsDirContextAuthenticationStrategy());
-			}
-			
-			contextSource.afterPropertiesSet();
+    @Inject
+    private Environment environment;
 
-			// Manually instantiate authoritiesPopulator because it uses a customized class.
-			CNLdapAuthoritiesPopulator authoritiesPopulator = new CNLdapAuthoritiesPopulator(contextSource, cfg.groupSearchBase);
-			authoritiesPopulator.setGroupRoleAttribute("cn");
-			authoritiesPopulator.setGroupSearchFilter(cfg.groupSearchFilter);
+    @Override
+    public String getName() {
+        return NAME;
+    }
 
-			configurer
-				.userDnPatterns(userDnPatterns)
-				.userSearchBase(cfg.userSearchBase)
-				.userSearchFilter(cfg.userSearchFilter)
-				.ldapAuthoritiesPopulator(authoritiesPopulator)
-				.contextSource(contextSource)
-				.configure(auth);
-		}
-	}
-	
-	private static class LDAPProviderConfig {
-		
-		public String url;
-		public String startTLS;
-		public String userDnPattern;
-		public String userSearchBase;
-		public String userSearchFilter;
-		public String groupSearchBase;
-		public String groupSearchFilter;
-		public String managerDn;
-		public String managerPassword;
-		
-		public static LDAPProviderConfig[] loadAll(Environment env) {
-			LDAPProviderConfig single = load(env, -1);
-			if (single != null) return new LDAPProviderConfig[] { single };
-			
-			List<LDAPProviderConfig> providers = new ArrayList<>();
-			for (int i=0 ;; i++) {
-				LDAPProviderConfig cfg = load(env, i);
-				if (cfg == null) break;
-				else providers.add(cfg);
-			}
-			return providers.toArray(new LDAPProviderConfig[providers.size()]);
-		}
-		
-		public static LDAPProviderConfig load(Environment env, int index) {
-			String prop = "proxy.ldap.%s";
-			if (index >= 0) prop = String.format("proxy.ldap[%d]", index) + ".%s";
-			
-			String url = env.getProperty(String.format(prop, "url"));
-			if (url == null) return null;
-			
-			LDAPProviderConfig cfg = new LDAPProviderConfig();
-			cfg.url = url;
-			cfg.startTLS = env.getProperty(String.format(prop, "starttls"));
-			cfg.userDnPattern = env.getProperty(String.format(prop, "user-dn-pattern"));
-			cfg.userSearchBase = env.getProperty(String.format(prop, "user-search-base"), "");
-			cfg.userSearchFilter = env.getProperty(String.format(prop, "user-search-filter"));
-			cfg.groupSearchBase = env.getProperty(String.format(prop, "group-search-base"), "");
-			cfg.groupSearchFilter = env.getProperty(String.format(prop, "group-search-filter"), "(uniqueMember={0})");
-			cfg.managerDn = env.getProperty(String.format(prop, "manager-dn"));
-			cfg.managerPassword = env.getProperty(String.format(prop, "manager-password"));
-			
-			return cfg;
-		}
-	}
+    @Override
+    public boolean hasAuthorization() {
+        return true;
+    }
 
-	private static class CNLdapAuthoritiesPopulator extends DefaultLdapAuthoritiesPopulator {
+    @Override
+    public void configureHttpSecurity(HttpSecurity http) {
+        // Nothing to do.
+    }
 
-		private static final Log logger = LogFactory.getLog(DefaultLdapAuthoritiesPopulator.class);
+    @Override
+    public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
+        LDAPProviderConfig[] configs = LDAPProviderConfig.loadAll(environment);
+        if (configs.length == 0) throw new RuntimeException("Cannot initialize LDAP backend: no LDAP configuration found");
 
-		public CNLdapAuthoritiesPopulator(ContextSource contextSource, String groupSearchBase) {
-			super(contextSource, groupSearchBase);
-			setSearchSubtree(true);
-		}
+        for (LDAPProviderConfig cfg : configs) {
+            LdapAuthenticationProviderConfigurer<AuthenticationManagerBuilder> configurer = new LdapAuthenticationProviderConfigurer<>();
 
-		@Override
-		public Set<GrantedAuthority> getGroupMembershipRoles(String userDn, String username) {
-			if (getGroupSearchBase() == null) {
-				return new HashSet<>();
-			}
+            String[] userDnPatterns = {cfg.userDnPattern};
+            if (userDnPatterns[0] == null || userDnPatterns[0].isEmpty()) userDnPatterns = new String[0];
 
-			Set<GrantedAuthority> authorities = new HashSet<>();
+            if (cfg.managerDn != null && cfg.managerDn.isEmpty()) cfg.managerDn = null;
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("Searching for roles for user '" + username + "', DN = " + "'"
-						+ userDn + "', with filter " + getGroupSearchFilter()
-						+ " in search base '" + getGroupSearchBase() + "'");
-			}
+            // Manually instantiate contextSource so it can be passed into authoritiesPopulator below.
+            DefaultSpringSecurityContextSource contextSource = new DefaultSpringSecurityContextSource(cfg.url);
+            if (cfg.managerDn != null) {
+                contextSource.setUserDn(cfg.managerDn);
+                contextSource.setPassword(cfg.managerPassword);
+            }
 
-			// Here's the modification: added {2}, which refers to the user cn if available.
-			Set<String> userRoles = getLdapTemplate().searchForSingleAttributeValues(
-					getGroupSearchBase(), getGroupSearchFilter(),
-					new String[] { userDn, username, getCn(userDn) }, getGroupRoleAttribute());
+            if (Boolean.parseBoolean(cfg.startTLS) || STARTTLS_SIMPLE.equalsIgnoreCase(cfg.startTLS)) {
+                // Explicitly disable connection pooling, or Spring may attempt to StartTLS twice on the same connection.
+                contextSource.setPooled(false);
+                contextSource.setAuthenticationStrategy(new DefaultTlsDirContextAuthenticationStrategy());
+            } else if (STARTTLS_EXTERNAL.equalsIgnoreCase(cfg.startTLS)) {
+                contextSource.setAuthenticationStrategy(new ExternalTlsDirContextAuthenticationStrategy());
+            }
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("Roles from search: " + userRoles);
-			}
+            contextSource.afterPropertiesSet();
 
-			for (String role : userRoles) {
+            // Manually instantiate authoritiesPopulator because it uses a customized class.
+            CNLdapAuthoritiesPopulator authoritiesPopulator = new CNLdapAuthoritiesPopulator(contextSource, cfg.groupSearchBase);
+            authoritiesPopulator.setGroupRoleAttribute("cn");
+            authoritiesPopulator.setGroupSearchFilter(cfg.groupSearchFilter);
 
-				if (isConvertToUpperCase()) {
-					role = role.toUpperCase();
-				}
+            configurer
+                    .userDnPatterns(userDnPatterns)
+                    .userSearchBase(cfg.userSearchBase)
+                    .userSearchFilter(cfg.userSearchFilter)
+                    .ldapAuthoritiesPopulator(authoritiesPopulator)
+                    .contextSource(contextSource)
+                    .configure(auth);
+        }
+    }
 
-				authorities.add(new SimpleGrantedAuthority(getRolePrefix() + role));
-			}
+    private static class LDAPProviderConfig {
 
-			return authorities;
-		}
+        public String url;
+        public String startTLS;
+        public String userDnPattern;
+        public String userSearchBase;
+        public String userSearchFilter;
+        public String groupSearchBase;
+        public String groupSearchFilter;
+        public String managerDn;
+        public String managerPassword;
 
-		private String getCn(String dn) {
-			try {
-				LdapName ln = new LdapName(dn);
-				for (Rdn rdn : ln.getRdns()) {
-					if (rdn.getType().equalsIgnoreCase("CN")) {
-						return rdn.getValue().toString();
-					}
-				}
-			} catch (InvalidNameException e) {}
-			return "";
-		}
-	}
+        public static LDAPProviderConfig[] loadAll(Environment env) {
+            LDAPProviderConfig single = load(env, -1);
+            if (single != null) return new LDAPProviderConfig[]{single};
+
+            List<LDAPProviderConfig> providers = new ArrayList<>();
+            for (int i = 0; ; i++) {
+                LDAPProviderConfig cfg = load(env, i);
+                if (cfg == null) break;
+                else providers.add(cfg);
+            }
+            return providers.toArray(new LDAPProviderConfig[0]);
+        }
+
+        public static LDAPProviderConfig load(Environment env, int index) {
+            String prop = "proxy.ldap.%s";
+            if (index >= 0) prop = String.format("proxy.ldap[%d]", index) + ".%s";
+
+            String url = env.getProperty(String.format(prop, "url"));
+            if (url == null) return null;
+
+            LDAPProviderConfig cfg = new LDAPProviderConfig();
+            cfg.url = url;
+            cfg.startTLS = env.getProperty(String.format(prop, "starttls"));
+            cfg.userDnPattern = env.getProperty(String.format(prop, "user-dn-pattern"));
+            cfg.userSearchBase = env.getProperty(String.format(prop, "user-search-base"), "");
+            cfg.userSearchFilter = env.getProperty(String.format(prop, "user-search-filter"));
+            cfg.groupSearchBase = env.getProperty(String.format(prop, "group-search-base"), "");
+            cfg.groupSearchFilter = env.getProperty(String.format(prop, "group-search-filter"), "(uniqueMember={0})");
+            cfg.managerDn = env.getProperty(String.format(prop, "manager-dn"));
+            cfg.managerPassword = env.getProperty(String.format(prop, "manager-password"));
+
+            return cfg;
+        }
+    }
+
+    private static class CNLdapAuthoritiesPopulator extends DefaultLdapAuthoritiesPopulator {
+
+        private static final Log logger = LogFactory.getLog(DefaultLdapAuthoritiesPopulator.class);
+
+        public CNLdapAuthoritiesPopulator(ContextSource contextSource, String groupSearchBase) {
+            super(contextSource, groupSearchBase);
+            setSearchSubtree(true);
+        }
+
+        @Override
+        public Set<GrantedAuthority> getGroupMembershipRoles(String userDn, String username) {
+            if (getGroupSearchBase() == null) {
+                return new HashSet<>();
+            }
+
+            Set<GrantedAuthority> authorities = new HashSet<>();
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("Searching for roles for user '" + username + "', DN = " + "'"
+                        + userDn + "', with filter " + getGroupSearchFilter()
+                        + " in search base '" + getGroupSearchBase() + "'");
+            }
+
+            // Here's the modification: added {2}, which refers to the user cn if available.
+            Set<String> userRoles = getLdapTemplate().searchForSingleAttributeValues(
+                    getGroupSearchBase(), getGroupSearchFilter(),
+                    new String[]{userDn, username, getCn(userDn)}, getGroupRoleAttribute());
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("Roles from search: " + userRoles);
+            }
+
+            for (String role : userRoles) {
+
+                if (isConvertToUpperCase()) {
+                    role = role.toUpperCase();
+                }
+
+                authorities.add(new SimpleGrantedAuthority(getRolePrefix() + role));
+            }
+
+            return authorities;
+        }
+
+        private String getCn(String dn) {
+            try {
+                LdapName ln = new LdapName(dn);
+                for (Rdn rdn : ln.getRdns()) {
+                    if (rdn.getType().equalsIgnoreCase("CN")) {
+                        return rdn.getValue().toString();
+                    }
+                }
+            } catch (InvalidNameException e) {
+            }
+            return "";
+        }
+    }
 }

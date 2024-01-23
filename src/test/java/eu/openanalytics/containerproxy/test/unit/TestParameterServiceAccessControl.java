@@ -32,16 +32,17 @@ import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -54,8 +55,9 @@ import java.util.Map;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("parameters")
 public class TestParameterServiceAccessControl {
 
@@ -68,8 +70,6 @@ public class TestParameterServiceAccessControl {
     @Inject
     private ObjectMapper objectMapper;
 
-    @Inject
-    private ProxyService proxyService;
     private UserService userService;
 
     @PostConstruct
@@ -86,7 +86,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControl() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -102,17 +102,17 @@ public class TestParameterServiceAccessControl {
                 allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
+                        "3.0.6",
+                        "4.0.5",
+                        "4.1.3",
+                        "4.0.3"
                 ),
                 allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "2G",
-                         "4G",
-                         "8G"
+                        "2G",
+                        "4G",
+                        "8G"
                 ),
                 allowedParametersForUser.getValues().get("memory"));
 
@@ -120,7 +120,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "base_r");
             put("version", "4.0.5");
             put("memory", "8G");
@@ -129,7 +129,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -140,7 +140,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -155,7 +155,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithGroupMembership() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -173,10 +173,10 @@ public class TestParameterServiceAccessControl {
                 allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
                 Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
+                        "3.0.6",
+                        "4.0.5",
+                        "4.1.3",
+                        "4.0.3"
                 ),
                 allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
@@ -192,7 +192,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -201,7 +201,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -216,7 +216,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessExpression() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -252,7 +252,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.1.13");
             put("memory", "8G");
@@ -261,7 +261,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -272,7 +272,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -287,7 +287,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControlWithAccessUsers() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("jeff");
@@ -323,7 +323,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
+        Map<String, String> providedParameters = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.0.3");
             put("memory", "25G");
@@ -332,7 +332,7 @@ public class TestParameterServiceAccessControl {
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters2 = new HashMap<>() {{
             put("environment", "breeding_r");
             put("version", "4.0.3");
             put("memory", "5G");
@@ -343,7 +343,7 @@ public class TestParameterServiceAccessControl {
                 "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
+        Map<String, String> providedParameters3 = new HashMap<>() {{
             put("environment", "biogrid_r");
             put("version", "4.1.13");
             put("memory", "8G");

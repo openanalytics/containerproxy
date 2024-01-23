@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.event;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -42,13 +43,15 @@ public class ProxyStopEvent extends BridgeableEvent {
     String proxyId;
     String userId;
     String specId;
+    ProxyStopReason proxyStopReason;
     Duration usageTime;
 
-    public ProxyStopEvent(Proxy proxy) {
+    public ProxyStopEvent(Proxy proxy, ProxyStopReason proxyStopReason) {
         source = "SOURCE_NOT_AVAILABLE";
         proxyId = proxy.getId();
         userId = proxy.getUserId();
         specId = proxy.getSpecId();
+        this.proxyStopReason = proxyStopReason;
         if (proxy.getStartupTimestamp() == 0) {
             usageTime = null;
         } else {

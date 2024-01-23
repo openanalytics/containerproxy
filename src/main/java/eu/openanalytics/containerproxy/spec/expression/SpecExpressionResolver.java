@@ -44,7 +44,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -53,96 +52,101 @@ import java.util.stream.Stream;
 @Component
 public class SpecExpressionResolver {
 
-	private final ApplicationContext appContext;
-	private final ExpressionParser expressionParser;
-	private final Map<SpecExpressionContext, StandardEvaluationContext> evaluationCache = new ConcurrentHashMap<>(8);
+    private final ApplicationContext appContext;
+    private final ExpressionParser expressionParser;
+    private final Map<SpecExpressionContext, StandardEvaluationContext> evaluationCache = new ConcurrentHashMap<>(8);
 
-	private final ParserContext beanExpressionParserContext = new ParserContext() {
-		@Override
-		public boolean isTemplate() {
-			return true;
-		}
-		@Override
-		public String getExpressionPrefix() {
-			return StandardBeanExpressionResolver.DEFAULT_EXPRESSION_PREFIX;
-		}
-		@Override
-		public String getExpressionSuffix() {
-			return StandardBeanExpressionResolver.DEFAULT_EXPRESSION_SUFFIX;
-		}
-	};
-	
-	public SpecExpressionResolver(ApplicationContext appContext) {
-		this.appContext = appContext;
-		this.expressionParser = new SpelExpressionParser();
-	}
-	
-	public <T> T evaluate(String expression, SpecExpressionContext context, Class<T> resType) {
-		if (expression == null) return null;
-		if (expression.isEmpty()) return null;
+    private final ParserContext beanExpressionParserContext = new ParserContext() {
+        @Override
+        public boolean isTemplate() {
+            return true;
+        }
 
-		try {
-			Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
+        @Override
+        public String getExpressionPrefix() {
+            return StandardBeanExpressionResolver.DEFAULT_EXPRESSION_PREFIX;
+        }
 
-			ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
+        @Override
+        public String getExpressionSuffix() {
+            return StandardBeanExpressionResolver.DEFAULT_EXPRESSION_SUFFIX;
+        }
+    };
 
-			StandardEvaluationContext sec = evaluationCache.get(context);
-			if (sec == null) {
-				sec = new StandardEvaluationContext();
-				sec.setRootObject(context);
-				sec.addPropertyAccessor(new BeanExpressionContextAccessor());
-				sec.addPropertyAccessor(new BeanFactoryAccessor());
-				sec.addPropertyAccessor(new MapAccessor());
-				sec.addPropertyAccessor(new EnvironmentAccessor());
-				sec.setBeanResolver(new BeanFactoryResolver(appContext));
-				sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
-				ConversionService conversionService = beanFactory.getConversionService();
-				if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
-				evaluationCache.put(context, sec);
-			}
+    public SpecExpressionResolver(ApplicationContext appContext) {
+        this.appContext = appContext;
+        this.expressionParser = new SpelExpressionParser();
+    }
 
-			return expr.getValue(sec, resType);
-		} catch (ExpressionException ex) {
-			throw new SpelException(ex, expression);
-		} catch (Throwable ex) {
-			throw new SpelException(ex, expression);
-		}
-	}
-	
-	public String evaluateToString(String expression, SpecExpressionContext context) {
-		// use the toString() method and not the conversionService in order to maintain behaviour of ShinyProxy 2.6.1 and earlier
-		Object res = evaluate(expression, context, Object.class);
-		if (res == null) {
-			return "";
-		}
-		return res.toString();
-	}
+    public <T> T evaluate(String expression, SpecExpressionContext context, Class<T> resType) {
+        if (expression == null) return null;
+        if (expression.isEmpty()) return null;
 
-	public Long evaluateToLong(String expression, SpecExpressionContext context) {
-		return evaluate(expression, context, Long.class);
-	}
+        try {
+            Expression expr = this.expressionParser.parseExpression(expression, this.beanExpressionParserContext);
 
-	public Integer evaluateToInteger(String expression, SpecExpressionContext context) {
-		return evaluate(expression, context, Integer.class);
-	}
+            ConfigurableBeanFactory beanFactory = ((ConfigurableApplicationContext) appContext).getBeanFactory();
 
-	public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
-		return evaluate(expression, context, Boolean.class);
-	}
+            StandardEvaluationContext sec = evaluationCache.get(context);
+            if (sec == null) {
+                sec = new StandardEvaluationContext();
+                sec.setRootObject(context);
+                sec.addPropertyAccessor(new BeanExpressionContextAccessor());
+                sec.addPropertyAccessor(new BeanFactoryAccessor());
+                sec.addPropertyAccessor(new MapAccessor());
+                sec.addPropertyAccessor(new EnvironmentAccessor());
+                sec.setBeanResolver(new BeanFactoryResolver(appContext));
+                sec.setTypeLocator(new StandardTypeLocator(beanFactory.getBeanClassLoader()));
+                ConversionService conversionService = beanFactory.getConversionService();
+                if (conversionService != null) sec.setTypeConverter(new StandardTypeConverter(conversionService));
+                evaluationCache.put(context, sec);
+            }
+
+            return expr.getValue(sec, resType);
+        } catch (ExpressionException ex) {
+            throw new SpelException(ex, expression);
+        } catch (Throwable ex) {
+            throw new SpelException(ex, expression);
+        }
+    }
+
+    public String evaluateToString(String expression, SpecExpressionContext context) {
+        // use the toString() method and not the conversionService in order to maintain behaviour of ShinyProxy 2.6.1 and earlier
+        Object res = evaluate(expression, context, Object.class);
+        if (res == null) {
+            return "";
+        }
+        if (res instanceof SpelField<?,?> spelfield) {
+            return spelfield.getValueAsString();
+        }
+        return res.toString();
+    }
+
+    public Long evaluateToLong(String expression, SpecExpressionContext context) {
+        return evaluate(expression, context, Long.class);
+    }
+
+    public Integer evaluateToInteger(String expression, SpecExpressionContext context) {
+        return evaluate(expression, context, Integer.class);
+    }
+
+    public Boolean evaluateToBoolean(String expression, SpecExpressionContext context) {
+        return evaluate(expression, context, Boolean.class);
+    }
 
     public List<String> evaluateToList(List<String> expressions, SpecExpressionContext context) {
-		if (expressions == null) return null;
-		return expressions.stream()
-				.flatMap((el) -> {
-					Object result = evaluate(el, context, Object.class);
-					if (result == null) {
-						result = new ArrayList<>();
-					}
-					if (result instanceof List) {
-						return ((List<Object>) result).stream().map(Object::toString);
-					}
-					return Stream.of(result.toString());
-				})
-				.collect(Collectors.toList());
+        if (expressions == null) return null;
+        return expressions.stream()
+                .flatMap((el) -> {
+                    Object result = evaluate(el, context, Object.class);
+                    if (result == null) {
+                        result = new ArrayList<>();
+                    }
+                    if (result instanceof List) {
+                        return ((List<Object>) result).stream().map(Object::toString);
+                    }
+                    return Stream.of(result.toString());
+                })
+                .toList();
     }
 }

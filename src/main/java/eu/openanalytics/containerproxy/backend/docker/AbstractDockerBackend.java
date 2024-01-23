@@ -51,106 +51,103 @@ import java.util.function.BiConsumer;
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
-	private static final String PROPERTY_PREFIX = "proxy.docker.";
+    protected static final String PROPERTY_APP_PORT = "port";
+    protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
+    protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
+    protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
+    private static final String PROPERTY_PREFIX = "proxy.docker.";
+    @Inject
+    protected IPortAllocator portAllocator;
+    protected DockerClient dockerClient;
 
-	protected static final String PROPERTY_APP_PORT = "port";
-	protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
-	protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
+    protected Integer portRangeFrom;
+    protected Integer portRangeTo;
 
-	protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
+    @Override
+    public void initialize() throws ContainerProxyException {
+        super.initialize();
 
-	@Inject
-	protected IPortAllocator portAllocator;
-	protected DockerClient dockerClient;
+        DefaultDockerClient.Builder builder = null;
+        try {
+            builder = DefaultDockerClient.fromEnv();
+        } catch (DockerCertificateException e) {
+            throw new ContainerProxyException("Failed to initialize docker client", e);
+        }
 
-	protected Integer portRangeFrom;
-	protected Integer portRangeTo;
+        String confCertPath = getProperty(PROPERTY_CERT_PATH);
+        if (confCertPath != null) {
+            try {
+                builder.dockerCertificates(DockerCertificates.builder().dockerCertPath(Paths.get(confCertPath)).build().orNull());
+            } catch (DockerCertificateException e) {
+                throw new ContainerProxyException("Failed to initialize docker client using certificates from " + confCertPath, e);
+            }
+        }
 
-	@Override
-	public void initialize() throws ContainerProxyException {
-		super.initialize();
+        String confUrl = getProperty(PROPERTY_URL);
+        if (confUrl != null) builder.uri(confUrl);
 
-		DefaultDockerClient.Builder builder = null;
-		try {
-			builder = DefaultDockerClient.fromEnv();
-		} catch (DockerCertificateException e) {
-			throw new ContainerProxyException("Failed to initialize docker client", e);
-		}
+        dockerClient = builder.build();
+        portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
+        portRangeTo = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
+    }
 
-		String confCertPath = getProperty(PROPERTY_CERT_PATH);
-		if (confCertPath != null) {
-			try {
-				builder.dockerCertificates(DockerCertificates.builder().dockerCertPath(Paths.get(confCertPath)).build().orNull());
-			} catch (DockerCertificateException e) {
-				throw new ContainerProxyException("Failed to initialize docker client using certificates from " + confCertPath, e);
-			}
-		}
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+        Container c = getPrimaryContainer(proxy);
+        if (c == null) return null;
 
-		String confUrl = getProperty(PROPERTY_URL);
-		if (confUrl != null) builder.uri(confUrl);
+        return (stdOut, stdErr) -> {
+            try {
+                LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
+                logStream.attach(stdOut, stdErr);
+            } catch (ClosedChannelException ignored) {
+            } catch (IOException | InterruptedException | DockerException e) {
+                log.error("Error while attaching to container output", e);
+            }
+        };
+    }
 
-		dockerClient = builder.build();
-		portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
-		portRangeTo= environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
-	}
+    @Override
+    protected String getPropertyPrefix() {
+        return PROPERTY_PREFIX;
+    }
 
-	@Override
-	public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
-		Container c = getPrimaryContainer(proxy);
-		if (c == null) return null;
+    protected Container getPrimaryContainer(Proxy proxy) {
+        return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
+    }
 
-		return (stdOut, stdErr) -> {
-			try {
-				LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
-				logStream.attach(stdOut, stdErr);
-			} catch (ClosedChannelException ignored) {
-			} catch (IOException | InterruptedException | DockerException e) {
-				log.error("Error while attaching to container output", e);
-			}
-		};
-	}
+    protected List<String> convertEnv(Map<String, String> env) {
+        List<String> res = new ArrayList<>();
 
-	@Override
-	protected String getPropertyPrefix() {
-		return PROPERTY_PREFIX;
-	}
+        for (Map.Entry<String, String> envVar : env.entrySet()) {
+            res.add(String.format("%s=%s", envVar.getKey(), envVar.getValue()));
+        }
 
-	protected Container getPrimaryContainer(Proxy proxy) {
-		return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
-	}
-
-	protected List<String> convertEnv(Map<String, String> env) {
-		List<String> res = new ArrayList<>();
-
-		for (Map.Entry<String, String> envVar : env.entrySet()) {
-			res.add(String.format("%s=%s", envVar.getKey(), envVar.getValue()));
-		}
-
-		return res;
-	}
+        return res;
+    }
 
 
-	protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
-		if (labels == null) {
-			return null;
-		}
+    protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
+        if (labels == null) {
+            return null;
+        }
 
-		Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
+        Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = new HashMap<>();
 
-		for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
-			if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
-				String value = labels.get(key.getKeyAsLabel());
-				if (value != null) {
-					runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
-				} else if (key.isRequired()) {
-					// value is null but is required
-					log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());
-					return null;
-				}
-			}
-		}
+        for (RuntimeValueKey<?> key : RuntimeValueKeyRegistry.getRuntimeValueKeys()) {
+            if (key.getIncludeAsLabel() || key.getIncludeAsAnnotation()) {
+                String value = labels.get(key.getKeyAsLabel());
+                if (value != null) {
+                    runtimeValues.put(key, new RuntimeValue(key, key.deserializeFromString(value)));
+                } else if (key.isRequired()) {
+                    // value is null but is required
+                    log.warn("Ignoring container {} because no label named {} is found", containerId, key.getKeyAsLabel());
+                    return null;
+                }
+            }
+        }
 
-		return runtimeValues;
-	}
+        return runtimeValues;
+    }
 
 }

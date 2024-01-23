@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.model.spec;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersMode;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
@@ -43,7 +44,7 @@ import java.util.stream.Collectors;
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxySpec {
 
@@ -88,55 +89,76 @@ public class ProxySpec {
     SpelField.Long heartbeatTimeout = new SpelField.Long();
 
     @Builder.Default
-    Map<Class<? extends ISpecExtension>, ISpecExtension> specExtensions = new HashMap<>();
+    Map<String, ISpecExtension> specExtensions = new HashMap<>();
+
+    Boolean addDefaultHttpHeaders;
+
+    @Builder.Default
+    SpelField.StringMap httpHeaders = new SpelField.StringMap();
+
+    CacheHeadersMode cacheHeadersMode;
+
+    @Builder.Default
+    Integer maxTotalInstances = -1;
 
     public void setContainerIndex() {
-        for (int i = 0; i < this.containerSpecs.size(); i++) {
-            this.containerSpecs.get(i).setIndex(i);
+        if (this.containerSpecs != null) {
+            for (int i = 0; i < this.containerSpecs.size(); i++) {
+                this.containerSpecs
+                    .get(i)
+                    .setIndex(i);
+            }
         }
     }
 
+    public void setHttpHeaders(Map<String, String> httpHeaders) {
+        this.httpHeaders = new SpelField.StringMap(httpHeaders);
+    }
+
     public void addSpecExtension(ISpecExtension specExtension) {
-        specExtensions.put(specExtension.getClass(), specExtension);
+        specExtensions.put(specExtension.getClass().getName(), specExtension);
     }
 
     public <T> T getSpecExtension(Class<T> extensionClass) {
-        return extensionClass.cast(specExtensions.get(extensionClass));
+        return extensionClass.cast(specExtensions.get(extensionClass.getName()));
     }
 
     public ProxySpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
-                .maxLifeTime(maxLifeTime.resolve(resolver, context))
-                .specExtensions(
-                        specExtensions.entrySet()
-                                .stream()
-                                .collect(Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        e -> e.getValue().firstResolve(resolver, context))))
-                .containerSpecs(
-                        containerSpecs
-                                .stream()
-                                .map(c -> c.firstResolve(resolver, context.copy(c)))
-                                .collect(Collectors.toList())
-                )
-                .build();
+            .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
+            .maxLifeTime(maxLifeTime.resolve(resolver, context))
+            .maxTotalInstances(maxTotalInstances)
+            .specExtensions(
+                specExtensions.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().firstResolve(resolver, context))))
+            .containerSpecs(
+                containerSpecs
+                    .stream()
+                    .map(c -> c.firstResolve(resolver, context.copy(c)))
+                    .toList()
+            )
+            .cacheHeadersMode(cacheHeadersMode)
+            .build();
     }
 
     public ProxySpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .specExtensions(
-                        specExtensions.entrySet()
-                                .stream()
-                                .collect(Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        e -> e.getValue().finalResolve(resolver, context))))
-                .containerSpecs(
-                        containerSpecs
-                                .stream()
-                                .map(c -> c.finalResolve(resolver, context.copy(c)))
-                                .collect(Collectors.toList())
-                )
-                .build();
+            .httpHeaders(httpHeaders.resolve(resolver, context))
+            .specExtensions(
+                specExtensions.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().finalResolve(resolver, context))))
+            .containerSpecs(
+                containerSpecs
+                    .stream()
+                    .map(c -> c.finalResolve(resolver, context.copy(c)))
+                    .toList()
+            )
+            .build();
     }
 }

@@ -2,16 +2,16 @@ spring:
   session:
     store-type: none
   data:
-     redis:
-        repositories:
-           enabled: false
+    redis:
+      repositories:
+        enabled: false
 proxy:
   authentication: none
   specs:
-  - id: 01_hello
-    container-specs:
-    - image: "openanalytics/shinyproxy-demo"
-      cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
-      port-mapping:
-        - name: default
-          port: 3838
+    - id: 01_hello
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838

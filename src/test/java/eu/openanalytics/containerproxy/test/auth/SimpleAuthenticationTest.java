@@ -20,43 +20,70 @@
  */
 package eu.openanalytics.containerproxy.test.auth;
 
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
+import eu.openanalytics.containerproxy.test.helpers.BasicAuthInterceptor;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.env.Environment;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
 
-import javax.inject.Inject;
+import java.time.Duration;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@SpringBootTest
-@ExtendWith(SpringExtension.class)
-@AutoConfigureMockMvc
-@ActiveProfiles("test-simple-auth")
-@ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class SimpleAuthenticationTest {
 
-	@Inject
-	private MockMvc mvc;
+    @Test
+    public void authenticateUser() throws Exception {
+        try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-simple-auth.yml")) {
+            String username = "demo";
+            String password = "demo";
 
-	@Inject
-	private Environment environment;
-	
-	@Test
-	public void authenticateUser() throws Exception {
-		String userName = environment.getProperty("proxy.users[0].name");
-		String password = environment.getProperty("proxy.users[0].password");
-		mvc
-			.perform(get("/api/proxy").with(httpBasic(userName, password)).accept(MediaType.APPLICATION_JSON_VALUE))
-			.andExpect(status().isOk());
-	}
+            String baseUrl = "http://localhost:7583";
+            OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(new BasicAuthInterceptor(username, password))
+                .callTimeout(Duration.ofSeconds(120))
+                .readTimeout(Duration.ofSeconds(120))
+                .followRedirects(false)
+                .build();
+
+            Request request = new Request.Builder()
+                .url(baseUrl + "/api/proxy")
+                .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                Assertions.assertEquals(200, response.code());
+                Assertions.assertFalse(response.isRedirect());
+            }
+        }
+    }
+
+    @Test
+    public void invalidUser() throws Exception {
+        try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-simple-auth.yml")) {
+            String username = "not";
+            String password = "correct";
+
+            String baseUrl = "http://localhost:7583";
+            OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(new BasicAuthInterceptor(username, password))
+                .callTimeout(Duration.ofSeconds(120))
+                .readTimeout(Duration.ofSeconds(120))
+                .followRedirects(false)
+                .build();
+
+
+            Request request = new Request.Builder()
+                .url(baseUrl + "/api/proxy")
+                .header("Accept", "text/html")
+                .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                Assertions.assertEquals(302, response.code());
+                Assertions.assertTrue(response.isRedirect());
+            }
+        }
+    }
+
+
+
 }

@@ -21,8 +21,10 @@
 package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.util.ExecutorServiceFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -31,12 +33,11 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 public class AsyncProxyService {
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = ExecutorServiceFactory.create("AsyncProxyService");
 
     @Inject
     private ProxyService proxyService;
@@ -52,8 +53,12 @@ public class AsyncProxyService {
     }
 
     public void stopProxy(Proxy proxy, boolean ignoreAccessControl) {
+        stopProxy(proxy, ignoreAccessControl, ProxyStopReason.Unknown);
+    }
+
+    public void stopProxy(Proxy proxy, boolean ignoreAccessControl, ProxyStopReason proxyStopReason) {
         Authentication user = userService.getCurrentAuth();
-        ProxyService.Command command = proxyService.stopProxy(user, proxy, ignoreAccessControl);
+        ProxyService.Command command = proxyService.stopProxy(user, proxy, ignoreAccessControl, proxyStopReason);
         executor.submit(command);
     }
 

@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class MaxLifetimeKey extends RuntimeValueKey<Long> {
 
+    public static final MaxLifetimeKey inst = new MaxLifetimeKey();
+
     private MaxLifetimeKey() {
         super("openanalytics.eu/sp-max-lifetime",
                 "SHINYPROXY_MAX_LIFETIME",
-                false,
+            false,
                 true,
-                false,
+            false,
                 true,
                 true,
                 false,
                 Long.class);
     }
-
-    public static MaxLifetimeKey inst = new MaxLifetimeKey();
 
     @Override
     public Long deserializeFromString(String value) {

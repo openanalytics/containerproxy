@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ProxiedAppKey extends RuntimeValueKey<String> {
 
+    public static final ProxiedAppKey inst = new ProxiedAppKey();
+
     private ProxiedAppKey() {
         super("openanalytics.eu/sp-proxied-app",
                 "SHINYPROXY_PROXIED_APP",
-                true,
+            true,
                 false,
-                false,
+            false,
                 false, // no need to expose in API
                 true,
                 false,
                 String.class);
     }
-
-    public static ProxiedAppKey inst = new ProxiedAppKey();
 
     @Override
     public String deserializeFromString(String value) {

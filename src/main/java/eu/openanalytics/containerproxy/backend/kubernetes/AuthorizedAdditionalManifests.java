@@ -32,7 +32,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Data
 @Setter
@@ -48,7 +47,7 @@ public class AuthorizedAdditionalManifests {
 
     public AuthorizedAdditionalManifests finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-            .manifests(manifests.stream().map(m -> resolver.evaluateToString(m, context)).collect(Collectors.toList()))
+            .manifests(manifests.stream().map(m -> resolver.evaluateToString(m, context)).toList())
             .build();
     }
 }

@@ -23,19 +23,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 // TODO convert to long?
 public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
+    public static final CreatedTimestampKey inst = new CreatedTimestampKey();
+
     private CreatedTimestampKey() {
         super("openanalytics.eu/sp-proxy-created-timestamp",
                 "SHINYPROXY_CREATED_TIMESTAMP",
-                false,
+            false,
                 true,
-                false,
+            false,
                 true,
                 true,
                 false,
                 String.class);
     }
-
-    public static CreatedTimestampKey inst = new CreatedTimestampKey();
 
     @Override
     public String deserializeFromString(String value) {

@@ -34,13 +34,12 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Data
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ContainerSpec {
 
@@ -48,7 +47,8 @@ public class ContainerSpec {
      * Index in the array of ContainerSpecs of the ProxySpec.
      */
     private Integer index;
-    private SpelField.String image;
+    @Builder.Default
+    private SpelField.String image = new SpelField.String();
     @Builder.Default
     private SpelField.StringList cmd = new SpelField.StringList();
     @Builder.Default
@@ -82,25 +82,25 @@ public class ContainerSpec {
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
 
-	public void setCmd(List<String> cmd) {
-		this.cmd = new SpelField.StringList(cmd);
-	}
+    public void setCmd(List<String> cmd) {
+        this.cmd = new SpelField.StringList(cmd);
+    }
 
-	public void setEnv(Map<String, String> env) {
-		this.env = new SpelField.StringMap(env);
-	}
+    public void setEnv(Map<String, String> env) {
+        this.env = new SpelField.StringMap(env);
+    }
 
-	public void setNetworkConnections(List<String> networkConnections) {
-		this.networkConnections = new SpelField.StringList(networkConnections);
-	}
+    public void setNetworkConnections(List<String> networkConnections) {
+        this.networkConnections = new SpelField.StringList(networkConnections);
+    }
 
-	public void setDns(List<String> dns) {
-		this.dns = new SpelField.StringList(dns);
-	}
+    public void setDns(List<String> dns) {
+        this.dns = new SpelField.StringList(dns);
+    }
 
-	public void setVolumes(List<String> volumes) {
-		this.volumes = new SpelField.StringList(volumes);
-	}
+    public void setVolumes(List<String> volumes) {
+        this.volumes = new SpelField.StringList(volumes);
+    }
 
     public void setLabels(Map<String, String> labels) {
         this.labels = new SpelField.StringMap(labels);
@@ -108,26 +108,26 @@ public class ContainerSpec {
 
     public ContainerSpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .image(image.resolve(resolver, context))
-                .cmd(cmd.resolve(resolver, context))
-                .envFile(envFile.resolve(resolver, context))
-                .network(network.resolve(resolver, context))
-                .networkConnections(networkConnections.resolve(resolver, context))
-                .dns(dns.resolve(resolver, context))
-                .volumes(volumes.resolve(resolver, context))
-                .memoryRequest(memoryRequest.resolve(resolver, context))
-                .memoryLimit(memoryLimit.resolve(resolver, context))
-                .cpuRequest(cpuRequest.resolve(resolver, context))
-                .cpuLimit(cpuLimit.resolve(resolver, context))
-                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
-                .build();
+            .image(image.resolve(resolver, context))
+            .cmd(cmd.resolve(resolver, context))
+            .envFile(envFile.resolve(resolver, context))
+            .network(network.resolve(resolver, context))
+            .networkConnections(networkConnections.resolve(resolver, context))
+            .dns(dns.resolve(resolver, context))
+            .volumes(volumes.resolve(resolver, context))
+            .memoryRequest(memoryRequest.resolve(resolver, context))
+            .memoryLimit(memoryLimit.resolve(resolver, context))
+            .cpuRequest(cpuRequest.resolve(resolver, context))
+            .cpuLimit(cpuLimit.resolve(resolver, context))
+            .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
+            .build();
     }
 
     public ContainerSpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .env(env.resolve(resolver, context))
-                .labels(labels.resolve(resolver, context))
-                .build();
+            .env(env.resolve(resolver, context))
+            .labels(labels.resolve(resolver, context))
+            .build();
     }
 
 }

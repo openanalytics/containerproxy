@@ -25,11 +25,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 
 import javax.annotation.Nonnull;
@@ -45,7 +44,7 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.P
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
 
 @SuppressWarnings("deprecation")
-public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
+public class ResponseAuthenticationConverter implements Converter<OpenSaml4AuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
 
     private final Boolean logAttributes;
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -59,8 +58,8 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
     }
 
     @Override
-    public AbstractAuthenticationToken convert(@Nonnull OpenSamlAuthenticationProvider.ResponseToken responseToken) {
-        Saml2Authentication authentication = OpenSamlAuthenticationProvider
+    public AbstractAuthenticationToken convert(@Nonnull OpenSaml4AuthenticationProvider.ResponseToken responseToken) {
+        Saml2Authentication authentication = OpenSaml4AuthenticationProvider
                 .createDefaultResponseAuthenticationConverter()
                 .convert(responseToken);
 
@@ -77,14 +76,14 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
         }
 
         Optional<String> nameValue = getSingleAttributeValue(principal, nameAttribute);
-        if (!nameValue.isPresent()) {
+        if (nameValue.isEmpty()) {
             throw new UsernameNotFoundException(String.format("[SAML] User: \"%s\" => name attribute missing from SAML assertion", nameId));
         }
 
-        List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+        List<SimpleGrantedAuthority> grantedAuthorities = new ArrayList<>();
         if (rolesAttribute != null && !rolesAttribute.trim().isEmpty()) {
             Optional<List<String>> rolesValue = getMultipleAttributeValues(principal, rolesAttribute);
-            if (!rolesValue.isPresent()) {
+            if (rolesValue.isEmpty()) {
                 logger.warn("[SAML] User: \"{}\" => roles attribute missing from SAML assertion", nameId);
             } else {
                 grantedAuthorities = rolesValue.get().stream()
@@ -94,7 +93,7 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
                             }
                             return new SimpleGrantedAuthority(r);
                         })
-                        .collect(Collectors.toList());
+                        .toList();
             }
         }
 
@@ -119,7 +118,7 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
 
     private Optional<String> getSingleAttributeValue(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         Optional<List<Object>> res = getAttributeIgnoringCase(principal, attributeName);
-        if (!res.isPresent() || res.get().size() == 0) {
+        if (res.isEmpty() || res.get().size() == 0) {
             return Optional.empty();
         }
         return Optional.of(res.get().get(0).toString());
@@ -130,7 +129,7 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
                 .map(objects -> objects
                         .stream()
                         .map(Object::toString)
-                        .collect(Collectors.toList())
+                        .toList()
                 );
     }
 

@@ -18,37 +18,14 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.spec.impl;
+package eu.openanalytics.containerproxy.spec;
 
 import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import java.util.List;
 
-public class AbstractSpecExtensionProvider<T extends ISpecExtension> {
+public interface ISpecExtensionProvider<T extends ISpecExtension> {
 
-    private List<T> specs;
-
-    @Inject
-    private IProxySpecProvider proxySpecProvider;
-
-    @PostConstruct
-    public void postInit() {
-        if (specs != null) {
-            specs.forEach(specExtension -> {
-                proxySpecProvider.getSpec(specExtension.getId()).addSpecExtension(specExtension);
-            });
-        }
-    }
-
-    public void setSpecs(List<T> specs) {
-        this.specs = specs;
-    }
-
-    public List<T> getSpecs() {
-        return specs;
-    }
+    List<T> getSpecs();
 
 }

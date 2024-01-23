@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.session.undertow;
 
+import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.session.InMemorySessionManager;
@@ -126,7 +127,12 @@ public class UndertowSessionService extends AbstractSessionService {
             Session session = instance.getSession(sessionId);
             if (session == null) continue;
 
-            String authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session), sessionId);
+            String authenticationName;
+            if (authBackend.getName().equals(NoAuthenticationBackend.NAME)) {
+                authenticationName = NoAuthenticationBackend.extractUserId(session);
+            } else {
+                authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session));
+            }
             if (authenticationName == null) continue;
 
             authenticatedUsers.add(authenticationName);

@@ -22,38 +22,40 @@
 -->
 <!DOCTYPE html>
 <html
-	xmlns:th="http://www.thymeleaf.org"
-	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+        xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4"
+        xmlns:th="http://www.thymeleaf.org">
 
-<head lang="en">
-	<title th:text="${title}"></title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel="icon" th:href="@{${resourcePrefix} + '/favicon'}">
-	<script type="text/javascript" th:inline="javascript">
-		history.forward();
-	</script>
-	<link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}" />
-	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
-	<script th:src="@{${jqueryJs}}"></script>
-	<script th:src="@{${bootstrapJs}}"></script>
-</head>
+    <head lang="en">
+        <title th:text="${title}"></title>
+        <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+        <meta content="width=device-width, initial-scale=1" name="viewport"/>
+        <script th:inline="javascript" type="text/javascript">
+            history.forward();
+        </script>
+        <link media="screen" rel="stylesheet" th:href="@{${bootstrapCss}}"/>
+        <link media="screen" rel="stylesheet" th:href="@{/css/login.css}"/>
+        <script th:src="@{${jqueryJs}}"></script>
+        <script th:src="@{${bootstrapJs}}"></script>
+    </head>
 
-<body>
-	<div class="container">
-		<h2>An error occurred during the authentication procedure.</h2>
-		<p><b>If you are a user of <span th:text="${application_name}"></span>:</b> please report this issue to your administrator and try to log out from your Identity Provider.</p>
-		<p><b>If you are an administrator of <span th:text="${application_name}"></span>:</b> this error page is typically shown because of an configuration error in the authentication setup. See the logs for more information.</p>
-		<a th:href="${mainPage}">Go back to the main page</a>
-	</div>
+    <body>
+        <div class="container">
+            <h2>An error occurred during the authentication procedure.</h2>
+            <p><b>If you are a user of <span th:text="${application_name}"></span>:</b> please report this issue to your
+                administrator and try to log out from your Identity Provider.</p>
+            <p><b>If you are an administrator of <span th:text="${application_name}"></span>:</b> this error page is
+                typically shown because of an configuration error in the authentication setup. See the logs for more
+                information.</p>
+            <a th:href="${mainPage}">Go back to the main page</a>
+        </div>
 
-<style>
-h2 {
-    margin-bottom: 20px;
-    margin-top: 20px;
-}
-</style>
+        <style>
+            h2 {
+                margin-bottom: 20px;
+                margin-top: 20px;
+            }
+        </style>
 
-</body>
+    </body>
 
 </html>

@@ -26,11 +26,15 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersMode;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersModeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.DisplayNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HeartbeatTimeoutKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeaders;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.HttpHeadersKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.MaxLifetimeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ParameterNamesKey;
@@ -53,6 +57,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,25 +72,24 @@ public class RuntimeValueService {
 
     private static final String PROP_DEFAULT_PROXY_MAX_LIFETIME = "proxy.default-proxy-max-lifetime";
 
+    private static final String PROP_DEFAULT_CACHE_HEADERS_MODE = "proxy.default-cache-headers-mode";
+
     private static final Long DEFAULT_TIMEOUT = 60000L;
-
-    private long defaultHeartbeatTimeout;
-
-    private long defaultMaxLifetime;
-
-    @Inject
-    private ParametersService parametersService;
-
-    @Inject
-    private Environment environment;
-
     @Inject
     protected IdentifierService identifierService;
+    private long defaultHeartbeatTimeout;
+    private long defaultMaxLifetime;
+    private CacheHeadersMode defaultCacheHeadersMode;
+    @Inject
+    private ParametersService parametersService;
+    @Inject
+    private Environment environment;
 
     @PostConstruct
     public void init() {
         defaultHeartbeatTimeout = environment.getProperty(PROP_TIMEOUT, Long.class, DEFAULT_TIMEOUT);
         defaultMaxLifetime = environment.getProperty(PROP_DEFAULT_PROXY_MAX_LIFETIME, Long.class, -1L);
+        defaultCacheHeadersMode = environment.getProperty(PROP_DEFAULT_CACHE_HEADERS_MODE, CacheHeadersMode.class, CacheHeadersMode.EnforceNoCache);
     }
 
     public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy) {
@@ -108,6 +112,12 @@ public class RuntimeValueService {
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
 
+        if (spec.getCacheHeadersMode() != null) {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(CacheHeadersModeKey.inst, spec.getCacheHeadersMode()), true);
+        } else {
+            proxyBuilder.addRuntimeValue(new RuntimeValue(CacheHeadersModeKey.inst, defaultCacheHeadersMode), true);
+        }
+
         return proxyBuilder.build();
     }
 
@@ -120,16 +130,31 @@ public class RuntimeValueService {
         return proxyBuilder.build();
     }
 
+    public Proxy addRuntimeValuesAfterFinalSpelResolve(ProxySpec spec, Proxy proxy) {
+        Proxy.ProxyBuilder proxyBuilder = proxy.toBuilder();
+
+        Map<String, String> headers = new HashMap<>(spec.getHttpHeaders().getValueOrDefault(new HashMap<>()));
+
+        if (spec.getAddDefaultHttpHeaders() == null || spec.getAddDefaultHttpHeaders()) {
+            headers.put("X-SP-UserId", proxy.getRuntimeValue(UserIdKey.inst));
+            headers.put("X-SP-UserGroups", proxy.getRuntimeValue(UserGroupsKey.inst));
+        }
+
+        proxyBuilder.addRuntimeValue(new RuntimeValue(HttpHeadersKey.inst, new HttpHeaders(headers)), true);
+
+        return proxyBuilder.build();
+    }
+
     public Container addRuntimeValuesAfterSpel(ContainerSpec containerSpec, Container container) {
         Container.ContainerBuilder containerBuilder = container.toBuilder();
         containerBuilder.addRuntimeValue(new RuntimeValue(ContainerIndexKey.inst, container.getIndex()), false);
-        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValue()), false);
+        containerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, containerSpec.getImage().getValueOrDefault("NO_IMAGE")), false);
 
         PortMappings portMappings = new PortMappings();
         for (PortMapping portMapping : containerSpec.getPortMapping()) {
             portMappings.addPortMapping(new PortMappings.PortMappingEntry(
-                    portMapping.getName(), portMapping.getPort(),
-                    AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
+                portMapping.getName(), portMapping.getPort(),
+                AbstractContainerBackend.computeTargetPath(portMapping.getTargetPath().getValueOrNull())));
         }
 
         containerBuilder.addRuntimeValue(new RuntimeValue(PortMappingsKey.inst, portMappings), false);

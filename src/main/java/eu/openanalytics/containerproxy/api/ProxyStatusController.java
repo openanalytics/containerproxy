@@ -62,16 +62,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 public class ProxyStatusController {
 
+    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
     @Inject
     private ProxyService proxyService;
-
     @Inject
     private AsyncProxyService asyncProxyService;
-
     @Inject
     private UserService userService;
-
-    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
 
     @Operation(
             summary = "Change the status of a proxy.", tags = "ContainerProxy",
@@ -83,7 +80,8 @@ public class ProxyStatusController {
                                     @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredState\": \"Stopping\"}"),
                                     @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredState\": \"Pausing\"}"),
                                     @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\"}"),
-                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
+                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
+                                            "\"other_parameter\":\"example\"}}")
                             }
                     )
             )
@@ -120,34 +118,38 @@ public class ProxyStatusController {
     @ResponseBody
     @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
             return ApiResponse.failForbidden();
         }
 
         try {
-
-            if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
-                if (!proxy.getStatus().equals(ProxyStatus.Up)) {
-                    return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+            switch (changeProxyStateDto.getDesiredState()) {
+                case "Pausing" -> {
+                    if (!proxy.getStatus().equals(ProxyStatus.Up)) {
+                        return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+                    }
+                    asyncProxyService.pauseProxy(proxy, false);
                 }
-                asyncProxyService.pauseProxy(proxy, false);
-            } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
-                if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
-                    return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+                case "Resuming" -> {
+                    if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
+                        return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+                    }
+                    try {
+                        asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
+                    } catch (InvalidParametersException ex) {
+                        return ApiResponse.fail(ex.getMessage());
+                    }
                 }
-                try {
-                    asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
-                } catch (InvalidParametersException ex) {
-                    return ApiResponse.fail(ex.getMessage());
+                case "Stopping" -> {
+                    if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                        return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+                    }
+                    asyncProxyService.stopProxy(proxy, false);
                 }
-            } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-                if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
-                    return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+                default -> {
+                    return ApiResponse.fail("Invalid desiredState");
                 }
-                asyncProxyService.stopProxy(proxy, false);
-            } else {
-                return ApiResponse.fail("Invalid desiredState");
             }
         } catch (AccessDeniedException ex) {
             return ApiResponse.failForbidden();
@@ -189,8 +191,8 @@ public class ProxyStatusController {
                                                                              @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,
                                                                              @Parameter(description = "Time to wait for status to change, must be between 10 and 60 seconds (inclusive).")
                                                                              @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
-        Proxy proxy = proxyService.getProxy(proxyId);
-        if (proxy == null || !userService.isOwner(proxy)) {
+        Proxy proxy = proxyService.getUserProxy(proxyId);
+        if (proxy == null) {
             // proxy not found or no access -> assume it has been stopped
             DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();
             res.setResult(ApiResponse.success(Proxy.builder()

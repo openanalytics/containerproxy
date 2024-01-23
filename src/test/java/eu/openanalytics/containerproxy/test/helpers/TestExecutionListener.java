@@ -21,8 +21,8 @@
 package eu.openanalytics.containerproxy.test.helpers;
 
 import com.google.common.collect.Iterables;
-import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 

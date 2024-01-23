@@ -22,11 +22,20 @@ package eu.openanalytics.containerproxy.service.leader.memory;
 
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 
+import javax.annotation.PreDestroy;
+
 public class MemoryLeaderService implements ILeaderService {
+
+    private volatile boolean leader = true;
 
     @Override
     public boolean isLeader() {
-        return true;
+        return leader;
+    }
+
+    @PreDestroy
+    public void preDestroy() {
+        leader = false;
     }
 
 }

@@ -21,6 +21,11 @@
 package eu.openanalytics.containerproxy.auth.impl.oidc;
 
 import eu.openanalytics.containerproxy.util.ImmediateJsonResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,11 +45,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import javax.annotation.Nonnull;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
@@ -75,21 +75,15 @@ public class OpenIdReAuthorizeFilter extends OncePerRequestFilter {
             new AntPathRequestMatcher("/app_i/**"),
             new AntPathRequestMatcher("/"),
             REFRESH_OPENID_MATCHER);
-
-    @Inject
-    private OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
-
-    @Inject
-    private OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
-
-    @Inject
-    private Environment environment;
-
     private final Clock clock = Clock.systemUTC();
-
     // use clock skew of 40 seconds instead of 60 seconds. Otherwise, if the access token is valid for 1 minute, it would get refreshed at each request.
     private final Duration clockSkew = Duration.ofSeconds(40);
-
+    @Inject
+    private OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
+    @Inject
+    private OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
+    @Inject
+    private Environment environment;
     private boolean ignoreLogout;
 
     @PostConstruct

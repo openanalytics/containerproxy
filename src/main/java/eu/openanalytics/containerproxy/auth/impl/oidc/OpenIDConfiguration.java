@@ -52,7 +52,9 @@ public class OpenIDConfiguration {
 
     @Bean
     public OAuth2AuthorizedClientService oAuth2AuthorizedClientService() {
-        if (environment.getProperty("proxy.store-mode", "None").equals("Redis")) {
+        if (environment
+            .getProperty("proxy.store-mode", "None")
+            .equals("Redis")) {
             return new RedisOAuth2AuthorizedClientService();
         }
         return new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository());
@@ -70,19 +72,20 @@ public class OpenIDConfiguration {
             else scopes.add(scope);
         }
 
-        ClientRegistration client = ClientRegistration.withRegistrationId(REG_ID)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .clientName(REG_ID)
-                .redirectUriTemplate("{baseUrl}/login/oauth2/code/{registrationId}")
-                .scope(scopes.toArray(new String[scopes.size()]))
-                .userNameAttributeName(environment.getProperty("proxy.openid.username-attribute", "email"))
-                .authorizationUri(environment.getProperty("proxy.openid.auth-url"))
-                .tokenUri(environment.getProperty("proxy.openid.token-url"))
-                .jwkSetUri(environment.getProperty("proxy.openid.jwks-url"))
-                .clientId(environment.getProperty("proxy.openid.client-id"))
-                .clientSecret(environment.getProperty("proxy.openid.client-secret"))
-                .userInfoUri(environment.getProperty("proxy.openid.userinfo-url"))
-                .build();
+        ClientRegistration client = ClientRegistration
+            .withRegistrationId(REG_ID)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .clientName(REG_ID)
+            .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+            .scope(scopes.toArray(new String[0]))
+            .userNameAttributeName(environment.getProperty("proxy.openid.username-attribute", "email"))
+            .authorizationUri(environment.getProperty("proxy.openid.auth-url"))
+            .tokenUri(environment.getProperty("proxy.openid.token-url"))
+            .jwkSetUri(environment.getProperty("proxy.openid.jwks-url"))
+            .clientId(environment.getProperty("proxy.openid.client-id"))
+            .clientSecret(environment.getProperty("proxy.openid.client-secret"))
+            .userInfoUri(environment.getProperty("proxy.openid.userinfo-url"))
+            .build();
 
         return new InMemoryClientRegistrationRepository(Collections.singletonList(client));
     }

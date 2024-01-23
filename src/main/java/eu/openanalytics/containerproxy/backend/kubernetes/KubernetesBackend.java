@@ -140,6 +140,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private PodPatcher podPatcher;
     @Inject
     private AccessControlEvaluationService accessControlEvaluationService;
+    @Inject
+    private AccessControlEvaluationService accessControlEvaluationService;
     private KubernetesClient kubeClient;
     private KubernetesManifestsRemover kubernetesManifestsRemover;
     private Boolean logManifests;

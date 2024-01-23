@@ -197,7 +197,7 @@ public class UserService {
 
     public boolean isOwner(Authentication auth, Proxy proxy) {
         if (auth == null || proxy == null) return false;
-        return proxy.getUserId().equals(auth.getName());
+        return proxy.getUserId().equalsIgnoreCase(auth.getName());
     }
 
     public boolean isMember(Authentication auth, String groupName) {

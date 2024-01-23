@@ -54,7 +54,7 @@ public class ProxyRouteController extends BaseController {
     @RequestMapping(value = "/api/route/{targetId}/**")
     public void route(@PathVariable String targetId, HttpServletRequest request, HttpServletResponse response) {
         try {
-            if (request.getRequestURI().length() < baseUrlLength + 1) {
+            if (request.getRequestURI().length() < baseUrlLength) {
                 response.setStatus(403);
                 response.getWriter().write("Not authorized to access this proxy");
                 return;

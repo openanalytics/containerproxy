@@ -20,12 +20,6 @@
  */
 package eu.openanalytics.containerproxy.test.proxy;
 
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.messages.swarm.SecretBind;
-import com.spotify.docker.client.messages.swarm.SecretSpec;
-import com.spotify.docker.client.messages.swarm.Service;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
@@ -33,6 +27,13 @@ import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mandas.docker.client.DefaultDockerClient;
+import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
+import org.mandas.docker.client.exceptions.DockerCertificateException;
+import org.mandas.docker.client.exceptions.DockerException;
+import org.mandas.docker.client.messages.swarm.SecretBind;
+import org.mandas.docker.client.messages.swarm.SecretSpec;
+import org.mandas.docker.client.messages.swarm.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -51,7 +52,7 @@ public class TestIntegrationOnSwarm {
     @Test
     public void launchProxy() throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
         try (ContainerSetup containerSetup = new ContainerSetup("docker-swarm")) {
-            try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
+            try (DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build()) {
                 String id = inst.client.startProxy("01_hello");
                 Proxy proxy = inst.proxyService.getProxy(id);
 
@@ -68,7 +69,7 @@ public class TestIntegrationOnSwarm {
     @Test
     public void launchProxyWithSecret() throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
         try (ContainerSetup containerSetup = new ContainerSetup("docker-swarm")) {
-            try (DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build()) {
+            try (DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build()) {
                 String secret1Id = dockerClient.createSecret(SecretSpec.builder()
                     .data(Base64.getEncoder().encodeToString("MySecret1".getBytes(StandardCharsets.UTF_8)))
                     .name("my_secret")

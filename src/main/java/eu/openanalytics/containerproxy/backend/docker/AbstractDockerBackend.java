@@ -21,13 +21,6 @@
 package eu.openanalytics.containerproxy.backend.docker;
 
 import com.google.common.collect.ImmutableMap;
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.DockerCertificates;
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.DockerClient.LogsParam;
-import com.spotify.docker.client.LogStream;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -36,6 +29,12 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
 import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
+import org.mandas.docker.client.DockerCertificates;
+import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
+import org.mandas.docker.client.LogStream;
+import org.mandas.docker.client.exceptions.DockerCertificateException;
+import org.mandas.docker.client.exceptions.DockerException;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -67,9 +66,9 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     public void initialize() throws ContainerProxyException {
         super.initialize();
 
-        DefaultDockerClient.Builder builder;
+        JerseyDockerClientBuilder builder;
         try {
-            builder = DefaultDockerClient.fromEnv();
+            builder = new JerseyDockerClientBuilder().fromEnv();
         } catch (DockerCertificateException e) {
             throw new ContainerProxyException("Failed to initialize docker client", e);
         }
@@ -77,7 +76,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         String confCertPath = getProperty(PROPERTY_CERT_PATH);
         if (confCertPath != null) {
             try {
-                builder.dockerCertificates(DockerCertificates.builder().dockerCertPath(Paths.get(confCertPath)).build().orNull());
+                builder.dockerCertificates(DockerCertificates.builder().dockerCertPath(Paths.get(confCertPath)).build().orElse(null));
             } catch (DockerCertificateException e) {
                 throw new ContainerProxyException("Failed to initialize docker client using certificates from " + confCertPath, e);
             }
@@ -98,7 +97,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.logs(c.getId(), LogsParam.follow(), LogsParam.stdout(), LogsParam.stderr());
+                LogStream logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {
@@ -127,7 +126,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     }
 
 
-    protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, ImmutableMap<String, String> labels) {
+    protected Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAsRuntimeValues(String containerId, Map<String, String> labels) {
         if (labels == null) {
             return null;
         }

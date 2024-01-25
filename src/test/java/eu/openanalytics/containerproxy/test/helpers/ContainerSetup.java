@@ -20,9 +20,6 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
 import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
@@ -31,6 +28,10 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.Assertions;
+import org.mandas.docker.client.DefaultDockerClient;
+import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
+import org.mandas.docker.client.exceptions.DockerCertificateException;
+import org.mandas.docker.client.exceptions.DockerException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -108,12 +109,12 @@ public class ContainerSetup implements AutoCloseable {
             try {
                 switch (backend) {
                     case "docker" -> {
-                        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+                        DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
                         long count = dockerClient.listContainers().stream().filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app")).count();
                         return count <= 0;
                     }
                     case "docker-swarm" -> {
-                        DefaultDockerClient dockerClient = DefaultDockerClient.fromEnv().build();
+                        DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
                         return dockerClient.listServices().isEmpty();
                     }
                     case "kubernetes" -> {

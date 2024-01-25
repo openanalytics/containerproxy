@@ -20,24 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.exceptions.ServiceNotFoundException;
-import com.spotify.docker.client.messages.RegistryAuth;
-import com.spotify.docker.client.messages.mount.Mount;
-import com.spotify.docker.client.messages.swarm.DnsConfig;
-import com.spotify.docker.client.messages.swarm.EndpointSpec;
-import com.spotify.docker.client.messages.swarm.NetworkAttachmentConfig;
-import com.spotify.docker.client.messages.swarm.PortConfig;
-import com.spotify.docker.client.messages.swarm.ResourceRequirements;
-import com.spotify.docker.client.messages.swarm.Resources;
-import com.spotify.docker.client.messages.swarm.Secret;
-import com.spotify.docker.client.messages.swarm.SecretBind;
-import com.spotify.docker.client.messages.swarm.SecretFile;
-import com.spotify.docker.client.messages.swarm.Service;
-import com.spotify.docker.client.messages.swarm.ServiceSpec;
-import com.spotify.docker.client.messages.swarm.Task;
-import com.spotify.docker.client.messages.swarm.TaskSpec;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -56,6 +38,24 @@ import eu.openanalytics.containerproxy.model.spec.DockerSwarmSecret;
 import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.exceptions.DockerException;
+import org.mandas.docker.client.exceptions.ServiceNotFoundException;
+import org.mandas.docker.client.messages.RegistryAuth;
+import org.mandas.docker.client.messages.mount.Mount;
+import org.mandas.docker.client.messages.swarm.DnsConfig;
+import org.mandas.docker.client.messages.swarm.EndpointSpec;
+import org.mandas.docker.client.messages.swarm.NetworkAttachmentConfig;
+import org.mandas.docker.client.messages.swarm.PortConfig;
+import org.mandas.docker.client.messages.swarm.Reservations;
+import org.mandas.docker.client.messages.swarm.ResourceRequirements;
+import org.mandas.docker.client.messages.swarm.Resources;
+import org.mandas.docker.client.messages.swarm.SecretBind;
+import org.mandas.docker.client.messages.swarm.SecretFile;
+import org.mandas.docker.client.messages.swarm.Service;
+import org.mandas.docker.client.messages.swarm.ServiceSpec;
+import org.mandas.docker.client.messages.swarm.Task;
+import org.mandas.docker.client.messages.swarm.TaskSpec;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -112,8 +112,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 secretBinds.add(convertSecret(secret));
             }
 
-            com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec =
-                com.spotify.docker.client.messages.swarm.ContainerSpec.builder()
+            org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec =
+                org.mandas.docker.client.messages.swarm.ContainerSpec.builder()
                     .image(spec.getImage().getValue())
                     .labels(labels)
                     .command(spec.getCmd().getValueOrNull())
@@ -133,7 +133,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
             }
 
-            Resources.Builder reservationsBuilder = Resources.builder();
+            Reservations.Builder reservationsBuilder = Reservations.builder();
             // reservations are used by the Docker swarm scheduler
             if (spec.getCpuRequest().isPresent()) {
                 // note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
@@ -272,7 +272,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         return dockerClient.listSecrets().stream()
             .filter(it -> it.secretSpec().name().equals(secretName))
             .findFirst()
-            .map(Secret::id).orElseThrow(() -> new IllegalArgumentException("Secret not found!"));
+            .map(org.mandas.docker.client.messages.swarm.Secret::id).orElseThrow(() -> new IllegalArgumentException("Secret not found!"));
     }
 
     @Override
@@ -295,13 +295,13 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
         for (Service service : dockerClient.listServices()) {
-            com.spotify.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
+           org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
 
             if (containerSpec == null) {
                 continue;
             }
 
-            List<com.spotify.docker.client.messages.Container> containersInService = dockerClient.listContainers(DockerClient.ListContainersParam.withLabel("com.docker.swarm.service.id", service.id()));
+            List<org.mandas.docker.client.messages.Container> containersInService = dockerClient.listContainers(DockerClient.ListContainersParam.withLabel("com.docker.swarm.service.id", service.id()));
             if (containersInService.size() != 1) {
                 log.warn(String.format("Found not correct amount of containers for service %s, therefore skipping this", service.id()));
                 continue;

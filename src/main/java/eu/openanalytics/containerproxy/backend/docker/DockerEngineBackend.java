@@ -20,20 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import com.spotify.docker.client.DockerClient.ListContainersParam;
-import com.spotify.docker.client.DockerClient.RemoveContainerParam;
-import com.spotify.docker.client.exceptions.ContainerNotFoundException;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.exceptions.NotFoundException;
-import com.spotify.docker.client.messages.AttachedNetwork;
-import com.spotify.docker.client.messages.Container.PortMapping;
-import com.spotify.docker.client.messages.ContainerConfig;
-import com.spotify.docker.client.messages.ContainerCreation;
-import com.spotify.docker.client.messages.ContainerInfo;
-import com.spotify.docker.client.messages.HostConfig;
-import com.spotify.docker.client.messages.HostConfig.Builder;
-import com.spotify.docker.client.messages.PortBinding;
-import com.spotify.docker.client.messages.RegistryAuth;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
@@ -48,6 +34,17 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.exceptions.ContainerNotFoundException;
+import org.mandas.docker.client.exceptions.DockerException;
+import org.mandas.docker.client.exceptions.NotFoundException;
+import org.mandas.docker.client.messages.AttachedNetwork;
+import org.mandas.docker.client.messages.ContainerConfig;
+import org.mandas.docker.client.messages.ContainerCreation;
+import org.mandas.docker.client.messages.ContainerInfo;
+import org.mandas.docker.client.messages.HostConfig;
+import org.mandas.docker.client.messages.PortBinding;
+import org.mandas.docker.client.messages.RegistryAuth;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -81,7 +78,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
         Container.ContainerBuilder rContainerBuilder = initialContainer.toBuilder();
 
         try {
-            Builder hostConfigBuilder = HostConfig.builder();
+            HostConfig.Builder hostConfigBuilder = HostConfig.builder();
 
             if (imagePullPolicy == ImagePullPolicy.Always
                 || (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
@@ -201,7 +198,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                         dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
                     }
                 }
-                dockerClient.removeContainer(container.getId(), RemoveContainerParam.forceKill());
+                dockerClient.removeContainer(container.getId(), DockerClient.RemoveContainerParam.forceKill());
             } catch (ContainerNotFoundException e) {
                 // ignore, container is already removed
             }
@@ -213,7 +210,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     public List<ExistingContainerInfo> scanExistingContainers() throws Exception {
         ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
-        for (com.spotify.docker.client.messages.Container container : dockerClient.listContainers(ListContainersParam.allContainers())) {
+        for (org.mandas.docker.client.messages.Container container : dockerClient.listContainers(DockerClient.ListContainersParam.allContainers())) {
             if (!container.state().equalsIgnoreCase("running")) {
                 log.warn("Ignoring container {} because it is not running, {}", container.id(), container.state());
                 continue; // not recovering stopped/broken apps
@@ -227,7 +224,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, container.id()));
 
             // add ports to PortAllocator (even if we don't recover the proxy)
-            for (PortMapping portMapping : container.ports()) {
+            for (org.mandas.docker.client.messages.Container.PortMapping portMapping : container.ports()) {
                 portAllocator.addExistingPort(runtimeValues.get(UserIdKey.inst).getObject(), portMapping.publicPort());
             }
 
@@ -238,7 +235,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             }
 
             Map<Integer, Integer> portBindings = new HashMap<>();
-            for (PortMapping portMapping : container.ports()) {
+            for (org.mandas.docker.client.messages.Container.PortMapping portMapping : container.ports()) {
                 int hostPort = portMapping.publicPort();
                 int containerPort = portMapping.privatePort();
                 portBindings.put(containerPort, hostPort);

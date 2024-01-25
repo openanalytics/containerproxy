@@ -65,6 +65,12 @@
             <name>Shibboleth Maven Repository</name>
             <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
         </repository>
+        <repository>
+            <!-- Used for our own docker client version. -->
+            <id>oa-nexus-releases</id>
+            <name>OpenAnalytics Release Repository</name>
+            <url>https://nexus.openanalytics.eu/repository/releases</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -168,6 +174,11 @@
             <version>4.4</version>
         </dependency>
         <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.15.1</version>
+        </dependency>
+        <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-ui</artifactId>
             <version>1.7.0</version>
@@ -198,37 +209,36 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
-
-        <!-- Docker -->
         <dependency>
-            <groupId>com.spotify</groupId>
+            <groupId>org.mandas</groupId>
             <artifactId>docker-client</artifactId>
-            <version>8.16.0</version>
-            <exclusions>
-                <exclusion>
-                    <!-- Spotify uses an httpclient that is too old for AWS SDK-->
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                </exclusion>
-            </exclusions>
+            <version>7.0.6-OA</version>
         </dependency>
         <dependency>
-            <!-- Dependency of Docker -> update to fix security issues -->
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.21</version>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
         </dependency>
         <dependency>
-            <!-- Dependency of Docker -> update to fix security issues -->
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.7</version>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
         </dependency>
         <dependency>
-            <!-- Dependency of Docker -> update for compatibility with other components (e.g. saml) -->
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>32.1.1-jre</version>
+            <groupId>org.glassfish.jersey.connectors</groupId>
+            <artifactId>jersey-apache-connector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-json-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
         </dependency>
 
         <!-- MonetDB, for gathering usage stats (optional) -->
@@ -337,14 +347,6 @@
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
                 <version>2.20.157</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <!-- Use a version that is compatible with Docker client -->
-                <groupId>org.glassfish.jersey</groupId>
-                <artifactId>jersey-bom</artifactId>
-                <version>2.26-b03</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

@@ -23,10 +23,12 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
 
@@ -35,11 +37,11 @@ public class ProxySharingMicrometer implements IStatCollector {
     @Inject
     private MeterRegistry registry;
 
-    @Inject
-    private List<ProxySharingDispatcher> proxySharingDispatchers;
+    @Autowired(required = false)
+    private List<ProxySharingDispatcher> proxySharingDispatchers = new ArrayList<>();
 
-    @Inject
-    private List<ProxySharingScaler> proxySharingScalers;
+    @Autowired(required = false)
+    private List<ProxySharingScaler> proxySharingScalers = new ArrayList<>();
 
     /**
      * Wraps a function that returns an Integer into a function that returns a double.

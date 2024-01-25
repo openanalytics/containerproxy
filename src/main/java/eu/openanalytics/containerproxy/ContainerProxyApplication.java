@@ -155,9 +155,7 @@ public class ContainerProxyApplication {
         // ====================
 
         // disable all supported exporters by default
-        // Note: if we upgrade to Spring Boot 2.4.0 we can use properties.put("management.metrics.export.defaults.enabled", "false");
-        properties.put("management.metrics.export.prometheus.enabled", "false");
-        properties.put("management.metrics.export.influx.enabled", "false");
+        properties.put("management.defaults.metrics.export.enabled", "false");
         // set actuator to port 9090 (can be overwritten)
         properties.put("management.server.port", "9090");
         // enable prometheus endpoint by default (but not the exporter)

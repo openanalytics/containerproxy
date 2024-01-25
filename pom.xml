@@ -265,14 +265,6 @@
             <artifactId>micrometer-registry-influx</artifactId>
         </dependency>
 
-        <!--TODO vvvv-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-properties-migrator</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <!--TODO ^^^-->
-
         <!-- Kubernetes -->
         <dependency>
             <groupId>io.fabric8</groupId>

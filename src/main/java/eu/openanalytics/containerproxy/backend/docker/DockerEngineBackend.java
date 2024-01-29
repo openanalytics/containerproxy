@@ -82,7 +82,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             if (imagePullPolicy == ImagePullPolicy.Always
                 || (imagePullPolicy == ImagePullPolicy.IfNotPresent && !isImagePresent(spec))) {
-                slog.info(proxy, String.format("Pulling image %s", spec.getImage()));
+                slog.info(proxy, String.format("Pulling image %s", spec.getImage().getValue()));
                 proxyStartupLogBuilder.pullingImage(initialContainer.getIndex());
                 pullImage(spec);
                 proxyStartupLogBuilder.imagePulled(initialContainer.getIndex());

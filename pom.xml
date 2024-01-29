@@ -212,7 +212,7 @@
         <dependency>
             <groupId>org.mandas</groupId>
             <artifactId>docker-client</artifactId>
-            <version>7.0.6-OA</version>
+            <version>7.0.99-OA</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>

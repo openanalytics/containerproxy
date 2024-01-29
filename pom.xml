@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.1.7</version>
+        <version>3.2.2</version>
         <relativePath/>
     </parent>
 
@@ -21,7 +21,7 @@
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <spring-boot.version>3.1.7</spring-boot.version>
+        <spring-boot.version>3.2.2</spring-boot.version>
     </properties>
 
     <distributionManagement>
@@ -245,7 +245,7 @@
         <dependency>
             <groupId>monetdb</groupId>
             <artifactId>monetdb-jdbc</artifactId>
-            <version>2.28</version>
+            <version>3.2</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
@@ -254,7 +254,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.4.3</version>
+            <version>42.7.1</version>
         </dependency>
         <dependency>
             <groupId>com.mysql</groupId>
@@ -279,7 +279,7 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client</artifactId>
-            <version>6.3.1</version>
+            <version>6.10.0</version>
         </dependency>
 
         <!-- UI frameworks -->
@@ -295,7 +295,7 @@
         <dependency>
             <groupId>org.webjars</groupId>
             <artifactId>jquery</artifactId>
-            <version>3.6.1</version>
+            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.webjars.bower</groupId>
@@ -334,11 +334,6 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <version>2.7</version>
-        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -346,15 +341,7 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>2.20.157</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <!-- Dependency of lettuce and AWS SDK -> update to fix security issue -->
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>4.1.86.Final</version>
+                <version>2.23.12</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -451,7 +438,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>6.1.6</version>
+                        <version>9.0.9</version>
                         <executions>
                             <execution>
                                 <goals>

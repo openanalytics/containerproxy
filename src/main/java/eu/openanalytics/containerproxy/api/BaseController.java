@@ -47,7 +47,7 @@ public class BaseController {
         // no versioning (using instanceId) needed since paths already contain a version
         map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
         map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
-        map.put("jqueryJs", "/webjars/jquery/3.6.1/jquery.min.js");
+        map.put("jqueryJs", "/webjars/jquery/3.7.1/jquery.min.js");
         map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
         map.put("resourcePrefix", "/" + identifierService.instanceId);
     }

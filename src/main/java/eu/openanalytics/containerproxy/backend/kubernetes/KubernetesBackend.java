@@ -182,6 +182,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
         appNamespaces = EnvironmentUtils.readList(environment, "app-namespaces");
         if (appNamespaces == null) {
             appNamespaces = new ArrayList<>();
+        } else {
+            appNamespaces = new ArrayList<>(appNamespaces);
         }
         appNamespaces.add(kubeNamespace);
         logManifests = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
@@ -191,13 +193,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
         imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
 
         String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
-        if (imagePullSecret == null) {
-            String imagePullSecretArray = getProperty(PROPERTY_IMG_PULL_SECRETS);
-            if (imagePullSecretArray != null) {
-                imagePullSecrets = Arrays.stream(imagePullSecretArray.split(",")).map(LocalObjectReference::new).toList();
-            }
-        } else {
+        if (imagePullSecret != null) {
             imagePullSecrets.add(new LocalObjectReference(imagePullSecret));
+        }
+        List<String> imagePullSecretsList = EnvironmentUtils.readList(environment, PROPERTY_PREFIX + PROPERTY_IMG_PULL_SECRETS);
+        if (imagePullSecretsList != null) {
+            imagePullSecrets.addAll(imagePullSecretsList.stream().map(LocalObjectReference::new).toList());
         }
         targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
         kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, appNamespaces, identifierService);

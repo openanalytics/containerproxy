@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.provisioning.InMemoryUserDetailsManagerConfigurer;
@@ -77,24 +78,11 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
         String password = environment.getProperty(String.format("proxy.users[%d].password", index));
 
         // method 1: single property with comma seperated groups
-        String[] groups = environment.getProperty(String.format("proxy.users[%d].groups", index), String[].class);
+        List<String> groups = EnvironmentUtils.readList(environment, String.format("proxy.users[%d].groups", index));
         if (groups != null) {
-            groups = Arrays
-                .stream(groups)
-                .map(String::toUpperCase)
-                .toArray(String[]::new);
-            return new SimpleUser(userName, password, groups);
+            return new SimpleUser(userName, password, groups.toArray(new String[0]));
         } else {
-            // method 2: YAML array
-            List<String> groupsList = new ArrayList<>();
-            int groupIndex = 0;
-            String group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
-            while (group != null) {
-                groupsList.add(group.toUpperCase());
-                groupIndex++;
-                group = environment.getProperty(String.format("proxy.users[%d].groups[%d]", index, groupIndex));
-            }
-            return new SimpleUser(userName, password, groupsList.toArray(new String[0]));
+            return new SimpleUser(userName, password, new String[]{});
         }
     }
 

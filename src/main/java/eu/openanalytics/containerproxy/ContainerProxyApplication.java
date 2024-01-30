@@ -150,6 +150,8 @@ public class ContainerProxyApplication {
         properties.put("logging.level.io.fabric8.kubernetes.client.dsl.internal.VersionUsageUtils", "ERROR");
 
         properties.put("spring.application.name", "ContainerProxy");
+        // do not include application name in every log message
+        properties.put("logging.include-application-name", "false");
 
         // Metrics configuration
         // ====================

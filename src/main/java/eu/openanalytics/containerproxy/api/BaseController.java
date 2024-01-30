@@ -21,8 +21,12 @@
 package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -50,6 +54,12 @@ public class BaseController {
         map.put("jqueryJs", "/webjars/jquery/3.7.1/jquery.min.js");
         map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
         map.put("resourcePrefix", "/" + identifierService.instanceId);
+
+        ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        HttpServletRequest httpServletRequest = servletRequestAttributes.getRequest();
+        HttpServletResponse httpServletResponse = servletRequestAttributes.getResponse();
+        map.put("request", httpServletRequest);
+        map.put("response", httpServletResponse);
     }
 
 }

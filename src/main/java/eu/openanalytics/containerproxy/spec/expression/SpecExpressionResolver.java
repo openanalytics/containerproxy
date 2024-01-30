@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Note: inspired by org.springframework.context.expression.StandardBeanExpressionResolver
@@ -144,6 +147,9 @@ public class SpecExpressionResolver {
                 }
                 if (result instanceof List) {
                     return ((List<Object>) result).stream().map(Object::toString);
+                }
+                if (result instanceof ArrayNode) {
+                    return StreamSupport.stream(((ArrayNode) result).spliterator(), false).map(JsonNode::asText);
                 }
                 return Stream.of(result.toString());
             })

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.ResponseAuthenticationConverter;
@@ -53,6 +54,7 @@ public class SpecExpressionContext {
     WebServiceAuthenticationBackend.WebServiceUser webServiceUser;
     List<String> groups;
     String userId;
+    JsonNode json;
 
     public static SpecExpressionContext create(Object... objects) {
         SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
@@ -75,6 +77,8 @@ public class SpecExpressionContext {
                 builder.ldapUser = (LdapUserDetails) o;
             } else if (o instanceof WebServiceAuthenticationBackend.WebServiceUser) {
                 builder.webServiceUser = (WebServiceAuthenticationBackend.WebServiceUser) o;
+            } else if (o instanceof JsonNode) {
+                builder.json = (JsonNode) o;
             }
             if (o instanceof Authentication) {
                 builder.groups = UserService.getGroups((Authentication) o);

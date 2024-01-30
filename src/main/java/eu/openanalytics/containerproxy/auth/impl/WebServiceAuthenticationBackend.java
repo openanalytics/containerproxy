@@ -24,6 +24,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -42,11 +44,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -61,12 +66,17 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
     private static final String PROP_PREFIX = "proxy.webservice.";
     private static final String PROP_AUTHENTICATION_REQUEST_BODY = PROP_PREFIX + "authentication-request-body";
     private static final String PROP_AUTHENTICATION_URL = PROP_PREFIX + "authentication-url";
+    private static final String PROP_GROUPS_EXPRESSION = PROP_PREFIX + "groups-expression";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String requestBodyTemplate;
     private final String authenticationUrl;
+    private final String groupsExpression;
+
+    @Inject
+    private SpecExpressionResolver specExpressionResolver;
 
     public WebServiceAuthenticationBackend(Environment environment) {
         requestBodyTemplate = environment.getProperty(PROP_AUTHENTICATION_REQUEST_BODY);
@@ -77,6 +87,7 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
         if (authenticationUrl == null) {
             throw new IllegalStateException("Webservice authentication enabled, but no '" + PROP_AUTHENTICATION_URL + "' defined!");
         }
+        groupsExpression = environment.getProperty(PROP_GROUPS_EXPRESSION);
     }
 
     @Override
@@ -117,7 +128,7 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
                 ResponseEntity<String> result = restTemplate.exchange(authenticationUrl, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
                 if (result.getStatusCode() == HttpStatus.OK) {
                     User user = createUser(username, result.getBody());
-                    return new UsernamePasswordAuthenticationToken(user, "", List.of());
+                    return new UsernamePasswordAuthenticationToken(user, "", user.getAuthorities());
                 }
                 throw new AuthenticationServiceException("Unknown response received " + result);
             } catch (HttpClientErrorException e) {
@@ -138,12 +149,21 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
                 return new WebServiceUser(username, null, null, List.of());
             }
             JsonNode jsonResponse = null;
+            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
             try {
                 jsonResponse = objectMapper.readTree(body);
+                if (groupsExpression != null) {
+                    SpecExpressionContext context = SpecExpressionContext.create(jsonResponse);
+                    List<String> groups = specExpressionResolver.evaluateToList(List.of(groupsExpression), context);
+                    for (String role: groups) {
+                        String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
+                        authorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
+                    }
+                }
             } catch (JsonProcessingException e) {
                 logger.warn("Invalid json response returned by web service, response is: " + body, e);
             }
-            return new WebServiceUser(username, body, jsonResponse, List.of());
+            return new WebServiceUser(username, body, jsonResponse, authorities);
         }
     }
 

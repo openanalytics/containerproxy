@@ -56,7 +56,7 @@ public class KubernetesManifestsRemover {
             for (String namespace : namespaces) {
                 try {
                     kubeClient.genericKubernetesResources(resourceDefinition).inNamespace(namespace).list();
-                    logger.info("Kubernetes additional manifests is supported for resource [Group:{} Version:{} Kind:{}] in namespace: {}",
+                    logger.info("Kubernetes additional manifests is supported for resource [Group: '{}', Version: '{}', Kind: '{}'] in namespace: {}",
                         resourceDefinition.getGroup(), resourceDefinition.getVersion(), resourceDefinition.getKind(), namespace);
                     supportedNamespaces.add(namespace);
                 } catch (KubernetesClientException ex) {
@@ -84,6 +84,7 @@ public class KubernetesManifestsRemover {
                 .getResources()
                 .stream()
                 .filter(apiResource -> !apiResource.getName().contains("/")
+                    && apiResource.getVerbs() != null
                     && apiResource.getVerbs().contains("get")
                     && apiResource.getVerbs().contains("list"));
         } catch (KubernetesClientException ex) {

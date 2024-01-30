@@ -28,6 +28,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -35,6 +36,8 @@ import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAut
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 
 import javax.inject.Inject;
 import java.util.Collections;
@@ -103,6 +106,14 @@ public class OpenIDConfiguration {
     @Bean
     public OpenIdReAuthorizeFilter openIdReAuthorizeFilter() {
         return new OpenIdReAuthorizeFilter();
+    }
+
+    @Bean
+    public JwtDecoderFactory<ClientRegistration> oidcIdTokenDecoderFactory() {
+        OidcIdTokenDecoderFactory factory = new OidcIdTokenDecoderFactory();
+        SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.from(environment.getProperty("proxy.openid.jwks-signature-algorithm", "RS256"));
+        factory.setJwsAlgorithmResolver(clientRegistration -> signatureAlgorithm);
+        return factory;
     }
 
 }

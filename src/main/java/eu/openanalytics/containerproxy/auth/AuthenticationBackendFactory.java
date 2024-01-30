@@ -71,7 +71,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
             case SimpleAuthenticationBackend.NAME -> backend = new SimpleAuthenticationBackend();
             case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
             case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
-            case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend();
+            case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend(environment);
             case SAMLAuthenticationBackend.NAME -> {
                 return samlBackend;
             }

@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.auth.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -36,11 +41,13 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -54,6 +61,9 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
     private static final String PROP_PREFIX = "proxy.webservice.";
     private static final String PROP_AUTHENTICATION_REQUEST_BODY = PROP_PREFIX + "authentication-request-body";
     private static final String PROP_AUTHENTICATION_URL = PROP_PREFIX + "authentication-url";
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String requestBodyTemplate;
     private final String authenticationUrl;
@@ -106,7 +116,7 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
                 String body = String.format(requestBodyTemplate, username, password);
                 ResponseEntity<String> result = restTemplate.exchange(authenticationUrl, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
                 if (result.getStatusCode() == HttpStatus.OK) {
-                    User user = new User(username, "", List.of());
+                    User user = createUser(username, result.getBody());
                     return new UsernamePasswordAuthenticationToken(user, "", List.of());
                 }
                 throw new AuthenticationServiceException("Unknown response received " + result);
@@ -121,6 +131,39 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
         public boolean supports(Class<?> authentication) {
             // Return true if this AuthenticationProvider supports the provided authentication class
             return authentication.equals(UsernamePasswordAuthenticationToken.class);
+        }
+
+        private User createUser(String username, String body) {
+            if (body == null) {
+                return new WebServiceUser(username, null, null, List.of());
+            }
+            JsonNode jsonResponse = null;
+            try {
+                jsonResponse = objectMapper.readTree(body);
+            } catch (JsonProcessingException e) {
+                logger.warn("Invalid json response returned by web service, response is: " + body, e);
+            }
+            return new WebServiceUser(username, body, jsonResponse, List.of());
+        }
+    }
+
+    public static class WebServiceUser extends User {
+
+        private final String response;
+        private final JsonNode jsonResponse;
+
+        public WebServiceUser(String username, String response, JsonNode jsonResponse, Collection<? extends GrantedAuthority> authorities) {
+            super(username, "", authorities);
+            this.response = response;
+            this.jsonResponse = jsonResponse;
+        }
+
+        public String getResponse() {
+            return response;
+        }
+
+        public JsonNode getJsonResponse() {
+            return jsonResponse;
         }
     }
 

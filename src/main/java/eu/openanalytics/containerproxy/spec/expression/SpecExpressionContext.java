@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.spec.expression;
 
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.ResponseAuthenticationConverter;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
@@ -49,6 +50,7 @@ public class SpecExpressionContext {
     OpenIDAuthenticationBackend.CustomNameOidcUser oidcUser;
     ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal samlCredential;
     LdapUserDetails ldapUser;
+    WebServiceAuthenticationBackend.WebServiceUser webServiceUser;
     List<String> groups;
     String userId;
 
@@ -71,6 +73,8 @@ public class SpecExpressionContext {
                 builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
             } else if (o instanceof LdapUserDetails) {
                 builder.ldapUser = (LdapUserDetails) o;
+            } else if (o instanceof WebServiceAuthenticationBackend.WebServiceUser) {
+                builder.webServiceUser = (WebServiceAuthenticationBackend.WebServiceUser) o;
             }
             if (o instanceof Authentication) {
                 builder.groups = UserService.getGroups((Authentication) o);

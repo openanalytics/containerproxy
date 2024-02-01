@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.oidc.AccessTokenDecoder;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -56,6 +57,8 @@ import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
@@ -79,7 +82,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     private static final String ENV_TOKEN_NAME = "SHINYPROXY_OIDC_ACCESS_TOKEN";
     private static OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
-    private final Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
+    private static AccessTokenDecoder accessTokenDecoder;
+    private static final Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
     @Inject
     private Environment environment;
     @Inject
@@ -93,6 +97,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     private SpecExpressionResolver specExpressionResolver;
     @Inject
     private ContextPathHelper contextPathHelper;
+
 
     /**
      * Parses the claim containing the roles to a List of Strings.
@@ -138,6 +143,11 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     private static OAuth2AuthorizedClient refreshClient(String principalName) {
         return oAuth2AuthorizedClientService.loadAuthorizedClient(REG_ID, principalName);
+    }
+
+    @Autowired
+    public void setAccessTokenDecoder(AccessTokenDecoder accessTokenDecoder) {
+        OpenIDAuthenticationBackend.accessTokenDecoder = accessTokenDecoder;
     }
 
     @Autowired
@@ -345,6 +355,25 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
             return client
                 .getRefreshToken()
                 .getTokenValue();
+        }
+
+        public String getAccessToken() {
+            OAuth2AuthorizedClient client = refreshClient(getName());
+            if (client == null || client.getAccessToken() == null) {
+                return null;
+            }
+            return client
+                .getAccessToken()
+                .getTokenValue();
+        }
+
+        public Jwt getAccessTokenAsJwt() {
+            try {
+                return accessTokenDecoder.decode("abc");
+            } catch (JwtException e) {
+                log.warn("Failed to decode access token as JWT", e);
+                throw e;
+            }
         }
     }
 }

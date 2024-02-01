@@ -49,15 +49,15 @@ import java.util.Set;
 public class OpenIDConfiguration {
 
     public static final String REG_ID = "shinyproxy";
+    public static final String PROP_OPENID_JWKS_SIGNATURE_ALGORITHM = "proxy.openid.jwks-signature-algorithm";
+    public static final String PROP_DEFAULT_ALGORITHM = "RS256";
 
     @Inject
     private Environment environment;
 
     @Bean
     public OAuth2AuthorizedClientService oAuth2AuthorizedClientService() {
-        if (environment
-            .getProperty("proxy.store-mode", "None")
-            .equals("Redis")) {
+        if (environment.getProperty("proxy.store-mode", "None").equals("Redis")) {
             return new RedisOAuth2AuthorizedClientService();
         }
         return new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository());
@@ -111,7 +111,7 @@ public class OpenIDConfiguration {
     @Bean
     public JwtDecoderFactory<ClientRegistration> oidcIdTokenDecoderFactory() {
         OidcIdTokenDecoderFactory factory = new OidcIdTokenDecoderFactory();
-        SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.from(environment.getProperty("proxy.openid.jwks-signature-algorithm", "RS256"));
+        SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.from(environment.getProperty(PROP_OPENID_JWKS_SIGNATURE_ALGORITHM, PROP_DEFAULT_ALGORITHM));
         factory.setJwsAlgorithmResolver(clientRegistration -> signatureAlgorithm);
         return factory;
     }

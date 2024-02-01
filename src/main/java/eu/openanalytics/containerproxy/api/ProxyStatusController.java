@@ -35,7 +35,6 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -67,8 +66,6 @@ public class ProxyStatusController {
     private ProxyService proxyService;
     @Inject
     private AsyncProxyService asyncProxyService;
-    @Inject
-    private UserService userService;
 
     @Operation(
         summary = "Change the status of a proxy.", tags = "ContainerProxy",
@@ -77,10 +74,10 @@ public class ProxyStatusController {
                 mediaType = "application/json",
                 schema = @Schema(implementation = ChangeProxyStatusDto.class),
                 examples = {
-                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredState\": \"Stopping\"}"),
-                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredState\": \"Pausing\"}"),
-                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\"}"),
-                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
+                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"status\": \"Stopping\"}"),
+                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"status\": \"Pausing\"}"),
+                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"status\": \"Resuming\"}"),
+                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"status\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
                         "\"other_parameter\":\"example\"}}")
                 }
             )
@@ -116,7 +113,7 @@ public class ProxyStatusController {
             })
     })
     @ResponseBody
-    @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.PUT)
+    @RequestMapping(value = "/api/proxy/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
         Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
@@ -124,7 +121,7 @@ public class ProxyStatusController {
         }
 
         try {
-            switch (changeProxyStateDto.getDesiredState()) {
+            switch (changeProxyStateDto.getStatus()) {
                 case "Pausing" -> {
                     if (!proxy.getStatus().equals(ProxyStatus.Up)) {
                         return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
@@ -148,7 +145,7 @@ public class ProxyStatusController {
                     asyncProxyService.stopProxy(proxy, false);
                 }
                 default -> {
-                    return ApiResponse.fail("Invalid desiredState");
+                    return ApiResponse.fail("Invalid status");
                 }
             }
         } catch (AccessDeniedException ex) {
@@ -185,7 +182,7 @@ public class ProxyStatusController {
             }),
     })
     @JsonView(Views.UserApi.class)
-    @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/proxy/{proxyId}/status", method = RequestMethod.GET)
     public DeferredResult<ResponseEntity<ApiResponse<Proxy>>> getProxyStatus(@PathVariable String proxyId,
                                                                              @Parameter(description = "Whether to watch for the status to change to Up, Stopped or Paused.")
                                                                              @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,

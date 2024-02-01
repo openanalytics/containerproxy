@@ -120,7 +120,7 @@ public class ShinyProxyClient {
         for (int i = 0; i < 3; i++) {
             Request request = new Request.Builder()
                 .get()
-                .url(baseUrl + "/api/" + proxyId + "/status?watch=true&timeout=60")
+                .url(baseUrl + "/api/proxy/" + proxyId + "/status?watch=true&timeout=60")
                 .build();
 
             JsonObject response = call(request, 200);
@@ -134,8 +134,8 @@ public class ShinyProxyClient {
 
     public void stopProxy(String proxyId) {
         Request request = new Request.Builder()
-            .put(RequestBody.create("{\"desiredState\":\"Stopping\"}", JSON))
-            .url(baseUrl + "/api/" + proxyId + "/status")
+            .put(RequestBody.create("{\"status\":\"Stopping\"}", JSON))
+            .url(baseUrl + "/api/proxy/" + proxyId + "/status")
             .build();
 
         call(request, 200);

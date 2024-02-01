@@ -26,17 +26,17 @@ import java.util.Map;
 
 public class ChangeProxyStatusDto {
 
-    private String desiredState;
+    private String status;
 
     private Map<String, String> parameters;
 
     @Schema(description = "The desired state for the proxy.", allowableValues = {"Stopping", "Pausing", "Resuming"})
-    public String getDesiredState() {
-        return desiredState;
+    public String getStatus() {
+        return status;
     }
 
-    public void setDesiredState(String desiredState) {
-        this.desiredState = desiredState;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     @Schema(description = "Proxy parameters when resuming proxy.", example = "{}")

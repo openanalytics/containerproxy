@@ -33,7 +33,7 @@ import io.undertow.servlet.api.SessionManagerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.springdoc.core.GroupedOpenApi;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -339,8 +339,8 @@ public class ContainerProxyApplication {
     public GroupedOpenApi groupOpenApi() {
         return GroupedOpenApi.builder()
             .group("v1")
-            .addOpenApiCustomiser(openApi -> {
-                Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{proxyId}/**", "/error"));
+            .addOpenApiCustomizer(openApi -> {
+                Set<String> endpoints = new HashSet<>(Arrays.asList("/app_direct_i/**", "/app_direct/**", "/app_proxy/{targetId}/**", "/error"));
                 openApi.getPaths().entrySet().stream().filter(p -> endpoints.contains(p.getKey()))
                     .forEach(p -> {
                         p.getValue().setHead(null);

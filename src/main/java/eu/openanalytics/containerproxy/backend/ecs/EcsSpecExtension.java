@@ -49,11 +49,19 @@ public class EcsSpecExtension extends AbstractSpecExtension {
     @Builder.Default
     SpelField.String ecsExecutionRole = new SpelField.String();
 
+    @Builder.Default
+    SpelField.String ecsCpuArchitecture = new SpelField.String();
+
+    @Builder.Default
+    SpelField.String ecsOperationSystemFamily = new SpelField.String();
+
     @Override
     public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
             .ecsTaskRole(ecsTaskRole.resolve(resolver, context))
             .ecsExecutionRole(ecsExecutionRole.resolve(resolver, context))
+            .ecsCpuArchitecture(ecsCpuArchitecture.resolve(resolver, context))
+            .ecsOperationSystemFamily(ecsOperationSystemFamily.resolve(resolver, context))
             .build();
     }
 

@@ -35,7 +35,9 @@ import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.Attachment;
@@ -50,9 +52,11 @@ import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
 import software.amazon.awssdk.services.ecs.model.RegisterTaskDefinitionResponse;
 import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
+import software.amazon.awssdk.services.ecs.model.RuntimePlatform;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -66,6 +70,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+@Component
+@ConditionalOnProperty(name = "proxy.container-backend", havingValue = "ecs", matchIfMissing = true)
 public class EcsBackend extends AbstractContainerBackend {
 
     private static final String PROPERTY_PREFIX = "proxy.ecs.";
@@ -77,7 +83,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private List<String> securityGroups;
     private int totalWaitMs;
 
-    @Override
+    @PostConstruct
     public void initialize() {
         super.initialize();
 
@@ -213,7 +219,12 @@ public class EcsBackend extends AbstractContainerBackend {
             .cpu(spec.getCpuRequest().getValue()) // required by fargate
             .memory(spec.getMemoryRequest().getValue()) // required by fargate
             .taskRoleArn(specExtension.ecsTaskRole.getValueOrNull())
-            .executionRoleArn(specExtension.ecsTaskRole.getValueOrNull())
+            .executionRoleArn(specExtension.ecsExecutionRole.getValueOrNull())
+            .runtimePlatform(RuntimePlatform.builder()
+                .cpuArchitecture(specExtension.ecsCpuArchitecture.getValueOrNull())
+                .operatingSystemFamily(specExtension.ecsOperationSystemFamily.getValueOrNull())
+                .build()
+            )
             .tags(tags));
 
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();

@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import com.google.common.collect.ImmutableMap;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -31,8 +30,8 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 import org.mandas.docker.client.DockerCertificates;
 import org.mandas.docker.client.DockerClient;
-import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.LogStream;
+import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
 import org.mandas.docker.client.exceptions.DockerException;
 
@@ -50,7 +49,6 @@ import java.util.function.BiConsumer;
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
-    protected static final String PROPERTY_APP_PORT = "port";
     protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
     protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
     protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";

@@ -61,6 +61,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -75,6 +76,8 @@ import java.util.stream.Stream;
 @ConditionalOnProperty(name = "proxy.container-backend", havingValue = "docker-swarm")
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
+    private URL hostURL;
+
     @PostConstruct
     public void initialize() {
         super.initialize();
@@ -84,6 +87,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         } catch (Exception e) {
         }
         if (swarmId == null) throw new ContainerProxyException("Backend is not a Docker Swarm");
+        try {
+            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -231,7 +239,6 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
     @Override
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
-        String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
         String targetHostName;
         int targetPort;
 
@@ -241,12 +248,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             targetPort = portMapping.getPort();
         } else {
             // Access on dockerHostName:servicePort
-            URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
             targetHostName = hostURL.getHost();
             targetPort = servicePort;
         }
 
-        return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
+        return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
     private SecretBind convertSecret(DockerSwarmSecret secret) throws DockerException, InterruptedException {

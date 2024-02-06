@@ -50,6 +50,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -66,11 +67,20 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
 
     private ImagePullPolicy imagePullPolicy;
+    private String nonInternalNetworkTargetProtocol;
+    private URL hostURL;
 
     @PostConstruct
     public void initialize() {
         super.initialize();
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
+
+        try {
+            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
+            nonInternalNetworkTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, hostURL.getProtocol());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -167,7 +177,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
         String targetPort;
 
         if (isUseInternalNetwork()) {
-            targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
+            targetProtocol = getDefaultTargetProtocol();
 
             // For internal networks, DNS resolution by name only works with custom names.
             // See comments on https://github.com/docker/for-win/issues/1009
@@ -176,8 +186,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             targetPort = String.valueOf(portMapping.getPort());
         } else {
-            URL hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-            targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, hostURL.getProtocol());
+            targetProtocol = nonInternalNetworkTargetProtocol;
             targetHostName = hostURL.getHost();
             targetPort = String.valueOf(hostPort);
         }

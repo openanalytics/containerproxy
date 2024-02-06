@@ -103,7 +103,6 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -145,13 +144,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private Boolean logManifests;
     private int totalWaitMs;
 
+    private final List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
     private List<String> appNamespaces;
     private String nodeSelectorString;
     private String kubeNamespace;
     private String apiVersion;
     private String imagePullPolicy;
-    private List<LocalObjectReference> imagePullSecrets = new ArrayList<>();
-    private String targetProtocol;
 
     @PostConstruct
     public void initialize() {
@@ -200,7 +198,6 @@ public class KubernetesBackend extends AbstractContainerBackend {
         if (imagePullSecretsList != null) {
             imagePullSecrets.addAll(imagePullSecretsList.stream().map(LocalObjectReference::new).toList());
         }
-        targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
         kubernetesManifestsRemover = new KubernetesManifestsRemover(kubeClient, appNamespaces, identifierService);
     }
 
@@ -621,7 +618,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             targetPort = servicePort;
         }
 
-        return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
+        return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
     @Override

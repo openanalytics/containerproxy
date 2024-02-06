@@ -71,17 +71,19 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @Component
-@ConditionalOnProperty(name = "proxy.container-backend", havingValue = "ecs", matchIfMissing = true)
+@ConditionalOnProperty(name = "proxy.container-backend", havingValue = "ecs")
 public class EcsBackend extends AbstractContainerBackend {
 
     private static final String PROPERTY_PREFIX = "proxy.ecs.";
     private static final String PROPERTY_CLUSTER = "name";
     private static final String PROPERTY_REGION = "region";
+    private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
     private EcsClient ecsClient;
     private List<String> subnets;
     private List<String> securityGroups;
     private int totalWaitMs;
+    private String cluster;
 
     @PostConstruct
     public void initialize() {
@@ -93,9 +95,10 @@ public class EcsBackend extends AbstractContainerBackend {
             .region(region)
             .build();
 
+        cluster = getProperty(PROPERTY_CLUSTER);
         subnets = EnvironmentUtils.readList(environment, "proxy.ecs.subnets");
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
-        totalWaitMs = environment.getProperty("proxy.ecs.service-wait-time", Integer.class, 180000);
+        totalWaitMs = environment.getProperty(PROPERTY_PREFIX + PROPERTY_SERVICE_WAIT_TIME, Integer.class, 180000);
     }
 
     @Override
@@ -129,7 +132,7 @@ public class EcsBackend extends AbstractContainerBackend {
             String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, containerId, tags);
 
             RunTaskResponse runTaskResponse = ecsClient.runTask(builder -> builder
-                .cluster(getProperty(PROPERTY_CLUSTER))
+                .cluster(cluster)
                 .count(1)
                 .taskDefinition(taskDefinitionArn)
                 .propagateTags(PropagateTags.TASK_DEFINITION)
@@ -150,7 +153,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
             boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
-                    .cluster(getProperty(PROPERTY_CLUSTER))
+                    .cluster(cluster)
                     .tasks(taskArn));
 
                 if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
@@ -163,7 +166,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 }
             }, totalWaitMs);
 
-            String image = ecsClient.describeTasks(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).tasks(taskArn)).tasks().get(0).containers().get(0).image();
+            String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn), false);
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
@@ -234,7 +237,7 @@ public class EcsBackend extends AbstractContainerBackend {
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
             String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
-            ecsClient.stopTask(builder -> builder.cluster(getProperty(PROPERTY_CLUSTER)).task(taskArn));
+            ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
 
             // delete is ignored if task definition does not exist, this is the case if the task definition was not created by shinyproxy
             ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
@@ -246,7 +249,7 @@ public class EcsBackend extends AbstractContainerBackend {
             for (Container container : proxy.getContainers()) {
                 String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
-                    .cluster(getProperty(PROPERTY_CLUSTER))
+                    .cluster(cluster)
                     .tasks(taskArn));
 
                 if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
@@ -275,7 +278,6 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
-        String targetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
         String targetHostName = "";
         int targetPort;
 
@@ -297,7 +299,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
         targetPort = portMapping.getPort();
 
-        return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
+        return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
     private Optional<Task> getTask(Container container) {
@@ -314,7 +316,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
     private Optional<Task> getTask(String taskInfo) {
         List<Task> tasks = ecsClient.describeTasks(builder -> builder
-            .cluster(getProperty(PROPERTY_CLUSTER))
+            .cluster(cluster)
             .tasks(taskInfo)
             .build()
         ).tasks();

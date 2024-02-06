@@ -45,6 +45,7 @@ import org.springframework.security.core.Authentication;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -82,6 +83,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected IdentifierService identifierService;
     private boolean useInternalNetwork;
     private boolean privileged;
+    private String defaultTargetProtocol;
 
     /**
      * Computes the correct targetPath to use, to make the configuration of the targetPath easier.
@@ -113,6 +115,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
         // If this application runs as a container itself, things like port publishing can be omitted.
         useInternalNetwork = getProperty(PROPERTY_INTERNAL_NETWORKING, false);
         privileged = getProperty(PROPERTY_PRIVILEGED, false);
+        defaultTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, DEFAULT_TARGET_PROTOCOL);
     }
 
     @Override
@@ -215,6 +218,10 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
 
     protected boolean isPrivileged() {
         return privileged;
+    }
+
+    protected String getDefaultTargetProtocol() {
+        return defaultTargetProtocol;
     }
 
     abstract protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception;

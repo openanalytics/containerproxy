@@ -24,7 +24,9 @@ import eu.openanalytics.containerproxy.api.BaseController;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -48,6 +50,9 @@ public class AuthController extends BaseController {
 
     @Inject
     private IAuthenticationBackend auth;
+
+    @Inject
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @RequestMapping(value = "/login", method = RequestMethod.GET)
     public Object getLoginPage(@RequestParam Optional<String> error, ModelMap map) {
@@ -87,6 +92,7 @@ public class AuthController extends BaseController {
 
     @RequestMapping(value = "/auth-error", method = RequestMethod.GET)
     public String getAuthErrorPage(ModelMap map) {
+        applicationEventPublisher.publishEvent(new AuthFailedEvent(this, "user-unknown-reported-by-auth-error-page"));
         prepareMap(map);
         map.put("application_name", environment.getProperty("spring.application.name"));
         map.put("mainPage", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());

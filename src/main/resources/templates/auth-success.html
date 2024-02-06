@@ -33,6 +33,9 @@
             history.pushState({}, "", new URL([[${url}]]));
             window.location.href = [[${url}]];
         </script>
+        <script>
+            console.log("This page should redirect you to the main ShinyProxy page after authentication.");
+            console.log("If this does not happen, check for error messages in this log and check your reverse proxy settings");
+        </script>
     </head>
-    Test
 </html>

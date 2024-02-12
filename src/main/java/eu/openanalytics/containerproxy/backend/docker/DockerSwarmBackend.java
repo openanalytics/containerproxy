@@ -160,7 +160,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
             }
 
-            String serviceName = "sp-service-" + UUID.randomUUID();
+            String serviceName = spec.getResourceName().getValueOrDefault("sp-service-" + proxy.getId() + "-" + initialContainer.getIndex());
             ServiceSpec.Builder serviceSpecBuilder = ServiceSpec.builder()
                 .networks(networks)
                 .name(serviceName)
@@ -203,7 +203,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             // tell the status service we are starting the container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceId), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceName), false);
 
             // Give the service some time to start up and launch a container.
             boolean containerFound = Retrying.retry((i, maxAttempts) -> {

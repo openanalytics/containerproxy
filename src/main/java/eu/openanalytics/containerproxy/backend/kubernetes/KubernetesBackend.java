@@ -263,7 +263,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             ContainerBuilder containerBuilder = new ContainerBuilder()
                 .withImage(spec.getImage().getValue())
                 .withCommand(spec.getCmd().getValueOrNull())
-                .withName("sp-container-" + containerId)
+                .withName("sp-container-" + initialContainer.getIndex())
                 .withPorts(containerPorts)
                 .withVolumeMounts(volumeMounts)
                 .withSecurityContext(security)
@@ -276,9 +276,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Map<String, String> podLabels = new HashMap<>();
             podLabels.put("app", containerId);
 
+            String podName = StringUtils.left(spec.getResourceName().getValueOrDefault("sp-pod-" + proxy.getId() + "-" + initialContainer.getIndex()), 63);
+
             ObjectMetaBuilder objectMetaBuilder = new ObjectMetaBuilder()
                 .withNamespace(kubeNamespace)
-                .withName("sp-pod-" + containerId);
+                .withName(podName);
 
             Stream.concat(
                 proxy.getRuntimeValues().values().stream(),

@@ -64,7 +64,7 @@ import java.util.stream.Collectors;
 
 public class TestIntegrationOnKube {
 
-    private static final ShinyProxyInstance inst = new ShinyProxyInstance("application-test.yml", new HashMap<>());
+    private static final ShinyProxyInstance inst = new ShinyProxyInstance("application-test-kubernetes.yml");
 
     @AfterAll
     public static void afterAll() {

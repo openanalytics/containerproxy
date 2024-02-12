@@ -1,0 +1,41 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  container-backend: docker
+  heartbeat-timeout: -1
+
+  users:
+    - name: demo
+      password: demo
+      groups:
+        - group1
+        - group2
+    - name: demo2
+      password: demo2
+
+  docker:
+    url: http://localhost:2375
+
+
+  specs:
+    - id: 01_hello
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+    - id: custom_resource_name
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          resource-name: "my-app-#{proxy.specId}-#{proxy.userId}"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838

@@ -81,6 +81,8 @@ public class ContainerSpec {
     private String dockerRegistryDomain;
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
+    @Builder.Default
+    private SpelField.String resourceName = new SpelField.String();
 
     public void setCmd(List<String> cmd) {
         this.cmd = new SpelField.StringList(cmd);
@@ -127,6 +129,7 @@ public class ContainerSpec {
         return toBuilder()
             .env(env.resolve(resolver, context))
             .labels(labels.resolve(resolver, context))
+            .resourceName(resourceName.resolve(resolver, context))
             .build();
     }
 

@@ -39,16 +39,16 @@ import java.util.stream.Stream;
 public class TestAppRecovery {
 
     private static Stream<Arguments> backends() {
-        return Stream.of(Arguments.of("docker", new HashMap<String, String>()), Arguments.of("docker", new HashMap<String, String>() {{
-                put("proxy.docker.internal-networking", "true");
-            }}), Arguments.of("docker-swarm", new HashMap<String, String>()), Arguments.of("docker-swarm", new HashMap<String, String>() {{
-                put("proxy.docker.internal-networking", "true");
-            }}), Arguments.of("kubernetes", new HashMap<String, String>() {{
-                put("proxy.kubernetes.namespace", "itest");
-            }}), Arguments.of("kubernetes", new HashMap<String, String>() {{
-                put("proxy.kubernetes.namespace", "itest");
-                put("proxy.kubernetes.internal-networking", "true");
-            }})
+        return Stream.of(
+            Arguments.of("docker", Map.of()),
+            Arguments.of("docker", Map.of("proxy.docker.internal-networking", "true")),
+            Arguments.of("docker-swarm", Map.of()),
+            Arguments.of("docker-swarm", Map.of("proxy.docker.internal-networking", "true")),
+            Arguments.of("kubernetes", Map.of("proxy.kubernetes.namespace", "itest")),
+            Arguments.of("kubernetes", Map.of(
+                "proxy.kubernetes.namespace", "itest",
+                "proxy.kubernetes.internal-networking", "true")
+            )
         );
     }
 

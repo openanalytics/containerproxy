@@ -148,7 +148,9 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 .build();
 
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
-            ContainerCreation containerCreation = dockerClient.createContainer(containerConfig);
+            String containerName = spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex());
+
+            ContainerCreation containerCreation = dockerClient.createContainer(containerConfig, containerName);
             rContainerBuilder.id(containerCreation.id());
 
             if (spec.getNetworkConnections().isPresent()) {
@@ -158,7 +160,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             }
 
             dockerClient.startContainer(containerCreation.id());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerCreation.id()), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerName), false);
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             Container rContainer = rContainerBuilder.build();

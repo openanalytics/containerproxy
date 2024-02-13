@@ -566,14 +566,7 @@ public class ProxySharingScaler {
     }
 
     private String getProxySpecHash(ProxySpec proxySpec) {
-        // remove ProxySharing SpecExtension, so it's ignored in the hash
-        Map<String, ISpecExtension> specExtensions = new HashMap<>(proxySpec.getSpecExtensions());
-        specExtensions.remove(ProxySharingSpecExtension.class.getName());
-        ProxySpec canonicalSpec = proxySpec
-            .toBuilder()
-            .specExtensions(specExtensions)
-            .build();
-        return Sha1.hash(canonicalSpec);
+        return Sha1.hash(proxySpec);
     }
 
     private void removeSeat(DelegateProxy delegateProxy, String seatId) {

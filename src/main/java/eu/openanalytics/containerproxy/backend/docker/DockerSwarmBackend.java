@@ -78,6 +78,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
     private URL hostURL;
 
+    private int serviceWaitTime;
+
     @PostConstruct
     public void initialize() {
         super.initialize();
@@ -92,6 +94,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
+        serviceWaitTime = environment.getProperty("proxy.docker.service-wait-time", Integer.class, 60000);
     }
 
     @Override
@@ -206,7 +209,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceName), false);
 
             // Give the service some time to start up and launch a container.
-            boolean containerFound = Retrying.retry((i, maxAttempts) -> {
+            boolean containerFound = Retrying.retry((currentAttempt, maxAttempts) -> {
                 try {
                     Task serviceTask = dockerClient
                         .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
@@ -214,12 +217,14 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                     if (serviceTask.status().containerStatus() != null) {
                         rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
                         return true;
+                    } else if (currentAttempt > 10 && log != null) {
+                        slog.info(proxy, String.format("Docker Swarm Service not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to inspect swarm service tasks", e);
                 }
                 return false;
-            }, 60_000, true);
+            }, serviceWaitTime, true);
 
             if (!containerFound) {
                 dockerClient.removeService(serviceId);

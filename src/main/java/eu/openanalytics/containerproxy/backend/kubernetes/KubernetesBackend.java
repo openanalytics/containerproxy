@@ -334,7 +334,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
                 if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
                     if (currentAttempt > 10 && log != null) {
-                        slog.info(proxy, String.format("Container not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                        slog.info(proxy, String.format("Kubernetes Pod not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
                     }
                     return false;
                 }
@@ -345,7 +345,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 // check a final time whether the pod is ready
                 if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
                     logKubernetesWarnings(proxy, startedPod);
-                    throw new ContainerFailedToStartException("Container did not become ready in time", null, rContainerBuilder.build());
+                    throw new ContainerFailedToStartException("Kubernetes Pod did not start in time", null, rContainerBuilder.build());
                 }
             }
 

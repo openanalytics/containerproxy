@@ -116,7 +116,7 @@ public class ShinyProxyClient {
         }
     }
 
-    private ProxyStatus waitForProxyStatus(String proxyId) {
+    public ProxyStatus waitForProxyStatus(String proxyId) {
         for (int i = 0; i < 3; i++) {
             Request request = new Request.Builder()
                 .get()
@@ -227,6 +227,10 @@ public class ShinyProxyClient {
         } catch (Throwable t) {
             throw new TestHelperException("Error during http request", t);
         }
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
     }
 
 }

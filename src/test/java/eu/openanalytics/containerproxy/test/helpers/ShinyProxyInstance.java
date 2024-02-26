@@ -21,9 +21,12 @@
 package eu.openanalytics.containerproxy.test.helpers;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.Retrying;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -31,11 +34,16 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+
 
 public class ShinyProxyInstance implements AutoCloseable {
 
@@ -69,6 +77,7 @@ public class ShinyProxyInstance implements AutoCloseable {
                 // only works if networking is NOT internal!
                 application.addPrimarySources(Collections.singletonList(NotInternalOnlyTestStrategyConfiguration.class));
             }
+            application.addPrimarySources(Collections.singletonList(JavaMailSenderConfiguration.class));
             Properties allProperties = ContainerProxyApplication.getDefaultProperties();
             allProperties.put("spring.config.location", "src/test/resources/" + configFileName);
             allProperties.put("server.port", port);
@@ -105,7 +114,6 @@ public class ShinyProxyInstance implements AutoCloseable {
         return app.getBean(name, requiredType);
     }
 
-
     @Override
     public void close() {
         app.stop();
@@ -117,6 +125,12 @@ public class ShinyProxyInstance implements AutoCloseable {
         }
     }
 
+    public void stopAllApps() {
+        for (Proxy proxy: proxyService.getAllProxies()) {
+            proxyService.stopProxy(null, proxy, true).run();
+        }
+    }
+
     public static class NotInternalOnlyTestStrategyConfiguration {
 
         @Primary
@@ -125,6 +139,36 @@ public class ShinyProxyInstance implements AutoCloseable {
             return new NotInternalOnlyTestStrategy();
         }
 
+    }
+
+    public static class JavaMailSenderConfiguration {
+
+        @Primary
+        @Bean
+        public JavaMailSender javaMailSender() {
+            return new JavaMailSender() {
+
+                @Override
+                public void send(SimpleMailMessage... simpleMessages) throws MailException {
+
+                }
+
+                @Override
+                public MimeMessage createMimeMessage() {
+                    return new MimeMessage(Session.getDefaultInstance(new Properties()));
+                }
+
+                @Override
+                public MimeMessage createMimeMessage(InputStream contentStream) throws MailException {
+                    return new MimeMessage(Session.getDefaultInstance(new Properties()));
+                }
+
+                @Override
+                public void send(MimeMessage... mimeMessages) throws MailException {
+
+                }
+            };
+        }
     }
 
 }

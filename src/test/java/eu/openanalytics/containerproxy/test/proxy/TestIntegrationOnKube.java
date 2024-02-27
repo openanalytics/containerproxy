@@ -98,7 +98,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, serviceList.getItems().size());
             Service service = serviceList.getItems().get(0);
             Assertions.assertEquals(k8s.namespace, service.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+            Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
             Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
             Assertions.assertEquals(1, service.getSpec().getPorts().size());
             Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
@@ -332,7 +332,7 @@ public class TestIntegrationOnKube {
                 Assertions.assertEquals(1, serviceList.getItems().size());
                 Service service = serviceList.getItems().get(0);
                 Assertions.assertEquals(k8s.overriddenNamespace, service.getMetadata().getNamespace());
-                Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+                Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
                 Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
                 Assertions.assertEquals(1, service.getSpec().getPorts().size());
                 Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
@@ -1107,7 +1107,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals(1, serviceList.getItems().size());
             Service service = serviceList.getItems().get(0);
             Assertions.assertEquals(k8s.namespace, service.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-service-" + containerId, service.getMetadata().getName());
+            Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
             Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
             Assertions.assertEquals(1, service.getSpec().getPorts().size());
             Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());

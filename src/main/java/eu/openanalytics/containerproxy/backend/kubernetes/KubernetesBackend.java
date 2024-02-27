@@ -34,8 +34,10 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -368,7 +370,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
                         .withApiVersion(apiVersion)
                         .withKind("Service")
                         .withNewMetadata()
-                        .withName("sp-service-" + containerId)
+                        .withName(getServiceName(proxy, initialContainer))
                         .withLabels(serviceLabels)
                         .endMetadata()
                         .withNewSpec()
@@ -637,7 +639,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
             if (!isUseInternalNetwork()) {
                 // delete service when not using internal network
-                Service service = kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(container)).get();
+                Service service = kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(proxy, container)).get();
                 if (service != null) {
                     kubeClient.resource(service).withGracePeriod(0).delete();
                 }
@@ -729,9 +731,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
                     continue;
                 }
 
+                String proxyId = runtimeValues.get(ProxyIdKey.inst).getObject();
+                Integer containerIndex = runtimeValues.get(ContainerIndexKey.inst).getObject();
+
                 Map<Integer, Integer> portBindings = new HashMap<>();
                 if (!isUseInternalNetwork()) {
-                    Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + containerId).get();
+                    Service service = kubeClient.services().inNamespace(namespace).withName("sp-service-" + proxyId + "-" + containerIndex).get();
                     if (service == null) {
                         log.warn("Ignoring container {} because it has no associated service", containerId);
                         continue;
@@ -783,8 +788,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return Optional.of(Pair.of(tmp[0], tmp[1]));
     }
 
-    private String getServiceName(Container container) {
-        return "sp-service-" + container.getId();
+    private String getServiceName(Proxy proxy, Container container) {
+        return "sp-service-" + proxy.getId() + "-" + container.getIndex();
     }
 
     private Optional<Pod> getPod(Container container) {

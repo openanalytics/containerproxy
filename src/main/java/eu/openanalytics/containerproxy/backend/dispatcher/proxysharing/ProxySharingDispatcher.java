@@ -200,12 +200,12 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     @Override
     public void pauseProxy(Proxy proxy) {
-        throw new IllegalStateException("Not available"); // TODO
+        throw new IllegalStateException("ProxySharingDispatcher does not support pauseProxy.");
     }
 
     @Override
     public Proxy resumeProxy(Authentication user, Proxy proxy, ProxySpec proxySpec) throws ProxyFailedToStartException {
-        throw new IllegalStateException("Not available"); // TODO
+        throw new IllegalStateException("ProxySharingDispatcher does not support resumeProxy.");
     }
 
     @Override
@@ -215,7 +215,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     @Override
     public Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy) {
-        return proxy; // TODO
+        return proxy;
     }
 
     @EventListener

@@ -96,7 +96,6 @@ public interface IContainerBackend {
      */
     Map<String, URI> setupPortMappingExistingProxy(Proxy proxy, Container container, Map<Integer, Integer> portBindings) throws Exception;
 
-    // TODO move implementation to abstract class
     default Boolean supportsPause() {
         return false;
     }

@@ -29,7 +29,6 @@ public class DisplayNameKey extends RuntimeValueKey<String> {
             "SHINYPROXY_DISPLAY_NAME",
             false,
             true,
-            // TODO
             false,
             true,
             true,

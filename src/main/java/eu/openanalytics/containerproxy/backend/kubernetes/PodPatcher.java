@@ -68,7 +68,6 @@ public class PodPatcher {
         JsonStructure patchedPodAsJsonValue = patch.apply(podAsJsonValue);
         // 3. convert back to a pod
         return mapper.convertValue(patchedPodAsJsonValue, Pod.class);
-        // TODO catch exceptions
     }
 
     /**

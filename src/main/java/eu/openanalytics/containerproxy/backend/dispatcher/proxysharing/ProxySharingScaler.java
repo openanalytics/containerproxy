@@ -125,6 +125,10 @@ public class ProxySharingScaler {
         // remove httpHeaders from spec, since it's not used for DelegateProxies and may contain SpEL which cannot be resolved here
         this.proxySpec = proxySpec.toBuilder().httpHeaders(new SpelField.StringMap()).build();
         proxySpecHash = getProxySpecHash(proxySpec);
+
+        if (!specExtension.allowContainerReUse && specExtension.seatsPerContainer != 1) {
+            throw new IllegalStateException(String.format("Spec %s is invalid: when allow-container-re-use is disabled, seatsPerContainer must be exactly 1", proxySpec.getId()));
+        }
     }
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
@@ -227,7 +231,6 @@ public class ProxySharingScaler {
             markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
             globalEventLoop.schedule(this::reconcile);
         } else if (!specExtension.allowContainerReUse) {
-            // TODO allow only one seat if container is not allowed to be re-used
             // container cannot be re-used -> mark delegateProxy as ToRemove
             log(delegateProxy, "DelegateProxy cannot be re-used, marking for removal");
             removeSeat(delegateProxy, seatId);
@@ -335,7 +338,6 @@ public class ProxySharingScaler {
                 proxyBuilder.specId(proxySpec.getId());
                 long createdTimestamp = System.currentTimeMillis();
                 proxyBuilder.createdTimestamp(createdTimestamp);
-                // TODO add minimal set of runtimevalues
                 proxyBuilder.addRuntimeValue(new RuntimeValue(DelegateProxyKey.inst, true), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, getPublicPath(id)), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(InstanceIdKey.inst, identifierService.instanceId), false);
@@ -364,7 +366,6 @@ public class ProxySharingScaler {
                     proxyBuilder.addContainer(container);
                 }
                 proxy = proxyBuilder.build();
-                // TODO use startupLog ?
                 log(delegateProxy, "Starting DelegateProxy");
                 proxy = containerBackend.startProxy(null, proxy, resolvedSpec, new ProxyStartupLog.ProxyStartupLogBuilder());
                 delegateProxy = originalDelegateProxy.toBuilder().proxy(proxy).build();

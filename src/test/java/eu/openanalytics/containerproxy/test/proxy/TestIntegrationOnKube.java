@@ -87,7 +87,7 @@ public class TestIntegrationOnKube {
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -121,14 +121,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_volume");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -166,14 +164,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_env");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -209,14 +206,13 @@ public class TestIntegrationOnKube {
 
             String id = inst.client.startProxy("01_hello_secret");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -241,14 +237,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_limits");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -274,14 +269,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_priv");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -328,7 +321,7 @@ public class TestIntegrationOnKube {
                 Pod pod = podList.getItems().get(0);
                 Assertions.assertEquals("Running", pod.getStatus().getPhase());
                 Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
-                Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+                Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
                 Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
                 Assertions.assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
                 ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
@@ -366,14 +359,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_patches2");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -412,14 +403,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -479,14 +469,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_manifests");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -527,14 +515,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests_espression");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -581,14 +568,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests_persistent");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -624,14 +610,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_manifests_policy_create_once");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -668,14 +652,13 @@ public class TestIntegrationOnKube {
 
             String id = inst.client.startProxy("01_hello_manifests_policy_create_once");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -703,14 +686,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests_policy_patch");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -747,14 +729,13 @@ public class TestIntegrationOnKube {
             TestUtil.sleep(2000);
             String id = inst.client.startProxy("01_hello_manifests_policy_patch");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -793,14 +774,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -822,14 +801,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests_policy_replace");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -868,14 +846,12 @@ public class TestIntegrationOnKube {
             String id = inst.client.startProxy("01_hello_manifests_policy_replace");
             Proxy proxy = inst.proxyService.getProxy(id);
 
-            String containerId = proxy.getContainers().get(0).getId();
-
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -905,14 +881,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_create_once");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -962,14 +937,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_patch");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -1028,14 +1002,13 @@ public class TestIntegrationOnKube {
 
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -1057,14 +1030,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_replace");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -1124,7 +1096,7 @@ public class TestIntegrationOnKube {
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());
@@ -1349,14 +1321,13 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_manifests_persistent_using_auth");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
             Pod pod = podList.getItems().get(0);
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
-            Assertions.assertEquals("sp-pod-" + containerId, pod.getMetadata().getName());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
             ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
             Assertions.assertEquals(true, container.getReady());

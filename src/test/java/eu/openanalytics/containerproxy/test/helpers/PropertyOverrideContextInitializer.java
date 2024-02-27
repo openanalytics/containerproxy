@@ -20,9 +20,11 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.PropertySource;
 
 import javax.annotation.Nonnull;
@@ -32,6 +34,8 @@ public class PropertyOverrideContextInitializer implements ApplicationContextIni
     @Override
     public void initialize(@Nonnull ConfigurableApplicationContext configurableApplicationContext) {
         MutablePropertySources propertySources = configurableApplicationContext.getEnvironment().getPropertySources();
+        PropertiesPropertySource defaultProperties = new PropertiesPropertySource("shinyProxyDefaultProperties", ContainerProxyApplication.getDefaultProperties());
+        propertySources.addFirst(defaultProperties);
 
         // remove any external, file-based property source
         // we don't want any application.yml or application.properties to be loaded during the tests

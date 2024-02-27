@@ -573,7 +573,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
             GenericKubernetesResource fullObject = kubeClient
                 .genericKubernetesResources(object.getApiVersion(), object.getKind())
-                .load(new ByteArrayInputStream(manifest.getBytes())).get();
+                .load(new ByteArrayInputStream(manifest.getBytes())).item();
 
             if (object.getMetadata().getNamespace() == null) {
                 // the load method (in some cases) automatically sets a namespace when no namespace is provided

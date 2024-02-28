@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContai
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpelException;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
+import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import eu.openanalytics.containerproxy.test.helpers.TestUtil;
 import eu.openanalytics.containerproxy.util.Retrying;
@@ -1352,6 +1353,152 @@ public class TestIntegrationOnKube {
             // configmap 2 should not have been deleted
             configMap2 = k8s.client.configMaps().inNamespace(k8s.overriddenNamespace).withName("configmap2").get();
             Assertions.assertTrue(configMap2.getData().containsKey("test.txt"));
+        }
+    }
+
+    /**
+     * Test whether kubernetes-authorized-pod-patches works.
+     */
+    @Test
+    public void launchProxyWithAuthorizedPodPatches() {
+        try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
+            // launch as user demo
+            String id = inst.client.startProxy("01_hello_pod_patches_auth");
+            Proxy proxy = inst.proxyService.getProxy(id);
+
+            PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
+
+            // Check Env Variables
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+            Assertions.assertTrue(env.containsKey("VAR_FOR_DEMO"));
+            Assertions.assertEquals("VALUE", env.get("VAR_FOR_DEMO").getValue()); // value is a String "null"
+            Assertions.assertFalse(env.containsKey("VAR_FOR_DEMO2"));
+
+            inst.proxyService.stopProxy(null, proxy, true).run();
+
+            // all pods should be deleted
+            assertNoPods(k8s);
+        }
+        try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
+            // launch as user demo2
+            ShinyProxyClient clientDemo2 = inst.getClient("demo2");
+            String id = clientDemo2.startProxy("01_hello_pod_patches_auth");
+            Proxy proxy = inst.proxyService.getProxy(id);
+
+            PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
+
+            // Check Env Variables
+            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
+            Assertions.assertFalse(env.containsKey("VAR_FOR_DEMO"));
+            Assertions.assertTrue(env.containsKey("VAR_FOR_DEMO2"));
+            Assertions.assertEquals("VALUE", env.get("VAR_FOR_DEMO2").getValue()); // value is a String "null"
+
+            inst.proxyService.stopProxy(null, proxy, true).run();
+
+            // all pods should be deleted
+            assertNoPods(k8s);
+        }
+    }
+
+    @Test
+    public void launchProxyWithAuthorizedAdditionalManifests() {
+        try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
+            // launch as user demo
+            String id = inst.client.startProxy("01_hello_manifests_auth");
+            Proxy proxy = inst.proxyService.getProxy(id);
+
+            PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
+
+            // additional manifest
+            Secret secret = k8s.getSingleSecret(k8s.namespace);
+            Assertions.assertEquals(k8s.namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret-demo", secret.getMetadata().getName());
+
+            // additional persistent manifest
+            PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, claimList.getItems().size());
+            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            Assertions.assertEquals(k8s.namespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-pvc-demo", claim.getMetadata().getName());
+
+            inst.proxyService.stopProxy(null, proxy, true).run();
+
+            // all pods should be deleted
+            assertNoPods(k8s);
+            // the secret should be deleted
+            assertNoSecrets(k8s);
+
+            // the PVC should not be deleted
+            Assertions.assertEquals(1, k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list().getItems().size());
+        }
+
+        try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
+            // launch as user demo2
+            ShinyProxyClient clientDemo2 = inst.getClient("demo2");
+            String id = clientDemo2.startProxy("01_hello_manifests_auth");
+            Proxy proxy = inst.proxyService.getProxy(id);
+
+            PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
+
+            // additional manifest
+            Secret secret = k8s.getSingleSecret(k8s.namespace);
+            Assertions.assertEquals(k8s.namespace, secret.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-secret-demo2", secret.getMetadata().getName());
+
+            // additional persistent manifest
+            PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, claimList.getItems().size());
+            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            Assertions.assertEquals(k8s.namespace, claim.getMetadata().getNamespace());
+            Assertions.assertEquals("manifests-pvc-demo2", claim.getMetadata().getName());
+
+            inst.proxyService.stopProxy(null, proxy, true).run();
+
+            // all pods should be deleted
+            assertNoPods(k8s);
+            // the secret should be deleted
+            assertNoSecrets(k8s);
+
+            // the PVC should not be deleted
+            Assertions.assertEquals(1, k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list().getItems().size());
         }
     }
 

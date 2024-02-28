@@ -746,6 +746,97 @@ proxy:
           port-mapping:
             - name: default
               port: 3838
+    - id: 01_hello_pod_patches_auth
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      kubernetes-authorized-pod-patches:
+        - access-control:
+            users:
+              - demo
+          patches: |
+            - op: add
+              path: /spec/containers/0/env/-
+              value:
+                name: VAR_FOR_DEMO
+                value: VALUE
+        - access-control:
+            users:
+              - demo2
+          patches: |
+            - op: add
+              path: /spec/containers/0/env/-
+              value:
+                name: VAR_FOR_DEMO2
+                value: VALUE
+    - id: 01_hello_manifests_auth
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+      kubernetes-authorized-additional-manifests:
+        - access-control:
+            users:
+              - demo
+          manifests:
+            - |
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: manifests-secret-demo
+              type: Opaque
+              data:
+                password: cGFzc3dvcmQ=
+        - access-control:
+            users:
+              - demo2
+          manifests:
+            - |
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: manifests-secret-demo2
+              type: Opaque
+              data:
+                password: cGFzc3dvcmQ=
+      kubernetes-authorized-additional-persistent-manifests:
+        - access-control:
+            users:
+              - demo
+          manifests:
+            - |
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              metadata:
+                name: manifests-pvc-demo
+              spec:
+               storageClassName: standard
+               accessModes:
+                  - ReadWriteOnce
+               resources:
+                 requests:
+                   storage: 5Gi
+        - access-control:
+            users:
+              - demo2
+          manifests:
+            - |
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              metadata:
+                name: manifests-pvc-demo2
+              spec:
+               storageClassName: standard
+               accessModes:
+                  - ReadWriteOnce
+               resources:
+                 requests:
+                   storage: 5Gi
 
 appNamespaces:
   - itest-overridden

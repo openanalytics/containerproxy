@@ -60,7 +60,7 @@ public class ProxyDispatcherService {
                 ISeatStore seatStore = storeFactory.createSeatStore(proxySpec.getId());
                 IDelegateProxyStore delegateProxyStore = storeFactory.createDelegateProxyStore(proxySpec.getId());
 
-                ProxySharingScaler proxySharingScaler = new ProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
+                ProxySharingScaler proxySharingScaler = createProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
                 createBean(proxySharingScaler, "proxySharingScaler_" + proxySpec.getId());
 
                 ProxySharingDispatcher proxySharingDispatcher = new ProxySharingDispatcher(proxySpec, delegateProxyStore, seatStore);
@@ -71,6 +71,10 @@ public class ProxyDispatcherService {
                 dispatchers.put(proxySpec.getId(), defaultProxyDispatcher);
             }
         }
+    }
+
+    protected ProxySharingScaler createProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
+        return new ProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
     }
 
     public IProxyDispatcher getDispatcher(String specId) {

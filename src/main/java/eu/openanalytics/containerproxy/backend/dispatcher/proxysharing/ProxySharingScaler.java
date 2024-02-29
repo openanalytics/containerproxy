@@ -84,12 +84,12 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class ProxySharingScaler {
 
-    private static String publicPathPrefix = "/api/route/";
-    private final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
-    private final IDelegateProxyStore delegateProxyStore;
-    private final ISeatStore seatStore;
-    private final ProxySharingSpecExtension specExtension;
-    private final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
+    protected static String publicPathPrefix = "/api/route/";
+    protected final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
+    protected final IDelegateProxyStore delegateProxyStore;
+    protected final ISeatStore seatStore;
+    protected final ProxySharingSpecExtension specExtension;
+    protected final List<String> pendingDelegatingProxies = Collections.synchronizedList(new ArrayList<>());
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
     private final String proxySpecHash;
@@ -476,7 +476,7 @@ public class ProxySharingScaler {
         removeDelegateProxies(delegateProxiesToRemove);
     }
 
-    private void cleanup() {
+    protected void cleanup() {
         if (!lastReconcileStatus.equals(ReconcileStatus.Stable) && !lastReconcileStatus.equals(ReconcileStatus.ScaleDown)) {
             return;
         }

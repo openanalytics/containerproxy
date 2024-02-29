@@ -21,7 +21,14 @@
 package eu.openanalytics.containerproxy.test.helpers;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.backend.dispatcher.DefaultProxyDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingScaler;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.Retrying;
@@ -30,6 +37,8 @@ import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +63,7 @@ public class ShinyProxyInstance implements AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final Thread thread;
     private ConfigurableApplicationContext app;
+    private boolean cleanup;
 
     public ShinyProxyInstance(String configFileName, Map<String, String> properties) {
         this(configFileName, 7583, "demo", properties, false);
@@ -77,7 +87,7 @@ public class ShinyProxyInstance implements AutoCloseable {
                 // only works if networking is NOT internal!
                 application.addPrimarySources(Collections.singletonList(NotInternalOnlyTestStrategyConfiguration.class));
             }
-            application.addPrimarySources(Collections.singletonList(JavaMailSenderConfiguration.class));
+            application.addPrimarySources(Collections.singletonList(TestConfiguration.class));
             Properties allProperties = ContainerProxyApplication.getDefaultProperties();
             allProperties.put("spring.config.location", "src/test/resources/" + configFileName);
             allProperties.put("server.port", port);
@@ -116,6 +126,18 @@ public class ShinyProxyInstance implements AutoCloseable {
 
     @Override
     public void close() {
+        if (cleanup) {
+            stopAllApps();
+            IProxySpecProvider proxySpecProvider = getBean("defaultSpecProvider", IProxySpecProvider.class);
+            for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
+                try {
+                    ProxySharingScaler proxySharingScaler = getBean("proxySharingScaler_" + proxySpec.getId(), ProxySharingScaler.class);
+                    proxySharingScaler.stopAll();
+                } catch (NoSuchBeanDefinitionException ex) {
+                    // no container sharing, ignore
+                }
+            }
+        }
         app.stop();
         app.close();
         try {
@@ -123,6 +145,10 @@ public class ShinyProxyInstance implements AutoCloseable {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void enableCleanup() {
+        cleanup = true;
     }
 
     public void stopAllApps() {
@@ -141,7 +167,7 @@ public class ShinyProxyInstance implements AutoCloseable {
 
     }
 
-    public static class JavaMailSenderConfiguration {
+    public static class TestConfiguration {
 
         @Primary
         @Bean
@@ -166,6 +192,19 @@ public class ShinyProxyInstance implements AutoCloseable {
                 @Override
                 public void send(MimeMessage... mimeMessages) throws MailException {
 
+                }
+            };
+        }
+
+        @Primary
+        @Bean
+        public ProxyDispatcherService proxyDispatcherService(IProxySpecProvider proxySpecProvider,
+                                                             IProxySharingStoreFactory storeFactory,
+                                                             ConfigurableListableBeanFactory beanFactory,
+                                                             DefaultProxyDispatcher defaultProxyDispatcher) {
+            return new ProxyDispatcherService(proxySpecProvider, storeFactory, beanFactory, defaultProxyDispatcher) {
+                protected TestProxySharingScaler createProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
+                    return new TestProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
                 }
             };
         }

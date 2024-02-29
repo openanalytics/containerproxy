@@ -110,7 +110,7 @@ public class HeartbeatService {
         for (IHeartbeatProcessor heartbeatProcessor : heartbeatProcessors) {
             heartbeatProcessor.heartbeatReceived(heartbeatSource, proxy, sessionId);
         }
-        if (log.isDebugEnabled()) log.debug(String.format("Heartbeat received [proxyId: %s] [source: %s]", proxy, heartbeatSource));
+        if (log.isDebugEnabled()) log.debug(String.format("Heartbeat received [proxyId: %s] [source: %s]", proxy.getId(), heartbeatSource));
     }
 
     public long getHeartbeatRate() {

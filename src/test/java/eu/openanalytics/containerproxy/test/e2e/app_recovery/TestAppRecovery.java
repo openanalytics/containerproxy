@@ -30,7 +30,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.json.JsonObject;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -53,7 +52,11 @@ public class TestAppRecovery {
     }
 
     private static Stream<Arguments> new_app_should_work_after_recovery_src() {
-        return Stream.of(Arguments.of("docker", new HashMap<String, String>()), Arguments.of("docker-swarm", new HashMap<String, String>()), Arguments.of("kubernetes", new HashMap<String, String>()));
+        return Stream.of(
+            Arguments.of("docker", Map.of()),
+            Arguments.of("docker-swarm", Map.of()),
+            Arguments.of("kubernetes", Map.of())
+        );
     }
 
     @ParameterizedTest

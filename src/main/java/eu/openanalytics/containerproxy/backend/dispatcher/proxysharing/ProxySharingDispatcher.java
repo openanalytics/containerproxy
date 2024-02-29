@@ -88,7 +88,6 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private IProxyStore proxyStore;
     @Inject
     private Environment environment;
-    @Lazy
     @Autowired(required = false)
     private ProxySharingMicrometer proxySharingMicrometer = null;
 
@@ -172,10 +171,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         Proxy.ProxyBuilder resultProxy = proxy.toBuilder();
         resultProxy.targetId(delegateProxy.getId());
         resultProxy.addTargets(delegateProxy.getTargets());
-        String publicPath = proxy.getRuntimeObjectOrNull(PublicPathKey.inst);
-        if (publicPath != null) {
-            resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, publicPath.replaceAll(proxy.getId(), delegateProxy.getId())), true);
-        }
+        resultProxy.addRuntimeValue(new RuntimeValue(PublicPathKey.inst, delegateProxy.getRuntimeValue(PublicPathKey.inst)), true);
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, delegateProxy.getId()), true);
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdKey.inst, seat.getId()), true);
 

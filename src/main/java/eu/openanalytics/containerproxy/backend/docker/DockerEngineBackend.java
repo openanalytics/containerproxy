@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.exceptions.ConflictException;
 import org.mandas.docker.client.exceptions.ContainerNotFoundException;
 import org.mandas.docker.client.exceptions.DockerException;
 import org.mandas.docker.client.exceptions.NotFoundException;
@@ -212,6 +213,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 dockerClient.removeContainer(container.getId(), DockerClient.RemoveContainerParam.forceKill());
             } catch (ContainerNotFoundException e) {
                 // ignore, container is already removed
+            } catch (ConflictException e) {
+                // ignore, container is currently being removed
             }
         }
         portAllocator.release(proxy.getId());

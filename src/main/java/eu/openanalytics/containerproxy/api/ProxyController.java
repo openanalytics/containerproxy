@@ -269,7 +269,7 @@ public class ProxyController extends BaseController {
     }
 
     private String getPublicPath(String proxyId) {
-        return contextPathHelper.withEndingSlash() + "/api/route/" + proxyId;
+        return contextPathHelper.withEndingSlash() + "api/route/" + proxyId;
     }
 
     public static class ParametersBody {

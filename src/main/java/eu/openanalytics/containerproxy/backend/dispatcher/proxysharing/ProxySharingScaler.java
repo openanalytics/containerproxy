@@ -46,7 +46,6 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RealmIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
-import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.LogService;
@@ -74,9 +73,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -591,6 +588,12 @@ public class ProxySharingScaler {
 
     public Long getNumClaimedSeats() {
         return seatStore.getNumClaimedSeats();
+    }
+
+    public void stopAll() {
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            containerBackend.stopProxy(delegateProxy.getProxy());
+        }
     }
 
     private String getPublicPath(String targetId) {

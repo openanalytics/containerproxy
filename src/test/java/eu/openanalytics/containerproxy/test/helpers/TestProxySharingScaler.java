@@ -55,4 +55,8 @@ public class TestProxySharingScaler extends ProxySharingScaler {
         return delegateProxyStore;
     }
 
+    public ISeatStore getSeatStore() {
+        return seatStore;
+    }
+
 }

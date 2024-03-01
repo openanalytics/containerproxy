@@ -24,17 +24,8 @@ proxy:
 
 
   specs:
-    - id: simpleTest
+    - id: myApp
       minimum-seats-available: 1
-      container-specs:
-        - image: "openanalytics/shinyproxy-integration-test-app"
-          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-          port-mapping:
-            - name: default
-              port: 3838
-    - id: noReUse
-      minimum-seats-available: 1
-      allow-container-re-use: false
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]

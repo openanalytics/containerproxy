@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class ShinyProxyInstance implements AutoCloseable {
@@ -98,10 +99,24 @@ public class ShinyProxyInstance implements AutoCloseable {
 
             client = new ShinyProxyClient(usernameAndPassword, port);
 
+            AtomicReference<Throwable> exception = new AtomicReference<>();
             thread = new Thread(() -> app = application.run());
+            thread.setUncaughtExceptionHandler((thread, ex) -> {
+                exception.set(ex);
+            });
             thread.start();
 
-            boolean available = Retrying.retry((c, m) -> client.checkAlive(), 60_000, "ShinyProxyInstance available", 1, true);
+            boolean available = Retrying.retry((c, m) -> {
+                if (exception.get() != null) {
+                    logger.warn("Exception during startup");
+                    return true;
+                }
+                return client.checkAlive();
+            }, 60_000, "ShinyProxyInstance available", 1, true);
+            Throwable ex = exception.get();
+            if (ex != null) {
+                throw ex;
+            }
             if (!available) {
                 throw new TestHelperException("ShinyProxy did not become available!");
             } else {
@@ -152,7 +167,7 @@ public class ShinyProxyInstance implements AutoCloseable {
     }
 
     public void stopAllApps() {
-        for (Proxy proxy: proxyService.getAllProxies()) {
+        for (Proxy proxy : proxyService.getAllProxies()) {
             proxyService.stopProxy(null, proxy, true).run();
         }
     }

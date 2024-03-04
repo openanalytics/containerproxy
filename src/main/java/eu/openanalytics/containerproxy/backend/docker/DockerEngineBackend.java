@@ -38,6 +38,7 @@ import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.exceptions.ConflictException;
 import org.mandas.docker.client.exceptions.ContainerNotFoundException;
 import org.mandas.docker.client.exceptions.DockerException;
+import org.mandas.docker.client.exceptions.DockerRequestException;
 import org.mandas.docker.client.exceptions.NotFoundException;
 import org.mandas.docker.client.messages.AttachedNetwork;
 import org.mandas.docker.client.messages.ContainerConfig;
@@ -207,7 +208,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 if (containerInfo != null && containerInfo.networkSettings() != null
                     && containerInfo.networkSettings().networks() != null) {
                     for (AttachedNetwork network : containerInfo.networkSettings().networks().values()) {
-                        dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
+                        try {
+                            dockerClient.disconnectFromNetwork(container.getId(), network.networkId());
+                        } catch (DockerRequestException ex) {
+                            // ignore, network is already disconnected
+                        }
                     }
                 }
                 dockerClient.removeContainer(container.getId(), DockerClient.RemoveContainerParam.forceKill());

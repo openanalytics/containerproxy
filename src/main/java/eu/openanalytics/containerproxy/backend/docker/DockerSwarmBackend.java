@@ -298,7 +298,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 }
             }
         }
-        portAllocator.release(proxy.getId());
+        releasePort(proxy.getId());
     }
 
     @Override

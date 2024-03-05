@@ -44,6 +44,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 
@@ -59,6 +62,8 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected Integer portRangeFrom;
     protected Integer portRangeTo;
+
+    private final ScheduledExecutorService releasePortExecutor = Executors.newSingleThreadScheduledExecutor();
 
     @Override
     public void initialize() throws ContainerProxyException {
@@ -145,6 +150,10 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         }
 
         return runtimeValues;
+    }
+
+    protected void releasePort(String ownerId) {
+        releasePortExecutor.schedule(() -> portAllocator.release(ownerId), 10, TimeUnit.SECONDS);
     }
 
 }

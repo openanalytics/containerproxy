@@ -222,7 +222,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 // ignore, container is currently being removed
             }
         }
-        portAllocator.release(proxy.getId());
+        releasePort(proxy.getId());
     }
 
     @Override

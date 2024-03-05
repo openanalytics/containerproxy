@@ -30,17 +30,15 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "none")
@@ -57,16 +55,6 @@ public class UndertowSessionService extends AbstractSessionService {
     private Integer cachedUsersLoggedInCount = null;
 
     private Integer cachedActiveUsersCount = null;
-
-    @PostConstruct
-    public void init() {
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                updateCachedUsersLoggedInCount();
-            }
-        }, 0, CACHE_UPDATE_INTERVAL);
-    }
 
     @Override
     public Integer getLoggedInUsersCount() {
@@ -111,6 +99,7 @@ public class UndertowSessionService extends AbstractSessionService {
      * {@link eu.openanalytics.containerproxy.service.session.redis.RedisSessionService}, but still it needs to loop
      * over all sessions in the Servlet).
      */
+    @Scheduled(fixedDelay = CACHE_UPDATE_INTERVAL)
     private void updateCachedUsersLoggedInCount() {
         InMemorySessionManager instance = this.customInMemorySessionManagerFactory.getInstance();
         if (instance == null) {

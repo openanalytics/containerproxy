@@ -93,7 +93,7 @@ public class ProxySharingScaler {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
     private final String proxySpecHash;
-    private ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
+    protected ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
 
     @Inject
@@ -640,7 +640,7 @@ public class ProxySharingScaler {
         logger.info("[{} {} {}] " + message, kv("specId", proxySpec.getId()), kv("delegateProxyId", seat.getDelegateProxyId()), kv("seatId", seat.getId()));
     }
 
-    private enum ReconcileStatus {
+    public enum ReconcileStatus {
         Stable,
         ScaleUp,
         ScaleDown

@@ -30,6 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.session.Session;
@@ -41,8 +42,6 @@ import javax.inject.Inject;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,12 +70,6 @@ public class RedisSessionService extends AbstractSessionService {
     public void init() {
         keyPattern = redisSessionConfig.getRedisNamespace() + ":sessions:*";
         redisTemplate = (RedisTemplate<String, Object>) redisIndexedSessionRepository.getSessionRedisOperations();
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                updateCachedUsersLoggedInCount();
-            }
-        }, 0, CACHE_UPDATE_INTERVAL);
     }
 
     @Override
@@ -112,6 +105,7 @@ public class RedisSessionService extends AbstractSessionService {
      * using an HTTP request.
      * See the warning at https://redis.io/commands/keys .
      */
+    @Scheduled(fixedDelay = CACHE_UPDATE_INTERVAL)
     private void updateCachedUsersLoggedInCount() {
         Set<String> keys = redisTemplate.keys(keyPattern);
 

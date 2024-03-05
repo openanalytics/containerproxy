@@ -59,10 +59,14 @@ public class ShinyProxyClient {
     }
 
     public String startProxy(String specId) {
-        return startProxy(specId, null);
+        return startProxy(specId, null, true);
     }
 
     public String startProxy(String specId, Map<String, String> parameters) {
+        return startProxy(specId, parameters, true);
+    }
+
+    public String startProxy(String specId, Map<String, String> parameters, boolean wait) {
         RequestBody body = RequestBody.create("", null);
         if (parameters != null) {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -82,9 +86,11 @@ public class ShinyProxyClient {
 
         JsonObject response = call(request, 201);
         String id = response.getJsonObject("data").getString("id");
-        ProxyStatus proxyStatus = waitForProxyStatus(id);
-        if (proxyStatus != ProxyStatus.Up) {
-            throw new TestHelperException(String.format("Proxy with id %s failed to reach Up status", id));
+        if (wait) {
+            ProxyStatus proxyStatus = waitForProxyStatus(id);
+            if (proxyStatus != ProxyStatus.Up) {
+                throw new TestHelperException(String.format("Proxy with id %s failed to reach Up status", id));
+            }
         }
         return id;
     }

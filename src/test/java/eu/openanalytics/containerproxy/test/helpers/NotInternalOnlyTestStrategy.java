@@ -53,7 +53,6 @@ public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
                 }
                 log.warn(proxy, "Error during test strategy test: status code: " + responseCode);
             } catch (Exception e) {
-                log.warn(proxy, e, "Exception during test strategy");
                 return false;
             }
             return false;

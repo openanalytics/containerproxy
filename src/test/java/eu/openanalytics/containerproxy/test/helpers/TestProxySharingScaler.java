@@ -56,4 +56,8 @@ public class TestProxySharingScaler extends ProxySharingScaler {
         return seatStore;
     }
 
+    public ProxySharingScaler.ReconcileStatus getLastReconcileStatus() {
+        return lastReconcileStatus;
+    }
+
 }

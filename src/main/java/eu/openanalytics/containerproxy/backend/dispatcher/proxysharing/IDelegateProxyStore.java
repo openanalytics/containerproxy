@@ -21,12 +21,18 @@
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
 
 import java.util.Collection;
+import java.util.stream.Stream;
 
 public interface IDelegateProxyStore {
 
     Collection<DelegateProxy> getAllDelegateProxies();
+
+    default Stream<DelegateProxy> getAllDelegateProxies(DelegateProxyStatus delegateProxyStatus) {
+        return getAllDelegateProxies().stream().filter(it -> it.getDelegateProxyStatus().equals(delegateProxyStatus));
+    }
 
     void addDelegateProxy(DelegateProxy delegateProxy);
 

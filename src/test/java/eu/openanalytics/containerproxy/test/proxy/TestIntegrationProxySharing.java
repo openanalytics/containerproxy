@@ -61,7 +61,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class TestPreInitialization {
+public class TestIntegrationProxySharing {
 
     private static Stream<Arguments> backends() {
         return Stream.of(
@@ -489,7 +489,6 @@ public class TestPreInitialization {
 
                 // fore reconcile
                 proxySharingScaler.scheduleReconcile();
-//                TestUtil.sleep(5_000);
 
                 // should have scaled-down
                 waitUntilNumberOfDelegateProxies(inst, 1, 1);
@@ -533,7 +532,6 @@ public class TestPreInitialization {
 
                 // fore reconcile
                 proxySharingScaler.scheduleReconcile();
-//                TestUtil.sleep(5_000);
 
                 // should not be trying to scale down, since the amount of unclaimed seats is less than the amount of containers per seat
                 Assertions.assertEquals(ProxySharingScaler.ReconcileStatus.Stable, proxySharingScaler.getLastReconcileStatus());

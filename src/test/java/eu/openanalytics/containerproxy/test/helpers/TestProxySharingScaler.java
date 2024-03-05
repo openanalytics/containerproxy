@@ -44,10 +44,7 @@ public class TestProxySharingScaler extends ProxySharingScaler {
     @Override
     protected void cleanup() {
         if (cleanup) {
-            System.out.println("Doing cleanup");
             super.cleanup();
-        } else {
-            System.out.println("Skipping cleanup");
         }
     }
 

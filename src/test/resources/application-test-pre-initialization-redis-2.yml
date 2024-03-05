@@ -29,7 +29,8 @@ proxy:
   specs:
     - id: myApp
       display-name: myUpdatedDisplayName
-      minimum-seats-available: 1
+      minimum-seats-available: 3
+      seats-per-container: 3
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]

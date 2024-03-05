@@ -157,6 +157,8 @@ public class TestPreInitialization {
 
                 inst.client.stopProxy(id);
             }
+        } finally {
+            ProxySharingScaler.setPublicPathPrefix("/api/route/");
         }
     }
 
@@ -271,6 +273,7 @@ public class TestPreInitialization {
                 // launch an instance and app
                 String oldAppId;
                 try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-pre-initialization-redis-1.yml", properties, true)) {
+                    TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
                     oldAppId = inst.client.startProxy("myApp");
                     Proxy proxy = inst.proxyService.getProxy(oldAppId);
                     inst.client.testProxyReachable(proxy.getTargetId());
@@ -281,6 +284,8 @@ public class TestPreInitialization {
                     Assertions.assertEquals(proxy.getTargetId(), proxy.getRuntimeValue(TargetIdKey.inst));
                     Assertions.assertNotNull(proxy.getRuntimeValue(SeatIdKey.inst));
 
+                    // wait for scale-up to finish
+                    waitUntilNumberOfAvailableDelegateProxies(proxySharingScaler, 2);
                 }
                 // re-start instance with updated app config
                 try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-pre-initialization-redis-2.yml", properties, true)) {
@@ -295,9 +300,11 @@ public class TestPreInitialization {
                     // old app should still be reachable
                     inst.client.testProxyReachable(proxy.getTargetId());
 
+                    // wait until app is marked to be removed
+                    waitUntilDelegateProxyIsToRemove(proxySharingScaler, proxy.getTargetId());
                     DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(proxy.getTargetId());
                     Assertions.assertEquals(DelegateProxyStatus.ToRemove, delegateProxy.getDelegateProxyStatus());
-                    Assertions.assertEquals("641fead76e0c432d0ae258a9745bcf69eac7b3c3", delegateProxy.getProxySpecHash());
+                    Assertions.assertEquals("fcbf978730e85a8517eaa6812ace9bbd08acad1b", delegateProxy.getProxySpecHash());
 
                     // should create new instance with new hash
                     waitUntilNumberOfDelegateProxies(proxySharingScaler, 3);
@@ -310,19 +317,20 @@ public class TestPreInitialization {
 
                     // a second DelegateProxy with old config should exist in DelegateProxyStore
                     Optional<DelegateProxy> secondDelegateProxy = delegateProxyStore.getAllDelegateProxies().stream()
-                        .filter(it -> it.getProxySpecHash().equals("641fead76e0c432d0ae258a9745bcf69eac7b3c3") && !it.getProxy().getId().equals(proxy.getTargetId()))
+                        .filter(it -> it.getProxySpecHash().equals("fcbf978730e85a8517eaa6812ace9bbd08acad1b") && !it.getProxy().getId().equals(proxy.getTargetId()))
                         .findFirst();
                     Assertions.assertTrue(secondDelegateProxy.isPresent());
                     Assertions.assertEquals(DelegateProxyStatus.ToRemove, secondDelegateProxy.get().getDelegateProxyStatus());
 
                     // a DelegateProxy with new config should exist in DelegateProxyStore
                     Optional<DelegateProxy> newDelegateProxy = delegateProxyStore.getAllDelegateProxies().stream()
-                        .filter(it -> !it.getProxySpecHash().equals("641fead76e0c432d0ae258a9745bcf69eac7b3c3"))
+                        .filter(it -> !it.getProxySpecHash().equals("fcbf978730e85a8517eaa6812ace9bbd08acad1b"))
                         .findFirst();
                     Assertions.assertTrue(newDelegateProxy.isPresent());
                     waitUntilDelegateProxyIsAvailable(proxySharingScaler, newDelegateProxy.get().getProxy().getId());
-                    Assertions.assertEquals(DelegateProxyStatus.Available, newDelegateProxy.get().getDelegateProxyStatus());
-                    Assertions.assertEquals("b21e966c35c7689f465f06722b13ec28cead0e33", newDelegateProxy.get().getProxySpecHash());
+                    DelegateProxy newDelegateProxy2 = delegateProxyStore.getDelegateProxy(newDelegateProxy.get().getProxy().getId());
+                    Assertions.assertEquals(DelegateProxyStatus.Available, newDelegateProxy2.getDelegateProxyStatus());
+                    Assertions.assertEquals("ac5969e6d722a0951143ba125846feeff4491b33", newDelegateProxy2.getProxySpecHash());
 
                     // stop running app
                     inst.client.stopProxy(oldAppId);
@@ -331,9 +339,9 @@ public class TestPreInitialization {
 
                     // proxies with old version should get cleaned up
                     waitUntilNumberOfDelegateProxies(proxySharingScaler, 1);
-                    DelegateProxy newDelegateProxy2 = delegateProxyStore.getAllDelegateProxies().stream().findFirst().get();
-                    Assertions.assertEquals(newDelegateProxy.get().getProxy().getId(), newDelegateProxy2.getProxy().getId());
-                    Assertions.assertEquals("b21e966c35c7689f465f06722b13ec28cead0e33", newDelegateProxy2.getProxySpecHash());
+                    DelegateProxy newDelegateProxy3 = delegateProxyStore.getAllDelegateProxies().stream().findFirst().get();
+                    Assertions.assertEquals(newDelegateProxy.get().getProxy().getId(), newDelegateProxy3.getProxy().getId());
+                    Assertions.assertEquals("ac5969e6d722a0951143ba125846feeff4491b33", newDelegateProxy3.getProxySpecHash());
                 }
             }
         }
@@ -342,6 +350,8 @@ public class TestPreInitialization {
     // TODO test scaleDownDelay
     // TODO test multiple seats
     // TODO test DelegateProxy structure
+    // TODO test cleanup pending delegateproxy
+    // TODO test seat timeout
 
     private void waitUntilNoPendingSeats(ProxySharingScaler proxySharingScaler) {
         boolean noPendingSeats = Retrying.retry((c, m) -> {
@@ -364,9 +374,24 @@ public class TestPreInitialization {
         Assertions.assertTrue(noPendingSeats);
     }
 
+    private void waitUntilNumberOfAvailableDelegateProxies(TestProxySharingScaler proxySharingScaler, int numSeats) {
+        boolean noPendingSeats = Retrying.retry((c, m) -> {
+            return proxySharingScaler.getDelegateProxyStore().getAllDelegateProxies().size() == numSeats &&
+                proxySharingScaler.getDelegateProxyStore().getAllDelegateProxies().stream().allMatch(it -> it.getDelegateProxyStatus().equals(DelegateProxyStatus.Available));
+        }, 60_000, "assert number delegated proxies", 1, true);
+        Assertions.assertTrue(noPendingSeats);
+    }
+
     private void waitUntilDelegateProxyIsAvailable(TestProxySharingScaler proxySharingScaler, String delegateProxyId) {
         boolean noPendingSeats = Retrying.retry((c, m) -> {
             return proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.Available;
+        }, 60_000, "assert number delegated proxies", 1, true);
+        Assertions.assertTrue(noPendingSeats);
+    }
+
+    private void waitUntilDelegateProxyIsToRemove(TestProxySharingScaler proxySharingScaler, String delegateProxyId) {
+        boolean noPendingSeats = Retrying.retry((c, m) -> {
+            return proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.ToRemove;
         }, 60_000, "assert number delegated proxies", 1, true);
         Assertions.assertTrue(noPendingSeats);
     }

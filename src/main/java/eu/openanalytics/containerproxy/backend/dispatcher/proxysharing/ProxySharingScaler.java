@@ -289,7 +289,7 @@ public class ProxySharingScaler {
         } else if ((num - specExtension.minimumSeatsAvailable) >= specExtension.seatsPerContainer) {
             long numToScaleDown = (num - specExtension.minimumSeatsAvailable) / specExtension.seatsPerContainer;
             if (numToScaleDown <= 0) {
-                throw new IllegalStateException("oops");
+                return;
             }
             if (lastScaleUp != null) {
                 long scaleUpDeltaMinutes = Duration.between(lastScaleUp, Instant.now()).toMinutes();

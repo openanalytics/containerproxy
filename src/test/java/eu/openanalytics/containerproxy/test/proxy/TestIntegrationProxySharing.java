@@ -207,12 +207,9 @@ public class TestIntegrationProxySharing {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("backends")
-    public void testReUseWithMultipleSeats(String backend, Map<String, String> properties) {
-        TestHelperException ex = Assertions.assertThrows(TestHelperException.class,
-            () -> new ShinyProxyInstance("application-test-pre-initialization-3.yml", properties, true),
-            "Provided parameter values are not allowed");
+    @Test
+    public void testReUseWithMultipleSeats() {
+        TestHelperException ex = Assertions.assertThrows(TestHelperException.class, () -> new ShinyProxyInstance("application-test-pre-initialization-3.yml"));
 
         Throwable rootCause = Throwables.getRootCause(ex);
         Assertions.assertInstanceOf(IllegalStateException.class, rootCause);

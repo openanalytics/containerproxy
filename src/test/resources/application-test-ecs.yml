@@ -7,8 +7,14 @@ spring:
         enabled: false
 proxy:
   authentication: simple
-  container-backend: docker-swarm
-
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
+  container-backend: ecs
+  ecs:
+    name: ${ITEST_ECS_NAME}
+    region: ${ITEST_ECS_REGION}
+    security-groups: ${ITEST_ECS_SECURITY_GROUPS}
+    subnets: ${ITEST_ECS_SUBNETS}
 
   users:
     - name: demo
@@ -24,20 +30,25 @@ proxy:
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          cpu-request: 1024
+          memory-request: 2048
           port-mapping:
             - name: default
               port: 3838
-    - id: 01_hello_secret
+          labels:
+            valid-label: myvalue
+            invalid-label: "$@$#$@"
+            invalid-label2: "value-is-too-looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"
+    - id: 01_hello_roles
+      ecs-task-role: ${ITEST_ECS_TASK_ROLE}
+      ecs-execution-role:  ${ITEST_ECS_EXECUTION_ROLE}
+      ecs-ephemeral-storage-size: 50
+      ecs-enable-execute-command: true
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          cpu-request: 1024
+          memory-request: 2048
           port-mapping:
             - name: default
               port: 3838
-          docker-swarm-secrets:
-            - name: my_secret
-            - name: my_secret_2
-              target: /var/pass
-              gid: 1000
-              uid: 1000
-              mode: 600

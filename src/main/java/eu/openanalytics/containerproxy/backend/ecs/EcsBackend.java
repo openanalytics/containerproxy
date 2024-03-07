@@ -111,10 +111,13 @@ public class EcsBackend extends AbstractContainerBackend {
     public void initialize() {
         super.initialize();
 
-        Region region = Region.of(getProperty(PROPERTY_REGION));
+        String region = getProperty(PROPERTY_REGION);
+        if (region == null) {
+            throw new IllegalStateException("Error in configuration of ECS backend: proxy.ecs.region not set");
+        }
 
         ecsClient = EcsClient.builder()
-            .region(region)
+            .region(Region.of(region))
             .build();
 
         cluster = getProperty(PROPERTY_CLUSTER);
@@ -127,12 +130,20 @@ public class EcsBackend extends AbstractContainerBackend {
         cloudWatchRegion = environment.getProperty("proxy.ecs.cloud-watch-region", String.class, getProperty(PROPERTY_REGION));
         cloudWatchStreamPrefix =  environment.getProperty("proxy.ecs.cloud-watch-stream-prefix", String.class, "ecs");
 
-        if (subnets.isEmpty()) {
+        if (cluster == null) {
+            throw new IllegalStateException("Error in configuration of ECS backend: proxy.ecs.cluster not set to name of cluster");
+        }
+
+        if (subnets == null || subnets.isEmpty()) {
             throw new IllegalStateException("Error in configuration of ECS backend: need at least one subnet in proxy.ecs.subnets");
         }
 
-        if (securityGroups.isEmpty()) {
+        if (securityGroups == null || securityGroups.isEmpty()) {
             throw new IllegalStateException("Error in configuration of ECS backend: need at least one security group in proxy.ecs.security-groups");
+        }
+
+        if (isPrivileged()) {
+            throw new IllegalStateException("Error in configuration of ECS backend: config has 'privileged: true' configured, this is not supported by ECS fargated");
         }
 
         for (ProxySpec spec : proxySpecProvider.getSpecs()) {
@@ -151,6 +162,9 @@ public class EcsBackend extends AbstractContainerBackend {
             }
             if (containerSpec.isPrivileged()) {
                 throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has 'privileged: true' configured, this is not supported by ECS fargate", spec.getId()));
+            }
+            if (containerSpec.getDns().isOriginalValuePresent()) {
+                throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has 'dns' configured, this is not supported by ECS fargate", spec.getId()));
             }
         }
     }
@@ -277,7 +291,6 @@ public class EcsBackend extends AbstractContainerBackend {
             .containerDefinitions(ContainerDefinition.builder()
                 .name("sp-container-" + containerId)
                 .image(spec.getImage().getValue())
-                .dnsServers(spec.getDns().getValueOrNull())
                 .command(spec.getCmd().getValueOrNull())
                 .environment(env)
                 .stopTimeout(2)

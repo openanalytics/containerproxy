@@ -116,7 +116,7 @@ public class TestIntegrationOnEcs {
                 Assertions.assertEquals(3, environment.size());
                 Assertions.assertEquals("demo", environment.get("SHINYPROXY_USERNAME"));
                 Assertions.assertEquals("", environment.get("SHINYPROXY_USERGROUPS"));
-                Assertions.assertEquals("/api/route/" + proxy.getId(), environment.get("SHINYPROXY_PUBLIC_PATH")); // TODO no ending slash?
+                Assertions.assertEquals("/api/route/" + proxy.getId() + "/", environment.get("SHINYPROXY_PUBLIC_PATH"));
                 Assertions.assertEquals("openanalytics/shinyproxy-integration-test-app", containerDefinition.image());
                 Assertions.assertNull(containerDefinition.privileged()); // fargate does not support privileged
                 Assertions.assertNull(containerDefinition.hostname());

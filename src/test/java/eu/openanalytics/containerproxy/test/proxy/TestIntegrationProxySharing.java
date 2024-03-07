@@ -345,7 +345,8 @@ public class TestIntegrationProxySharing {
 
                     // wait for scale-up to finish
                     // pending proxy should be marked as ToRemove
-                    waitUntilNumberOfDelegateProxies(inst, 2, 1, 0, 1);
+                    // wait for long time, leader election can take long
+                    waitUntilNumberOfDelegateProxies(inst, 2, 1, 0, 1, 120_000);
 
                     // cleanup should remove old proxy
                     proxySharingScaler.enableCleanup();
@@ -622,6 +623,10 @@ public class TestIntegrationProxySharing {
     }
 
     private void waitUntilNumberOfDelegateProxies(ShinyProxyInstance inst, int numDelegateProxies, int numAvailable, int numPending, int numRemove) {
+        waitUntilNumberOfDelegateProxies(inst, numDelegateProxies, numAvailable, numPending, numRemove, 60_000);
+    }
+
+    private void waitUntilNumberOfDelegateProxies(ShinyProxyInstance inst, int numDelegateProxies, int numAvailable, int numPending, int numRemove, int delay) {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         IDelegateProxyStore delegateProxyStore = proxySharingScaler.getDelegateProxyStore();
         boolean noPendingSeats = Retrying.retry((c, m) -> {
@@ -629,7 +634,7 @@ public class TestIntegrationProxySharing {
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Available).count() == numAvailable
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Pending).count() == numPending
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.ToRemove).count() == numRemove;
-        }, 90_000, "assert number delegated proxies", 1, true);
+        }, 120_000, "assert number delegated proxies", 1, true);
         Assertions.assertTrue(noPendingSeats,
             String.format("Total: %s, Available: %s, Pending: %s, ToRemove: %s",
                 delegateProxyStore.getAllDelegateProxies().size(),

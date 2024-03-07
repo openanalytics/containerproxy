@@ -37,7 +37,7 @@ public class Retrying {
 
     public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttmepts, boolean retryOnException) {
         boolean retVal = false;
-        RuntimeException exception = null;
+        Exception exception = null;
         int maxAttempts = numberOfAttempts(maxDelay);
         for (int currentAttempt = 0; currentAttempt < maxAttempts; currentAttempt++) {
             delay(currentAttempt); // delay here so that we don't delay for the last iteration
@@ -47,16 +47,16 @@ public class Retrying {
                     exception = null;
                     break;
                 }
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 if (retryOnException) exception = e;
-                else throw e;
+                else throw new RuntimeException(e);
             }
             if (currentAttempt > logAfterAttmepts && logMessage != null) {
                 log.info(String.format("Retry: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
             }
         }
         if (exception == null) return retVal;
-        else throw exception;
+        else throw new RuntimeException(exception);
     }
 
     public static void delay(Integer attempt) {
@@ -84,7 +84,7 @@ public class Retrying {
 
     @FunctionalInterface
     public interface Attempt {
-        boolean attempt(int currentAttempt, int maxAttempts);
+        boolean attempt(int currentAttempt, int maxAttempts) throws Exception;
     }
 
 }

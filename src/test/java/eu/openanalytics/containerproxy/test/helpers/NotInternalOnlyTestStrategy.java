@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.test.helpers;
 
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
-import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.util.Retrying;
 
 import java.net.HttpURLConnection;
@@ -32,31 +31,24 @@ import java.util.Arrays;
 
 public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
 
-    private final StructuredLogger log = StructuredLogger.create(getClass());
-
     @Override
     public boolean testProxy(Proxy proxy) {
         URI targetURI = proxy.getTargets().get("");
 
         return Retrying.retry((currentAttempt, maxAttempts) -> {
-            try {
-                if (proxy.getStatus().isUnavailable()) {
-                    // proxy got stopped while loading -> no need to try to connect it since the container will already be deleted
-                    return true;
-                }
-                URL testURL = new URL(targetURI.toString() + "/");
-                HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
-                connection.setInstanceFollowRedirects(false);
-                int responseCode = connection.getResponseCode();
-                if (Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
-                    return true;
-                }
-                log.warn(proxy, "Error during test strategy test: status code: " + responseCode);
-            } catch (Exception e) {
-                return false;
+            if (proxy.getStatus().isUnavailable()) {
+                // proxy got stopped while loading -> no need to try to connect it since the container will already be deleted
+                return true;
+            }
+            URL testURL = new URL(targetURI.toString() + "/");
+            HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
+            connection.setInstanceFollowRedirects(false);
+            int responseCode = connection.getResponseCode();
+            if (Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
+                return true;
             }
             return false;
-        }, 60_000);
+        }, 60_000, "Container unresponsive", 10, true);
     }
 
 }

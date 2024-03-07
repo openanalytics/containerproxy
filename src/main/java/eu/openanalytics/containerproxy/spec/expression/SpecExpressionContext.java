@@ -40,7 +40,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Value
-@EqualsAndHashCode()
+@EqualsAndHashCode(doNotUseGetters = true)
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class SpecExpressionContext {
@@ -149,4 +149,73 @@ public class SpecExpressionContext {
         return create(toBuilder(), objects);
     }
 
+    public ProxySpec getProxySpec() {
+        if (proxySpec == null) {
+            throw new SpelContextObjectNotAvailableException("proxySpec");
+        }
+        return proxySpec;
+    }
+
+    public ContainerSpec getContainerSpec() {
+        if (containerSpec == null) {
+            throw new SpelContextObjectNotAvailableException("containerSpec");
+        }
+        return containerSpec;
+    }
+
+    public Proxy getProxy() {
+        if (proxy == null) {
+            throw new SpelContextObjectNotAvailableException("proxy");
+        }
+        return proxy;
+    }
+
+    public OpenIDAuthenticationBackend.CustomNameOidcUser getOidcUser() {
+        if (oidcUser == null) {
+            throw new SpelContextObjectNotAvailableException("oidcUser");
+        }
+        return oidcUser;
+    }
+
+    public ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal getSamlCredential() {
+        if (samlCredential == null) {
+            throw new SpelContextObjectNotAvailableException("samlCredential");
+        }
+        return samlCredential;
+    }
+
+    public LdapUserDetails getLdapUser() {
+        if (ldapUser == null) {
+            throw new SpelContextObjectNotAvailableException("ldapUser");
+        }
+        return ldapUser;
+    }
+
+    public WebServiceAuthenticationBackend.WebServiceUser getWebServiceUser() {
+        if (oidcUser == null) {
+            throw new SpelContextObjectNotAvailableException("webServiceUser");
+        }
+        return webServiceUser;
+    }
+
+    public List<String> getGroups() {
+        if (groups == null) {
+            throw new SpelContextObjectNotAvailableException("groups");
+        }
+        return groups;
+    }
+
+    public String getUserId() {
+        if (userId == null) {
+            throw new SpelContextObjectNotAvailableException("userId");
+        }
+        return userId;
+    }
+
+    public JsonNode getJson() {
+        if (json == null) {
+            throw new SpelContextObjectNotAvailableException("json");
+        }
+        return json;
+    }
 }

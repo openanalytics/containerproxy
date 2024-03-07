@@ -20,19 +20,14 @@
  */
 package eu.openanalytics.containerproxy.spec.expression;
 
-import org.springframework.expression.ExpressionException;
+public class SpelContextObjectNotAvailableException extends RuntimeException {
 
-public class SpelException extends RuntimeException {
-
-    public SpelException(ExpressionException cause, String originalExpression) {
-        super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage());
+    public SpelContextObjectNotAvailableException(String objectName) {
+        super("Object \"" + objectName + "\" not available in SpelContext.");
     }
 
-    public SpelException(SpelContextObjectNotAvailableException cause, String originalExpression) {
-        super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage());
+    public SpelContextObjectNotAvailableException(SpelContextObjectNotAvailableException ex, String expression) {
+        super("Error while resolving expression: \"" + expression + "\", error: " + ex.getMessage());
     }
 
-    public SpelException(Throwable cause, String originalExpression) {
-        super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage(), cause);
-    }
 }

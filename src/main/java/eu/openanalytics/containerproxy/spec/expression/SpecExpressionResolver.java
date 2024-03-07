@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.spec.expression;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.google.common.base.Throwables;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -106,7 +107,13 @@ public class SpecExpressionResolver {
             }
 
             return expr.getValue(sec, resType);
+        } catch (SpelContextObjectNotAvailableException ex) {
+            throw new SpelException(ex, expression);
         } catch (ExpressionException ex) {
+            Throwable rootCause = Throwables.getRootCause(ex);
+            if (rootCause instanceof SpelContextObjectNotAvailableException contextObjectNotAvailableException) {
+                throw new SpelContextObjectNotAvailableException(contextObjectNotAvailableException, expression);
+            }
             throw new SpelException(ex, expression);
         } catch (Throwable ex) {
             throw new SpelException(ex, expression);

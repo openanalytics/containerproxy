@@ -39,6 +39,7 @@ import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.LogStream;
 import org.mandas.docker.client.exceptions.DockerException;
 import org.mandas.docker.client.exceptions.ServiceNotFoundException;
 import org.mandas.docker.client.messages.RegistryAuth;
@@ -61,15 +62,18 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 @Component
@@ -134,11 +138,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                     .secrets(secretBinds)
                     .build();
 
-            List<NetworkAttachmentConfig> networks = spec.getNetworkConnections()
+            List<NetworkAttachmentConfig> networks = new ArrayList<>(spec.getNetworkConnections()
                 .getValueOrDefault(new ArrayList<>())
                 .stream()
                 .map(n -> NetworkAttachmentConfig.builder().target(n).build())
-                .toList();
+                .toList());
 
             if (spec.getNetwork().isPresent()) {
                 networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
@@ -349,5 +353,21 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         return containers;
     }
 
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+        Container container = getPrimaryContainer(proxy);
+        if (container == null) return null;
+        String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+
+        return (stdOut, stdErr) -> {
+            try {
+                LogStream logStream = dockerClient.serviceLogs(serviceId, DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                logStream.attach(stdOut, stdErr);
+            } catch (ClosedChannelException ignored) {
+            } catch (IOException | InterruptedException | DockerException e) {
+                log.error("Error while attaching to container output", e);
+            }
+        };
+    }
 
 }

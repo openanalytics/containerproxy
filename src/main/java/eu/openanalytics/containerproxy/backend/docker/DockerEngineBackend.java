@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.mandas.docker.client.DockerClient;
+import org.mandas.docker.client.LogStream;
 import org.mandas.docker.client.exceptions.ConflictException;
 import org.mandas.docker.client.exceptions.ContainerNotFoundException;
 import org.mandas.docker.client.exceptions.DockerException;
@@ -52,14 +53,18 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 @Component
@@ -265,6 +270,22 @@ public class DockerEngineBackend extends AbstractDockerBackend {
         }
 
         return containers;
+    }
+
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+        Container c = getPrimaryContainer(proxy);
+        if (c == null) return null;
+
+        return (stdOut, stdErr) -> {
+            try {
+                LogStream logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                logStream.attach(stdOut, stdErr);
+            } catch (ClosedChannelException ignored) {
+            } catch (IOException | InterruptedException | DockerException e) {
+                log.error("Error while attaching to container output", e);
+            }
+        };
     }
 
     private boolean isImagePresent(ContainerSpec spec) throws DockerException, InterruptedException {

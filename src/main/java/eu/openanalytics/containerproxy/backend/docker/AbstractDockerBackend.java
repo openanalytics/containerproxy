@@ -93,21 +93,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         portRangeTo = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
     }
 
-    @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
-        Container c = getPrimaryContainer(proxy);
-        if (c == null) return null;
 
-        return (stdOut, stdErr) -> {
-            try {
-                LogStream logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
-                logStream.attach(stdOut, stdErr);
-            } catch (ClosedChannelException ignored) {
-            } catch (IOException | InterruptedException | DockerException e) {
-                log.error("Error while attaching to container output", e);
-            }
-        };
-    }
 
     @Override
     protected String getPropertyPrefix() {

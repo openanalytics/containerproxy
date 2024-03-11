@@ -158,12 +158,15 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
                 .collect(Collectors.joining(lineSep));
             log.debug(String.format("Available claims in %s (%d):%s%s", logInfo, standardClaimAccessor.getClaims().size(), lineSep, claims));
         }
+        Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+        if (rolesClaimName == null || rolesClaimName.isEmpty()) {
+            return mappedAuthorities;
+        }
 
         Object claimValue = standardClaimAccessor
             .getClaims()
             .get(rolesClaimName);
 
-        Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
         for (String role : parseRolesClaim(log, logInfo, rolesClaimName, claimValue)) {
             String mappedRole = role
                 .toUpperCase()
@@ -285,22 +288,18 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     protected GrantedAuthoritiesMapper createAuthoritiesMapper() {
         String rolesClaimName = environment.getProperty("proxy.openid.roles-claim");
-        if (rolesClaimName == null || rolesClaimName.isEmpty()) {
-            return authorities -> authorities;
-        } else {
-            return authorities -> {
-                Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
-                for (GrantedAuthority auth : authorities) {
-                    if (auth instanceof OidcUserAuthority) {
-                        OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
-                        mappedAuthorities.addAll(parseClaims(idToken, rolesClaimName));
-                        OidcUserInfo userInfo = ((OidcUserAuthority) auth).getUserInfo();
-                        mappedAuthorities.addAll(parseClaims(userInfo, rolesClaimName));
-                    }
+        return authorities -> {
+            Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+            for (GrantedAuthority auth : authorities) {
+                if (auth instanceof OidcUserAuthority) {
+                    OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
+                    mappedAuthorities.addAll(parseClaims(idToken, rolesClaimName));
+                    OidcUserInfo userInfo = ((OidcUserAuthority) auth).getUserInfo();
+                    mappedAuthorities.addAll(parseClaims(userInfo, rolesClaimName));
                 }
-                return mappedAuthorities;
-            };
-        }
+            }
+            return mappedAuthorities;
+        };
     }
 
     protected OidcUserService createOidcUserService() {

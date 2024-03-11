@@ -320,7 +320,7 @@ public class WebSecurityConfig {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
             if (rolesClaim != null) {
                 Object claimValue = source.getClaim(rolesClaim);
-                for (String role : OpenIDAuthenticationBackend.parseRolesClaim(logger, rolesClaim, claimValue)) {
+                for (String role : OpenIDAuthenticationBackend.parseRolesClaim(logger, "jwt", rolesClaim, claimValue)) {
                     String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;
                     mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
                 }

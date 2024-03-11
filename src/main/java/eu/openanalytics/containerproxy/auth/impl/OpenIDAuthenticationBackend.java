@@ -54,6 +54,7 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.core.oidc.StandardClaimAccessor;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
@@ -98,17 +99,16 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     @Inject
     private ContextPathHelper contextPathHelper;
 
-
     /**
      * Parses the claim containing the roles to a List of Strings.
      * See #25549 and TestOpenIdParseClaimRoles
      */
-    public static List<String> parseRolesClaim(Logger log, String rolesClaimName, Object claimValue) {
+    public static List<String> parseRolesClaim(Logger log, String logInfo, String rolesClaimName, Object claimValue) {
         if (claimValue == null) {
-            log.debug(String.format("No roles claim with name %s found", rolesClaimName));
+            log.debug(String.format("No roles claim with name %s found in %s", rolesClaimName, logInfo));
             return new ArrayList<>();
         } else {
-            log.debug(String.format("Matching claim found: %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
+            log.debug(String.format("Matching claim found in %s: %s -> %s (%s)", logInfo, rolesClaimName, claimValue, claimValue.getClass()));
         }
 
         if (claimValue instanceof Collection) {
@@ -139,6 +139,39 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
         log.debug(String.format("No parser found for roles claim (unsupported type): %s -> %s (%s)", rolesClaimName, claimValue, claimValue.getClass()));
         return new ArrayList<>();
+    }
+
+    public Set<GrantedAuthority> parseClaims(StandardClaimAccessor standardClaimAccessor, String rolesClaimName) {
+        String logInfo;
+        if (standardClaimAccessor instanceof OidcIdToken) {
+            logInfo = "ID token";
+        } else {
+            logInfo = "user info";
+        }
+        if (log.isDebugEnabled()) {
+            String lineSep = System.lineSeparator();
+            String claims = standardClaimAccessor
+                .getClaims()
+                .entrySet()
+                .stream()
+                .map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
+                .collect(Collectors.joining(lineSep));
+            log.debug(String.format("Available claims in %s (%d):%s%s", logInfo, standardClaimAccessor.getClaims().size(), lineSep, claims));
+        }
+
+        Object claimValue = standardClaimAccessor
+            .getClaims()
+            .get(rolesClaimName);
+
+        Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+        for (String role : parseRolesClaim(log, logInfo, rolesClaimName, claimValue)) {
+            String mappedRole = role
+                .toUpperCase()
+                .startsWith("ROLE_") ? role : "ROLE_" + role;
+            mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
+        }
+
+        return mappedAuthorities;
     }
 
     private static OAuth2AuthorizedClient refreshClient(String principalName) {
@@ -260,31 +293,9 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
                 for (GrantedAuthority auth : authorities) {
                     if (auth instanceof OidcUserAuthority) {
                         OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
-
-                        if (log.isDebugEnabled()) {
-                            String lineSep = System.getProperty("line.separator");
-                            String claims = idToken
-                                .getClaims()
-                                .entrySet()
-                                .stream()
-                                .map(e -> String.format("%s -> %s", e.getKey(), e.getValue()))
-                                .collect(Collectors.joining(lineSep));
-                            log.debug(String.format("Checking for roles in claim '%s'. Available claims in ID token (%d):%s%s",
-                                rolesClaimName, idToken
-                                    .getClaims()
-                                    .size(), lineSep, claims));
-                        }
-
-                        Object claimValue = idToken
-                            .getClaims()
-                            .get(rolesClaimName);
-
-                        for (String role : parseRolesClaim(log, rolesClaimName, claimValue)) {
-                            String mappedRole = role
-                                .toUpperCase()
-                                .startsWith("ROLE_") ? role : "ROLE_" + role;
-                            mappedAuthorities.add(new SimpleGrantedAuthority(mappedRole.toUpperCase()));
-                        }
+                        mappedAuthorities.addAll(parseClaims(idToken, rolesClaimName));
+                        OidcUserInfo userInfo = ((OidcUserAuthority) auth).getUserInfo();
+                        mappedAuthorities.addAll(parseClaims(userInfo, rolesClaimName));
                     }
                 }
                 return mappedAuthorities;

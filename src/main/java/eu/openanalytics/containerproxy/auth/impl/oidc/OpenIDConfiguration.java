@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl.oidc;
 
 import eu.openanalytics.containerproxy.auth.impl.oidc.redis.RedisOAuth2AuthorizedClientService;
+import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,6 +43,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import javax.inject.Inject;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Configuration
@@ -69,11 +72,8 @@ public class OpenIDConfiguration {
         scopes.add("openid");
         scopes.add("email");
 
-        for (int i = 0; ; i++) {
-            String scope = environment.getProperty(String.format("proxy.openid.scopes[%d]", i));
-            if (scope == null) break;
-            else scopes.add(scope);
-        }
+        Optional.ofNullable(EnvironmentUtils.readList(environment, "proxy.openid.scopes"))
+            .ifPresent(scopes::addAll);
 
         ClientRegistration client = ClientRegistration
             .withRegistrationId(REG_ID)

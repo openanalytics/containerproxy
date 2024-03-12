@@ -68,6 +68,9 @@ public class ErrorController extends BaseController implements org.springframewo
             if (statusCode == HttpStatus.NOT_FOUND.value()) {
                 shortError = "Not found";
                 description = "The requested page was not found";
+            } else if (statusCode == HttpStatus.BAD_REQUEST.value()) {
+                shortError = "Bad Request";
+                description = "You are not allowed to send this request.";
             } else if (statusCode == HttpStatus.FORBIDDEN.value()) {
                 shortError = "Forbidden";
                 description = "You do not have access to this page";
@@ -99,11 +102,17 @@ public class ErrorController extends BaseController implements org.springframewo
             return ApiResponse.fail("bad request");
         }
 
+        if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
+            return ApiResponse.fail("bad request");
+        }
+
         Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
         if (status != null) {
             int statusCode = Integer.parseInt(status.toString());
             if (statusCode == HttpStatus.NOT_FOUND.value()) {
                 return ApiResponse.failNotFound();
+            } else if (statusCode == HttpStatus.BAD_REQUEST.value()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>("fail", "bad request"));
             } else if (statusCode == HttpStatus.UNAUTHORIZED.value()) {
                 return ApiResponse.failUnauthorized();
             } else if (statusCode == HttpStatus.FORBIDDEN.value()) {
@@ -123,7 +132,7 @@ public class ErrorController extends BaseController implements org.springframewo
     }
 
     private Optional<Throwable> getException(HttpServletRequest request) {
-        Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
+        Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
         if (exception == null) {
             exception = (Throwable) request.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
         }

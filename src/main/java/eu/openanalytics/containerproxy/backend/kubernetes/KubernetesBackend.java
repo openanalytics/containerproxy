@@ -59,6 +59,7 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.PodDNSConfigBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -310,6 +311,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
             PodSpec podSpec = new PodSpec();
             podSpec.setContainers(Collections.singletonList(containerBuilder.build()));
+            if (spec.getDns().isPresent()) {
+                podSpec.setDnsConfig(new PodDNSConfigBuilder()
+                    .addToNameservers(spec.getDns().getValue().toArray(new String[0]))
+                    .build());
+            }
             podSpec.setVolumes(volumes);
             podSpec.setImagePullSecrets(imagePullSecrets);
 

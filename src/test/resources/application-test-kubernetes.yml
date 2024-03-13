@@ -837,6 +837,15 @@ proxy:
                resources:
                  requests:
                    storage: 5Gi
+    - id: 01_hello_dns
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          dns:
+            - 9.9.9.9
+          port-mapping:
+            - name: default
+              port: 3838
 
 appNamespaces:
   - itest-overridden

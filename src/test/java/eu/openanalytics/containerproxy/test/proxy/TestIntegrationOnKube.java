@@ -1503,6 +1503,35 @@ public class TestIntegrationOnKube {
         }
     }
 
+    @Test
+    public void launchProxyWithDns() {
+        try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
+            String id = inst.client.startProxy("01_hello_dns");
+            Proxy proxy = inst.proxyService.getProxy(id);
+
+            PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
+            Assertions.assertEquals(1, podList.getItems().size());
+            Pod pod = podList.getItems().get(0);
+            Assertions.assertEquals("Running", pod.getStatus().getPhase());
+            Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
+            Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
+            Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
+            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Assertions.assertEquals(true, container.getReady());
+            Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
+            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertEquals(List.of("9.9.9.9"), pod.getSpec().getDnsConfig().getNameservers());
+
+            inst.proxyService.stopProxy(null, proxy, true).run();
+
+            // all pods should be deleted
+            assertNoPods(k8s);
+            // all services should be deleted
+            assertNoServices(k8s);
+        }
+    }
+
+
     private void assertNoPods(ContainerSetup k8s) {
         boolean cleanedUp = Retrying.retry((c, m) -> {
             List<Pod> pods1 = k8s.client.pods().inNamespace(k8s.namespace).list().getItems();

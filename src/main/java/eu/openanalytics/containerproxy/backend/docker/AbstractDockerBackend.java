@@ -71,7 +71,9 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
         JerseyDockerClientBuilder builder;
         try {
-            builder = new JerseyDockerClientBuilder().fromEnv();
+            builder = new JerseyDockerClientBuilder()
+                .fromEnv()
+                .readTimeoutMillis(0); // no timeout, needed for startContainer and logs, #32606
         } catch (DockerCertificateException e) {
             throw new ContainerProxyException("Failed to initialize docker client", e);
         }

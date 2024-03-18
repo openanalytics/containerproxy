@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -29,21 +31,29 @@ import lombok.With;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class SeatAvailableEvent extends BridgeableEvent {
-
-    @With
-    String source;
 
     String specId;
 
     String intendedProxyId;
 
-    public SeatAvailableEvent(String specId, String claimingProxyId) {
-        source = "SOURCE_NOT_AVAILABLE";
+    @JsonCreator
+    public SeatAvailableEvent(@JsonProperty("source") String source,
+                              @JsonProperty("specId") String specId,
+                              @JsonProperty("claimingProxyId") String claimingProxyId) {
+        super(source);
         this.specId = specId;
         this.intendedProxyId = claimingProxyId;
+    }
+
+    public SeatAvailableEvent(String specId, String claimingProxyId) {
+        this(SOURCE_NOT_AVAILABLE, specId, claimingProxyId);
+    }
+
+    @Override
+    public SeatAvailableEvent withSource(String source) {
+        return new SeatAvailableEvent(source, specId, intendedProxyId);
     }
 
 }

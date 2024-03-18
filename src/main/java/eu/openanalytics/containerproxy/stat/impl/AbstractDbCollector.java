@@ -31,8 +31,6 @@ import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
 
-import static eu.openanalytics.containerproxy.event.BridgeableEvent.SOURCE_NOT_AVAILABLE;
-
 public abstract class AbstractDbCollector implements IStatCollector {
 
     @EventListener
@@ -47,14 +45,14 @@ public abstract class AbstractDbCollector implements IStatCollector {
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) throws IOException {
-        if (event.getSource().equals(SOURCE_NOT_AVAILABLE)) {
+        if (event.isLocalEvent()) {
             writeToDb(event.getTimestamp(), event.getUserId(), "ProxyStart", event.getSpecId());
         }
     }
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) throws IOException {
-        if (event.getSource().equals(SOURCE_NOT_AVAILABLE)) {
+        if (event.isLocalEvent()) {
             writeToDb(event.getTimestamp(), event.getUserId(), "ProxyStop", event.getSpecId());
         }
     }

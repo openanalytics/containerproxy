@@ -20,30 +20,38 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.With;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class PendingProxyEvent extends BridgeableEvent {
 
-    @With
-    String source;
+    String specId;
 
     String proxyId;
 
-    String specId;
-
-    public PendingProxyEvent(String specId, String proxyId) {
-        source = "SOURCE_NOT_AVAILABLE";
+    @JsonCreator
+    public PendingProxyEvent(@JsonProperty("source") String source,
+                             @JsonProperty("specId") String specId,
+                             @JsonProperty("proxyId") String proxyId) {
+        super(source);
         this.specId = specId;
         this.proxyId = proxyId;
+    }
+
+    public PendingProxyEvent(String specId, String proxyId) {
+        this(SOURCE_NOT_AVAILABLE, specId, proxyId);
+    }
+
+    @Override
+    public PendingProxyEvent withSource(String source) {
+        return new PendingProxyEvent(source, specId, proxyId);
     }
 
 }

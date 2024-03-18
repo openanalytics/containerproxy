@@ -20,32 +20,41 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.With;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxyResumeEvent extends BridgeableEvent {
-
-    @With
-    String source;
 
     String proxyId;
     String userId;
     String specId;
 
+    @JsonCreator
+    public ProxyResumeEvent(@JsonProperty("source") String source,
+                            @JsonProperty("proxyId") String proxyId,
+                            @JsonProperty("userId") String userId,
+                            @JsonProperty("specId") String specId) {
+        super(source);
+        this.proxyId = proxyId;
+        this.userId = userId;
+        this.specId = specId;
+    }
+
     public ProxyResumeEvent(Proxy proxy) {
-        source = "SOURCE_NOT_AVAILABLE";
-        proxyId = proxy.getId();
-        userId = proxy.getUserId();
-        specId = proxy.getSpecId();
+        this(SOURCE_NOT_AVAILABLE, proxy.getId(), proxy.getUserId(), proxy.getSpecId());
+    }
+
+    @Override
+    public ProxyResumeEvent withSource(String source) {
+        return new ProxyResumeEvent(source, proxyId, userId, specId);
     }
 
 }

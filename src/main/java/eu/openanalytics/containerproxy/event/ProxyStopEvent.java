@@ -20,25 +20,21 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.With;
 
 import java.time.Duration;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxyStopEvent extends BridgeableEvent {
-
-    @With
-    String source;
 
     String proxyId;
     String userId;
@@ -46,17 +42,29 @@ public class ProxyStopEvent extends BridgeableEvent {
     ProxyStopReason proxyStopReason;
     Duration usageTime;
 
-    public ProxyStopEvent(Proxy proxy, ProxyStopReason proxyStopReason) {
-        source = "SOURCE_NOT_AVAILABLE";
-        proxyId = proxy.getId();
-        userId = proxy.getUserId();
-        specId = proxy.getSpecId();
+    @JsonCreator
+    public ProxyStopEvent(@JsonProperty("source") String source,
+                          @JsonProperty("proxyId") String proxyId,
+                          @JsonProperty("userId") String userId,
+                          @JsonProperty("specId") String specId,
+                          @JsonProperty("proxyStopReason") ProxyStopReason proxyStopReason,
+                          @JsonProperty("usageTime") Duration usageTime) {
+        super(source);
+        this.proxyId = proxyId;
+        this.userId = userId;
+        this.specId = specId;
         this.proxyStopReason = proxyStopReason;
-        if (proxy.getStartupTimestamp() == 0) {
-            usageTime = null;
-        } else {
-            usageTime = Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp());
-        }
+        this.usageTime = usageTime;
+    }
+
+    public ProxyStopEvent(Proxy proxy, ProxyStopReason proxyStopReason) {
+        this(SOURCE_NOT_AVAILABLE, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), proxyStopReason,
+            proxy.getStartupTimestamp() == 0 ? null : Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp()));
+    }
+
+    @Override
+    public ProxyStopEvent withSource(String source) {
+        return new ProxyStopEvent(source, proxyId, userId, specId, proxyStopReason, usageTime);
     }
 
 }

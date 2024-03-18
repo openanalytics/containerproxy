@@ -21,7 +21,9 @@
 package eu.openanalytics.containerproxy.event;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.With;
 import org.springframework.context.ApplicationEvent;
 
 @JsonTypeInfo(
@@ -30,12 +32,25 @@ import org.springframework.context.ApplicationEvent;
 )
 public abstract class BridgeableEvent extends ApplicationEvent {
 
-    public static final String SOURCE_NOT_AVAILABLE = "SOURCE_NOT_AVAILABLE";
+    protected static final String SOURCE_NOT_AVAILABLE = "SOURCE_NOT_AVAILABLE";
 
     public BridgeableEvent() {
         super(SOURCE_NOT_AVAILABLE);
     }
 
+    public BridgeableEvent(String source) {
+        super(source);
+    }
+
     public abstract BridgeableEvent withSource(String source);
+
+    /**
+     * Checks whether this event was produced by this replica/instance, i.e. it was not bridged.
+     * @return whether this event was produced by this replica/instance.
+     */
+    @JsonIgnore
+    public boolean isLocalEvent() {
+        return source.equals(SOURCE_NOT_AVAILABLE);
+    }
 
 }

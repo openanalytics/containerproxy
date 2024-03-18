@@ -20,22 +20,18 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.With;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class SeatReleasedEvent extends BridgeableEvent {
-
-    @With
-    String source;
 
     String specId;
 
@@ -45,12 +41,26 @@ public class SeatReleasedEvent extends BridgeableEvent {
 
     ProxyStopReason proxyStopReason;
 
-    public SeatReleasedEvent(String specId, String seatId, String claimingProxyId, ProxyStopReason proxyStopReason) {
-        source = "SOURCE_NOT_AVAILABLE";
+    @JsonCreator
+    public SeatReleasedEvent(@JsonProperty("source") String source,
+                             @JsonProperty("specId") String specId,
+                             @JsonProperty("seatId") String seatId,
+                             @JsonProperty("claimingProxyId") String claimingProxyId,
+                             @JsonProperty("proxyStopReason") ProxyStopReason proxyStopReason) {
+        super(source);
         this.specId = specId;
         this.seatId = seatId;
         this.claimingProxyId = claimingProxyId;
         this.proxyStopReason = proxyStopReason;
+    }
+
+    public SeatReleasedEvent(String specId, String seatId, String claimingProxyId, ProxyStopReason proxyStopReason) {
+        this(SOURCE_NOT_AVAILABLE, specId, seatId, claimingProxyId, proxyStopReason);
+    }
+
+    @Override
+    public SeatReleasedEvent withSource(String source) {
+        return new SeatReleasedEvent(source, specId, seatId, claimingProxyId, proxyStopReason);
     }
 
 }

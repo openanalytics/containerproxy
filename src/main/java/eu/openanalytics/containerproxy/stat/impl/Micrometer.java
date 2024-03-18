@@ -142,6 +142,9 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
 
@@ -175,6 +178,9 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
         registry.counter("appStops", "spec.id", event.getSpecId()).increment();
         if (event.getUsageTime() != null) {
@@ -187,6 +193,9 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
         registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
     }
@@ -200,7 +209,7 @@ public class Micrometer implements IStatCollector {
     /**
      * Updates the cache containing the number of proxies running for each spec id.
      * We only update this value every CACHE_UPDATE_INTERVAL because this is a relative heavy computation to do.
-     * Therefore, we don't want that this calculation is performed every time the guage is updated.
+     * Therefore, we don't want that this calculation is performed every time the gauge is updated.
      * Especially since this could be called using an HTTP request.
      */
     private void updateCachedProxyCount() {

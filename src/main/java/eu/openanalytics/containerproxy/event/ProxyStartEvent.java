@@ -20,35 +20,45 @@
  */
 package eu.openanalytics.containerproxy.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.With;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ProxyStartEvent extends BridgeableEvent {
-
-    @With
-    String source;
 
     String proxyId;
     String userId;
     String specId;
     ProxyStartupLog proxyStartupLog;
 
-    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
-        source = "SOURCE_NOT_AVAILABLE";
-        proxyId = proxy.getId();
-        userId = proxy.getUserId();
-        specId = proxy.getSpecId();
+    @JsonCreator
+    public ProxyStartEvent(@JsonProperty("source") String source,
+                           @JsonProperty("proxyId") String proxyId,
+                           @JsonProperty("userId") String userId,
+                           @JsonProperty("specId") String specId,
+                           @JsonProperty("proxyStartupLog") ProxyStartupLog proxyStartupLog) {
+        super(source);
+        this.proxyId = proxyId;
+        this.userId = userId;
+        this.specId = specId;
         this.proxyStartupLog = proxyStartupLog;
+    }
+
+    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
+        this(SOURCE_NOT_AVAILABLE, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), proxyStartupLog);
+    }
+
+    @Override
+    public ProxyStartEvent withSource(String source) {
+        return new ProxyStartEvent(source, proxyId, userId, specId, proxyStartupLog);
     }
 
 }

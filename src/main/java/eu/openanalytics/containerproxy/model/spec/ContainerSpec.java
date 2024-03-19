@@ -82,6 +82,13 @@ public class ContainerSpec {
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
     @Builder.Default
+    private SpelField.String dockerRuntime = new SpelField.String();
+    @Builder.Default
+    private SpelField.String dockerUser = new SpelField.String();
+    @Builder.Default
+    private List<DockerDeviceRequest> dockerDeviceRequests = new ArrayList<>();
+
+    @Builder.Default
     private SpelField.String resourceName = new SpelField.String();
 
     public void setCmd(List<String> cmd) {
@@ -122,6 +129,9 @@ public class ContainerSpec {
             .cpuRequest(cpuRequest.resolve(resolver, context))
             .cpuLimit(cpuLimit.resolve(resolver, context))
             .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
+            .dockerRuntime(dockerRuntime.resolve(resolver, context))
+            .dockerUser(dockerUser.resolve(resolver, context))
+            .dockerDeviceRequests(dockerDeviceRequests)
             .build();
     }
 

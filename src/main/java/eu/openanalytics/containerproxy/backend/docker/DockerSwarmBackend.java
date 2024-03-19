@@ -136,6 +136,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                     .dnsConfig(DnsConfig.builder().nameServers(spec.getDns().getValueOrNull()).build())
                     .mounts(mounts)
                     .secrets(secretBinds)
+                    .user(spec.getDockerUser().getValueOrNull())
                     .build();
 
             List<NetworkAttachmentConfig> networks = new ArrayList<>(spec.getNetworkConnections()

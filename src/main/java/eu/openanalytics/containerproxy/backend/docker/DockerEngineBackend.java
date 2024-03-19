@@ -33,6 +33,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
+import eu.openanalytics.containerproxy.model.spec.DockerDeviceRequest;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.LogStream;
@@ -134,6 +135,20 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             spec.getVolumes().ifPresent(hostConfigBuilder::binds);
             hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
 
+            List<HostConfig.DeviceRequest> deviceRequests = new ArrayList<>();
+            for (DockerDeviceRequest deviceRequest : spec.getDockerDeviceRequests()) {
+                HostConfig.DeviceRequest.Builder builder= HostConfig.DeviceRequest.builder();
+                deviceRequest.getDriver().ifPresent(builder::driver);
+                deviceRequest.getCount().ifPresent(builder::count);
+                deviceRequest.getDeviceIds().ifPresent(builder::deviceIds);
+                deviceRequest.getCapabilities().ifPresent(builder::capabilities);
+                deviceRequest.getOptions().ifPresent(builder::options);
+                deviceRequests.add(builder.build());
+            }
+            hostConfigBuilder.deviceRequests(deviceRequests);
+
+            spec.getDockerRuntime().ifPresent(hostConfigBuilder::runtime);
+
             Map<String, String> labels = spec.getLabels().getValueOrDefault(new HashMap<>());
 
             Stream.concat(
@@ -152,6 +167,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 .exposedPorts(dockerPortBindings.keySet())
                 .cmd(spec.getCmd().getValueOrNull())
                 .env(convertEnv(buildEnv(user, spec, proxy)))
+                .user(spec.getDockerUser().getValueOrNull())
                 .build();
 
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());

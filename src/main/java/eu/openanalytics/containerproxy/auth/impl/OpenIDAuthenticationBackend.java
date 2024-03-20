@@ -293,9 +293,13 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
             for (GrantedAuthority auth : authorities) {
                 if (auth instanceof OidcUserAuthority) {
                     OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
-                    mappedAuthorities.addAll(parseClaims(idToken, rolesClaimName));
+                    if (idToken != null) {
+                        mappedAuthorities.addAll(parseClaims(idToken, rolesClaimName));
+                    }
                     OidcUserInfo userInfo = ((OidcUserAuthority) auth).getUserInfo();
-                    mappedAuthorities.addAll(parseClaims(userInfo, rolesClaimName));
+                    if (userInfo != null) {
+                        mappedAuthorities.addAll(parseClaims(userInfo, rolesClaimName));
+                    }
                 }
             }
             return mappedAuthorities;

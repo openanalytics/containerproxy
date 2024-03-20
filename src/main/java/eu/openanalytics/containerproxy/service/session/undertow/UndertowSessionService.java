@@ -77,7 +77,7 @@ public class UndertowSessionService extends AbstractSessionService {
             // a method similar to Spring's session setLastAccessedTime() method
             FieldUtils.writeField(session, "lastAccessed", System.currentTimeMillis(), true);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logger.error("Error while re-activating session", e);
         }
         // called for the SessionImpl.bumpTimeout() method
         session.requestDone(new HttpServerExchange(null));

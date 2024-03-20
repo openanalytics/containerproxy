@@ -23,6 +23,8 @@ package eu.openanalytics.containerproxy.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import eu.openanalytics.containerproxy.event.BridgeableEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.Message;
@@ -43,6 +45,8 @@ public class RedisEventBridge implements MessageListener {
     private final ObjectMapper objectMapper;
 
     private final String source;
+
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
     public RedisEventBridge(RedisTemplate<String, BridgeableEvent> redisTemplate, ChannelTopic channelTopic, ApplicationEventPublisher applicationEventPublisher) {
         this.redisTemplate = redisTemplate;
@@ -72,7 +76,7 @@ public class RedisEventBridge implements MessageListener {
                 applicationEventPublisher.publishEvent(incomingEvent.withSource(source));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error while receiving Redis message", e);
         }
     }
 

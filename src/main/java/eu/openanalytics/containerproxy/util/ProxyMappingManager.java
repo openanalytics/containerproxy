@@ -48,6 +48,8 @@ import io.undertow.util.StatusCodes;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -77,7 +79,8 @@ public class ProxyMappingManager {
     private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
     private static final AttachmentKey<OriginalUrlAttachmentKey> ATTACHMENT_ORIGINAL_URL = AttachmentKey.create(OriginalUrlAttachmentKey.class);
 
-    private final StructuredLogger logger = StructuredLogger.create(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final StructuredLogger slogger = new StructuredLogger(logger);
     // the current set of prefixPaths registered in the pathHandler
     private final Map<String, List<String>> prefixPaths = new HashMap<>();
     private PathHandler pathHandler;
@@ -108,7 +111,7 @@ public class ProxyMappingManager {
                     if (proxy != null && !proxy.getStatus().isUnavailable() && !isShuttingDown) {
                         String originalURL = responseExchange.getAttachment(ATTACHMENT_ORIGINAL_URL).url;
                         String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
-                        logger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
+                        slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
                             responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
                         asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
                     }
@@ -168,7 +171,7 @@ public class ProxyMappingManager {
                 try {
                     exchange.addResponseCommitListener(ex -> heartbeatService.attachHeartbeatChecker(ex, proxy));
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error("Error while adding mapping", e);
                 }
                 super.getConnection(target, exchange, callback, timeout, timeUnit);
             }

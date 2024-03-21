@@ -86,6 +86,8 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.String dockerUser = new SpelField.String();
     @Builder.Default
+    private SpelField.String dockerIpc = new SpelField.String();
+    @Builder.Default
     private List<DockerDeviceRequest> dockerDeviceRequests = new ArrayList<>();
 
     @Builder.Default
@@ -131,7 +133,7 @@ public class ContainerSpec {
             .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
             .dockerRuntime(dockerRuntime.resolve(resolver, context))
             .dockerUser(dockerUser.resolve(resolver, context))
-            .dockerDeviceRequests(dockerDeviceRequests)
+            .dockerIpc(dockerIpc.resolve(resolver, context))
             .build();
     }
 

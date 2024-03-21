@@ -134,6 +134,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             spec.getDns().ifPresent(hostConfigBuilder::dns);
             spec.getVolumes().ifPresent(hostConfigBuilder::binds);
             hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
+            spec.getDockerIpc().ifPresent(hostConfigBuilder::ipcMode);
 
             List<HostConfig.DeviceRequest> deviceRequests = new ArrayList<>();
             for (DockerDeviceRequest deviceRequest : spec.getDockerDeviceRequests()) {

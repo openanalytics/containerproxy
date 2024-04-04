@@ -48,6 +48,7 @@ import io.undertow.util.StatusCodes;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -109,7 +110,10 @@ public class ProxyMappingManager {
                 try {
                     proxy = proxyService.getProxy(proxyIdAttachment.proxyId);
                     if (proxy != null && !proxy.getStatus().isUnavailable() && !isShuttingDown) {
-                        String originalURL = responseExchange.getAttachment(ATTACHMENT_ORIGINAL_URL).url;
+                        String originalURL = responseExchange.getRequestURL();
+                        if (!StringUtils.isBlank(responseExchange.getQueryString())) {
+                            originalURL += "?" + responseExchange.getQueryString();
+                        }
                         String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
                         slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
                             responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
@@ -273,7 +277,10 @@ public class ProxyMappingManager {
         String relativePath = responseExchange.getRelativePath();
         URI target = getTargetFromResponseExchange(proxy, relativePath);
 
-        return target + relativePath + responseExchange.getQueryString();
+        if (!StringUtils.isBlank(responseExchange.getQueryString())) {
+            return target + relativePath + "?" + responseExchange.getQueryString();
+        }
+        return target + relativePath;
     }
 
     private URI getTargetFromResponseExchange(Proxy proxy, String relativePath) {

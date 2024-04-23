@@ -104,4 +104,7 @@ public interface IContainerBackend {
         return proxy;
     }
 
+    default Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) throws ContainerProxyException {
+        return proxy;
+    }
 }

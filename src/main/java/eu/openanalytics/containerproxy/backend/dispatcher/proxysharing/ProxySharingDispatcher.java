@@ -214,6 +214,11 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         return proxy;
     }
 
+    @Override
+    public Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) {
+        return proxy;
+    }
+
     @EventListener
     public void onSeatAvailableEvent(SeatAvailableEvent event) {
         if (!Objects.equals(event.getSpecId(), proxySpec.getId())) {

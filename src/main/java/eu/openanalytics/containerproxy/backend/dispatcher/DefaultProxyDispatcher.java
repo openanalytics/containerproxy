@@ -74,4 +74,9 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
         return containerBackend.addRuntimeValuesBeforeSpel(user, spec, proxy);
     }
 
+    @Override
+    public Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) {
+        return containerBackend.addRuntimeValuesAfterSpel(user, spec, proxy);
+    }
+
 }

@@ -434,6 +434,7 @@ public class ProxyService {
 
             // add the runtime values which depend on spel to be resolved (and thus cannot be used in spel expression)
             proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
+            proxy = proxyDispatcherService.getDispatcher(spec.getId()).addRuntimeValuesAfterSpel(user, spec, proxy);
 
             // create container objects
             for (ContainerSpec containerSpec : spec.getContainerSpecs()) {

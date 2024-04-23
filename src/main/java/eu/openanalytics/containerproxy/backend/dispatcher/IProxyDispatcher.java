@@ -45,4 +45,6 @@ public interface IProxyDispatcher {
     boolean supportsPause();
 
     Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy);
+
+    Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy);
 }

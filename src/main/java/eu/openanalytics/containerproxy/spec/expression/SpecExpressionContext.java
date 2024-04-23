@@ -192,7 +192,7 @@ public class SpecExpressionContext {
     }
 
     public WebServiceAuthenticationBackend.WebServiceUser getWebServiceUser() {
-        if (oidcUser == null) {
+        if (webServiceUser == null) {
             throw new SpelContextObjectNotAvailableException("webServiceUser");
         }
         return webServiceUser;

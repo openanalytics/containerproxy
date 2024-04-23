@@ -383,7 +383,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
         public Jwt getAccessTokenAsJwt() {
             try {
-                return accessTokenDecoder.decode("abc");
+                return accessTokenDecoder.decode(getAccessToken());
             } catch (JwtException e) {
                 log.warn("Failed to decode access token as JWT", e);
                 throw e;

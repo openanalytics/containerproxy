@@ -107,13 +107,7 @@ public class SpecExpressionResolver {
             }
 
             return expr.getValue(sec, resType);
-        } catch (SpelContextObjectNotAvailableException ex) {
-            throw new SpelException(ex, expression);
         } catch (ExpressionException ex) {
-            Throwable rootCause = Throwables.getRootCause(ex);
-            if (rootCause instanceof SpelContextObjectNotAvailableException contextObjectNotAvailableException) {
-                throw new SpelContextObjectNotAvailableException(contextObjectNotAvailableException, expression);
-            }
             throw new SpelException(ex, expression);
         } catch (Throwable ex) {
             throw new SpelException(ex, expression);

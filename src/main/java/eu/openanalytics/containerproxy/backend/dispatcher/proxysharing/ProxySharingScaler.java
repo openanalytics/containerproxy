@@ -54,7 +54,6 @@ import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.spec.expression.SpelContextObjectNotAvailableException;
 import eu.openanalytics.containerproxy.spec.expression.SpelException;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
 import eu.openanalytics.containerproxy.util.ExecutorServiceFactory;
@@ -419,7 +418,7 @@ public class ProxySharingScaler {
                         applicationEventPublisher.publishEvent(new SeatAvailableEvent(proxySpec.getId(), intendedProxyId));
                     }
                 }
-            } catch (SpelContextObjectNotAvailableException | SpelException ex) {
+            } catch (SpelException ex) {
                 // remove seats and other data
                 globalEventLoop.schedule(() -> markDelegateProxyForRemoval(id));
                 logger.error("Failed to start DelegateProxy, problem while resolving SpEL expressions. You can only use the objects 'containerSpec', 'proxySpec' and 'proxy' when using pre-initialized containers. Cause: " + ex.getMessage());

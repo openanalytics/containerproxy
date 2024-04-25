@@ -28,10 +28,6 @@ public class SpelException extends RuntimeException {
         super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage());
     }
 
-    public SpelException(SpelContextObjectNotAvailableException cause, String originalExpression) {
-        super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage());
-    }
-
     public SpelException(Throwable cause, String originalExpression) {
         super("Error while resolving expression: \"" + originalExpression + "\", error: " + cause.getMessage(), cause);
     }

@@ -77,7 +77,7 @@ public class AuthController extends BaseController {
     @RequestMapping(value = AUTH_SUCCESS_URL, method = RequestMethod.GET)
     public String authSuccess(ModelMap map, HttpServletRequest request) {
         prepareMap(map);
-        map.put("url", ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString()); // default url
+        map.put("url", ServletUriComponentsBuilder.fromCurrentContextPath().path("/").build().toUriString()); // default url
 
         Object redirectUrl = request.getSession().getAttribute(AUTH_SUCCESS_URL_SESSION_ATTR);
         if (redirectUrl instanceof String sRedirectUrl) {

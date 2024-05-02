@@ -325,7 +325,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
 
             Pod startupPod = podBuilder.withSpec(podSpec).build();
-            Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod);
+            Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod, initialContainer);
             final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
@@ -404,11 +404,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
     }
 
-    private Pod applyPodPatches(Authentication auth, ProxySpec proxySpec, KubernetesSpecExtension specExtension, Proxy proxy, Pod startupPod) throws JsonProcessingException {
+    private Pod applyPodPatches(Authentication auth, ProxySpec proxySpec, KubernetesSpecExtension specExtension, Proxy proxy, Pod startupPod, Container container) throws JsonProcessingException {
         Pod patchedPod = podPatcher.patchWithDebug(proxy, startupPod, readPatchFromSpec(specExtension.kubernetesPodPatches));
 
         for (AuthorizedPodPatches authorizedPodPatches : specExtension.kubernetesAuthorizedPodPatches) {
-            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedPodPatches.accessControl)) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedPodPatches.accessControl, proxy, container)) {
                 patchedPod = podPatcher.patchWithDebug(proxy, patchedPod, readPatchFromSpec(authorizedPodPatches.patches));
             }
         }

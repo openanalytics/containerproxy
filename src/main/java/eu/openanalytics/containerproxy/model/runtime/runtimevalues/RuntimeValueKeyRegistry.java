@@ -52,7 +52,6 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(PublicPathKey.inst);
         addRuntimeValueKey(HttpHeadersKey.inst);
         addRuntimeValueKey(TargetIdKey.inst);
-        addRuntimeValueKey(TaskDefinitionKey.inst);
         addRuntimeValueKey(CacheHeadersModeKey.inst);
     }
 

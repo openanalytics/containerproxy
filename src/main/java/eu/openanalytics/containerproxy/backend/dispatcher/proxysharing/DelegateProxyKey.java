@@ -28,7 +28,7 @@ public class DelegateProxyKey extends RuntimeValueKey<Boolean> {
 
     private DelegateProxyKey() {
         super("openanalytics.eu/sp-delegate-proxy",
-            "SHINYPROXY_DELEGATE_PROXYS",
+            "SHINYPROXY_DELEGATE_PROXY",
             true,
             false,
             false,

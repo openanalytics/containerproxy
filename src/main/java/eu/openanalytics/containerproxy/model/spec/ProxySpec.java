@@ -127,7 +127,6 @@ public class ProxySpec {
         return toBuilder()
             .heartbeatTimeout(heartbeatTimeout.resolve(resolver, context))
             .maxLifeTime(maxLifeTime.resolve(resolver, context))
-            .maxTotalInstances(maxTotalInstances)
             .specExtensions(
                 specExtensions.entrySet()
                     .stream()
@@ -140,7 +139,6 @@ public class ProxySpec {
                     .map(c -> c.firstResolve(resolver, context.copy(c)))
                     .toList()
             )
-            .cacheHeadersMode(cacheHeadersMode)
             .build();
     }
 

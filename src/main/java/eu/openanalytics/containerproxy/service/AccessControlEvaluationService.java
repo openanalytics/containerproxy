@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -44,7 +45,7 @@ public class AccessControlEvaluationService {
         this.specExpressionResolver = specExpressionResolver;
     }
 
-    public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl) {
+    public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (auth instanceof AnonymousAuthenticationToken) {
             // if anonymous -> only allow access if the backend has no authorization enabled
             return !authBackend.hasAuthorization();
@@ -62,7 +63,7 @@ public class AccessControlEvaluationService {
             return true;
         }
 
-        return allowedByExpression(auth, spec, accessControl);
+        return allowedByExpression(auth, spec, accessControl, objects);
     }
 
     public boolean hasAccessControl(AccessControl accessControl) {
@@ -101,12 +102,13 @@ public class AccessControlEvaluationService {
         return false;
     }
 
-    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl) {
+    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (!accessControl.hasExpressionAccess()) {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        SpecExpressionContext context = SpecExpressionContext.create(auth, auth.getPrincipal(), auth.getCredentials(), spec);
+        Object[] args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
+        SpecExpressionContext context = SpecExpressionContext.create(args);
         return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
     }
 

@@ -331,7 +331,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
 
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
-            createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace);
+            createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace, initialContainer);
 
             // tell the status service we are starting the pod/container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -513,12 +513,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
      *
      * The resource will only be created if it does not already exist.
      */
-    private void createAdditionalManifests(Authentication auth, ProxySpec proxySpec, Proxy proxy, KubernetesSpecExtension specExtension, String namespace) throws JsonProcessingException {
+    private void createAdditionalManifests(Authentication auth, ProxySpec proxySpec, Proxy proxy, KubernetesSpecExtension specExtension, String namespace, Container container) throws JsonProcessingException {
         for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, specExtension.getKubernetesAdditionalManifests(), false)) {
             applyAdditionalManifest(proxy, fullObject);
         }
         for (AuthorizedAdditionalManifests authorizedAdditionalManifests : specExtension.kubernetesAuthorizedAdditionalManifests) {
-            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl, proxy, container)) {
                 for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, false)) {
                     applyAdditionalManifest(proxy, fullObject);
                 }
@@ -528,7 +528,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             applyAdditionalManifest(proxy, fullObject);
         }
         for (AuthorizedAdditionalManifests authorizedAdditionalManifests : specExtension.kubernetesAuthorizedAdditionalPersistentManifests) {
-            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl)) {
+            if (accessControlEvaluationService.checkAccess(auth, proxySpec, authorizedAdditionalManifests.accessControl, proxy, container)) {
                 for (GenericKubernetesResource fullObject : parseAdditionalManifests(proxy, namespace, authorizedAdditionalManifests.manifests, true)) {
                     applyAdditionalManifest(proxy, fullObject);
                 }

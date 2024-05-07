@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,10 +25,9 @@ import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.integration.leader.Candidate;
 import org.springframework.integration.leader.Context;
-import org.springframework.integration.support.locks.ExpirableLockRegistry;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
@@ -39,20 +38,13 @@ import java.util.UUID;
  */
 public class RedisLeaderService implements Candidate, ILeaderService {
 
-    @Inject
-    private ExpirableLockRegistry lockRegistry;
-
+    private final Logger logger = LogManager.getLogger(getClass());
     @Inject
     private IdentifierService identifierService;
-
+    @Lazy
+    @Inject
+    private RedisCheckLatestConfigService redisCheckLatestConfigService;
     private volatile boolean isLeader;
-
-    private final Logger logger = LogManager.getLogger(getClass());
-
-    @Scheduled(fixedDelay = 5000)
-    private void cleanObsolete() {
-        lockRegistry.expireUnusedOlderThan(5000);
-    }
 
     @Nonnull
     @Override
@@ -68,8 +60,13 @@ public class RedisLeaderService implements Candidate, ILeaderService {
 
     @Override
     public void onGranted(@Nonnull Context context) {
-        isLeader = true;
-        logger.info("This server (runtimeId: {}) is now the leader.", identifierService.runtimeId);
+        // before accepting leadership, check if we are running the latest config
+        if (redisCheckLatestConfigService.check()) {
+            isLeader = true;
+            logger.info("This server (runtimeId: {}) is now the leader.", identifierService.runtimeId);
+        } else {
+            logger.debug("Ignoring leadership because this is not the latest config.");
+        }
     }
 
     @Override

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,14 +24,14 @@ import eu.openanalytics.containerproxy.model.runtime.Container;
 
 public class ContainerFailedToStartException extends RuntimeException {
 
-	private final Container Container;
+    private final Container Container;
 
-	public ContainerFailedToStartException(String message, Throwable cause, Container container) {
-		super(message, cause);
-		this.Container = container;
-	}
+    public ContainerFailedToStartException(String message, Throwable cause, Container container) {
+        super(message, cause);
+        this.Container = container;
+    }
 
-	public Container getContainer() {
-		return Container;
-	}
+    public Container getContainer() {
+        return Container;
+    }
 }

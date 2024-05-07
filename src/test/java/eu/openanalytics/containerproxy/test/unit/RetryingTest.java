@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,8 +21,7 @@
 package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestProxyService;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import eu.openanalytics.containerproxy.util.Retrying;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@SpringBootTest(classes = {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)

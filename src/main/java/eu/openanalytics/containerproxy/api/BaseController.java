@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,23 +20,46 @@
  */
 package eu.openanalytics.containerproxy.api;
 
+import eu.openanalytics.containerproxy.service.IdentifierService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 public class BaseController {
 
-	@Inject
-	private Environment environment;
+    @Inject
+    private Environment environment;
 
-	protected void prepareMap(ModelMap map) {
-		map.put("title", environment.getProperty("proxy.title", "ShinyProxy"));
-		map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
-		map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
-		map.put("jqueryJs", "/webjars/jquery/3.6.1/jquery.min.js");
-		map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
-		map.put("bootstrapSocialCss", "/webjars/bootstrap-social/5.1.1/bootstrap-social.css");
-	}
+    @Inject
+    private IdentifierService identifierService;
+
+    private String title;
+
+    @PostConstruct
+    public void baseInit() {
+        title = environment.getProperty("proxy.title", "ShinyProxy");
+    }
+
+    protected void prepareMap(ModelMap map) {
+        map.put("title", title);
+        // no versioning (using instanceId) needed since paths already contain a version
+        map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
+        map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
+        map.put("jqueryJs", "/webjars/jquery/3.7.1/jquery.min.js");
+        map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
+        map.put("resourcePrefix", "/" + identifierService.instanceId);
+
+        ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        HttpServletRequest httpServletRequest = servletRequestAttributes.getRequest();
+        HttpServletResponse httpServletResponse = servletRequestAttributes.getResponse();
+        map.put("request", httpServletRequest);
+        map.put("response", httpServletResponse);
+    }
 
 }

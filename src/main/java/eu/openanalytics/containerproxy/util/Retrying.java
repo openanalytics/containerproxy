@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,20 +20,24 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Retrying {
 
-    @FunctionalInterface
-    public interface Attempt {
-        boolean attempt(int currentAttempt, int maxAttempts);
-    }
+    private static final Logger log = LoggerFactory.getLogger(Retrying.class);
 
     public static boolean retry(Attempt job, int maxDelay) {
         return retry(job, maxDelay, false);
     }
 
     public static boolean retry(Attempt job, int maxDelay, boolean retryOnException) {
+        return retry(job, maxDelay, null, -1, retryOnException);
+    }
+
+    public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttmepts, boolean retryOnException) {
         boolean retVal = false;
-        RuntimeException exception = null;
+        Exception exception = null;
         int maxAttempts = numberOfAttempts(maxDelay);
         for (int currentAttempt = 0; currentAttempt < maxAttempts; currentAttempt++) {
             delay(currentAttempt); // delay here so that we don't delay for the last iteration
@@ -43,13 +47,16 @@ public class Retrying {
                     exception = null;
                     break;
                 }
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 if (retryOnException) exception = e;
-                else throw e;
+                else throw new RuntimeException(e);
+            }
+            if (currentAttempt > logAfterAttmepts && logMessage != null) {
+                log.info(String.format("Retry: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
             }
         }
         if (exception == null) return retVal;
-        else throw exception;
+        else throw new RuntimeException(exception);
     }
 
     public static void delay(Integer attempt) {
@@ -62,7 +69,8 @@ public class Retrying {
             } else {
                 Thread.sleep(2_000);
             }
-        } catch (InterruptedException ignore) {
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
@@ -72,6 +80,11 @@ public class Retrying {
         }
         // it takes 11 attempts to have a delay of 3 000ms
         return (int) Math.ceil((maxDelay - 3_000) / 2_000.0) + 11;
+    }
+
+    @FunctionalInterface
+    public interface Attempt {
+        boolean attempt(int currentAttempt, int maxAttempts) throws Exception;
     }
 
 }

@@ -1,0 +1,36 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
+  container-backend: ecs
+  ecs:
+    name: ${ITEST_ECS_NAME}
+    region: ${ITEST_ECS_REGION}
+    security-groups: ${ITEST_ECS_SECURITY_GROUPS}
+    subnets: ${ITEST_ECS_SUBNETS}
+
+  users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
+
+  docker:
+    url: http://localhost:2375
+
+  specs:
+    - id: 01_hello
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          memory-request: 2048
+          port-mapping:
+            - name: default
+              port: 3838

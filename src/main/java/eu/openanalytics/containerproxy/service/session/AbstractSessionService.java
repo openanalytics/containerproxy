@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,8 +21,6 @@
 package eu.openanalytics.containerproxy.service.session;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
-import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
-import eu.openanalytics.containerproxy.util.Sha256;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 
@@ -34,19 +32,15 @@ abstract public class AbstractSessionService implements ISessionService {
     @Lazy
     // Note: lazy needed to work around early initialization conflict
     // Only used to check whether we are using Authentication none
-    private IAuthenticationBackend authBackend;
+    protected IAuthenticationBackend authBackend;
 
-    protected String extractAuthName(Authentication authentication, String sessionId) {
+    protected String extractAuthName(Authentication authentication) {
         if (authentication != null && !authentication.isAuthenticated()) {
             return null;
         }
 
         if (authentication != null) {
             return authentication.getName();
-        }
-
-        if (authBackend.getName().equals(NoAuthenticationBackend.NAME)) {
-            return Sha256.hash(sessionId);
         }
 
         return null;

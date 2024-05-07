@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,6 +26,6 @@ package eu.openanalytics.containerproxy.backend.strategy;
  */
 public interface IProxyLogoutStrategy {
 
-	public void onLogout(String userId);
+    void onLogout(String userId);
 
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,6 +22,6 @@ package eu.openanalytics.containerproxy.service.leader;
 
 public interface ILeaderService {
 
-    public boolean isLeader();
+    boolean isLeader();
 
 }

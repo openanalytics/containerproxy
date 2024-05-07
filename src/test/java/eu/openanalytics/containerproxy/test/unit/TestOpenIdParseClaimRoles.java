@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,8 +22,7 @@ package eu.openanalytics.containerproxy.test.unit;
 
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestProxyService;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import net.minidev.json.JSONArray;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 
 
-@SpringBootTest(classes = {TestProxyService.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
@@ -56,7 +55,7 @@ public class TestOpenIdParseClaimRoles {
         claimValue.add("uma_authorization");
         claimValue.add("offline_access");
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -69,7 +68,7 @@ public class TestOpenIdParseClaimRoles {
         claimValue.add("uma_authorization");
         claimValue.add("offline_access");
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -78,7 +77,7 @@ public class TestOpenIdParseClaimRoles {
     public void testParseProperJsonArrayAsString() {
         String claimValue = "[\"operators\",\"default-roles-master\",\"uma_authorization\",\"offline_access\"]";
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -87,7 +86,7 @@ public class TestOpenIdParseClaimRoles {
     public void testParseNonStandardJsonArrayAsString() {
         String claimValue = "[operators,default-roles-master,uma_authorization,offline_access]";
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -96,7 +95,7 @@ public class TestOpenIdParseClaimRoles {
     public void testParseNonStandardJsonArrayAsString2() {
         String claimValue = "[operators, default-roles-master,uma_authorization, offline_access ]";
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -105,7 +104,7 @@ public class TestOpenIdParseClaimRoles {
     public void testParseNonStandardJsonArrayAsString3() {
         String claimValue = "[operators, default-roles-master,uma_authorization, \"offline_access\"]";
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }
@@ -114,7 +113,7 @@ public class TestOpenIdParseClaimRoles {
     public void testParseNonStandardJsonArrayAsString4() {
         String claimValue = "[operators, default-roles-master,uma_authorization, 'offline_access']";
 
-        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "realm_access_roles", claimValue);
+        List<String> result = OpenIDAuthenticationBackend.parseRolesClaim(logger, "", "realm_access_roles", claimValue);
 
         Assertions.assertEquals(Arrays.asList("operators", "default-roles-master", "uma_authorization", "offline_access"), result);
     }

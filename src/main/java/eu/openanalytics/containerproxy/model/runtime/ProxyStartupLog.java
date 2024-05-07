@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -49,7 +49,7 @@ public class ProxyStartupLog {
     public ProxyStartupLog(@JsonProperty("createProxy") StartupStep createProxy,
                            @JsonProperty("pullImage") Map<Integer, StartupStep> pullImage,
                            @JsonProperty("scheduleContainer") Map<Integer, StartupStep> scheduleContainer,
-                           @JsonProperty("startContainer") Map<Integer, StartupStep>  startContainer,
+                           @JsonProperty("startContainer") Map<Integer, StartupStep> startContainer,
                            @JsonProperty("startApplication") StartupStep startApplication) {
         this.createProxy = createProxy;
         this.pullImage = pullImage;
@@ -85,14 +85,10 @@ public class ProxyStartupLog {
 
     public static class ProxyStartupLogBuilder {
 
-        private StartupStep createProxy = new StartupStep();
-
         private final Map<Integer, StartupStep> pullImage = new HashMap<>();
-
-        private final Map<Integer, StartupStep> startContainer =  new HashMap<>();
-
-        private final Map<Integer, StartupStep> scheduleContainer =  new HashMap<>();
-
+        private final Map<Integer, StartupStep> startContainer = new HashMap<>();
+        private final Map<Integer, StartupStep> scheduleContainer = new HashMap<>();
+        private StartupStep createProxy = new StartupStep();
         private StartupStep startApplication = null;
 
         public void pullingImage(Integer containerIdx) {
@@ -145,7 +141,7 @@ public class ProxyStartupLog {
             if (startApplication != null) {
                 throw new IllegalStateException("StartupLog already contains an entry for action startingApplication");
             }
-            startApplication= new StartupStep();
+            startApplication = new StartupStep();
         }
 
         public void applicationStarted() {

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,20 +28,20 @@ import java.nio.file.Paths;
 
 public class FileLogStorage extends AbstractLogStorage {
 
-	@Override
-	public void initialize() throws IOException {
-		super.initialize();
-		Files.createDirectories(Paths.get(containerLogPath));
-	}
-	
-	@Override
-	public LogStreams createOutputStreams(Proxy proxy) throws IOException {
-		// TODO buffer
-		LogPaths paths = getLogs(proxy);
-		return new LogStreams(
-				Files.newOutputStream(paths.getStdout()),
-				Files.newOutputStream(paths.getStderr())
-		);
-	}
+    @Override
+    public void initialize() throws IOException {
+        super.initialize();
+        Files.createDirectories(Paths.get(containerLogPath));
+    }
+
+    @Override
+    public LogStreams createOutputStreams(Proxy proxy) throws IOException {
+        // TODO buffer
+        LogPaths paths = getLogs(proxy);
+        return new LogStreams(
+            Files.newOutputStream(paths.getStdout()),
+            Files.newOutputStream(paths.getStderr())
+        );
+    }
 
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,12 +21,10 @@
 package eu.openanalytics.containerproxy.security;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 
 public interface ICustomSecurityConfig {
 
-	public default void apply(WebSecurity web) throws Exception {}
-	
-	public default void apply(HttpSecurity http) throws Exception {}
+    default void apply(HttpSecurity http) throws Exception {
+    }
 
 }

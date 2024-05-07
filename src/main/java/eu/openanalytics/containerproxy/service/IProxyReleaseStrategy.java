@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,6 +27,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyReleaseStrategy {
 
-    public void releaseProxy(Proxy proxy);
+    void releaseProxy(Proxy proxy);
 
 }

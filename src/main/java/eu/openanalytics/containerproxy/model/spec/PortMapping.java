@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,10 +35,11 @@ import lombok.Setter;
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class PortMapping {
 
+    // name must be unique amongst all containers of a proxy
     private String name;
 
     private Integer port;
@@ -48,7 +49,7 @@ public class PortMapping {
 
     public PortMapping resolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .targetPath(targetPath.resolve(resolver, context))
-                .build();
+            .targetPath(targetPath.resolve(resolver, context))
+            .build();
     }
 }

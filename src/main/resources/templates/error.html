@@ -2,7 +2,7 @@
 
     ContainerProxy
 
-    Copyright (C) 2016-2023 Open Analytics
+    Copyright (C) 2016-2024 Open Analytics
 
     ===========================================================================
 
@@ -25,30 +25,30 @@
         xmlns:th="http://www.thymeleaf.org"
 >
 
-<head lang="en">
-    <title th:text="${title}"></title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}"/>
-    <link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
-    <script th:src="@{${jqueryJs}}"></script>
-    <script th:src="@{${bootstrapJs}}"></script>
-</head>
+    <head lang="en">
+        <title th:text="${title}"></title>
+        <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+        <meta content="width=device-width, initial-scale=1" name="viewport"/>
+        <link media="screen" rel="stylesheet" th:href="@{${bootstrapCss}}"/>
+        <link media="screen" rel="stylesheet" th:href="@{/css/login.css}"/>
+        <script th:src="@{${jqueryJs}}"></script>
+        <script th:src="@{${bootstrapJs}}"></script>
+    </head>
 
-<body>
-<div class="container">
-    <h2 th:text="${shortError}"></h2>
-    <p th:text="${description}"></p>
-    <a th:href="${mainPage}">Go back to the main page</a>
-</div>
+    <body>
+        <div class="container">
+            <h2 th:text="${shortError}"></h2>
+            <p th:text="${description}"></p>
+            <a th:href="${mainPage}">Go back to the main page</a>
+        </div>
 
-<style>
-    h2 {
-        margin-bottom: 20px;
-        margin-top: 20px;
-    }
-</style>
+        <style>
+            h2 {
+                margin-bottom: 20px;
+                margin-top: 20px;
+            }
+        </style>
 
-</body>
+    </body>
 
 </html>

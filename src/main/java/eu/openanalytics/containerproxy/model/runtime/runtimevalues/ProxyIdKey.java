@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ProxyIdKey extends RuntimeValueKey<String> {
 
+    public static final ProxyIdKey inst = new ProxyIdKey();
+
     private ProxyIdKey() {
         super("openanalytics.eu/sp-proxy-id",
-                "SHINYPROXY_PROXY_ID",
-                false,
-                true,
-                false,
-                false, // no need to expose in API
-                true,
-                false,
-                String.class);
+            "SHINYPROXY_PROXY_ID",
+            false,
+            true,
+            false,
+            false, // no need to expose in API
+            true,
+            false,
+            String.class);
     }
-
-    public static ProxyIdKey inst = new ProxyIdKey();
 
     @Override
     public String deserializeFromString(String value) {

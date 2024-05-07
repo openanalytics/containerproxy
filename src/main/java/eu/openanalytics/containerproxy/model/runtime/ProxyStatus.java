@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime;
 
 public enum ProxyStatus {
 
-	New,
-	Up,
-	Stopping,
-	Pausing,
-	Paused,
-	Resuming,
-	Stopped;
+    New,
+    Up,
+    Stopping,
+    Pausing,
+    Paused,
+    Resuming,
+    Stopped;
 
-	public boolean isUnavailable() {
-		return this.equals(Stopping)
-				|| this.equals(Stopped)
-				|| this.equals(Pausing)
-				|| this.equals(Paused);
-	}
+    public boolean isUnavailable() {
+        return this.equals(Stopping)
+            || this.equals(Stopped)
+            || this.equals(Pausing)
+            || this.equals(Paused);
+    }
 
 }

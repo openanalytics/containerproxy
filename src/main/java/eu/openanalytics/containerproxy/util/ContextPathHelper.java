@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,31 +27,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class ContextPathHelper {
 
-	private static String contextPathWithoutSlash = null;
-	private static String contextPathWithSlash = null;
+    private static String contextPathWithoutSlash = null;
+    private static String contextPathWithSlash = null;
 
-	@Autowired
-	public void setEnvironment(Environment environment){
-		contextPathWithSlash = getContextPath(environment, true);
-		contextPathWithoutSlash = getContextPath(environment, false);
-	}
+    private static String getContextPath(Environment environment, boolean endWithSlash) {
+        String contextPath = environment.getProperty("server.servlet.context-path");
+        if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
 
-	public static String withEndingSlash() {
-		return contextPathWithSlash;
-	}
+        if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
+        if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
 
-	public static String withoutEndingSlash() {
-		return contextPathWithoutSlash;
-	}
+        return contextPath;
+    }
 
-	private static String getContextPath(Environment environment, boolean endWithSlash) {
-		String contextPath = environment.getProperty("server.servlet.context-path");
-		if (contextPath == null || contextPath.trim().equals("/") || contextPath.trim().isEmpty()) return endWithSlash ? "/" : "";
+    public String withEndingSlash() {
+        return contextPathWithSlash;
+    }
 
-		if (!contextPath.startsWith("/")) contextPath = "/" + contextPath;
-		if (endWithSlash && !contextPath.endsWith("/")) contextPath += "/";
+    public String withoutEndingSlash() {
+        return contextPathWithoutSlash;
+    }
 
-		return contextPath;
-	}
+    @Autowired
+    public void setEnvironment(Environment environment) {
+        contextPathWithSlash = getContextPath(environment, true);
+        contextPathWithoutSlash = getContextPath(environment, false);
+    }
 
 }

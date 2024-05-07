@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,7 +27,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.service.IProxyReleaseStrategy;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
-import eu.openanalytics.containerproxy.service.leader.ILeaderService;
+import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -64,7 +64,7 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
     private IProxyReleaseStrategy releaseStrategy;
 
     @Inject
-    private ILeaderService leaderService;
+    private GlobalEventLoopService globalEventLoop;
 
     @PostConstruct
     public void init() {
@@ -72,39 +72,29 @@ public class ActiveProxiesService implements IHeartbeatProcessor {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                performCleanup();
+                globalEventLoop.schedule(ActiveProxiesService.this::performCleanup);
             }
         }, cleanupInterval, cleanupInterval);
     }
 
     @Override
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
-        if (proxyService.getProxy(proxyId) != null) {
-            if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxyId);
-            heartbeatStore.update(proxyId, System.currentTimeMillis());
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
+        if (log.isDebugEnabled()) log.debug("Heartbeat received for proxy " + proxy.getId());
+        if (heartbeatSource.equals(HeartbeatService.HeartbeatSource.HTTP_REQUEST) && !proxy.getTargetId().equals(proxy.getId())) {
+            // ignore heartbeat, since the associated proxyId is unreliable (#32088)
+            return;
         }
+        heartbeatStore.update(proxy.getId(), System.currentTimeMillis());
     }
 
     public Long getLastHeartBeat(String proxyId) {
         return heartbeatStore.get(proxyId);
     }
 
-    public void setLastHeartBeat(String proxyId, Long time) {
-        heartbeatStore.update(proxyId, time);
-    }
-
     private void performCleanup() {
-        if (!leaderService.isLeader()) {
-            log.debug("Skipping checking heartbeats because we are not the leader");
-            return;
-        }
-        try {
-            long currentTimestamp = System.currentTimeMillis();
-            for (Proxy proxy : proxyService.getProxies(null, true)) {
-                checkAndReleaseProxy(currentTimestamp, proxy);
-            }
-        } catch (Throwable t) {
-            log.error("Error in " + this.getClass().getSimpleName(), t);
+        long currentTimestamp = System.currentTimeMillis();
+        for (Proxy proxy : proxyService.getAllProxies()) {
+            checkAndReleaseProxy(currentTimestamp, proxy);
         }
     }
 

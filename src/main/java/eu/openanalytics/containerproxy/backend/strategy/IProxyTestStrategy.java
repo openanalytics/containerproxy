@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,6 +28,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyTestStrategy {
 
-	public boolean testProxy(Proxy proxy);
+    boolean testProxy(Proxy proxy);
 
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,81 +20,209 @@
  */
 package eu.openanalytics.containerproxy.test.helpers;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import eu.openanalytics.containerproxy.ContainerProxyApplication;
+import eu.openanalytics.containerproxy.backend.dispatcher.DefaultProxyDispatcher;
+import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingScaler;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.IProxySharingStoreFactory;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.util.Retrying;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class ShinyProxyInstance {
 
-    private ProcessBuilder processBuilder;
-    private Process process;
-    private int port;
+public class ShinyProxyInstance implements AutoCloseable {
 
+    public final ShinyProxyClient client;
+    public final ProxyService proxyService;
+    public final IProxySpecProvider specProvider;
+    private final int port;
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Thread thread;
+    private ConfigurableApplicationContext app;
+    private boolean cleanup;
 
-    public ShinyProxyInstance(String configFileName, int port, String extraArgs) {
-        this.port = port;
-
-        int mgmtPort = port % 1000 + 9000;
-
-        String uuid = java.util.UUID.randomUUID().toString();
-
-        logger.info("Starting ShinyProxy server, with output in {}", uuid);
-
-        processBuilder = new ProcessBuilder("java", "-jar",
-                "target/containerproxy-app-recovery.jar",
-                "--spring.config.location=src/test/resources/" + configFileName,
-                "--server.port=" + port,
-                "--management.server.port=" + mgmtPort,
-                extraArgs)
-                .redirectOutput(new File(String.format("shinyproxy_recovery_%s_stdout.log", uuid)))
-                .redirectError(new File(String.format("shinyproxy_recovery_%s_stderr.log", uuid)));
+    public ShinyProxyInstance(String configFileName, Map<String, String> properties) {
+        this(configFileName, 7583, "demo", properties, false);
     }
 
-    public ShinyProxyInstance(String configFileName, String extraArgs) {
-        this(configFileName, 7583, extraArgs);
+    public ShinyProxyInstance(String configFileName, Map<String, String> properties, boolean useNotInternalOnlyTestStrategyConfiguration) {
+        this(configFileName, 7583, "demo", properties, useNotInternalOnlyTestStrategyConfiguration);
     }
 
     public ShinyProxyInstance(String configFileName) {
-        this(configFileName, 7583, "");
+        this(configFileName, 7583, "demo", new HashMap<>(), false);
     }
 
-    public boolean start() throws IOException, InterruptedException {
-        process = processBuilder.start();
+    public ShinyProxyInstance(String configFileName, int port, String usernameAndPassword, Map<String, String> properties, boolean useNotInternalOnlyTestStrategyConfiguration) {
+        try {
+            this.port = port;
+            int mgmtPort = port % 1000 + 9000;
 
-        for (int i = 0; i < 20; i++) {
-            Thread.sleep(2_000);
-            if (checkAlive()) {
-                return true;
+            SpringApplication application = new SpringApplication(ContainerProxyApplication.class);
+            if (useNotInternalOnlyTestStrategyConfiguration) {
+                // only works if networking is NOT internal!
+                application.addPrimarySources(Collections.singletonList(NotInternalOnlyTestStrategyConfiguration.class));
+            }
+            application.addPrimarySources(Collections.singletonList(TestConfiguration.class));
+            Properties allProperties = ContainerProxyApplication.getDefaultProperties();
+            allProperties.put("spring.config.location", "src/test/resources/" + configFileName);
+            allProperties.put("server.port", port);
+            allProperties.put("management.server.port", mgmtPort);
+            allProperties.put("proxy.kubernetes.namespace", "itest");
+            allProperties.putAll(properties);
+            application.setDefaultProperties(allProperties);
+
+            client = new ShinyProxyClient(usernameAndPassword, port);
+
+            AtomicReference<Throwable> exception = new AtomicReference<>();
+            thread = new Thread(() -> app = application.run());
+            thread.setUncaughtExceptionHandler((thread, ex) -> {
+                exception.set(ex);
+            });
+            thread.start();
+
+            boolean available = Retrying.retry((c, m) -> {
+                if (exception.get() != null) {
+                    logger.warn("Exception during startup");
+                    return true;
+                }
+                return client.checkAlive();
+            }, 60_000, "ShinyProxyInstance available", 1, true);
+            Throwable ex = exception.get();
+            if (ex != null) {
+                throw ex;
+            }
+            if (!available) {
+                throw new TestHelperException("ShinyProxy did not become available!");
+            } else {
+                logger.info("ShinyProxy available!");
+            }
+
+            proxyService = app.getBean("proxyService", ProxyService.class);
+            specProvider = app.getBean("defaultSpecProvider", IProxySpecProvider.class);
+
+        } catch (Throwable t) {
+            throw new TestHelperException("Error during startup of ShinyProxy", t);
+        }
+    }
+
+    public ShinyProxyClient getClient(String usernameAndPassword) {
+        return new ShinyProxyClient(usernameAndPassword, port);
+    }
+
+    public <T> T getBean(String name, Class<T> requiredType) throws BeansException {
+        return app.getBean(name, requiredType);
+    }
+
+    @Override
+    public void close() {
+        if (cleanup) {
+            stopAllApps();
+            IProxySpecProvider proxySpecProvider = getBean("defaultSpecProvider", IProxySpecProvider.class);
+            for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
+                try {
+                    ProxySharingScaler proxySharingScaler = getBean("proxySharingScaler_" + proxySpec.getId(), ProxySharingScaler.class);
+                    proxySharingScaler.stopAll();
+                } catch (NoSuchBeanDefinitionException ex) {
+                    // no container sharing, ignore
+                }
             }
         }
-
-        return false;
+        app.stop();
+        app.close();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public boolean checkAlive() {
-        OkHttpClient client = new OkHttpClient();
+    public void enableCleanup() {
+        cleanup = true;
+    }
 
-        Request request = new Request.Builder()
-                .get()
-                .url("http://localhost:" + this.port)
-                .build();
+    public void stopAllApps() {
+        for (Proxy proxy : proxyService.getAllProxies()) {
+            proxyService.stopProxy(null, proxy, true).run();
+        }
+    }
 
-        try (Response response = client.newCall(request).execute()) {
-            return response.code() == 200;
-        } catch (Exception e) {
-            return false;
+    public static class NotInternalOnlyTestStrategyConfiguration {
+
+        @Primary
+        @Bean
+        public NotInternalOnlyTestStrategy notInternalOnlyTestStrategy() {
+            return new NotInternalOnlyTestStrategy();
         }
 
     }
 
-    public void stop() {
-        process.destroy();
+    public static class TestConfiguration {
+
+        @Primary
+        @Bean
+        public JavaMailSender javaMailSender() {
+            return new JavaMailSender() {
+
+                @Override
+                public void send(SimpleMailMessage... simpleMessages) throws MailException {
+
+                }
+
+                @Override
+                public MimeMessage createMimeMessage() {
+                    return new MimeMessage(Session.getDefaultInstance(new Properties()));
+                }
+
+                @Override
+                public MimeMessage createMimeMessage(InputStream contentStream) throws MailException {
+                    return new MimeMessage(Session.getDefaultInstance(new Properties()));
+                }
+
+                @Override
+                public void send(MimeMessage... mimeMessages) throws MailException {
+
+                }
+            };
+        }
+
+        @Primary
+        @Bean
+        public ProxyDispatcherService proxyDispatcherService(IProxySpecProvider proxySpecProvider,
+                                                             IProxySharingStoreFactory storeFactory,
+                                                             ConfigurableListableBeanFactory beanFactory,
+                                                             DefaultProxyDispatcher defaultProxyDispatcher) {
+            return new ProxyDispatcherService(proxySpecProvider, storeFactory, beanFactory, defaultProxyDispatcher) {
+                protected TestProxySharingScaler createProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
+                    return new TestProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
+                }
+            };
+        }
     }
 
 }

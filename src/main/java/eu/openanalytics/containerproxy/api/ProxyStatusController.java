@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,7 +35,6 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,90 +61,95 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 public class ProxyStatusController {
 
+    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
     @Inject
     private ProxyService proxyService;
-
     @Inject
     private AsyncProxyService asyncProxyService;
 
-    @Inject
-    private UserService userService;
-
-    private final ConcurrentHashMap<String, List<DeferredResult<ResponseEntity<ApiResponse<Proxy>>>>> watchers = new ConcurrentHashMap<>();
-
     @Operation(
-            summary = "Change the status of a proxy.", tags = "ContainerProxy",
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ChangeProxyStatusDto.class),
-                            examples = {
-                                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"desiredState\": \"Stopping\"}"),
-                                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"desiredState\": \"Pausing\"}"),
-                                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\"}"),
-                                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"desiredState\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\",\"other_parameter\":\"example\"}}")
-                            }
-                    )
+        summary = "Change the status of a proxy.", tags = "ContainerProxy",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChangeProxyStatusDto.class),
+                examples = {
+                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"status\": \"Stopping\"}"),
+                    @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"status\": \"Pausing\"}"),
+                    @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"status\": \"Resuming\"}"),
+                    @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"status\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
+                        "\"other_parameter\":\"example\"}}")
+                }
             )
+        )
     )
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Status of proxy changed.",
-                    content = {
-                            @Content(
-                                    mediaType = "application/json",
-                                    examples = {@ExampleObject(value = "{\"status\": \"success\", \"data\": null}")}
-                            )
-                    }),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Proxy not found or no permission.",
-                    content = {
-                            @Content(
-                                    mediaType = "application/json",
-                                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"forbidden\"}")}
-                            )
-                    }),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Proxy is not in correct status to change status.",
-                    content = {
-                            @Content(
-                                    mediaType = "application/json",
-                                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"Cannot stop proxy because it is not in New, Up or Paused status (status is Stopping)\"}")}
-                            )
-                    })
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Status of proxy changed.",
+            content = {
+                @Content(
+                    mediaType = "application/json",
+                    examples = {@ExampleObject(value = "{\"status\": \"success\", \"data\": null}")}
+                )
+            }),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Proxy not found or no permission.",
+            content = {
+                @Content(
+                    mediaType = "application/json",
+                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"forbidden\"}")}
+                )
+            }),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Proxy is not in correct status to change status.",
+            content = {
+                @Content(
+                    mediaType = "application/json",
+                    examples = {@ExampleObject(value = "{\"status\": \"fail\", \"data\": \"Cannot stop proxy because it is not in New, Up or Paused status (status is Stopping)\"}")}
+                )
+            })
     })
     @ResponseBody
-    @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.PUT)
+    @RequestMapping(value = "/api/proxy/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
             return ApiResponse.failForbidden();
         }
 
-        if (changeProxyStateDto.getDesiredState().equals("Pausing")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Up)) {
-                return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+        try {
+            switch (changeProxyStateDto.getStatus()) {
+                case "Pausing" -> {
+                    if (!proxy.getStatus().equals(ProxyStatus.Up)) {
+                        return ApiResponse.fail(String.format("Cannot pause proxy because it is not in Up status (status is %s)", proxy.getStatus()));
+                    }
+                    asyncProxyService.pauseProxy(proxy, false);
+                }
+                case "Resuming" -> {
+                    if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
+                        return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
+                    }
+                    try {
+                        asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
+                    } catch (InvalidParametersException ex) {
+                        return ApiResponse.fail(ex.getMessage());
+                    }
+                }
+                case "Stopping" -> {
+                    if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
+                        return ApiResponse.fail("Cannot stop proxy because it is already stopped");
+                    }
+                    asyncProxyService.stopProxy(proxy, false);
+                }
+                default -> {
+                    return ApiResponse.fail("Invalid status");
+                }
             }
-            asyncProxyService.pauseProxy(proxy, false);
-        } else if (changeProxyStateDto.getDesiredState().equals("Resuming")) {
-            if (!proxy.getStatus().equals(ProxyStatus.Paused)) {
-                return ApiResponse.fail(String.format("Cannot resume proxy because it is not in Paused status (status is %s)", proxy.getStatus()));
-            }
-            try {
-                asyncProxyService.resumeProxy(proxy, changeProxyStateDto.getParameters());
-            } catch (InvalidParametersException ex) {
-                return ApiResponse.fail(ex.getMessage());
-            }
-        } else if (changeProxyStateDto.getDesiredState().equals("Stopping")) {
-            if (proxy.getStatus().equals(ProxyStatus.Stopped)) {
-                return ApiResponse.fail("Cannot stop proxy because it is already stopped");
-            }
-            asyncProxyService.stopProxy(proxy, false);
-        } else {
-            return ApiResponse.fail("Invalid desiredState");
+        } catch (AccessDeniedException ex) {
+            return ApiResponse.failForbidden();
         }
 
         return ApiResponse.success();
@@ -156,47 +160,43 @@ public class ProxyStatusController {
      */
     @Operation(summary = "Get the status of a proxy and optionally wait for the status to change.", tags = "ContainerProxy")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Proxy found and status returned.",
-                    content = {
-                            @Content(
-                                    mediaType = "application/json",
-                                    schema = @Schema(implementation = SwaggerDto.ProxyResponse.class),
-                                    examples = {
-                                            @ExampleObject(name = "Up Proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\", \"status\": \"Up\", \"startupTimestamp\": 1234, " +
-                                                    "\"createdTimestamp\": 1234, \"userId\": \"jack\", \"specId\": \"01_hello\", \"displayName\": \"01_hello\", \"containers\": [{\"index\": 0, \"id\": " +
-                                                    "\"96a9e43437e356a8bbd6abb5bd4aa9f1436db49d95b3de8abcf03bccb15e2254\", \"targets\": {\"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\": \"http://localhost:20000\"}, \"runtimeValues\": " +
-                                                    "{\"SHINYPROXY_CONTAINER_INDEX\": 0}}], \"runtimeValues\": {\"SHINYPROXY_DISPLAY_NAME\": \"01_hello\", \"SHINYPROXY_MAX_LIFETIME\": -1, \"SHINYPROXY_FORCE_FULL_RELOAD\": false, " +
-                                                    "\"SHINYPROXY_CREATED_TIMESTAMP\": \"1234\", \"SHINYPROXY_WEBSOCKET_RECONNECTION_MODE\": \"None\", \"SHINYPROXY_INSTANCE\": \"03bc19d7d1970f737815c2d27ece37496ddee6f0\", " +
-                                                    "\"SHINYPROXY_MAX_INSTANCES\": 1, \"SHINYPROXY_HEARTBEAT_TIMEOUT\": -1, \"SHINYPROXY_PUBLIC_PATH\": \"/app_proxy/5f39a7cf-c9ff-4a85-9313-d561ec79cca9/\", \"SHINYPROXY_APP_INSTANCE\": " +
-                                                    "\"_\"}}}"),
-                                            @ExampleObject(name = "Stopped proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"515a2e7e-ecf1-45b4-aebb-79d2029e1904\", \"status\": \"Stopped\", \"startupTimestamp\": 0, " +
-                                                    "\"createdTimestamp\": 0, \"userId\": null, \"specId\": null, \"displayName\": null, \"containers\": [], \"runtimeValues\": {}}}")
-                                    }
-                            )
-                    }),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Proxy found and status returned.",
+            content = {
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = SwaggerDto.ProxyResponse.class),
+                    examples = {
+                        @ExampleObject(name = "Up Proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\", \"status\": \"Up\", \"startupTimestamp\": 1234, " +
+                            "\"createdTimestamp\": 1234, \"userId\": \"jack\", \"specId\": \"01_hello\", \"displayName\": \"01_hello\", \"containers\": [{\"index\": 0, \"id\": " +
+                            "\"96a9e43437e356a8bbd6abb5bd4aa9f1436db49d95b3de8abcf03bccb15e2254\", \"targets\": {\"5f39a7cf-c9ff-4a85-9313-d561ec79cca9\": \"http://localhost:20000\"}, \"runtimeValues\": " +
+                            "{\"SHINYPROXY_CONTAINER_INDEX\": 0}}], \"runtimeValues\": {\"SHINYPROXY_DISPLAY_NAME\": \"01_hello\", \"SHINYPROXY_MAX_LIFETIME\": -1, \"SHINYPROXY_FORCE_FULL_RELOAD\": false, " +
+                            "\"SHINYPROXY_CREATED_TIMESTAMP\": \"1234\", \"SHINYPROXY_WEBSOCKET_RECONNECTION_MODE\": \"None\", \"SHINYPROXY_INSTANCE\": \"03bc19d7d1970f737815c2d27ece37496ddee6f0\", " +
+                            "\"SHINYPROXY_MAX_INSTANCES\": 1, \"SHINYPROXY_HEARTBEAT_TIMEOUT\": -1, \"SHINYPROXY_PUBLIC_PATH\": \"/app_proxy/5f39a7cf-c9ff-4a85-9313-d561ec79cca9/\", \"SHINYPROXY_APP_INSTANCE\": " +
+                            "\"_\"}}}"),
+                        @ExampleObject(name = "Stopped proxy", value = "{\"status\": \"success\", \"data\": {\"id\": \"515a2e7e-ecf1-45b4-aebb-79d2029e1904\", \"status\": \"Stopped\", \"startupTimestamp\": 0, " +
+                            "\"createdTimestamp\": 0, \"userId\": null, \"specId\": null, \"displayName\": null, \"containers\": [], \"runtimeValues\": {}}}")
+                    }
+                )
+            }),
     })
     @JsonView(Views.UserApi.class)
-    @RequestMapping(value = "/api/{proxyId}/status", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/proxy/{proxyId}/status", method = RequestMethod.GET)
     public DeferredResult<ResponseEntity<ApiResponse<Proxy>>> getProxyStatus(@PathVariable String proxyId,
                                                                              @Parameter(description = "Whether to watch for the status to change to Up, Stopped or Paused.")
                                                                              @RequestParam(value = "watch", required = false, defaultValue = "false") Boolean watch,
                                                                              @Parameter(description = "Time to wait for status to change, must be between 10 and 60 seconds (inclusive).")
                                                                              @RequestParam(value = "timeout", required = false, defaultValue = "10") Long timeout) {
-        Proxy proxy = proxyService.getProxy(proxyId);
+        Proxy proxy = proxyService.getUserProxy(proxyId);
         if (proxy == null) {
-            // proxy not found -> assume it has been stopped
+            // proxy not found or no access -> assume it has been stopped
             DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();
             res.setResult(ApiResponse.success(Proxy.builder()
-                    .id(proxyId)
-                    .status(ProxyStatus.Stopped)
-                    .build()));
+                .id(proxyId)
+                .status(ProxyStatus.Stopped)
+                .build()));
             return res;
-        }
-
-        if (!userService.isOwner(proxy)) {
-            throw new AccessDeniedException("Cannot get state of proxy %s: access denied");
         }
 
         if (!watch) {
@@ -206,8 +206,8 @@ public class ProxyStatusController {
         }
 
         if (proxy.getStatus() == ProxyStatus.Up
-                || proxy.getStatus() == ProxyStatus.Stopped
-                || proxy.getStatus() == ProxyStatus.Paused) {
+            || proxy.getStatus() == ProxyStatus.Stopped
+            || proxy.getStatus() == ProxyStatus.Paused) {
             DeferredResult<ResponseEntity<ApiResponse<Proxy>>> res = new DeferredResult<>();
             res.setResult(ApiResponse.success(proxy));
             return res;
@@ -227,9 +227,9 @@ public class ProxyStatusController {
             }
             // proxy not found -> assume it has been stopped
             return ApiResponse.success(Proxy.builder()
-                    .id(proxyId)
-                    .status(ProxyStatus.Stopped)
-                    .build());
+                .id(proxyId)
+                .status(ProxyStatus.Stopped)
+                .build());
         });
 
         watchers.compute(proxyId, (key, oldValue) -> {
@@ -288,9 +288,9 @@ public class ProxyStatusController {
         for (DeferredResult<ResponseEntity<ApiResponse<Proxy>>> watcher : proxyWatchers) {
             if (!watcher.isSetOrExpired()) {
                 watcher.setResult(ApiResponse.success(Proxy.builder()
-                        .id(proxyId)
-                        .status(ProxyStatus.Stopped)
-                        .build()));
+                    .id(proxyId)
+                    .status(ProxyStatus.Stopped)
+                    .build()));
             }
         }
     }

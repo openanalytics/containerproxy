@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,11 +22,9 @@ package eu.openanalytics.containerproxy.model.spec;
 
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
-import org.springframework.boot.context.properties.ConstructorBinding;
 
 import java.util.List;
 
-@ConstructorBinding
 public class ParameterDefinition {
 
     private final String id;
@@ -84,6 +82,7 @@ public class ParameterDefinition {
 
     /**
      * Given the (backend) value, return the human friendly name for the value.
+     *
      * @param value the backend-value
      * @return the human friendly name of the value
      */
@@ -97,6 +96,7 @@ public class ParameterDefinition {
 
     /**
      * Given the (human friendly name), return the backend value
+     *
      * @param name the human-friendly name
      * @return the backend value
      */
@@ -104,7 +104,6 @@ public class ParameterDefinition {
         return valueNames.getKey(name);
     }
 
-    @ConstructorBinding
     public static class ValueName {
 
         private final String name;

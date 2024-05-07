@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,11 +25,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 
 import javax.annotation.Nonnull;
@@ -45,7 +44,7 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.P
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
 
 @SuppressWarnings("deprecation")
-public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
+public class ResponseAuthenticationConverter implements Converter<OpenSaml4AuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
 
     private final Boolean logAttributes;
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -59,10 +58,10 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
     }
 
     @Override
-    public AbstractAuthenticationToken convert(@Nonnull OpenSamlAuthenticationProvider.ResponseToken responseToken) {
-        Saml2Authentication authentication = OpenSamlAuthenticationProvider
-                .createDefaultResponseAuthenticationConverter()
-                .convert(responseToken);
+    public AbstractAuthenticationToken convert(@Nonnull OpenSaml4AuthenticationProvider.ResponseToken responseToken) {
+        Saml2Authentication authentication = OpenSaml4AuthenticationProvider
+            .createDefaultResponseAuthenticationConverter()
+            .convert(responseToken);
 
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("No authentication found to convert");
@@ -77,24 +76,24 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
         }
 
         Optional<String> nameValue = getSingleAttributeValue(principal, nameAttribute);
-        if (!nameValue.isPresent()) {
+        if (nameValue.isEmpty()) {
             throw new UsernameNotFoundException(String.format("[SAML] User: \"%s\" => name attribute missing from SAML assertion", nameId));
         }
 
-        List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+        List<SimpleGrantedAuthority> grantedAuthorities = new ArrayList<>();
         if (rolesAttribute != null && !rolesAttribute.trim().isEmpty()) {
             Optional<List<String>> rolesValue = getMultipleAttributeValues(principal, rolesAttribute);
-            if (!rolesValue.isPresent()) {
+            if (rolesValue.isEmpty()) {
                 logger.warn("[SAML] User: \"{}\" => roles attribute missing from SAML assertion", nameId);
             } else {
                 grantedAuthorities = rolesValue.get().stream()
-                        .map(r -> {
-                            if (!r.startsWith("ROLE_")) {
-                                r = "ROLE_" + r;
-                            }
-                            return new SimpleGrantedAuthority(r);
-                        })
-                        .collect(Collectors.toList());
+                    .map(r -> {
+                        if (!r.startsWith("ROLE_")) {
+                            r = "ROLE_" + r;
+                        }
+                        return new SimpleGrantedAuthority(r);
+                    })
+                    .toList();
             }
         }
 
@@ -103,23 +102,23 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
         }
 
         return new Saml2Authentication(
-                new Saml2AuthenticatedPrincipal(nameId, nameValue.get(), principal.getAttributes()),
-                authentication.getSaml2Response(),
-                grantedAuthorities);
+            new Saml2AuthenticatedPrincipal(nameId, nameValue.get(), principal.getAttributes()),
+            authentication.getSaml2Response(),
+            grantedAuthorities);
     }
 
     private void logAttributes(DefaultSaml2AuthenticatedPrincipal principal) {
         for (Map.Entry<String, List<Object>> attribute : principal.getAttributes().entrySet()) {
             logger.info(String.format("[SAML] User: \"%s\" => attribute => name=\"%s\" => value \"%s\"",
-                    principal.getName(),
-                    attribute.getKey(),
-                    attribute.getValue().stream().map(Object::toString).collect(Collectors.joining(", "))));
+                principal.getName(),
+                attribute.getKey(),
+                attribute.getValue().stream().map(Object::toString).collect(Collectors.joining(", "))));
         }
     }
 
     private Optional<String> getSingleAttributeValue(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         Optional<List<Object>> res = getAttributeIgnoringCase(principal, attributeName);
-        if (!res.isPresent() || res.get().size() == 0) {
+        if (res.isEmpty() || res.get().size() == 0) {
             return Optional.empty();
         }
         return Optional.of(res.get().get(0).toString());
@@ -127,20 +126,20 @@ public class ResponseAuthenticationConverter implements Converter<OpenSamlAuthen
 
     private Optional<List<String>> getMultipleAttributeValues(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         return getAttributeIgnoringCase(principal, attributeName)
-                .map(objects -> objects
-                        .stream()
-                        .map(Object::toString)
-                        .collect(Collectors.toList())
-                );
+            .map(objects -> objects
+                .stream()
+                .map(Object::toString)
+                .toList()
+            );
     }
 
     private Optional<List<Object>> getAttributeIgnoringCase(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         return principal.getAttributes()
-                .entrySet()
-                .stream()
-                .filter(c -> c.getKey().equalsIgnoreCase(attributeName))
-                .findAny()
-                .map(Map.Entry::getValue);
+            .entrySet()
+            .stream()
+            .filter(c -> c.getKey().equalsIgnoreCase(attributeName))
+            .findAny()
+            .map(Map.Entry::getValue);
     }
 
     public static class Saml2AuthenticatedPrincipal extends DefaultSaml2AuthenticatedPrincipal {

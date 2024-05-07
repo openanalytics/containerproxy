@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -46,15 +46,16 @@ public abstract class RuntimeValueKey<T> {
 
     private final Class<T> clazz;
 
-    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific, Class<T> clazz) {
+    public RuntimeValueKey(String keyAsLabel, String keyAsEnvVar, Boolean includeAsLabel, Boolean includeAsAnnotation, Boolean includeAsEnvironmentVariable, Boolean includeInApi, Boolean isRequired, Boolean isContainerSpecific,
+                           Class<T> clazz) {
         this.keyAsLabel = Objects.requireNonNull(keyAsLabel, "keyAsLabel may not be null");
         this.keyAsEnvVar = Objects.requireNonNull(keyAsEnvVar, "keyAsEnvVar may not be null");
         this.includeAsLabel = includeAsLabel;
         this.includeAsAnnotation = includeAsAnnotation;
         this.includeAsEnvironmentVariable = includeAsEnvironmentVariable;
         this.includeInApi = includeInApi;
-        this.isContainerSpecific = isContainerSpecific;
         this.isRequired = isRequired;
+        this.isContainerSpecific = isContainerSpecific;
         this.clazz = clazz;
     }
 

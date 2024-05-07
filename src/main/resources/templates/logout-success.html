@@ -2,7 +2,7 @@
 
     ContainerProxy
 
-    Copyright (C) 2016-2023 Open Analytics
+    Copyright (C) 2016-2024 Open Analytics
 
     ===========================================================================
 
@@ -22,32 +22,32 @@
 -->
 <!DOCTYPE html>
 <html
-	xmlns:th="http://www.thymeleaf.org"
-	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+        xmlns:th="http://www.thymeleaf.org"
+>
 
-<head lang="en">
-	<title th:text="${title}"></title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1"/>
-	<link rel="stylesheet" media="screen" th:href="@{${bootstrapCss}}" />
-	<link rel="stylesheet" media="screen" th:href="@{/css/login.css}"/>
-	<script th:src="@{${jqueryJs}}"></script>
-	<script th:src="@{${bootstrapJs}}"></script>
-</head>
+    <head lang="en">
+        <title th:text="${title}"></title>
+        <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+        <meta content="width=device-width, initial-scale=1" name="viewport"/>
+        <link media="screen" rel="stylesheet" th:href="@{${bootstrapCss}}"/>
+        <link media="screen" rel="stylesheet" th:href="@{/css/login.css}"/>
+        <script th:src="@{${jqueryJs}}"></script>
+        <script th:src="@{${bootstrapJs}}"></script>
+    </head>
 
-<body>
-	<div class="container">
-		<h2>You have been logged out successfully.</h2>
-		<p><a th:href="@{/}"><b>Login again</b></a></p>
-	</div>
+    <body>
+        <div class="container">
+            <h2>You have been logged out successfully.</h2>
+            <p><a th:href="@{/}"><b>Login again</b></a></p>
+        </div>
 
-<style>
-h2 {
-    margin-bottom: 20px;
-    margin-top: 20px;
-}
-</style>
-	
-</body>
+        <style>
+            h2 {
+                margin-bottom: 20px;
+                margin-top: 20px;
+            }
+        </style>
+
+    </body>
 
 </html>

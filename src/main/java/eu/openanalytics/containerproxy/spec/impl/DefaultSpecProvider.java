@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,39 +20,50 @@
  */
 package eu.openanalytics.containerproxy.spec.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import eu.openanalytics.containerproxy.model.spec.ISpecExtension;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.spec.ISpecExtensionProvider;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
-
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @ConfigurationProperties(prefix = "proxy")
 public class DefaultSpecProvider implements IProxySpecProvider {
-	
-	private List<ProxySpec> specs = new ArrayList<>();
-	
-	public List<ProxySpec> getSpecs() {
-		return new ArrayList<>(specs);
-	}
-	
-	public ProxySpec getSpec(String id) {
-		if (id == null || id.isEmpty()) return null;
-		return specs.stream().filter(s -> id.equals(s.getId())).findAny().orElse(null);
-	}
-	
-	public void setSpecs(List<ProxySpec> specs) {
-		this.specs = specs;
-	}
 
-	@PostConstruct
-	public void init() {
-		specs.forEach(ProxySpec::setContainerIndex);
-	}
-	
+    @Inject
+    private List<ISpecExtensionProvider<?>> specExtensionProviders;
+
+    private List<ProxySpec> specs = new ArrayList<>();
+
+    public List<ProxySpec> getSpecs() {
+        return new ArrayList<>(specs);
+    }
+
+    public void setSpecs(List<ProxySpec> specs) {
+        this.specs = specs;
+    }
+
+    public ProxySpec getSpec(String id) {
+        if (id == null || id.isEmpty()) return null;
+        return specs.stream().filter(s -> id.equals(s.getId())).findAny().orElse(null);
+    }
+
+    @PostConstruct
+    public void init() {
+        specs.forEach(ProxySpec::setContainerIndex);
+        for (ISpecExtensionProvider<?> specExtensionProvider : specExtensionProviders) {
+            if (specExtensionProvider.getSpecs() != null) {
+                for (ISpecExtension specExtension : specExtensionProvider.getSpecs()) {
+                    getSpec(specExtension.getId()).addSpecExtension(specExtension);
+                }
+            }
+        }
+    }
+
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class InstanceIdKey extends RuntimeValueKey<String> {
 
+    public static final InstanceIdKey inst = new InstanceIdKey();
+
     private InstanceIdKey() {
         super("openanalytics.eu/sp-instance",
-                "SHINYPROXY_INSTANCE",
-                true,
-                false,
-                false,
-                true,
-                true,
-                false,
-                String.class);
+            "SHINYPROXY_INSTANCE",
+            true,
+            false,
+            false,
+            true,
+            true,
+            false,
+            String.class);
     }
-
-    public static InstanceIdKey inst = new InstanceIdKey();
 
     @Override
     public String deserializeFromString(String value) {

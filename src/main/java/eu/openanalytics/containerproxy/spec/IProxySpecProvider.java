@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,18 +20,17 @@
  */
 package eu.openanalytics.containerproxy.spec;
 
-import java.util.List;
-
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+
+import java.util.List;
 
 /**
  * A provider of base (predefined) ProxySpecs, e.g. from the application's configuration file.
  */
 public interface IProxySpecProvider {
 
-	public List<ProxySpec> getSpecs();
-	
-	public ProxySpec getSpec(String id);
+    List<ProxySpec> getSpecs();
+
+    ProxySpec getSpec(String id);
 
 }

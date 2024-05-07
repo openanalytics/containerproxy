@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -56,23 +56,23 @@ public class MicrometerRegistryConfiguration {
     public MeterRegistryCustomizer<MeterRegistry> metricsCommonTags() {
         String prefix = getPrefix();
         return (registry) -> registry
-                .config()
-                .namingConvention(new PrometheusNamingConvention() {
-                    @NonNull
-                    @Override
-                    public String name(@NonNull String name, @NonNull Meter.Type type, @Nullable String baseUnit) {
-                        return super.name(prefix + name, type, baseUnit);
-                    }
+            .config()
+            .namingConvention(new PrometheusNamingConvention() {
+                @NonNull
+                @Override
+                public String name(@NonNull String name, @NonNull Meter.Type type, @Nullable String baseUnit) {
+                    return super.name(prefix + name, type, baseUnit);
+                }
 
-                    @NonNull
-                    @Override
-                    public String tagKey(@NonNull String key) {
-                        return super.tagKey(key);
-                    }
-                })
-                // add a common tag with the instanceId of this server. (it cannot simple be called instance, since that is already a default Prometheus label).
-                .commonTags("shinyproxy_instance", identifierService.instanceId,
-                            "shinyproxy_realm", identifierService.realmId != null ? identifierService.realmId : "");
+                @NonNull
+                @Override
+                public String tagKey(@NonNull String key) {
+                    return super.tagKey(key);
+                }
+            })
+            // add a common tag with the instanceId of this server. (it cannot simple be called instance, since that is already a default Prometheus label).
+            .commonTags("shinyproxy_instance", identifierService.instanceId,
+                "shinyproxy_realm", identifierService.realmId != null ? identifierService.realmId : "");
     }
 
 

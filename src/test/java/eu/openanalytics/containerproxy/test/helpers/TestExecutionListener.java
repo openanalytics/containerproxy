@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,8 +21,8 @@
 package eu.openanalytics.containerproxy.test.helpers;
 
 import com.google.common.collect.Iterables;
-import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 
@@ -66,7 +66,7 @@ public class TestExecutionListener extends SummaryGeneratingListener {
     }
 
     private String identifier(TestIdentifier testIdentifier) {
-        if (!testIdentifier.getSource().isPresent()) {
+        if (testIdentifier.getSource().isEmpty()) {
             return testIdentifier.getDisplayName();
         }
         MethodSource methodSource = (MethodSource) testIdentifier.getSource().get();

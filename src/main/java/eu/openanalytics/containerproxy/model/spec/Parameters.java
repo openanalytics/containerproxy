@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.model.spec;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Parameters {
 
@@ -35,12 +34,12 @@ public class Parameters {
         return definitions;
     }
 
-    public List<String> getIds() {
-        return definitions.stream().map(ParameterDefinition::getId).collect(Collectors.toList());
-    }
-
     public void setDefinitions(List<ParameterDefinition> definitions) {
         this.definitions = definitions;
+    }
+
+    public List<String> getIds() {
+        return definitions.stream().map(ParameterDefinition::getId).toList();
     }
 
     public List<ValueSet> getValueSets() {

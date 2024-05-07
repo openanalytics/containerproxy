@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,19 +24,19 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
 public class NoopLogStorage extends AbstractLogStorage {
 
-	@Override
-	public void initialize() {
-		// Do nothing.
-	}
-	
-	@Override
-	public LogStreams createOutputStreams(Proxy proxy) {
-		return null;
-	}
-	
-	@Override
-	public LogPaths getLogs(Proxy proxy) {
-		return null;
-	}
+    @Override
+    public void initialize() {
+        // Do nothing.
+    }
+
+    @Override
+    public LogStreams createOutputStreams(Proxy proxy) {
+        return null;
+    }
+
+    @Override
+    public LogPaths getLogs(Proxy proxy) {
+        return null;
+    }
 
 }

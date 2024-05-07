@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,17 +21,31 @@
 package eu.openanalytics.containerproxy;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import org.springframework.boot.actuate.data.redis.RedisHealthIndicator;
+import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
 
-@Configuration(proxyBeanMethods = false)
+import java.util.Objects;
+
+@Configuration
+@ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
+@Import(RedisAutoConfiguration.class)
 public class RedisSessionConfig {
 
     private final String redisNamespace;
+    private final Environment environment;
 
-    public RedisSessionConfig(IdentifierService identifierService) {
+    public RedisSessionConfig(IdentifierService identifierService, Environment environment) {
+        this.environment = environment;
         if (identifierService.realmId != null) {
             redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         } else {
@@ -39,13 +53,35 @@ public class RedisSessionConfig {
         }
     }
 
+    public String getRedisNamespace() {
+        return redisNamespace;
+    }
+
     @Bean
     public SessionRepositoryCustomizer<RedisIndexedSessionRepository> sessionRepositorySessionRepositoryCustomizer() {
         return redisIndexedSessionRepository -> redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
     }
 
-    public String getNamespace() {
-        return redisNamespace;
+    @Bean
+    public HealthIndicator redisSessionHealthIndicator(RedisConnectionFactory rdeRedisConnectionFactory) {
+        if (Objects.equals(environment.getProperty("spring.session.store-type"), "redis")) {
+            // if we are using redis for session -> use a proper health check for redis
+            return new RedisHealthIndicator(rdeRedisConnectionFactory);
+        } else {
+            // not using redis for session -> just pretend it's always online
+            return new HealthIndicator() {
+
+                @Override
+                public Health getHealth(boolean includeDetails) {
+                    return Health.up().build();
+                }
+
+                @Override
+                public Health health() {
+                    return Health.up().build();
+                }
+            };
+        }
     }
 
 }

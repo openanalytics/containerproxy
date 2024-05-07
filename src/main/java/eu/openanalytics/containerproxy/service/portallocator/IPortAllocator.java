@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,11 +24,11 @@ import java.util.Set;
 
 public interface IPortAllocator {
 
-    public Integer allocate(int rangeFrom, int rangeTo, String ownerId);
+    Integer allocate(int rangeFrom, int rangeTo, String ownerId);
 
-    public void addExistingPort(String ownerId, int port);
+    void addExistingPort(String ownerId, int port);
 
-    public void release(String ownerId);
+    void release(String ownerId);
 
-    public Set<Integer> getOwnedPorts(String ownerId);
+    Set<Integer> getOwnedPorts(String ownerId);
 }

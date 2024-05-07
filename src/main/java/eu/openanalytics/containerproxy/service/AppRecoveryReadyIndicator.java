@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,11 +20,11 @@
  */
 package eu.openanalytics.containerproxy.service;
 
-import javax.inject.Inject;
-
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
 
 /**
  * Indicates whether the recovery of existing apps is completed.
@@ -34,14 +34,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class AppRecoveryReadyIndicator implements HealthIndicator {
 
-	@Inject
-	public AppRecoveryService appRecoveryService;
+    @Inject
+    public AppRecoveryService appRecoveryService;
 
     @Override
     public Health health() {
-    	if (appRecoveryService.isReady()) {
-    		return Health.up().build();
-    	}
-		return Health.down().build();
+        if (appRecoveryService.isReady()) {
+            return Health.up().build();
+        }
+        return Health.down().build();
     }
 }

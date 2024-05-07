@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,26 +20,25 @@
  */
 package eu.openanalytics.containerproxy.service.session.undertow;
 
+import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.service.session.AbstractSessionService;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.session.InMemorySessionManager;
 import io.undertow.server.session.Session;
 import io.undertow.servlet.handlers.ServletRequestContext;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @Component
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "none")
@@ -56,16 +55,6 @@ public class UndertowSessionService extends AbstractSessionService {
     private Integer cachedUsersLoggedInCount = null;
 
     private Integer cachedActiveUsersCount = null;
-
-    @PostConstruct
-    public void init() {
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                updateCachedUsersLoggedInCount();
-            }
-        }, 0, CACHE_UPDATE_INTERVAL);
-    }
 
     @Override
     public Integer getLoggedInUsersCount() {
@@ -88,7 +77,7 @@ public class UndertowSessionService extends AbstractSessionService {
             // a method similar to Spring's session setLastAccessedTime() method
             FieldUtils.writeField(session, "lastAccessed", System.currentTimeMillis(), true);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logger.error("Error while re-activating session", e);
         }
         // called for the SessionImpl.bumpTimeout() method
         session.requestDone(new HttpServerExchange(null));
@@ -110,6 +99,7 @@ public class UndertowSessionService extends AbstractSessionService {
      * {@link eu.openanalytics.containerproxy.service.session.redis.RedisSessionService}, but still it needs to loop
      * over all sessions in the Servlet).
      */
+    @Scheduled(fixedDelay = CACHE_UPDATE_INTERVAL)
     private void updateCachedUsersLoggedInCount() {
         InMemorySessionManager instance = this.customInMemorySessionManagerFactory.getInstance();
         if (instance == null) {
@@ -126,7 +116,12 @@ public class UndertowSessionService extends AbstractSessionService {
             Session session = instance.getSession(sessionId);
             if (session == null) continue;
 
-            String authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session), sessionId);
+            String authenticationName;
+            if (authBackend.getName().equals(NoAuthenticationBackend.NAME)) {
+                authenticationName = NoAuthenticationBackend.extractUserId(session);
+            } else {
+                authenticationName = extractAuthName(extractAuthenticationIfAuthenticated(session));
+            }
             if (authenticationName == null) continue;
 
             authenticatedUsers.add(authenticationName);

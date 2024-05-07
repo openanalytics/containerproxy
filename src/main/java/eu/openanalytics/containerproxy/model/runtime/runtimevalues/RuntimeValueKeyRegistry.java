@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -31,25 +31,6 @@ public class RuntimeValueKeyRegistry {
 
     private static final Map<String, RuntimeValueKey<?>> KEYS = new HashMap<>();
 
-    public static void addRuntimeValueKey(RuntimeValueKey<?> key) {
-        if (!KEYS.containsKey(key.getKeyAsEnvVar())) {
-            KEYS.put(key.getKeyAsEnvVar(), key);
-        } else {
-            throw new IllegalStateException("Cannot add duplicate RuntimeValueKey with name " + key.getKeyAsEnvVar());
-        }
-    }
-
-    public static Collection<RuntimeValueKey<?>> getRuntimeValueKeys() {
-        return KEYS.values();
-    }
-
-    public static RuntimeValueKey<?> getRuntimeValue(String key) {
-        if (!KEYS.containsKey(key)) {
-            throw new IllegalArgumentException("Could not find RuntimeValueKey using key " + key);
-        }
-        return KEYS.get(key);
-    }
-
     static {
         addRuntimeValueKey(CreatedTimestampKey.inst);
         addRuntimeValueKey(InstanceIdKey.inst);
@@ -68,6 +49,29 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(BackendContainerNameKey.inst);
         addRuntimeValueKey(PortMappingsKey.inst);
         addRuntimeValueKey(DisplayNameKey.inst);
+        addRuntimeValueKey(PublicPathKey.inst);
+        addRuntimeValueKey(HttpHeadersKey.inst);
+        addRuntimeValueKey(TargetIdKey.inst);
+        addRuntimeValueKey(CacheHeadersModeKey.inst);
+    }
+
+    public static void addRuntimeValueKey(RuntimeValueKey<?> key) {
+        if (!KEYS.containsKey(key.getKeyAsEnvVar())) {
+            KEYS.put(key.getKeyAsEnvVar(), key);
+        } else {
+            throw new IllegalStateException("Cannot add duplicate RuntimeValueKey with name " + key.getKeyAsEnvVar());
+        }
+    }
+
+    public static Collection<RuntimeValueKey<?>> getRuntimeValueKeys() {
+        return KEYS.values();
+    }
+
+    public static RuntimeValueKey<?> getRuntimeValue(String key) {
+        if (!KEYS.containsKey(key)) {
+            throw new IllegalArgumentException("Could not find RuntimeValueKey using key " + key);
+        }
+        return KEYS.get(key);
     }
 
 }

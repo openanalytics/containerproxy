@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.util;
 
 import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.ConsoleAppender;
@@ -29,10 +28,8 @@ import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.RollingPolicy;
 import net.logstash.logback.encoder.LogstashEncoder;
 import net.logstash.logback.stacktrace.ShortenedThrowableConverter;
-import org.slf4j.ILoggerFactory;
-import org.slf4j.impl.StaticLoggerBinder;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
-import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.context.ApplicationListener;
 
 /**
@@ -50,20 +47,17 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
         Boolean logAsJson = event.getApplicationContext().getEnvironment().getProperty(PROP_LOG_AS_JSON, Boolean.class, false);
 
         if (logAsJson) {
-            ILoggerFactory factory = StaticLoggerBinder.getSingleton().getLoggerFactory();
-            LoggerContext context = (LoggerContext) factory;
-            Logger logger = context.getLogger(LoggingSystem.ROOT_LOGGER_NAME);
-
-            setupConsoleAppender(context, logger);
-            setupFileAppender(context, logger);
+            Logger logger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+            setupConsoleAppender(logger);
+            setupFileAppender(logger);
         }
     }
 
-    private void setupConsoleAppender(LoggerContext context, Logger rootLogger) {
+    private void setupConsoleAppender(Logger rootLogger) {
         ConsoleAppender<ILoggingEvent> appender = new ConsoleAppender<>();
         appender.setEncoder(createEncoder());
         appender.setName("CONSOLE");
-        appender.setContext(context);
+        appender.setContext(rootLogger.getLoggerContext());
 
         appender.start();
 
@@ -71,16 +65,15 @@ public class LoggingConfigurer implements ApplicationListener<ApplicationPrepare
         rootLogger.addAppender(appender);
     }
 
-    private void setupFileAppender(LoggerContext context, Logger rootLogger) {
+    private void setupFileAppender(Logger rootLogger) {
         Appender<ILoggingEvent> oldAppender = rootLogger.getAppender("FILE");
-        if (oldAppender instanceof RollingFileAppender) {
+        if (oldAppender instanceof RollingFileAppender<ILoggingEvent> oldFileAppender) {
             oldAppender.stop();
 
-            RollingFileAppender<ILoggingEvent> oldFileAppender = (RollingFileAppender<ILoggingEvent>) oldAppender;
             RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<>();
             appender.setEncoder(createEncoder());
             appender.setName("FILE");
-            appender.setContext(context);
+            appender.setContext(rootLogger.getLoggerContext());
             appender.setFile(oldFileAppender.getFile());
 
             RollingPolicy rollingPolicy = oldFileAppender.getRollingPolicy();

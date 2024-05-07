@@ -20,14 +20,14 @@ proxy:
   specs:
     - id: 01_hello
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default
               port: 3838
     - id: 02_hello
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default
@@ -38,7 +38,7 @@ proxy:
           value: itest-overridden
     - id: 03_hello
       container-specs:
-        - image: "openanalytics/shinyproxy-demo"
+        - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
           port-mapping:
             - name: default

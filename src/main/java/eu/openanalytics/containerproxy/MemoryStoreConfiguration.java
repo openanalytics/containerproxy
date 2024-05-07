@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,18 +20,20 @@
  */
 package eu.openanalytics.containerproxy;
 
-import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
-import eu.openanalytics.containerproxy.model.store.memory.MemoryProxyStore;
+import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
+import eu.openanalytics.containerproxy.model.store.memory.MemoryProxyStore;
 import eu.openanalytics.containerproxy.service.leader.memory.MemoryLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.memory.MemoryPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
+import org.springframework.integration.support.locks.LockRegistry;
 
 @Configuration
-@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "None", matchIfMissing=true)
+@ConditionalOnProperty(name = "proxy.store-mode", havingValue = "None", matchIfMissing = true)
 public class MemoryStoreConfiguration {
 
     @Bean
@@ -52,6 +54,11 @@ public class MemoryStoreConfiguration {
     @Bean
     public MemoryPortAllocator portAllocator() {
         return new MemoryPortAllocator();
+    }
+
+    @Bean
+    public LockRegistry lockRegistry() {
+        return new DefaultLockRegistry();
     }
 
 }

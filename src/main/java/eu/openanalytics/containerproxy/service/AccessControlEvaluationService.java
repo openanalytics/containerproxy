@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,6 +25,7 @@ import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -44,7 +45,7 @@ public class AccessControlEvaluationService {
         this.specExpressionResolver = specExpressionResolver;
     }
 
-    public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl) {
+    public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (auth instanceof AnonymousAuthenticationToken) {
             // if anonymous -> only allow access if the backend has no authorization enabled
             return !authBackend.hasAuthorization();
@@ -62,11 +63,7 @@ public class AccessControlEvaluationService {
             return true;
         }
 
-        if (allowedByExpression(auth, spec, accessControl)) {
-            return true;
-        }
-
-        return false;
+        return allowedByExpression(auth, spec, accessControl, objects);
     }
 
     public boolean hasAccessControl(AccessControl accessControl) {
@@ -75,8 +72,8 @@ public class AccessControlEvaluationService {
         }
 
         return !accessControl.hasGroupAccess()
-                && !accessControl.hasUserAccess()
-                && !accessControl.hasExpressionAccess();
+            && !accessControl.hasUserAccess()
+            && !accessControl.hasExpressionAccess();
     }
 
     public boolean allowedByGroups(Authentication auth, AccessControl accessControl) {
@@ -98,19 +95,25 @@ public class AccessControlEvaluationService {
             return false;
         }
         for (String user : accessControl.getUsers()) {
-            if (UserService.getUserId(auth).equals(user)) {
+            if (auth.getName().equals(user)) {
                 return true;
             }
         }
         return false;
     }
 
-    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl) {
+    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (!accessControl.hasExpressionAccess()) {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        SpecExpressionContext context = SpecExpressionContext.create(auth, auth.getPrincipal(), auth.getCredentials(), spec);
+        Object[] args;
+        if (auth == null) {
+             args = ArrayUtils.addAll(new Object[]{spec}, objects);
+        } else {
+            args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
+        }
+        SpecExpressionContext context = SpecExpressionContext.create(args);
         return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
     }
 

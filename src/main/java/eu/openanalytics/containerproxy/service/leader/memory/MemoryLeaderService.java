@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,11 +22,20 @@ package eu.openanalytics.containerproxy.service.leader.memory;
 
 import eu.openanalytics.containerproxy.service.leader.ILeaderService;
 
+import javax.annotation.PreDestroy;
+
 public class MemoryLeaderService implements ILeaderService {
+
+    private volatile boolean leader = true;
 
     @Override
     public boolean isLeader() {
-        return true;
+        return leader;
+    }
+
+    @PreDestroy
+    public void preDestroy() {
+        leader = false;
     }
 
 }

@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,8 +33,6 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,19 +51,16 @@ public class Container extends RuntimeValueStore {
     Integer index;
     String id;
 
-    Map<String, URI> targets;
     Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
     @JsonCreator
     public static Container createFromJson(@JsonProperty("index") Integer index,
                                            @JsonProperty("id") String id,
-                                           @JsonProperty("targets") Map<String, URI> targets,
                                            @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
         Container.ContainerBuilder builder = Container.builder()
-                .index(index)
-                .id(id)
-                .targets(targets);
+            .index(index)
+            .id(id);
 
         for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
             RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
@@ -73,14 +68,6 @@ public class Container extends RuntimeValueStore {
         }
 
         return builder.build();
-    }
-
-    @JsonView(Views.Internal.class)
-    public Map<String, URI> getTargets() {
-        if (targets == null) {
-            return Collections.unmodifiableMap(new HashMap<>());
-        }
-        return Collections.unmodifiableMap(targets);
     }
 
     @Override
@@ -102,15 +89,6 @@ public class Container extends RuntimeValueStore {
             return this;
         }
 
-        public ContainerBuilder targets(Map<String, URI> targets) {
-            // take a copy of the map so that when using toBuilder a deep copy is returned
-            // otherwise, copies will have the same underlying map
-            if (targets != null) {
-                this.targets = new HashMap<>(targets);
-            }
-            return this;
-        }
-
         public Container.ContainerBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
             if (this.runtimeValues == null) {
                 this.runtimeValues = new HashMap<>();
@@ -122,17 +100,9 @@ public class Container extends RuntimeValueStore {
         }
 
         public Container.ContainerBuilder addRuntimeValues(List<RuntimeValue> runtimeValues) {
-            for (RuntimeValue runtimeValue: runtimeValues) {
+            for (RuntimeValue runtimeValue : runtimeValues) {
                 addRuntimeValue(runtimeValue, false);
             }
-            return this;
-        }
-
-        public Container.ContainerBuilder addTarget(String mapping, URI target) {
-            if (targets == null) {
-                targets = new HashMap<>();
-            }
-            targets.put(mapping, target);
             return this;
         }
 

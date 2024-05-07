@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,11 +28,12 @@ import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
-import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.session.ISessionService;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -56,26 +57,20 @@ import java.util.function.ToDoubleFunction;
 public class Micrometer implements IStatCollector {
 
     private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every 20 seconds
-
-    @Inject
-    private MeterRegistry registry;
-
-    @Inject
-    private ProxyService proxyService;
-
-    @Inject
-    private ISessionService sessionService;
-
     private final Logger logger = LogManager.getLogger(getClass());
-
     // keeps track of the number of proxies per spec id
     private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
-
     // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<ProxyCounter> proxyCounters = new ArrayList<>();
-
-    private Counter appStartFailedCounter;
+    @Inject
+    private MeterRegistry registry;
+    @Inject
+    private ProxyService proxyService;
+    @Inject
+    private ISessionService sessionService;
+    @Inject
+    private IProxySpecProvider specProvider;
 
     private Counter authFailedCounter;
 
@@ -83,18 +78,35 @@ public class Micrometer implements IStatCollector {
 
     private Counter userLogouts;
 
+    /**
+     * Wraps a function that returns an Integer into a function that returns a double.
+     * When the provided Integer is null, the resulting function returns Double.NaN.
+     *
+     * We need this function because Micrometer cannot handle null values for Gauges.
+     */
+    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
+        return (state) -> {
+            Integer res = producer.applyAsDouble(state);
+            if (res == null) {
+                return Double.NaN;
+            }
+            return res;
+        };
+    }
+
     @PostConstruct
     public void init() {
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
-        appStartFailedCounter = registry.counter("startFailed");
         authFailedCounter = registry.counter("authFailed");
         registry.gauge("absolute_users_logged_in", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getLoggedInUsersCount));
         registry.gauge("absolute_users_active", Tags.empty(), sessionService, wrapHandleNull(ISessionService::getActiveUsersCount));
 
-        for (ProxySpec spec : proxyService.getProxySpecs(null, true)) {
+        for (ProxySpec spec : specProvider.getSpecs()) {
             registry.counter("appStarts", "spec.id", spec.getId());
             registry.counter("appStops", "spec.id", spec.getId());
+            registry.counter("appCrashes", "spec.id", spec.getId());
+            registry.counter("startFailed", "spec.id", spec.getId());
             ProxyCounter proxyCounter = new ProxyCounter(spec.getId());
             proxyCounters.add(proxyCounter);
             registry.gauge("absolute_apps_running", Tags.of("spec.id", spec.getId()), proxyCounter, wrapHandleNull(ProxyCounter::getProxyCount));
@@ -118,7 +130,7 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
-        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(),  event.getWasExpired());
+        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(), event.getWasExpired());
         userLogouts.increment();
     }
 
@@ -130,6 +142,9 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
 
@@ -163,17 +178,26 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
         registry.counter("appStops", "spec.id", event.getSpecId()).increment();
         if (event.getUsageTime() != null) {
             registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
         }
+        if (event.getProxyStopReason() == ProxyStopReason.Crashed) {
+            registry.counter("appCrashes", "spec.id", event.getSpecId()).increment();
+        }
     }
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
+        if (!event.isLocalEvent()) {
+            return;
+        }
         logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
-        appStartFailedCounter.increment();
+        registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
     }
 
     @EventListener
@@ -185,7 +209,7 @@ public class Micrometer implements IStatCollector {
     /**
      * Updates the cache containing the number of proxies running for each spec id.
      * We only update this value every CACHE_UPDATE_INTERVAL because this is a relative heavy computation to do.
-     * Therefore, we don't want that this calculation is performed every time the guage is updated.
+     * Therefore, we don't want that this calculation is performed every time the gauge is updated.
      * Especially since this could be called using an HTTP request.
      */
     private void updateCachedProxyCount() {
@@ -195,7 +219,7 @@ public class Micrometer implements IStatCollector {
             intermediate.put(specId, 0);
         }
         // count number of running apps
-        for (Proxy proxy : proxyService.getProxies(p -> p.getStatus() == ProxyStatus.Up, true)) {
+        for (Proxy proxy : proxyService.getAllUpProxies()) {
             intermediate.put(proxy.getSpecId(), intermediate.getOrDefault(proxy.getSpecId(), 0) + 1);
         }
 
@@ -222,6 +246,11 @@ public class Micrometer implements IStatCollector {
         }
     }
 
+    @FunctionalInterface
+    private interface ToIntegerFunction<T> {
+        Integer applyAsDouble(T var1);
+    }
+
     private class ProxyCounter {
 
         private final String specId;
@@ -234,27 +263,6 @@ public class Micrometer implements IStatCollector {
             return proxyCountCache.getOrDefault(specId, null);
         }
 
-    }
-
-    /**
-     * Wraps a function that returns an Integer into a function that returns a double.
-     * When the provided Integer is null, the resulting function returns Double.NaN.
-     *
-     * We need this function because Micrometer cannot handle null values for Gauges.
-     */
-    private static <T> ToDoubleFunction<T> wrapHandleNull(ToIntegerFunction<T> producer) {
-        return (state) -> {
-            Integer res = producer.applyAsDouble(state);
-            if (res == null) {
-                return Double.NaN;
-            }
-            return res;
-        };
-    }
-
-    @FunctionalInterface
-    private interface ToIntegerFunction<T> {
-        Integer applyAsDouble(T var1);
     }
 
 }

@@ -2,7 +2,7 @@
 
     ContainerProxy
 
-    Copyright (C) 2016-2023 Open Analytics
+    Copyright (C) 2016-2024 Open Analytics
 
     ===========================================================================
 
@@ -25,14 +25,17 @@
         xmlns:th="http://www.thymeleaf.org">
     <head lang="en">
         <title th:text="${title}"></title>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-	    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-        <script type="text/javascript" th:inline="javascript">
+        <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+        <meta content="width=device-width, initial-scale=1" name="viewport"/>
+        <script th:inline="javascript" type="text/javascript">
             history.forward();
             history.pushState({}, "", new URL(location));
             history.pushState({}, "", new URL([[${url}]]));
             window.location.href = [[${url}]];
         </script>
+        <script>
+            console.log("This page should redirect you to the main ShinyProxy page after authentication.");
+            console.log("If this does not happen, check for error messages in this log and check your reverse proxy settings");
+        </script>
     </head>
-    Test
 </html>

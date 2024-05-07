@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,19 +26,19 @@ import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 
 public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
 
+    public static final PortMappingsKey inst = new PortMappingsKey();
+
     private PortMappingsKey() {
         super("openanalytics.eu/sp-port-mappings",
-                "SHINYPROXY_PORT_MAPPINGS",
-                false,
-                true,
-                false,
-                false, // important: may not be exposed in API for security
-               true,
-                true,
-                PortMappings.class);
+            "SHINYPROXY_PORT_MAPPINGS",
+            false,
+            true,
+            false,
+            false, // important: may not be exposed in API for security
+            true,
+            true,
+            PortMappings.class);
     }
-
-    public static PortMappingsKey inst = new PortMappingsKey();
 
     @Override
     public PortMappings deserializeFromString(String value) {
@@ -59,5 +59,4 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
             throw new RuntimeException(e);
         }
     }
-
 }

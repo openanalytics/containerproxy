@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,20 +26,19 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 
 public class ParameterNamesKey extends RuntimeValueKey<ParameterNames> {
 
+    public static final ParameterNamesKey inst = new ParameterNamesKey();
+
     public ParameterNamesKey() {
         super("openanalytics.eu/sp-parameters-names",
-                "SHINYPROXY_PARAMETER_NAMES",
-                false,
-                true,
-                false,
-                true, // IMPORTANT: only the names of the values may be exposed through the API
-                false,
-                false,
-                ParameterNames.class);
+            "SHINYPROXY_PARAMETER_NAMES",
+            false,
+            true,
+            false,
+            true, // IMPORTANT: only the names of the values may be exposed through the API
+            false,
+            false,
+            ParameterNames.class);
     }
-
-    public static ParameterNamesKey inst = new ParameterNamesKey();
-
 
     @Override
     public ParameterNames deserializeFromString(String value) {

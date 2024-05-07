@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
-import eu.openanalytics.containerproxy.event.*;
+import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartEvent;
+import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
+import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.UserLoginEvent;
+import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
@@ -28,27 +33,27 @@ import java.io.IOException;
 public interface IStatCollector {
 
     @EventListener
-    default public void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
+    default void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onUserLoginEvent(UserLoginEvent event) throws IOException {
+    default void onUserLoginEvent(UserLoginEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStartEvent(ProxyStartEvent event) throws IOException {
+    default void onProxyStartEvent(ProxyStartEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStopEvent(ProxyStopEvent event) throws IOException {
+    default void onProxyStopEvent(ProxyStopEvent event) throws IOException {
     }
 
     @EventListener
-    default public void onProxyStartFailedEvent(ProxyStartFailedEvent event) throws IOException {
+    default void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
     }
 
     @EventListener
-    default public void onAuthFailedEvent(AuthFailedEvent event) throws IOException {
+    default void onAuthFailedEvent(AuthFailedEvent event) {
     }
 
 }

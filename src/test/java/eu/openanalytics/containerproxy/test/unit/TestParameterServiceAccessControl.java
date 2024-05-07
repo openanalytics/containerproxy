@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,34 +28,34 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
-import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
+@ExtendWith(SpringExtension.class)
 @ActiveProfiles("parameters")
 public class TestParameterServiceAccessControl {
 
@@ -68,8 +68,6 @@ public class TestParameterServiceAccessControl {
     @Inject
     private ObjectMapper objectMapper;
 
-    @Inject
-    private ProxyService proxyService;
     private UserService userService;
 
     @PostConstruct
@@ -86,7 +84,7 @@ public class TestParameterServiceAccessControl {
     public void testWithAccessControl() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -95,67 +93,67 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(10, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                         "2G",
-                         "4G",
-                         "8G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("environment", "base_r");
-            put("version", "4.0.5");
-            put("memory", "8G");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "environment", "base_r",
+            "version", "4.0.5",
+            "memory", "8G"
+        );
 
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
-            put("environment", "breeding_r");
-            put("version", "4.0.3");
-            put("memory", "5G");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "environment", "breeding_r",
+            "version", "4.0.3",
+            "memory", "5G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.0.3");
-            put("memory", "25G");
-        }};
+        Map<String, String> providedParameters3 = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.0.3",
+            "memory", "25G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
     public void testWithAccessControlWithGroupMembership() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -165,58 +163,58 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "breeding_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "breeding_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                         "3.0.6",
-                         "4.0.5",
-                         "4.1.3",
-                         "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G",
-                        "5G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G",
+                "5G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("environment", "breeding_r");
-            put("version", "4.0.3");
-            put("memory", "5G");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "environment", "breeding_r",
+            "version", "4.0.3",
+            "memory", "5G"
+        );
 
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.0.3");
-            put("memory", "25G");
-        }};
+        Map<String, String> providedParameters3 = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.0.3",
+            "memory", "25G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
     public void testWithAccessControlWithAccessExpression() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("thomas");
@@ -226,68 +224,68 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.1.13",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.1.13",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(4, 1, 1)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.1.13");
-            put("memory", "8G");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.1.13",
+            "memory", "8G"
+        );
 
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
-            put("environment", "breeding_r");
-            put("version", "4.0.3");
-            put("memory", "5G");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "environment", "breeding_r",
+            "version", "4.0.3",
+            "memory", "5G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.0.3");
-            put("memory", "25G");
-        }};
+        Map<String, String> providedParameters3 = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.0.3",
+            "memory", "25G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
     @Test
     public void testWithAccessControlWithAccessUsers() throws InvalidParametersException {
         when(authBackend.hasAuthorization()).thenReturn(true);
 
-        ProxySpec spec = proxyService.getProxySpec("with-access-control");
+        ProxySpec spec = proxySpecProvider.getSpec("with-access-control");
 
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("jeff");
@@ -296,62 +294,62 @@ public class TestParameterServiceAccessControl {
 
         Assertions.assertEquals(11, allowedParametersForUser.getAllowedCombinations().size());
         Assertions.assertEquals(
-                Arrays.asList(
-                        "base_r",
-                        "biogrid_r"
-                ),
-                allowedParametersForUser.getValues().get("environment"));
+            Arrays.asList(
+                "base_r",
+                "biogrid_r"
+            ),
+            allowedParametersForUser.getValues().get("environment"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "3.0.6",
-                        "4.0.5",
-                        "4.1.3",
-                        "4.0.3"
-                ),
-                allowedParametersForUser.getValues().get("version"));
+            Arrays.asList(
+                "3.0.6",
+                "4.0.5",
+                "4.1.3",
+                "4.0.3"
+            ),
+            allowedParametersForUser.getValues().get("version"));
         Assertions.assertEquals(
-                Arrays.asList(
-                        "2G",
-                        "4G",
-                        "8G",
-                        "25G"
-                ),
-                allowedParametersForUser.getValues().get("memory"));
+            Arrays.asList(
+                "2G",
+                "4G",
+                "8G",
+                "25G"
+            ),
+            allowedParametersForUser.getValues().get("memory"));
 
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 1)));
         Assertions.assertTrue(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(2, 4, 4)));
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 4)));
 
         // try to "start" the app with correct parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.0.3");
-            put("memory", "25G");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.0.3",
+            "memory", "25G"
+        );
 
         Assertions.assertTrue(parametersService.parseAndValidateRequest(auth, spec, providedParameters).isPresent());
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
-            put("environment", "breeding_r");
-            put("version", "4.0.3");
-            put("memory", "5G");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "environment", "breeding_r",
+            "version", "4.0.3",
+            "memory", "5G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Provided parameter values are not allowed");
 
         // try to "start" the app with not-allowed parameters
-        Map<String, String> providedParameters3 = new HashMap<String, String>() {{
-            put("environment", "biogrid_r");
-            put("version", "4.1.13");
-            put("memory", "8G");
-        }};
+        Map<String, String> providedParameters3 = Map.of(
+            "environment", "biogrid_r",
+            "version", "4.1.13",
+            "memory", "8G"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters3),
+            "Provided parameter values are not allowed");
     }
 
 }

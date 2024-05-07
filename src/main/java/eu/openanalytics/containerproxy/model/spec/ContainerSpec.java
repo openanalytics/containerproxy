@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -34,13 +34,12 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Data
 @Setter
 @Getter
 @Builder(toBuilder = true)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
 public class ContainerSpec {
 
@@ -48,7 +47,8 @@ public class ContainerSpec {
      * Index in the array of ContainerSpecs of the ProxySpec.
      */
     private Integer index;
-    private SpelField.String image;
+    @Builder.Default
+    private SpelField.String image = new SpelField.String();
     @Builder.Default
     private SpelField.StringList cmd = new SpelField.StringList();
     @Builder.Default
@@ -81,26 +81,37 @@ public class ContainerSpec {
     private String dockerRegistryDomain;
     private String dockerRegistryUsername;
     private String dockerRegistryPassword;
+    @Builder.Default
+    private SpelField.String dockerRuntime = new SpelField.String();
+    @Builder.Default
+    private SpelField.String dockerUser = new SpelField.String();
+    @Builder.Default
+    private SpelField.String dockerIpc = new SpelField.String();
+    @Builder.Default
+    private List<DockerDeviceRequest> dockerDeviceRequests = new ArrayList<>();
 
-	public void setCmd(List<String> cmd) {
-		this.cmd = new SpelField.StringList(cmd);
-	}
+    @Builder.Default
+    private SpelField.String resourceName = new SpelField.String();
 
-	public void setEnv(Map<String, String> env) {
-		this.env = new SpelField.StringMap(env);
-	}
+    public void setCmd(List<String> cmd) {
+        this.cmd = new SpelField.StringList(cmd);
+    }
 
-	public void setNetworkConnections(List<String> networkConnections) {
-		this.networkConnections = new SpelField.StringList(networkConnections);
-	}
+    public void setEnv(Map<String, String> env) {
+        this.env = new SpelField.StringMap(env);
+    }
 
-	public void setDns(List<String> dns) {
-		this.dns = new SpelField.StringList(dns);
-	}
+    public void setNetworkConnections(List<String> networkConnections) {
+        this.networkConnections = new SpelField.StringList(networkConnections);
+    }
 
-	public void setVolumes(List<String> volumes) {
-		this.volumes = new SpelField.StringList(volumes);
-	}
+    public void setDns(List<String> dns) {
+        this.dns = new SpelField.StringList(dns);
+    }
+
+    public void setVolumes(List<String> volumes) {
+        this.volumes = new SpelField.StringList(volumes);
+    }
 
     public void setLabels(Map<String, String> labels) {
         this.labels = new SpelField.StringMap(labels);
@@ -108,26 +119,30 @@ public class ContainerSpec {
 
     public ContainerSpec firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .image(image.resolve(resolver, context))
-                .cmd(cmd.resolve(resolver, context))
-                .envFile(envFile.resolve(resolver, context))
-                .network(network.resolve(resolver, context))
-                .networkConnections(networkConnections.resolve(resolver, context))
-                .dns(dns.resolve(resolver, context))
-                .volumes(volumes.resolve(resolver, context))
-                .memoryRequest(memoryRequest.resolve(resolver, context))
-                .memoryLimit(memoryLimit.resolve(resolver, context))
-                .cpuRequest(cpuRequest.resolve(resolver, context))
-                .cpuLimit(cpuLimit.resolve(resolver, context))
-                .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
-                .build();
+            .image(image.resolve(resolver, context))
+            .cmd(cmd.resolve(resolver, context))
+            .envFile(envFile.resolve(resolver, context))
+            .network(network.resolve(resolver, context))
+            .networkConnections(networkConnections.resolve(resolver, context))
+            .dns(dns.resolve(resolver, context))
+            .volumes(volumes.resolve(resolver, context))
+            .memoryRequest(memoryRequest.resolve(resolver, context))
+            .memoryLimit(memoryLimit.resolve(resolver, context))
+            .cpuRequest(cpuRequest.resolve(resolver, context))
+            .cpuLimit(cpuLimit.resolve(resolver, context))
+            .portMapping(portMapping.stream().map(p -> p.resolve(resolver, context)).toList())
+            .dockerRuntime(dockerRuntime.resolve(resolver, context))
+            .dockerUser(dockerUser.resolve(resolver, context))
+            .dockerIpc(dockerIpc.resolve(resolver, context))
+            .build();
     }
 
     public ContainerSpec finalResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
-                .env(env.resolve(resolver, context))
-                .labels(labels.resolve(resolver, context))
-                .build();
+            .env(env.resolve(resolver, context))
+            .labels(labels.resolve(resolver, context))
+            .resourceName(resourceName.resolve(resolver, context))
+            .build();
     }
 
 }

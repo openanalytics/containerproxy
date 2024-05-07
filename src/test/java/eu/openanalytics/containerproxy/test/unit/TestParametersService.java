@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,9 +27,8 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ParametersService;
-import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
+import eu.openanalytics.containerproxy.test.helpers.PropertyOverrideContextInitializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,22 +47,20 @@ import java.util.Optional;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(classes = {TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class})
+@SpringBootTest(classes = {ContainerProxyApplication.class})
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 @ActiveProfiles("parameters")
 public class TestParametersService {
 
+    private final Authentication auth = mock(Authentication.class);
     @Inject
-    private ProxyService proxyService;
-
+    private IProxySpecProvider proxySpecProvider;
     @Inject
     private ParametersService parametersService;
 
-    private Authentication auth = mock(Authentication.class);
-
     @Test
     public void testBigParameters() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
         AllowedParametersForUser allowedParametersForUser = parametersService.calculateAllowedParametersForUser(auth, spec, null);
 
         Assertions.assertEquals(5200, allowedParametersForUser.getAllowedCombinations().size());
@@ -86,77 +83,77 @@ public class TestParametersService {
         Assertions.assertFalse(allowedParametersForUser.getAllowedCombinations().contains(Arrays.asList(1, 1, 8, 4)));
 
         Assertions.assertEquals(
-                new HashSet<>(Arrays.asList("parameter1", "parameter2", "parameter3", "parameter4")),
-                allowedParametersForUser.getValues().keySet());
+            new HashSet<>(Arrays.asList("parameter1", "parameter2", "parameter3", "parameter4")),
+            allowedParametersForUser.getValues().keySet());
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "The letter A",
-                        "B",
-                        "C",
-                        "D",
-                        "E",
-                        "F",
-                        "G",
-                        "H",
-                        "I",
-                        "J"
-                ),
-                allowedParametersForUser.getValues().get("parameter1"));
+            Arrays.asList(
+                "The letter A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+            ),
+            allowedParametersForUser.getValues().get("parameter1"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "The number 1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
-                        "8",
-                        "9",
-                        "10",
-                        "11",
-                        "12",
-                        "13",
-                        "14",
-                        "15",
-                        "16",
-                        "17",
-                        "18",
-                        "19",
-                        "The number 20"
-                ),
-                allowedParametersForUser.getValues().get("parameter2"));
+            Arrays.asList(
+                "The number 1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "11",
+                "12",
+                "13",
+                "14",
+                "15",
+                "16",
+                "17",
+                "18",
+                "19",
+                "The number 20"
+            ),
+            allowedParametersForUser.getValues().get("parameter2"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "Foo",
-                        "Bar",
-                        "foobar",
-                        "barfoo",
-                        "bazz",
-                        "fozz",
-                        "foobarfoo",
-                        "barfoobar"
-                ),
-                allowedParametersForUser.getValues().get("parameter3"));
+            Arrays.asList(
+                "Foo",
+                "Bar",
+                "foobar",
+                "barfoo",
+                "bazz",
+                "fozz",
+                "foobarfoo",
+                "barfoobar"
+            ),
+            allowedParametersForUser.getValues().get("parameter3"));
 
         Assertions.assertEquals(
-                Arrays.asList(
-                        "YES",
-                        "NO",
-                        "maybe",
-                        "well"
-                ),
-                allowedParametersForUser.getValues().get("parameter4"));
+            Arrays.asList(
+                "YES",
+                "NO",
+                "maybe",
+                "well"
+            ),
+            allowedParametersForUser.getValues().get("parameter4"));
 
         Assertions.assertEquals(Arrays.asList(0, 0, 0, 0), allowedParametersForUser.getDefaultValue());
     }
 
     @Test
     public void testDefaultValues() {
-        ProxySpec spec = proxyService.getProxySpec("default-values");
+        ProxySpec spec = proxySpecProvider.getSpec("default-values");
 
         Authentication authJack = mock(Authentication.class);
         when(authJack.getName()).thenReturn("jack");
@@ -182,12 +179,12 @@ public class TestParametersService {
     }
 
     private Pair<ParameterNames, ParameterValues> testAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) throws InvalidParametersException {
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("parameter1", parameter1);
-            put("parameter2", parameter2);
-            put("parameter3", parameter3);
-            put("parameter4", parameter4);
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", parameter1,
+            "parameter2", parameter2,
+            "parameter3", parameter3,
+            "parameter4", parameter4
+        );
 
         Optional<Pair<ParameterNames, ParameterValues>> res = parametersService.parseAndValidateRequest(auth, spec, providedParameters);
         Assertions.assertTrue(res.isPresent());
@@ -195,22 +192,22 @@ public class TestParametersService {
     }
 
     private void testNotAllowedValue(ProxySpec spec, String parameter1, String parameter2, String parameter3, String parameter4) {
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("parameter1", parameter1);
-            put("parameter2", parameter2);
-            put("parameter3", parameter3);
-            put("parameter4", parameter4);
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", parameter1,
+            "parameter2", parameter2,
+            "parameter3", parameter3,
+            "parameter4", parameter4
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Provided parameter values are not allowed");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Provided parameter values are not allowed");
     }
 
     @Test
     public void testParseAndValidateRequest() throws InvalidParametersException {
         // test that all allowed values are allowed by the parseAndValidateRequest function
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         // make sure that using the backend values is not allowed
         testNotAllowedValue(spec, "A", "1", "foo", "yes");
@@ -267,65 +264,65 @@ public class TestParametersService {
 
     @Test
     public void testParseAndValidateRequestNoParameters() throws InvalidParametersException {
-        ProxySpec spec = proxyService.getProxySpec("no-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("no-parameters");
 
         Assertions.assertFalse(parametersService.parseAndValidateRequest(auth, spec, new HashMap<>()).isPresent());
     }
 
     @Test
     public void testInvalidNumberOfParameters() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
         // too many parameters
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-            put("parameter4", "NO");
-            put("parameter5", "NO");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo",
+            "parameter4", "NO",
+            "parameter5", "NO"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Invalid number of parameters provided");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Invalid number of parameters provided");
 
         // too few parameters
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-        }};
+        Map<String, String> providedParameters2 = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Invalid number of parameters provided");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Invalid number of parameters provided");
     }
 
     @Test
     public void testInvalidParameterIds() {
-        ProxySpec spec = proxyService.getProxySpec("big-parameters");
+        ProxySpec spec = proxySpecProvider.getSpec("big-parameters");
 
-        Map<String, String> providedParameters = new HashMap<String, String>() {{
-            put("parameter1", "The letter A");
-            put("parameter2", "The number 1");
-            put("parameter3", "Foo");
-            put("parameterXXXX", "NO");
-        }};
-
-        Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
-                "Missing value for parameter parameter4");
-
-        Map<String, String> providedParameters2 = new HashMap<String, String>() {{
-            put("parameterABC", "The letter A");
-            put("parameter#$#$", "The number 1");
-            put("parameter3343434", "Foo");
-            put("parameterXXXX", "NO");
-        }};
+        Map<String, String> providedParameters = Map.of(
+            "parameter1", "The letter A",
+            "parameter2", "The number 1",
+            "parameter3", "Foo",
+            "parameterXXXX", "NO"
+        );
 
         Assertions.assertThrows(InvalidParametersException.class,
-                () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
-                "Missing value for parameter parameter1");
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters),
+            "Missing value for parameter parameter4");
+
+        Map<String, String> providedParameters2 = Map.of(
+            "parameterABC", "The letter A",
+            "parameter#$#$", "The number 1",
+            "parameter3343434", "Foo",
+            "parameterXXXX", "NO"
+        );
+
+        Assertions.assertThrows(InvalidParametersException.class,
+            () -> parametersService.parseAndValidateRequest(auth, spec, providedParameters2),
+            "Missing value for parameter parameter1");
     }
 
 }

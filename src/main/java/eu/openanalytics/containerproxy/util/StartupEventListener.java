@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,11 +38,10 @@ public class StartupEventListener {
 
     @EventListener
     public void onStartup(ApplicationReadyEvent event) {
-        StringBuilder startupMsg = new StringBuilder("Started ");
-        startupMsg.append(buildProperties.getName()).append(" ");
-        startupMsg.append(buildProperties.getVersion()).append(" (");
-        startupMsg.append("ContainerProxy ");
-        startupMsg.append(buildProperties.get("containerProxyVersion")).append(")");
-        LOGGER.info(startupMsg.toString());
+        String startupMsg = "Started " + buildProperties.getName() + " " +
+            buildProperties.getVersion() + " (" +
+            "ContainerProxy " +
+            buildProperties.get("containerProxyVersion") + ")";
+        LOGGER.info(startupMsg);
     }
 }

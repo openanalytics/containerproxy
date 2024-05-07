@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class DisplayNameKey extends RuntimeValueKey<String> {
 
+    public static final DisplayNameKey inst = new DisplayNameKey();
+
     private DisplayNameKey() {
         super("openanalytics.eu/sp-display-name",
-                "SHINYPROXY_DISPLAY_NAME",
-                false,
-                true,
-                false,
-                true, // no need to expose in API
-               true,
-                false,
-                String.class);
+            "SHINYPROXY_DISPLAY_NAME",
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            String.class);
     }
-
-    public static DisplayNameKey inst = new DisplayNameKey();
 
     @Override
     public String deserializeFromString(String value) {

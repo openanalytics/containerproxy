@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,10 +28,31 @@ import java.util.List;
 
 public class EnvironmentUtils {
 
+    /**
+     * Reads a property from the environment (i.e. config file) and parse it as a list.
+     * The following syntax's are supported:
+     *
+     * Single value:
+     *      myProperty: abc
+     *
+     * Multiple comma seperated values:
+     *      myProperty: abc, xyz
+     *
+     * Single-line YAML array:
+     *      myProperty: [abc, xyz]
+     *
+     * Multiline YAML array:
+     *      myProperty:
+     *       - abc
+     *       - xyz
+     * @param environment environment to read the property from
+     * @param propertyName property name
+     * @return list of values or null if the property does not exist or is empty
+     */
     public static List<String> readList(Environment environment, String propertyName) {
-        String singleValue = environment.getProperty(propertyName);
-        if (singleValue != null) {
-            return Collections.singletonList(singleValue);
+        String[] singleValueOrCommaSeperated = environment.getProperty(propertyName, String[].class);
+        if (singleValueOrCommaSeperated != null) {
+            return List.of(singleValueOrCommaSeperated);
         }
 
         List<String> result = new ArrayList<>();
@@ -43,7 +64,7 @@ public class EnvironmentUtils {
             value = environment.getProperty(String.format(propertyName + "[%d]", i));
         }
 
-        if (result.size() == 0) {
+        if (result.isEmpty()) {
             return null;
         }
 

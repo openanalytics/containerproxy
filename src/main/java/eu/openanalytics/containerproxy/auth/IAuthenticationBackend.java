@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.auth;
 
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
@@ -31,46 +30,46 @@ import java.util.Map;
 
 public interface IAuthenticationBackend {
 
-	/**
-	 * Get the name for this authentication backend, as used in the application.yml file.
-	 */
-	public String getName();
+    /**
+     * Get the name for this authentication backend, as used in the application.yml file.
+     */
+    String getName();
 
-	/**
-	 * Return true if this authentication backend supports authorization.
-	 * In this context, authorization means the separation of permission levels
-	 * via groups.
-	 *
-	 * If there is no authorization, all users have the same (administrator) permissions.
-	 */
-	public boolean hasAuthorization();
+    /**
+     * Return true if this authentication backend supports authorization.
+     * In this context, authorization means the separation of permission levels
+     * via groups.
+     *
+     * If there is no authorization, all users have the same (administrator) permissions.
+     */
+    boolean hasAuthorization();
 
-	/**
-	 * Perform customization on the http level, such as filters and login forms.
-	 */
-	public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception;
+    /**
+     * Perform customization on the http level, such as filters and login forms.
+     */
+    void configureHttpSecurity(HttpSecurity http) throws Exception;
 
-	/**
-	 * Perform customization on the authentication manager level, such as authentication
-	 * handling and authority population.
-	 */
-	public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception;
+    /**
+     * Perform customization on the authentication manager level, such as authentication
+     * handling and authority population.
+     */
+    void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception;
 
-	public default String getLogoutSuccessURL() {
-		return "/login";
-	}
+    default String getLogoutSuccessURL() {
+        return "/login";
+    }
 
-	public default String getLogoutURL() {
-		return "/logout";
-	}
+    default String getLogoutURL() {
+        return "/logout";
+    }
 
-	public default void customizeContainerEnv(Authentication user, Map<String, String> env) {
-		// Default: do nothing.
-	}
+    default void customizeContainerEnv(Authentication user, Map<String, String> env) {
+        // Default: do nothing.
+    }
 
-	public default LogoutSuccessHandler getLogoutSuccessHandler() {
-		SimpleUrlLogoutSuccessHandler urlLogoutHandler = new SimpleUrlLogoutSuccessHandler();
-		urlLogoutHandler.setDefaultTargetUrl(getLogoutSuccessURL());
-		return urlLogoutHandler;
-	}
+    default LogoutSuccessHandler getLogoutSuccessHandler() {
+        SimpleUrlLogoutSuccessHandler urlLogoutHandler = new SimpleUrlLogoutSuccessHandler();
+        urlLogoutHandler.setDefaultTargetUrl(getLogoutSuccessURL());
+        return urlLogoutHandler;
+    }
 }

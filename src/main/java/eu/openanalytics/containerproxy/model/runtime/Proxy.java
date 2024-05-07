@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,7 +21,6 @@
 package eu.openanalytics.containerproxy.model.runtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import eu.openanalytics.containerproxy.model.Views;
@@ -42,8 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -52,126 +49,154 @@ import java.util.stream.Collectors;
 @JsonView(Views.Default.class)
 public class Proxy extends RuntimeValueStore {
 
-	String id;
+    String id;
 
-	@With
-	ProxyStatus status;
+    @With
+    ProxyStatus status;
 
-	long startupTimestamp;
-	long createdTimestamp;
+    long startupTimestamp;
+    long createdTimestamp;
 
-	String userId;
-	String specId;
+    String userId;
+    String specId;
 
-	String displayName;
+    String displayName;
 
-	List<Container> containers;
+    List<Container> containers;
 
-	Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
+    String targetId;
 
-	@JsonCreator
-	public static Proxy createFromJson(@JsonProperty("id") String id,
-									   @JsonProperty("status") ProxyStatus status,
-									   @JsonProperty("startupTimestamp") long startupTimestamp,
-									   @JsonProperty("createdTimestamp") long createdTimestamp,
-									   @JsonProperty("userId") String userId,
-									   @JsonProperty("specId") String specId,
-									   @JsonProperty("displayName") String displayName,
-									   @JsonProperty("containers") List<Container> containers,
-									   @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
+    Map<String, URI> targets;
 
-		Proxy.ProxyBuilder builder = Proxy.builder()
-				.id(id)
-				.status(status)
-				.startupTimestamp(startupTimestamp)
-				.createdTimestamp(createdTimestamp)
-				.userId(userId)
-				.specId(specId)
-				.displayName(displayName)
-				.containers(containers);
+    Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues;
 
-		for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
-			RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
-			builder.addRuntimeValue(new RuntimeValue(key, key.deserializeFromString(runtimeValue.getValue())), false);
-		}
+    @JsonCreator
+    public static Proxy createFromJson(@JsonProperty("id") String id,
+                                       @JsonProperty("status") ProxyStatus status,
+                                       @JsonProperty("startupTimestamp") long startupTimestamp,
+                                       @JsonProperty("createdTimestamp") long createdTimestamp,
+                                       @JsonProperty("userId") String userId,
+                                       @JsonProperty("specId") String specId,
+                                       @JsonProperty("displayName") String displayName,
+                                       @JsonProperty("containers") List<Container> containers,
+                                       @JsonProperty("targetId") String targetId,
+                                       @JsonProperty("targets") Map<String, URI> targets,
+                                       @JsonProperty("_runtimeValues") Map<String, String> runtimeValues) {
 
-		return builder.build();
-	}
+        Proxy.ProxyBuilder builder = Proxy.builder()
+            .id(id)
+            .status(status)
+            .startupTimestamp(startupTimestamp)
+            .createdTimestamp(createdTimestamp)
+            .userId(userId)
+            .specId(specId)
+            .displayName(displayName)
+            .targetId(targetId)
+            .targets(targets)
+            .containers(containers);
 
-	public Container getContainer(Integer containerIndex) {
-		return containers.stream()
-				.filter(c -> Objects.equals(c.getIndex(), containerIndex))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("No container found with this index"));
-	}
+        for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
+            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+            builder.addRuntimeValue(new RuntimeValue(key, key.deserializeFromString(runtimeValue.getValue())), false);
+        }
 
-	public List<Container> getContainers() {
-		if (containers == null) {
-			return Collections.emptyList();
-		}
-		return Collections.unmodifiableList(containers);
-	}
+        return builder.build();
+    }
 
-	public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
-		if (runtimeValues == null) {
-			return Collections.unmodifiableMap(new HashMap<>());
-		}
-		return Collections.unmodifiableMap(runtimeValues);
-	}
+    public Container getContainer(Integer containerIndex) {
+        return containers.stream()
+            .filter(c -> Objects.equals(c.getIndex(), containerIndex))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No container found with this index"));
+    }
 
-	@JsonIgnore
-	public Map<String, URI> getTargets() {
-		return getContainers()
-				.stream()
-				.flatMap(c -> c.getTargets().entrySet().stream())
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-	}
+    public List<Container> getContainers() {
+        if (containers == null) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(containers);
+    }
 
-	public static class ProxyBuilder {
+    public Map<RuntimeValueKey<?>, RuntimeValue> getRuntimeValues() {
+        if (runtimeValues == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(runtimeValues);
+    }
 
-		public ProxyBuilder runtimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
-			// take a copy of the map so that when using toBuilder a deep copy is returned
-			// otherwise, copies will have the same underlying map
-			if (runtimeValues != null) {
-				this.runtimeValues = new HashMap<>(runtimeValues);
-			}
-			return this;
-		}
+    @JsonView(Views.Internal.class)
+    public Map<String, URI> getTargets() {
+        if (targets == null) {
+            return Collections.unmodifiableMap(new HashMap<>());
+        }
+        return Collections.unmodifiableMap(targets);
+    }
 
-		public ProxyBuilder containers(List<Container> containers) {
-			// take a copy of the list so that when using toBuilder a deep copy is returned
-			// otherwise, copies will have the same underlying list
-			if (containers != null) {
-				this.containers = new ArrayList<>(containers);
-			}
-			return this;
-		}
+    public static class ProxyBuilder {
 
-		public ProxyBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
-			if (this.runtimeValues == null) {
-				this.runtimeValues = new HashMap<>();
-			}
-			if (!this.runtimeValues.containsKey(runtimeValue.getKey()) || override) {
-				this.runtimeValues.put(runtimeValue.getKey(), runtimeValue);
-			}
-			return this;
-		}
+        public ProxyBuilder runtimeValues(Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues) {
+            // take a copy of the map so that when using toBuilder a deep copy is returned
+            // otherwise, copies will have the same underlying map
+            if (runtimeValues != null) {
+                this.runtimeValues = new HashMap<>(runtimeValues);
+            }
+            return this;
+        }
 
-		public ProxyBuilder addRuntimeValues(List<RuntimeValue> runtimeValues) {
-			for (RuntimeValue runtimeValue: runtimeValues) {
-				addRuntimeValue(runtimeValue, false);
-			}
-			return this;
-		}
+        public ProxyBuilder containers(List<Container> containers) {
+            // take a copy of the list so that when using toBuilder a deep copy is returned
+            // otherwise, copies will have the same underlying list
+            if (containers != null) {
+                this.containers = new ArrayList<>(containers);
+            }
+            return this;
+        }
 
-		public ProxyBuilder addContainer(Container container) {
-			if (containers == null) {
-				containers = new ArrayList<>();
-			}
-			containers.add(container);
-			return this;
-		}
+        public ProxyBuilder addRuntimeValue(RuntimeValue runtimeValue, boolean override) {
+            if (this.runtimeValues == null) {
+                this.runtimeValues = new HashMap<>();
+            }
+            if (!this.runtimeValues.containsKey(runtimeValue.getKey()) || override) {
+                this.runtimeValues.put(runtimeValue.getKey(), runtimeValue);
+            }
+            return this;
+        }
 
-	}
+        public ProxyBuilder addRuntimeValues(List<RuntimeValue> runtimeValues) {
+            for (RuntimeValue runtimeValue : runtimeValues) {
+                addRuntimeValue(runtimeValue, false);
+            }
+            return this;
+        }
+
+        public ProxyBuilder addContainer(Container container) {
+            if (containers == null) {
+                containers = new ArrayList<>();
+            }
+            containers.add(container);
+            return this;
+        }
+
+        public ProxyBuilder updateContainer(Container container) {
+            containers.set(container.getIndex(), container);
+            return this;
+        }
+
+        public ProxyBuilder addTarget(String mapping, URI target) {
+            if (targets == null) {
+                targets = new HashMap<>();
+            }
+            targets.put(mapping, target);
+            return this;
+        }
+
+        public ProxyBuilder addTargets(Map<String, URI> targets) {
+            if (this.targets == null) {
+                this.targets = new HashMap<>();
+            }
+            this.targets.putAll(targets);
+            return this;
+        }
+    }
 
 }

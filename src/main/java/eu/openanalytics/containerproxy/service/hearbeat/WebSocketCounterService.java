@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service.hearbeat;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -37,12 +38,9 @@ public class WebSocketCounterService implements IHeartbeatProcessor {
 
     public static final String PROP_RATE = "proxy.heartbeat-rate";
     public static final Long DEFAULT_RATE = 10000L;
-
+    private final ConcurrentHashMap<String, Long> wsHeartbeats = ProxyHashMap.create();
     @Inject
     protected Environment environment;
-
-    private final ConcurrentHashMap<String, Long> wsHeartbeats = ProxyHashMap.create();
-
     private long cleanupInterval;
 
     @PostConstruct
@@ -56,14 +54,13 @@ public class WebSocketCounterService implements IHeartbeatProcessor {
         }, cleanupInterval, cleanupInterval);
     }
 
-
     @Override
-    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull String proxyId, @Nullable String sessionId) {
+    public void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId) {
         if (heartbeatSource != HeartbeatService.HeartbeatSource.WEBSOCKET_PONG) {
             return;
         }
 
-        wsHeartbeats.put(proxyId, System.currentTimeMillis());
+        wsHeartbeats.put(proxy.getId(), System.currentTimeMillis());
     }
 
     private synchronized void updateCount() {

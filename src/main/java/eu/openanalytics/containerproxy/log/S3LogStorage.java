@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -52,93 +52,91 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class S3LogStorage extends AbstractLogStorage {
 
-	private String bucketName;
-	private String bucketPath;
-	private boolean enableSSE;
+    private final Logger log = LogManager.getLogger(S3LogStorage.class);
+    private String bucketName;
+    private String bucketPath;
+    private boolean enableSSE;
+    private ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
 
-	private final Logger log = LogManager.getLogger(S3LogStorage.class);
+    private S3Client s3Client;
 
-	private ConcurrentHashMap<String, LogStreams> proxyStreams = ProxyHashMap.create();
+    @Override
+    public void initialize() throws IOException {
+        super.initialize();
+        S3ClientBuilder s3ClientBuilder = S3Client.builder();
 
-	private S3Client s3Client;
+        String accessKey = environment.getProperty("proxy.container-log-s3-access-key");
+        String accessSecret = environment.getProperty("proxy.container-log-s3-access-secret");
 
-	@Override
-	public void initialize() throws IOException {
-		super.initialize();
-		S3ClientBuilder s3ClientBuilder = S3Client.builder();
+        if (accessKey != null && accessSecret != null) {
+            AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
+                accessKey,
+                accessSecret);
+            s3ClientBuilder.credentialsProvider(StaticCredentialsProvider.create(awsCreds));
+        }
 
-		String accessKey = environment.getProperty("proxy.container-log-s3-access-key");
-		String accessSecret = environment.getProperty("proxy.container-log-s3-access-secret");
+        String endpoint = environment.getProperty("proxy.container-log-s3-endpoint");
+        if (endpoint != null) {
+            s3ClientBuilder.endpointOverride(URI.create(endpoint));
+        }
 
-		if (accessKey != null && accessSecret != null) {
-			AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-					accessKey,
-					accessSecret);
-			s3ClientBuilder.credentialsProvider(StaticCredentialsProvider.create(awsCreds));
-		}
+        s3ClientBuilder.serviceConfiguration(s -> s.pathStyleAccessEnabled(true));
 
-		String endpoint = environment.getProperty("proxy.container-log-s3-endpoint");
-		if (endpoint != null) {
-			s3ClientBuilder.endpointOverride(URI.create(endpoint));
-		}
+        s3Client = s3ClientBuilder.build();
+        enableSSE = environment.getProperty("proxy.container-log-s3-sse", Boolean.class, false);
 
-		s3ClientBuilder.serviceConfiguration(s -> s.pathStyleAccessEnabled(true));
+        String subPath = containerLogPath.substring("s3://".length()).trim();
+        if (subPath.endsWith("/")) subPath = subPath.substring(0, subPath.length() - 1);
 
-		s3Client = s3ClientBuilder.build();
-		enableSSE = environment.getProperty("proxy.container-log-s3-sse", Boolean.class, false);
+        int bucketPathIndex = subPath.indexOf("/");
+        if (bucketPathIndex == -1) {
+            bucketName = subPath;
+            bucketPath = "";
+        } else {
+            bucketName = subPath.substring(0, bucketPathIndex);
+            bucketPath = subPath.substring(bucketPathIndex + 1) + "/";
+        }
 
-		String subPath = containerLogPath.substring("s3://".length()).trim();
-		if (subPath.endsWith("/")) subPath = subPath.substring(0, subPath.length() - 1);
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                flushAllStreams();
+            }
+        }, 10000, 10000);
+    }
 
-		int bucketPathIndex = subPath.indexOf("/");
-		if (bucketPathIndex == -1) {
-			bucketName = subPath;
-			bucketPath = "";
-		} else {
-			bucketName = subPath.substring(0, bucketPathIndex);
-			bucketPath = subPath.substring(bucketPathIndex + 1) + "/";
-		}
+    /**
+     * Creates OutputStreams for the given Proxy object.
+     *
+     * <p>
+     * The {@link S3OutputStream} is wrapped into a {@link BufferedOutputStream} with a buffer of 1MB.
+     * When this buffer is full, it will get flushed and the logs are written to S3.
+     * The {@link BufferedOutputStream} is stored in this class and a timer calls the flush method every 10 seconds.
+     * Therefore, the latest logs (if any) are written to S3 every 10 seconds.
+     * Finally, the {@link BufferedOutputStream} are wrapped in {@link IgnoreFlushOutputStream} streams, such that
+     * the flush method is ignored. This is important, since some container backends (e.g. Docker) flushes the logs
+     * for ever write, which would mean we re-upload the log file to S3 for every write.
+     * </p>
+     *
+     * @param proxy the proxy to create outputstreams for
+     * @return the streams for this proxy
+     */
+    @Override
+    public LogStreams createOutputStreams(Proxy proxy) {
+        LogPaths paths = getLogs(proxy);
+        BufferedOutputStream stdout = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStdout().getFileName().toString()), 1024 * 1024);
+        BufferedOutputStream stderr = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024);
+        proxyStreams.put(proxy.getId(), new LogStreams(stdout, stderr));
+        return new LogStreams(new IgnoreFlushOutputStream(stdout), new IgnoreFlushOutputStream(stderr));
+    }
 
-		new Timer().schedule(new TimerTask() {
-			@Override
-			public void run() {
-				flushAllStreams();
-			}
-		}, 10000, 10000);
-	}
+    @Override
+    public void stopService() {
+        super.stopService();
+        proxyStreams = ProxyHashMap.create();
+    }
 
-	/**
-	 * Creates OutputStreams for the given Proxy object.
-	 *
-	 * <p>
-	 *     The {@link S3OutputStream} is wrapped into a {@link BufferedOutputStream} with a buffer of 1MB.
-	 *     When this buffer is full, it will get flushed and the logs are written to S3.
-	 *     The {@link BufferedOutputStream} is stored in this class and a timer calls the flush method every 10 seconds.
-	 *     Therefore, the latest logs (if any) are written to S3 every 10 seconds.
-	 *     Finally, the {@link BufferedOutputStream} are wrapped in {@link IgnoreFlushOutputStream} streams, such that
-	 *     the flush method is ignored. This is important, since some container backends (e.g. Docker) flushes the logs
-	 *     for ever write, which would mean we re-upload the log file to S3 for every write.
-	 * </p>
-	 *
-	 * @param proxy the proxy to create outputstreams for
-	 * @return the streams for this proxy
-	 */
-	@Override
-	public LogStreams createOutputStreams(Proxy proxy) {
-		LogPaths paths = getLogs(proxy);
-		BufferedOutputStream stdout = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStdout().getFileName().toString()), 1024 * 1024);
-		BufferedOutputStream stderr = new BufferedOutputStream(new S3OutputStream(bucketPath + paths.getStderr().getFileName().toString()), 1024 * 1024);
-		proxyStreams.put(proxy.getId(), new LogStreams(stdout, stderr));
-		return new LogStreams(new IgnoreFlushOutputStream(stdout), new IgnoreFlushOutputStream(stderr));
-	}
-
-	@Override
-	public void stopService() {
-		super.stopService();
-		proxyStreams = ProxyHashMap.create();
-	}
-
-	private void doUpload(String key, byte[] bytes) throws IOException {
+    private void doUpload(String key, byte[] bytes) throws IOException {
         byte[] bytesToUpload = bytes;
 
         byte[] originalBytes = getContent(key);
@@ -147,104 +145,104 @@ public class S3LogStorage extends AbstractLogStorage {
             System.arraycopy(bytes, 0, bytesToUpload, originalBytes.length, bytes.length);
         }
 
-		if (log.isDebugEnabled()) log.debug(String.format("Writing log file to S3 [size: %d] [path: %s]", bytesToUpload.length, key));
+        if (log.isDebugEnabled()) log.debug(String.format("Writing log file to S3 [size: %d] [path: %s]", bytesToUpload.length, key));
 
         PutObjectRequest.Builder builder = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key);
+            .bucket(bucketName)
+            .key(key);
 
-		if (enableSSE) {
-			builder.serverSideEncryption(ServerSideEncryption.AES256);
-		}
+        if (enableSSE) {
+            builder.serverSideEncryption(ServerSideEncryption.AES256);
+        }
 
         try {
-             s3Client.putObject(builder.build(), RequestBody.fromBytes(bytesToUpload));
+            s3Client.putObject(builder.build(), RequestBody.fromBytes(bytesToUpload));
         } catch (S3Exception e) {
             throw new IOException(e);
         }
-	}
+    }
 
-	private byte[] getContent(String key) {
-		try {
-			ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
-					GetObjectRequest.builder()
-							.bucket(bucketName)
-							.key(key)
-							.build());
+    private byte[] getContent(String key) {
+        try {
+            ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
+                GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build());
 
-			return object.asByteArray();
-		} catch (NoSuchKeyException e) {
-			return null;
-		}
-	}
+            return object.asByteArray();
+        } catch (NoSuchKeyException e) {
+            return null;
+        }
+    }
 
-	/**
-	 * Flushes all streams of all proxies.
-	 */
-	private void flushAllStreams() {
-		for (LogStreams streams : proxyStreams.values()) {
-			try {
-				streams.getStdout().flush();
-			} catch (IOException e) {
-				log.error("Failed to flush S3 log stream", e);
-			}
-			try {
-				streams.getStderr().flush();
-			} catch (IOException e) {
-				log.error("Failed to flush S3 log stream", e);
-			}
-		}
-	}
+    /**
+     * Flushes all streams of all proxies.
+     */
+    private void flushAllStreams() {
+        for (LogStreams streams : proxyStreams.values()) {
+            try {
+                streams.getStdout().flush();
+            } catch (IOException e) {
+                log.error("Failed to flush S3 log stream", e);
+            }
+            try {
+                streams.getStderr().flush();
+            } catch (IOException e) {
+                log.error("Failed to flush S3 log stream", e);
+            }
+        }
+    }
 
-	/**
-	 * A {@link OutputStream} that wraps a {@link BufferedOutputStream} and ignores any calls to {@link #flush()}.
-	 */
-	private static class IgnoreFlushOutputStream extends OutputStream {
+    /**
+     * A {@link OutputStream} that wraps a {@link BufferedOutputStream} and ignores any calls to {@link #flush()}.
+     */
+    private static class IgnoreFlushOutputStream extends OutputStream {
 
-		private final BufferedOutputStream bufferedOutputStream;
+        private final BufferedOutputStream bufferedOutputStream;
 
-		public IgnoreFlushOutputStream(BufferedOutputStream bufferedOutputStream) {
-			this.bufferedOutputStream = bufferedOutputStream;
-		}
+        public IgnoreFlushOutputStream(BufferedOutputStream bufferedOutputStream) {
+            this.bufferedOutputStream = bufferedOutputStream;
+        }
 
-		@Override
-		public void write(int i) throws IOException {
-			bufferedOutputStream.write(i);
+        @Override
+        public void write(int i) throws IOException {
+            bufferedOutputStream.write(i);
 
-		}
+        }
 
-		@Override
-		public void write(byte[] b, int off, int len) throws IOException {
-			bufferedOutputStream.write(b, off, len);
-		}
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            bufferedOutputStream.write(b, off, len);
+        }
 
-		@Override
-		public void flush() {
-			// ignore external flush requests
-		}
+        @Override
+        public void flush() {
+            // ignore external flush requests
+        }
 
-	}
+    }
 
-	private class S3OutputStream extends OutputStream {
+    private class S3OutputStream extends OutputStream {
 
-		private final String s3Key;
+        private final String s3Key;
 
-		public S3OutputStream(String s3Key) {
-			this.s3Key = s3Key;
-		}
+        public S3OutputStream(String s3Key) {
+            this.s3Key = s3Key;
+        }
 
-		@Override
-		public void write(int b) throws IOException {
-			// Warning: highly inefficient. Always write arrays.
-			byte[] bytesToCopy = new byte[] { (byte) b };
-			write(bytesToCopy, 0, 1);
-		}
+        @Override
+        public void write(int b) throws IOException {
+            // Warning: highly inefficient. Always write arrays.
+            byte[] bytesToCopy = new byte[]{(byte) b};
+            write(bytesToCopy, 0, 1);
+        }
 
-		@Override
-		public void write(byte[] b, int off, int len) throws IOException {
-			byte[] bytesToCopy = new byte[len];
-			System.arraycopy(b, off, bytesToCopy, 0, len);
-			doUpload(s3Key, bytesToCopy);
-		}
-	}
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            byte[] bytesToCopy = new byte[len];
+            System.arraycopy(b, off, bytesToCopy, 0, len);
+            doUpload(s3Key, bytesToCopy);
+        }
+    }
 }

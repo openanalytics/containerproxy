@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,12 +33,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractLogStorage implements ILogStorage {
 
-    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
-
     @Inject
     protected Environment environment;
-
     protected String containerLogPath;
+    private ConcurrentHashMap<String, LogPaths> proxyStreams = ProxyHashMap.create();
 
     @Override
     public void initialize() throws IOException {
@@ -55,8 +53,8 @@ public abstract class AbstractLogStorage implements ILogStorage {
         return proxyStreams.computeIfAbsent(proxy.getId(), (k) -> {
             String timestamp = new SimpleDateFormat("dd_MMM_yyyy_kk_mm_ss").format(new Date()); // TODO include time
             return new LogPaths(
-                    Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
-                    Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
+                Paths.get(containerLogPath, String.format("%s_%s_%s_stdout.log", proxy.getSpecId(), proxy.getId(), timestamp)),
+                Paths.get(containerLogPath, String.format("%s_%s_%s_stderr.log", proxy.getSpecId(), proxy.getId(), timestamp))
             );
         });
     }

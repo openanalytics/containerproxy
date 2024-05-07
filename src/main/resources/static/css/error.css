@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -19,5 +19,5 @@
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
 #error {
-	padding-left: 15px;
+    padding-left: 15px;
 }

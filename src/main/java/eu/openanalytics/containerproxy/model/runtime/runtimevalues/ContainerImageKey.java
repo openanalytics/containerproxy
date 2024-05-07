@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,19 +22,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 public class ContainerImageKey extends RuntimeValueKey<String> {
 
+    public static final ContainerImageKey inst = new ContainerImageKey();
+
     private ContainerImageKey() {
         super("openanalytics.eu/sp-container-image",
-                "SHINYPROXY_CONTAINER_IMAGE",
-                false,
-                false,
-                false,
-                false, // important: may not be exposed in API for security
-                false,
-                true,
-                String.class);
+            "SHINYPROXY_CONTAINER_IMAGE",
+            false,
+            false,
+            false,
+            false, // important: may not be exposed in API for security
+            false,
+            true,
+            String.class);
     }
-
-    public static ContainerImageKey inst = new ContainerImageKey();
 
     @Override
     public String deserializeFromString(String value) {

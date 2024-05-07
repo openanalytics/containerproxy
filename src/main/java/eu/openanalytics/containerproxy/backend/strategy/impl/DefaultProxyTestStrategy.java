@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,17 +20,16 @@
  */
 package eu.openanalytics.containerproxy.backend.strategy.impl;
 
-import org.springframework.stereotype.Component;
-
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import org.springframework.stereotype.Component;
 
 @Component
 public class DefaultProxyTestStrategy implements IProxyTestStrategy {
 
-	@Override
-	public boolean testProxy(Proxy proxy) {
-		return true;
-	}
+    @Override
+    public boolean testProxy(Proxy proxy) {
+        return true;
+    }
 
 }

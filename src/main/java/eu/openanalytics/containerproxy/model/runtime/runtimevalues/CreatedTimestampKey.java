@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,19 +23,19 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 // TODO convert to long?
 public class CreatedTimestampKey extends RuntimeValueKey<String> {
 
+    public static final CreatedTimestampKey inst = new CreatedTimestampKey();
+
     private CreatedTimestampKey() {
         super("openanalytics.eu/sp-proxy-created-timestamp",
-                "SHINYPROXY_CREATED_TIMESTAMP",
-                false,
-                true,
-                false,
-                true,
-                true,
-                false,
-                String.class);
+            "SHINYPROXY_CREATED_TIMESTAMP",
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            String.class);
     }
-
-    public static CreatedTimestampKey inst = new CreatedTimestampKey();
 
     @Override
     public String deserializeFromString(String value) {

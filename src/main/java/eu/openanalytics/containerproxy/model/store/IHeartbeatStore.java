@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,8 +22,8 @@ package eu.openanalytics.containerproxy.model.store;
 
 public interface IHeartbeatStore {
 
-    public void update(String proxyId, Long currentTimeMillis);
+    void update(String proxyId, Long currentTimeMillis);
 
-    public Long get(String proxyId);
+    Long get(String proxyId);
 
 }

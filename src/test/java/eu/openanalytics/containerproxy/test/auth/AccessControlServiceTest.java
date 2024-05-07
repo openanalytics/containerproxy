@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -208,9 +208,9 @@ public class AccessControlServiceTest {
 
     private ProxySpec createProxySpec(AccessControl proxyAccessControl) {
         return ProxySpec.builder()
-                .id("myId")
-                .accessControl(proxyAccessControl)
-                .build();
+            .id("myId")
+            .accessControl(proxyAccessControl)
+            .build();
     }
 
 }

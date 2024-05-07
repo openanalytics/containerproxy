@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -30,14 +30,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2X509Credential;
-import org.springframework.security.saml2.provider.service.authentication.OpenSamlAuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.registration.InMemoryRelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.web.Saml2AuthenticationTokenConverter;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSaml3LogoutRequestResolver;
+import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSaml4LogoutRequestResolver;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.w3c.dom.Document;
@@ -137,16 +137,13 @@ public class SAMLConfiguration {
         }
 
         RelyingPartyRegistration.Builder registration = RelyingPartyRegistrations
-                .fromMetadataLocation(metadataUrl)
-                .assertionConsumerServiceLocation(ServletUriComponentsBuilder
-                        .fromHttpUrl(baseUrl).path(SAML_SERVICE_LOCATION_PATH).toUriString())
-                .registrationId(REG_ID)
-                .entityId(entityId)
-                .singleLogoutServiceBinding(Saml2MessageBinding.POST)
-                .singleLogoutServiceLocation(ServletUriComponentsBuilder
-                        .fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_LOCATION_PATH).toUriString())
-                .singleLogoutServiceResponseLocation(ServletUriComponentsBuilder
-                        .fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH).toUriString());
+            .fromMetadataLocation(metadataUrl)
+            .assertionConsumerServiceLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_SERVICE_LOCATION_PATH).toUriString())
+            .registrationId(REG_ID)
+            .entityId(entityId)
+            .singleLogoutServiceBinding(Saml2MessageBinding.POST)
+            .singleLogoutServiceLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_LOCATION_PATH).toUriString())
+            .singleLogoutServiceResponseLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH).toUriString());
 
         Saml2X509Credential signingCredential = getSingingCredential();
         if (signingCredential != null) {
@@ -163,7 +160,7 @@ public class SAMLConfiguration {
     @Bean
     public Saml2AuthenticationTokenConverter saml2AuthenticationTokenConverter(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
         return new Saml2AuthenticationTokenConverter(
-                (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
+            (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
         );
     }
 
@@ -174,15 +171,15 @@ public class SAMLConfiguration {
     @SuppressWarnings("deprecation")
     @Bean
     public Saml2LogoutRequestResolver saml2LogoutRequestResolver(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
-        return new OpenSaml3LogoutRequestResolver(
-                (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
+        return new OpenSaml4LogoutRequestResolver(
+            (request, relyingPartyRegistrationId) -> relyingPartyRegistrationRepository.findByRegistrationId(REG_ID)
         );
     }
 
     @SuppressWarnings("deprecation")
     @Bean
-    public OpenSamlAuthenticationProvider openSamlAuthenticationProvider() {
-        OpenSamlAuthenticationProvider authenticationProvider = new OpenSamlAuthenticationProvider();
+    public OpenSaml4AuthenticationProvider openSamlAuthenticationProvider() {
+        OpenSaml4AuthenticationProvider authenticationProvider = new OpenSaml4AuthenticationProvider();
         authenticationProvider.setResponseAuthenticationConverter(new ResponseAuthenticationConverter(environment));
         return authenticationProvider;
     }

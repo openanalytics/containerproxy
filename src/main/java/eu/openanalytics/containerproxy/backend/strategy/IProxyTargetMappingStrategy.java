@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -31,6 +31,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
  */
 public interface IProxyTargetMappingStrategy {
 
-	public String createMapping(String mappingKey, Container container, Proxy proxy);
+    String createMapping(String mappingKey, Container container, Proxy proxy);
 
 }

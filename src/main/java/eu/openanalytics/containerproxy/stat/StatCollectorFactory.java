@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.stat;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingMicrometer;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
@@ -40,11 +41,12 @@ import javax.annotation.Nonnull;
 @Component
 public class StatCollectorFactory implements BeanFactoryPostProcessor, EnvironmentAware {
 
-    private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
-
     private static final String PROP_USAGE_STATS_MULTI_URL = "proxy.usage-stats[%d].url";
     private static final String PROP_USAGE_STATS_MULTI_USERNAME = "proxy.usage-stats[%d].username";
     private static final String PROP_USAGE_STATS_MULTI_PASSWORD = "proxy.usage-stats[%d].password";
+    private static final String PROP_USAGE_STATS_MULTI_TABLE_NAME = "proxy.usage-stats[%d].table-name";
+
+    private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
 
     private Environment environment;
 
@@ -57,7 +59,9 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
         while (usageStatsUrl != null) {
             String username = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_USERNAME, i));
             String password = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_PASSWORD, i));
-            createCollector(registry, usageStatsUrl, username, password);
+            String tableName = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_TABLE_NAME, i));
+
+            createCollector(registry, usageStatsUrl, username, password, tableName);
 
             i++;
             usageStatsUrl = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_URL, i));
@@ -67,11 +71,13 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
         if (baseURL != null && !baseURL.isEmpty()) {
             String username = environment.getProperty("proxy.usage-stats-username");
             String password = environment.getProperty("proxy.usage-stats-password");
-            createCollector(registry, baseURL, username, password);
+            String tableName = environment.getProperty("proxy.usage-stats-table-name");
+
+            createCollector(registry, baseURL, username, password, tableName);
         }
     }
 
-    private void createCollector(DefaultListableBeanFactory registry, String url, String username, String password) {
+    private void createCollector(DefaultListableBeanFactory registry, String url, String username, String password, String tableName) {
         log.info(String.format("Enabled. Sending usage statistics to %s.", url));
 
         BeanDefinition bd = new GenericBeanDefinition();
@@ -83,8 +89,13 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
             bd.getConstructorArgumentValues().addGenericArgumentValue(url);
             bd.getConstructorArgumentValues().addGenericArgumentValue(username);
             bd.getConstructorArgumentValues().addGenericArgumentValue(password);
+            bd.getConstructorArgumentValues().addGenericArgumentValue(tableName == null ? "event" : tableName);
         } else if (url.equalsIgnoreCase("micrometer")) {
             bd.setBeanClassName(Micrometer.class.getName());
+
+            BeanDefinition bd2 = new GenericBeanDefinition();
+            bd2.setBeanClassName(ProxySharingMicrometer.class.getName());
+            registry.registerBeanDefinition("ProxySharingMicrometer", bd2);
         } else {
             throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", url));
         }

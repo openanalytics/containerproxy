@@ -1,7 +1,7 @@
 /**
  * ContainerProxy
  *
- * Copyright (C) 2016-2023 Open Analytics
+ * Copyright (C) 2016-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,9 +20,8 @@
  */
 package eu.openanalytics.containerproxy.test.unit;
 
+import com.google.common.base.Throwables;
 import eu.openanalytics.containerproxy.ContainerProxyApplication;
-import eu.openanalytics.containerproxy.test.proxy.PropertyOverrideContextInitializer;
-import eu.openanalytics.containerproxy.test.proxy.TestIntegrationOnKube;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -43,15 +42,15 @@ public class TestParameterValidationService {
 
     private void test(String resource, String expectedError) {
         this.contextRunner
-                .withInitializer(new PropertyOverrideContextInitializer())
-                .withInitializer(new TestPropertyLoader(resource))
-                .withUserConfiguration(TestIntegrationOnKube.TestConfiguration.class, ContainerProxyApplication.class)
-                .run(context -> {
-                    assertThat(context)
-                            .hasFailed();
-                    assertThat(context.getStartupFailure().getMessage())
-                            .contains(expectedError);
-                });
+            .withInitializer(new TestPropertyLoader(resource))
+            .withUserConfiguration(ContainerProxyApplication.class)
+            .run(context -> {
+                assertThat(context)
+                    .hasFailed();
+                assertThat(Throwables.getRootCause(context.getStartupFailure()).getMessage())
+                    .contains(expectedError);
+
+            });
     }
 
     @Test
@@ -60,7 +59,8 @@ public class TestParameterValidationService {
         test("classpath:application-parameters-validation-2.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: duplicate parameter id 'parameter1'");
         test("classpath:application-parameters-validation-3.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: displayName may not be blank of parameter with id 'parameter1'");
         test("classpath:application-parameters-validation-4.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: description may not be blank of parameter with id 'parameter1'");
-        test("classpath:application-parameters-validation-8.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: parameter id 'parameter1$#>>>.;;' is invalid, id may only exists out of Latin letters, numbers, dash and underscore");
+        test("classpath:application-parameters-validation-8.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: parameter id 'parameter1$#>>>.;;' is invalid, id may only exists out of Latin letters, numbers," +
+            " dash and underscore");
     }
 
     @Test
@@ -72,7 +72,8 @@ public class TestParameterValidationService {
 
     @Test
     public void testDefaultValueErrors() {
-        test("classpath:application-parameters-validation-9.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: not every parameter has a default value. Either define no defaults, or defaults for all parameters");
+        test("classpath:application-parameters-validation-9.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: not every parameter has a default value. Either define no defaults, or defaults for all " +
+            "parameters");
         test("classpath:application-parameters-validation-10.yaml", "Configuration error: error in parameters of spec 'big-parameters', error: default value for parameter with id 'parameter2' is not defined in a value-set");
     }
 

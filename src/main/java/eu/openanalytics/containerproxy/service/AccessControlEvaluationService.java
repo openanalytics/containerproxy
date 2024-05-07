@@ -107,7 +107,12 @@ public class AccessControlEvaluationService {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        Object[] args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
+        Object[] args;
+        if (auth == null) {
+             args = ArrayUtils.addAll(new Object[]{spec}, objects);
+        } else {
+            args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
+        }
         SpecExpressionContext context = SpecExpressionContext.create(args);
         return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
     }

@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.saml.AuthenticationFailureHandler;
+import eu.openanalytics.containerproxy.auth.impl.saml.DisableSaml2LogoutRequestFilterFilter;
 import eu.openanalytics.containerproxy.auth.impl.saml.Saml2MetadataFilter;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +41,7 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.web.authentication.Saml2WebSsoAuthenticationFilter;
+import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestFilter;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutRequestResolver;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -47,6 +49,7 @@ import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.CorsFilter;
 
 import javax.inject.Inject;
 
@@ -117,11 +120,12 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
                 .authenticationManager(new ProviderManager(samlAuthenticationProvider))
                 .failureHandler(failureHandler)
                 .successHandler(successHandler))
-            .saml2Logout(saml -> saml
-                .logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
-                .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))
-                .logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver))
-                .addObjectPostProcessor(
+            .saml2Logout(saml -> {
+                saml.logoutUrl(SAML_LOGOUT_SERVICE_LOCATION_PATH)
+                    .logoutResponse(r -> r.logoutUrl(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH))
+                    .logoutRequest(r -> r.logoutRequestResolver(saml2LogoutRequestResolver));
+
+                saml.addObjectPostProcessor(
                     new ObjectPostProcessor<LogoutFilter>() {
                         @Override
                         public <O extends LogoutFilter> O postProcess(O object) {
@@ -132,8 +136,21 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
                             return object;
                         }
                     }
-                ))
-            .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class);
+                );
+
+                saml.addObjectPostProcessor(
+                    new ObjectPostProcessor<Saml2LogoutRequestFilter>() {
+                        @Override
+                        public <O extends Saml2LogoutRequestFilter> O postProcess(O object) {
+                            // override the name of the filter, so it can be used in DisableSaml2LogoutRequestFilterFilter
+                            // See #33066.
+                            object.setBeanName("Saml2LogoutRequestFilter");
+                            return object;
+                        }
+                    });
+            })
+            .addFilterBefore(metadataFilter, Saml2WebSsoAuthenticationFilter.class)
+            .addFilterAfter(new DisableSaml2LogoutRequestFilterFilter(), CorsFilter.class);
     }
 
     @Override

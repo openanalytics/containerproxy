@@ -36,10 +36,10 @@ import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.server.handlers.ResponseCodeHandler;
-import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 import io.undertow.server.handlers.proxy.ProxyCallback;
 import io.undertow.server.handlers.proxy.ProxyConnection;
 import io.undertow.server.handlers.proxy.ProxyHandler;
+import io.undertow.server.handlers.proxy.SimpleProxyClientProvider;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.Headers;
@@ -169,7 +169,7 @@ public class ProxyMappingManager {
     @SuppressWarnings("deprecation")
     private synchronized String addMapping(Proxy proxy, String mapping, URI target) {
         String prefixPath = getPrefixPath(proxy.getId(), mapping);
-        LoadBalancingProxyClient proxyClient = new LoadBalancingProxyClient() {
+        SimpleProxyClientProvider proxyClient = new SimpleProxyClientProvider(target) {
             @Override
             public void getConnection(ProxyTarget target, HttpServerExchange exchange, ProxyCallback<ProxyConnection> callback, long timeout, TimeUnit timeUnit) {
                 try {
@@ -180,10 +180,14 @@ public class ProxyMappingManager {
                 super.getConnection(target, exchange, callback, timeout, timeUnit);
             }
         };
-        proxyClient.setMaxQueueSize(100);
-        proxyClient.addHost(target);
 
-        pathHandler.addPrefixPath(prefixPath, new ProxyHandler(proxyClient, ResponseCodeHandler.HANDLE_404));
+        ProxyHandler proxyHandler = ProxyHandler.builder()
+            .setProxyClient(proxyClient)
+            .setNext(ResponseCodeHandler.HANDLE_404)
+            .setMaxConnectionRetries(2)
+            .build();
+
+        pathHandler.addPrefixPath(prefixPath, proxyHandler);
         return prefixPath;
     }
 

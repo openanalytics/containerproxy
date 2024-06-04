@@ -24,16 +24,21 @@ import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisProxyStore implements IProxyStore {
 
@@ -41,16 +46,24 @@ public class RedisProxyStore implements IProxyStore {
     @Inject
     private RedisTemplate<String, Proxy> redisTemplate;
     @Inject
+    private RedisTemplate<String, String> userProxyTemplate;
+    @Inject
     private ProxyMappingManager mappingManager;
     @Inject
     private IdentifierService identifierService;
     private String redisKey;
     private HashOperations<String, String, Proxy> ops; // TODO refactor to bound?
+    private SetOperations<String, String> userProxyOps;
+
+    private final ConcurrentHashMap<String, Proxy> cache = ProxyHashMap.create();
+    private String userProxyRedisKey;
 
     @PostConstruct
     public void init() {
         redisKey = "shinyproxy_" + identifierService.realmId + "__active_proxies";
         ops = redisTemplate.opsForHash();
+        userProxyRedisKey = "shinyproxy_user_proxies__";
+        userProxyOps = userProxyTemplate.opsForSet();
     }
 
     @Override
@@ -65,6 +78,7 @@ public class RedisProxyStore implements IProxyStore {
         logger.debug("Add proxy {}", proxy.getId());
         ops.put(redisKey, proxy.getId(), proxy);
         updateMappings(proxy.getId(), proxy);
+        userProxyOps.add(userProxyRedisKey + proxy.getUserId(), proxy.getId());
     }
 
     @Override
@@ -72,6 +86,7 @@ public class RedisProxyStore implements IProxyStore {
         logger.debug("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
         updateMappings(proxy.getId(), proxy);
+        userProxyOps.remove(userProxyRedisKey + proxy.getUserId(), proxy.getId());
     }
 
     @Override
@@ -87,6 +102,22 @@ public class RedisProxyStore implements IProxyStore {
         Proxy proxy = ops.get(redisKey, proxyId);
         updateMappings(proxyId, proxy);
         return proxy;
+    }
+
+    @Override
+    public List<Proxy> getUserProxies(String userId) {
+        List<Proxy> result = new ArrayList<>();
+        Set<String> ids = userProxyOps.members(userProxyRedisKey + userId);
+        if (ids == null) {
+            return result;
+        }
+        List<Proxy> proxies = ops.multiGet(redisKey, ids);
+        for (Proxy proxy : proxies) {
+            if (proxy != null && proxy.getUserId().equalsIgnoreCase(userId)) {
+                result.add(proxy);
+            }
+        }
+        return result;
     }
 
     @EventListener

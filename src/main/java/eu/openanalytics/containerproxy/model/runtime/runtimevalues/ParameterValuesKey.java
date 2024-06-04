@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
     public static final ParameterValuesKey inst = new ParameterValuesKey();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ParameterValuesKey() {
         super("openanalytics.eu/sp-parameters",
@@ -42,7 +43,6 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
     @Override
     public ParameterValues deserializeFromString(String value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.readValue(value, ParameterValues.class);
         } catch (JsonProcessingException e) {
@@ -52,7 +52,6 @@ public class ParameterValuesKey extends RuntimeValueKey<ParameterValues> {
 
     @Override
     public String serializeToString(ParameterValues value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {

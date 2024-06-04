@@ -195,7 +195,7 @@ public class ProxyService {
      * @return A List of matching proxies, may be empty.
      */
     public List<Proxy> getUserProxies() {
-        return proxyStore.getAllProxies().stream().filter(p -> userService.isOwner(p)).toList();
+        return proxyStore.getUserProxies(userService.getCurrentUserId());
     }
 
     /**
@@ -204,7 +204,7 @@ public class ProxyService {
      * @return A List of matching proxies, may be empty.
      */
     public List<Proxy> getUserProxies(String userId) {
-        return proxyStore.getAllProxies().stream().filter(p -> p.getUserId().equals(userId)).toList();
+        return proxyStore.getUserProxies(userId);
     }
 
     /**

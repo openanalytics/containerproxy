@@ -112,7 +112,11 @@ public class ContainerProxyApplication {
 
         app.addListeners(new LoggingConfigurer());
 
-        boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME));
+        boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME))
+            || System.getProperty("spring.config.location") != null
+            || System.getenv("SPRING_CONFIG_LOCATION") != null
+            || Arrays.asList(args).contains("--spring.config.location");
+
         if (!hasExternalConfig) {
             app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);
             Logger log = LogManager.getLogger(ContainerProxyApplication.class);

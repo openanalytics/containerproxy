@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.RemoveDelegateProxiesEvent;
 import eu.openanalytics.containerproxy.event.SeatAvailableEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
@@ -195,6 +196,26 @@ public class ProxySharingScaler {
         pendingDelegatingProxies.remove(proxyStartFailedEvent.getProxyId());
     }
 
+    @EventListener
+    public void onRemoveDelegateProxiesEvent(RemoveDelegateProxiesEvent event) {
+        if ((event.getSpecId() != null && !Objects.equals(event.getSpecId(), proxySpec.getId()))
+            || !leaderService.isLeader()
+            || (event.getId() != null && delegateProxyStore.getDelegateProxy(event.getId()) == null)
+            ) {
+            // only handle events for this spec
+            return;
+        }
+        if (event.getId() != null) {
+            // remove single proxy
+            logger.info("[{} {}] Received external request to remove DelegateProxy", kv("specId", proxySpec.getId()), kv("delegateProxyId", event.getId()));
+            globalEventLoop.schedule(() -> markDelegateProxyForRemoval(event.getId()));
+        } else {
+            // remove all proxies
+            logger.info("[{}] Received external request to remove all DelegateProxies", kv("specId", proxySpec.getId()));
+            globalEventLoop.schedule(this::markAllDelegateProxiesForRemoval);
+        }
+    }
+
     /**
      * Processes the SeatReleasedEvent, should only process one event a a time (i.e. using the event loop),
      * since it modifies the Delegateproxy.
@@ -246,6 +267,9 @@ public class ProxySharingScaler {
     private void markDelegateProxyForRemoval(String delegateProxyId) {
         // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
         DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(delegateProxyId);
+        if (delegateProxy == null) {
+            return;
+        }
         Set<String> seatIds = delegateProxy.getSeatIds();
         DelegateProxy.DelegateProxyBuilder delegateProxyBuilder = delegateProxy.toBuilder()
             .delegateProxyStatus(DelegateProxyStatus.ToRemove);
@@ -265,6 +289,12 @@ public class ProxySharingScaler {
             }
         }
         delegateProxyStore.updateDelegateProxy(delegateProxyBuilder.build());
+    }
+
+    private void markAllDelegateProxiesForRemoval() {
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+        }
     }
 
     private void reconcile() {

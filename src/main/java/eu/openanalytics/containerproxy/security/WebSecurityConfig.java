@@ -130,6 +130,7 @@ public class WebSecurityConfig {
 
         // App Recovery Filter
         http.addFilterAfter(appRecoveryFilter, BasicAuthenticationFilter.class);
+        http.addFilterAfter(new UserAgentFilter(), BasicAuthenticationFilter.class);
 
         // Perform CSRF check on the login form
         http.csrf(csrf -> csrf.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/login", "POST")));

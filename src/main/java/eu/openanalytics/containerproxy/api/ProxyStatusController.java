@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.InvalidParametersException;
 import eu.openanalytics.containerproxy.service.ProxyService;
+import eu.openanalytics.containerproxy.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -66,6 +67,8 @@ public class ProxyStatusController {
     private ProxyService proxyService;
     @Inject
     private AsyncProxyService asyncProxyService;
+    @Inject
+    private UserService userService;
 
     @Operation(
         summary = "Change the status of a proxy.", tags = "ContainerProxy",
@@ -74,7 +77,7 @@ public class ProxyStatusController {
                 mediaType = "application/json",
                 schema = @Schema(implementation = ChangeProxyStatusDto.class),
                 examples = {
-                    @ExampleObject(name = "Stopping", description = "Stop a proxy.", value = "{\"status\": \"Stopping\"}"),
+                    @ExampleObject(name = "Stopping", description = "Stop a proxy (allowed by admins).", value = "{\"status\": \"Stopping\"}"),
                     @ExampleObject(name = "Pausing", description = "Pause a proxy.", value = "{\"status\": \"Pausing\"}"),
                     @ExampleObject(name = "Resuming", description = "Resume a proxy.", value = "{\"status\": \"Resuming\"}"),
                     @ExampleObject(name = "Resuming with parameters", description = "Resume a proxy.", value = "{\"status\": \"Resuming\", \"parameters\":{\"resources\":\"2 CPU cores - 8G RAM\"," +
@@ -115,8 +118,12 @@ public class ProxyStatusController {
     @ResponseBody
     @RequestMapping(value = "/api/proxy/{proxyId}/status", method = RequestMethod.PUT)
     public ResponseEntity<ApiResponse<Void>> changeProxyStatus(@PathVariable String proxyId, @RequestBody ChangeProxyStatusDto changeProxyStateDto) {
-        Proxy proxy = proxyService.getUserProxy(proxyId);
+        Proxy proxy = proxyService.getProxy(proxyId);
         if (proxy == null) {
+            return ApiResponse.failForbidden();
+        }
+        if (!userService.isOwner(proxy) && !(changeProxyStateDto.getStatus().equals("Stopping") && userService.isAdmin())) {
+            // admin is allowed to stop app
             return ApiResponse.failForbidden();
         }
 

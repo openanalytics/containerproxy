@@ -62,7 +62,7 @@ public class RedisProxyStore implements IProxyStore {
     public void init() {
         redisKey = "shinyproxy_" + identifierService.realmId + "__active_proxies";
         ops = redisTemplate.opsForHash();
-        userProxyRedisKey = "shinyproxy_user_proxies__";
+        userProxyRedisKey = "shinyproxy_" + identifierService.realmId + "_user_proxies_";
         userProxyOps = userProxyTemplate.opsForSet();
     }
 

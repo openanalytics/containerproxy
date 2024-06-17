@@ -21,9 +21,12 @@
 package eu.openanalytics.containerproxy;
 
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
+import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
 import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
 import eu.openanalytics.containerproxy.service.hearbeat.IHeartbeatProcessor;
+import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.LoggingConfigurer;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import io.undertow.Handlers;
@@ -106,6 +109,8 @@ public class ContainerProxyApplication {
     private DefaultCookieSerializer defaultCookieSerializer;
     @Autowired(required = false)
     private SessionManagerFactory sessionManagerFactory;
+    @Inject
+    private IProxySpecProvider proxySpecProvider;
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(ContainerProxyApplication.class);
@@ -245,6 +250,14 @@ public class ContainerProxyApplication {
                 // using Redis sessions together with app recovery -> this does not make sense
                 // if already using Redis for sessions there is no reason to not store app sessions
                 log.warn("WARNING: Invalid configuration detected: user sessions are stored in Redis and App Recovery is enabled. Instead of using App Recovery, change store-mode so that app sessions are stored in Redis!");
+            }
+        }
+        if (environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES, Boolean.class, false) ||
+            environment.getProperty(PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG, Boolean.class, false)) {
+            for (ProxySpec proxySpec : proxySpecProvider.getSpecs()) {
+                if (ProxySharingDispatcher.supportSpec(proxySpec)) {
+                    throw new IllegalStateException("Cannot use App Recovery together with container pre-initialization or sharing");
+                }
             }
         }
 

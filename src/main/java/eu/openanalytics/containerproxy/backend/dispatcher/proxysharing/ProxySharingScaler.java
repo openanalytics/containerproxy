@@ -64,11 +64,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.leader.event.OnRevokedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -82,9 +85,10 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
-public class ProxySharingScaler {
+public class ProxySharingScaler implements AutoCloseable {
 
     protected static String publicPathPrefix = "/api/route/";
     protected final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
@@ -95,6 +99,7 @@ public class ProxySharingScaler {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
     private final String proxySpecHash;
+    private boolean stopAppsOnShutdown;
     protected ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
 
@@ -116,6 +121,8 @@ public class ProxySharingScaler {
     private ILeaderService leaderService;
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
+    @Inject
+    private Environment environment;
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
@@ -128,6 +135,11 @@ public class ProxySharingScaler {
         if (!specExtension.allowContainerReUse && specExtension.seatsPerContainer != 1) {
             throw new IllegalStateException(String.format("Spec %s is invalid: when allow-container-re-use is disabled, seatsPerContainer must be exactly 1", proxySpec.getId()));
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        stopAppsOnShutdown = environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true);
     }
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
@@ -201,7 +213,7 @@ public class ProxySharingScaler {
         if ((event.getSpecId() != null && !Objects.equals(event.getSpecId(), proxySpec.getId()))
             || !leaderService.isLeader()
             || (event.getId() != null && delegateProxyStore.getDelegateProxy(event.getId()) == null)
-            ) {
+        ) {
             // only handle events for this spec
             return;
         }
@@ -629,6 +641,14 @@ public class ProxySharingScaler {
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
             containerBackend.stopProxy(delegateProxy.getProxy());
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (!stopAppsOnShutdown) {
+            return;
+        }
+        stopAll();
     }
 
     private String getPublicPath(String targetId) {

@@ -88,6 +88,7 @@ public class OpenIDConfiguration {
             .clientId(environment.getProperty("proxy.openid.client-id"))
             .clientSecret(environment.getProperty("proxy.openid.client-secret"))
             .userInfoUri(environment.getProperty("proxy.openid.userinfo-url"))
+            .clientAuthenticationMethod(environment.getProperty("proxy.openid.client-authentication-method"))
             .build();
 
         return new InMemoryClientRegistrationRepository(Collections.singletonList(client));

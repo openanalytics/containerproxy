@@ -57,7 +57,7 @@ public class RetryingTest {
             return false;
         }, 3_000);
         long time = Duration.between(start, Instant.now()).toMillis();
-        Assertions.assertTrue(time > 3_000);
+        Assertions.assertTrue(time >= 3_000);
         Assertions.assertTrue(time < 5_000);
         Assertions.assertEquals(11, called.get());
     }
@@ -71,7 +71,7 @@ public class RetryingTest {
             return false;
         }, 10_000);
         long time = Duration.between(start, Instant.now()).toMillis();
-        Assertions.assertTrue(time > 10_000);
+        Assertions.assertTrue(time >= 10_000);
         Assertions.assertTrue(time < 12_000);
         Assertions.assertEquals(15, called.get());
     }

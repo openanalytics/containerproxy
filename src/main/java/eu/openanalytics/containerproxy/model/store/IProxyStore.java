@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.model.store;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Interface to manage Active Proxies in the ProxyService.
@@ -38,4 +39,6 @@ public interface IProxyStore {
     void updateProxy(Proxy proxy);
 
     Proxy getProxy(String proxyId);
+
+    List<Proxy> getUserProxies(String userId);
 }

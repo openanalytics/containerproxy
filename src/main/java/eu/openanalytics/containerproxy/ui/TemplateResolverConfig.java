@@ -96,7 +96,7 @@ public class TemplateResolverConfig implements WebMvcConfigurer {
         FileTemplateResolver resolver = new FileTemplateResolver();
         resolver.setPrefix(environment.getProperty("proxy.template-path") + "/");
         resolver.setSuffix(".html");
-        resolver.setTemplateMode("HTML5");
+        resolver.setTemplateMode("HTML");
         resolver.setCacheable(false);
         resolver.setCheckExistence(true);
         resolver.setOrder(1);

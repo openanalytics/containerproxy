@@ -27,6 +27,8 @@ public class HttpHeadersKey extends RuntimeValueKey<HttpHeaders> {
 
     public static final HttpHeadersKey inst = new HttpHeadersKey();
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public HttpHeadersKey() {
         super("openanalytics.eu/sp-http-headers",
             "SHINYPROXY_HTTP_HEADERS",
@@ -41,7 +43,6 @@ public class HttpHeadersKey extends RuntimeValueKey<HttpHeaders> {
 
     @Override
     public HttpHeaders deserializeFromString(String value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.readValue(value, HttpHeaders.class);
         } catch (JsonProcessingException e) {
@@ -51,7 +52,6 @@ public class HttpHeadersKey extends RuntimeValueKey<HttpHeaders> {
 
     @Override
     public String serializeToString(HttpHeaders value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {

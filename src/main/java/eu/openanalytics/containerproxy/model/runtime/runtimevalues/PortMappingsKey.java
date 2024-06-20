@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
 
     public static final PortMappingsKey inst = new PortMappingsKey();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private PortMappingsKey() {
         super("openanalytics.eu/sp-port-mappings",
@@ -42,7 +43,6 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
 
     @Override
     public PortMappings deserializeFromString(String value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.readValue(value, PortMappings.class);
         } catch (JsonProcessingException e) {
@@ -52,7 +52,6 @@ public class PortMappingsKey extends RuntimeValueKey<PortMappings> {
 
     @Override
     public String serializeToString(PortMappings value) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {

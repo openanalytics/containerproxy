@@ -37,6 +37,7 @@ import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAut
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 
@@ -88,6 +89,7 @@ public class OpenIDConfiguration {
             .clientId(environment.getProperty("proxy.openid.client-id"))
             .clientSecret(environment.getProperty("proxy.openid.client-secret"))
             .userInfoUri(environment.getProperty("proxy.openid.userinfo-url"))
+            .clientAuthenticationMethod(environment.getProperty("proxy.openid.client-authentication-method", ClientAuthenticationMethod.class))
             .build();
 
         return new InMemoryClientRegistrationRepository(Collections.singletonList(client));

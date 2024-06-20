@@ -201,11 +201,6 @@ public class RedisStoreConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, String> unClaimSeatIdsTemplate(RedisConnectionFactory connectionFactory) {
-        return createRedisTemplate(connectionFactory, String.class);
-    }
-
-    @Bean
     public RedisTemplate<String, Seat> seatsTemplate(RedisConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, Seat.class);
     }

@@ -221,6 +221,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
     @Override
     protected void doStopProxy(Proxy proxy) throws Exception {
+        if (proxy.getContainers().isEmpty()) {
+            // containers not yet created, do no perform cleanup, see #33102
+            return;
+        }
         for (Container container : proxy.getContainers()) {
             if (container.getId() == null) {
                 continue;
@@ -238,13 +242,15 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                     }
                 }
                 dockerClient.removeContainer(container.getId(), DockerClient.RemoveContainerParam.forceKill());
+                releasePort(proxy.getId());
             } catch (ContainerNotFoundException e) {
+                releasePort(proxy.getId());
                 // ignore, container is already removed
             } catch (ConflictException e) {
                 // ignore, container is currently being removed
+                // do not release port now
             }
         }
-        releasePort(proxy.getId());
     }
 
     @Override

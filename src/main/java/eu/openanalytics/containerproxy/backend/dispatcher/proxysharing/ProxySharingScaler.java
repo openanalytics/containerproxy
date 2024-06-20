@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.PendingProxyEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
+import eu.openanalytics.containerproxy.event.RemoveDelegateProxiesEvent;
 import eu.openanalytics.containerproxy.event.SeatAvailableEvent;
 import eu.openanalytics.containerproxy.event.SeatClaimedEvent;
 import eu.openanalytics.containerproxy.event.SeatReleasedEvent;
@@ -63,11 +64,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.leader.event.OnRevokedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,9 +85,10 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
-public class ProxySharingScaler {
+public class ProxySharingScaler implements AutoCloseable {
 
     protected static String publicPathPrefix = "/api/route/";
     protected final ExecutorService executor = ExecutorServiceFactory.create("ProxySharingScaler");
@@ -94,6 +99,7 @@ public class ProxySharingScaler {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ProxySpec proxySpec;
     private final String proxySpecHash;
+    private boolean stopAppsOnShutdown;
     protected ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
 
@@ -115,6 +121,8 @@ public class ProxySharingScaler {
     private ILeaderService leaderService;
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
+    @Inject
+    private Environment environment;
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
@@ -127,6 +135,11 @@ public class ProxySharingScaler {
         if (!specExtension.allowContainerReUse && specExtension.seatsPerContainer != 1) {
             throw new IllegalStateException(String.format("Spec %s is invalid: when allow-container-re-use is disabled, seatsPerContainer must be exactly 1", proxySpec.getId()));
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        stopAppsOnShutdown = environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true);
     }
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
@@ -195,6 +208,26 @@ public class ProxySharingScaler {
         pendingDelegatingProxies.remove(proxyStartFailedEvent.getProxyId());
     }
 
+    @EventListener
+    public void onRemoveDelegateProxiesEvent(RemoveDelegateProxiesEvent event) {
+        if ((event.getSpecId() != null && !Objects.equals(event.getSpecId(), proxySpec.getId()))
+            || !leaderService.isLeader()
+            || (event.getId() != null && delegateProxyStore.getDelegateProxy(event.getId()) == null)
+        ) {
+            // only handle events for this spec
+            return;
+        }
+        if (event.getId() != null) {
+            // remove single proxy
+            logger.info("[{} {}] Received external request to remove DelegateProxy", kv("specId", proxySpec.getId()), kv("delegateProxyId", event.getId()));
+            globalEventLoop.schedule(() -> markDelegateProxyForRemoval(event.getId()));
+        } else {
+            // remove all proxies
+            logger.info("[{}] Received external request to remove all DelegateProxies", kv("specId", proxySpec.getId()));
+            globalEventLoop.schedule(this::markAllDelegateProxiesForRemoval);
+        }
+    }
+
     /**
      * Processes the SeatReleasedEvent, should only process one event a a time (i.e. using the event loop),
      * since it modifies the Delegateproxy.
@@ -246,6 +279,9 @@ public class ProxySharingScaler {
     private void markDelegateProxyForRemoval(String delegateProxyId) {
         // this delegateProxy will be (completely) removed by the cleanup function, not by scale-down
         DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(delegateProxyId);
+        if (delegateProxy == null) {
+            return;
+        }
         Set<String> seatIds = delegateProxy.getSeatIds();
         DelegateProxy.DelegateProxyBuilder delegateProxyBuilder = delegateProxy.toBuilder()
             .delegateProxyStatus(DelegateProxyStatus.ToRemove);
@@ -265,6 +301,12 @@ public class ProxySharingScaler {
             }
         }
         delegateProxyStore.updateDelegateProxy(delegateProxyBuilder.build());
+    }
+
+    private void markAllDelegateProxiesForRemoval() {
+        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
+            markDelegateProxyForRemoval(delegateProxy.getProxy().getId());
+        }
     }
 
     private void reconcile() {
@@ -599,6 +641,14 @@ public class ProxySharingScaler {
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
             containerBackend.stopProxy(delegateProxy.getProxy());
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (!stopAppsOnShutdown) {
+            return;
+        }
+        stopAll();
     }
 
     private String getPublicPath(String targetId) {

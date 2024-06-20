@@ -31,7 +31,10 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -42,6 +45,7 @@ public class ProxyDispatcherService {
     private final IProxySharingStoreFactory storeFactory;
     private final ConfigurableListableBeanFactory beanFactory;
     private final DefaultProxyDispatcher defaultProxyDispatcher;
+    private final List<AutoCloseable> closeables = new ArrayList<>();
 
     public ProxyDispatcherService(IProxySpecProvider proxySpecProvider,
                                   IProxySharingStoreFactory storeFactory,
@@ -62,6 +66,7 @@ public class ProxyDispatcherService {
 
                 ProxySharingScaler proxySharingScaler = createProxySharingScaler(seatStore, proxySpec, delegateProxyStore);
                 createBean(proxySharingScaler, "proxySharingScaler_" + proxySpec.getId());
+                closeables.add(proxySharingScaler);
 
                 ProxySharingDispatcher proxySharingDispatcher = new ProxySharingDispatcher(proxySpec, delegateProxyStore, seatStore);
                 createBean(proxySharingDispatcher, "proxySharingDispatcher_" + proxySpec.getId());
@@ -85,6 +90,14 @@ public class ProxyDispatcherService {
         beanFactory.autowireBean(bean);
         Object initializedBean = beanFactory.initializeBean(bean, beanName);
         beanFactory.registerSingleton(beanName, initializedBean);
+    }
+
+    @PreDestroy
+    public void shutdown() throws Exception {
+        // when using beanFactory.registerSingleton, @PreDestroy is not called
+        for (AutoCloseable closeable : closeables) {
+            closeable.close();
+        }
     }
 
 }

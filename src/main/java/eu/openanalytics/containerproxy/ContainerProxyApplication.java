@@ -120,7 +120,7 @@ public class ContainerProxyApplication {
         boolean hasExternalConfig = Files.exists(Paths.get(CONFIG_FILENAME))
             || System.getProperty("spring.config.location") != null
             || System.getenv("SPRING_CONFIG_LOCATION") != null
-            || Arrays.asList(args).contains("--spring.config.location");
+            || Arrays.stream(args).anyMatch(s -> s.contains("--spring.config.location"));
 
         if (!hasExternalConfig) {
             app.setAdditionalProfiles(CONFIG_DEMO_PROFILE);

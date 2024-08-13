@@ -1,11 +1,7 @@
 /**
  * ContainerProxy
  *
-<<<<<<< HEAD
  * Copyright (C) 2016-2024 Open Analytics
-=======
- * Copyright (C) 2016-2023 Open Analytics
->>>>>>> d57455466c9e5d7069e2878c7b751ec110a99b8c
  *
  * ===========================================================================
  *

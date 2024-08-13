@@ -1,11 +1,7 @@
 /**
  * ContainerProxy
  *
-<<<<<<< HEAD
  * Copyright (C) 2016-2024 Open Analytics
-=======
- * Copyright (C) 2016-2023 Open Analytics
->>>>>>> d57455466c9e5d7069e2878c7b751ec110a99b8c
  *
  * ===========================================================================
  *
@@ -29,17 +25,10 @@ import java.io.IOException;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
-<<<<<<< HEAD
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-=======
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
->>>>>>> d57455466c9e5d7069e2878c7b751ec110a99b8c
 
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;

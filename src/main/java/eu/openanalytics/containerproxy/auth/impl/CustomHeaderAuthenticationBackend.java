@@ -1,11 +1,7 @@
 /**
  * ContainerProxy
  *
-<<<<<<< HEAD
  * Copyright (C) 2016-2024 Open Analytics
-=======
- * Copyright (C) 2016-2023 Open Analytics
->>>>>>> d57455466c9e5d7069e2878c7b751ec110a99b8c
  *
  * ===========================================================================
  *
@@ -53,11 +49,7 @@ public class CustomHeaderAuthenticationBackend implements IAuthenticationBackend
     }
 
     @Override
-<<<<<<< HEAD
     public void configureHttpSecurity(HttpSecurity http) throws Exception {
-=======
-    public void configureHttpSecurity(HttpSecurity http, AuthorizedUrl anyRequestConfigurer) throws Exception {
->>>>>>> d57455466c9e5d7069e2878c7b751ec110a99b8c
         http.formLogin().disable();
 		
 		http.addFilterBefore(new CustomHeaderAuthenticationFilter(), BasicAuthenticationFilter.class);

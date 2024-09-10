@@ -436,14 +436,16 @@ public class ProxyService {
             proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
             proxy = proxyDispatcherService.getDispatcher(spec.getId()).addRuntimeValuesAfterSpel(user, spec, proxy);
 
-            // create container objects
-            for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
-                Container.ContainerBuilder containerBuilder = Container.builder();
-                containerBuilder.index(containerSpec.getIndex());
-                Container container = containerBuilder.build();
+            if (proxy.getContainers().isEmpty()) {
+                // create container objects if new proxy
+                for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
+                    Container.ContainerBuilder containerBuilder = Container.builder();
+                    containerBuilder.index(containerSpec.getIndex());
+                    Container container = containerBuilder.build();
 
-                container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
-                proxy = proxy.toBuilder().addContainer(container).build();
+                    container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
+                    proxy = proxy.toBuilder().addContainer(container).build();
+                }
             }
 
             context = context.copy(spec, proxy);

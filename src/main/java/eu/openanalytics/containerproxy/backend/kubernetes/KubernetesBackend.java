@@ -318,6 +318,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             }
             podSpec.setVolumes(volumes);
             podSpec.setImagePullSecrets(imagePullSecrets);
+            podSpec.setRestartPolicy("Never");
 
             if (nodeSelectorString != null) {
                 podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));

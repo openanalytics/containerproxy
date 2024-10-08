@@ -271,7 +271,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 .withVolumeMounts(volumeMounts)
                 .withSecurityContext(security)
                 .withResources(resourceRequirementsBuilder.build())
-                .withEnv(envVars);
+                .withEnv(envVars)
+                .withTerminationMessagePolicy("FallbackToLogsOnError");
 
             if (imagePullPolicy != null) containerBuilder.withImagePullPolicy(imagePullPolicy);
 
@@ -353,7 +354,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             if (!podReady) {
                 // check a final time whether the pod is ready
                 if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-                    logKubernetesWarnings(proxy, startedPod);
+                    logKubernetesWarnings(proxy, startedPod.getMetadata().getNamespace(), startupPod.getMetadata().getName());
                     throw new ContainerFailedToStartException("Kubernetes Pod did not start in time", null, rContainerBuilder.build());
                 }
             }
@@ -417,13 +418,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return patchedPod;
     }
 
-    private void logKubernetesWarnings(Proxy proxy, Pod pod) {
+    private void logKubernetesWarnings(Proxy proxy, String podNamespace, String podName) {
         List<Event> events;
         try {
             events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
                 .withKind("Pod")
-                .withName(pod.getMetadata().getName())
-                .withNamespace(pod.getMetadata().getNamespace())
+                .withName(podName)
+                .withNamespace(podNamespace)
                 .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
@@ -433,8 +434,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
             throw ex;
         }
         for (Event event : events) {
-            if (event.getType().equals("Warning")) {
-                slog.warn(proxy, "Kubernetes warning: " + event.getMessage());
+            if (event.getType().equals("Warning") || event.getReason().equals("Killing") || event.getReason().equals("Evicted")) {
+                String source = Optional.ofNullable(event.getSource()).map(EventSource::getComponent).orElse(null);
+                String time = null;
+                if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
+                    time = event.getEventTime().getTime();
+                } else if (event.getLastTimestamp() != null) {
+                    time = event.getLastTimestamp();
+                }
+                slog.warn(proxy, String.format("Kubernetes warning at %s, '%s', source: '%s'", time, event.getMessage(), source));
             }
         }
     }
@@ -640,13 +648,19 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 // container was not yet fully created
                 continue;
             }
+            String podNamespace = podInfo.get().getFirst();
+            String podName = podInfo.get().getSecond();
+
+            if (getContainerFailure(proxy, podNamespace, podName).isPresent()) {
+                logKubernetesWarnings(proxy, podNamespace, podName);
+            }
 
             // specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
-            kubeClient.pods().inNamespace(podInfo.get().getFirst()).withName(podInfo.get().getSecond()).withGracePeriod(0).delete();
+            kubeClient.pods().inNamespace(podNamespace).withName(podName).withGracePeriod(0).delete();
 
             if (!isUseInternalNetwork()) {
                 // delete service when not using internal network
-                Service service = kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(proxy, container)).get();
+                Service service = kubeClient.services().inNamespace(podNamespace).withName(getServiceName(proxy, container)).get();
                 if (service != null) {
                     kubeClient.resource(service).withGracePeriod(0).delete();
                 }

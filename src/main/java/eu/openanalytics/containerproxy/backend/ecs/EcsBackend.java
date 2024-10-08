@@ -436,6 +436,11 @@ public class EcsBackend extends AbstractContainerBackend {
         return new ArrayList<>();
     }
 
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        return true; // TODO
+    }
+
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
         String targetHostName = "";
         int targetPort;

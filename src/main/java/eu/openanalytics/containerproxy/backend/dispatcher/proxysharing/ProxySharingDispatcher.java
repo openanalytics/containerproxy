@@ -219,6 +219,11 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         return proxy;
     }
 
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        return false; // TODO
+    }
+
     @EventListener
     public void onSeatAvailableEvent(SeatAvailableEvent event) {
         if (!Objects.equals(event.getSpecId(), proxySpec.getId())) {

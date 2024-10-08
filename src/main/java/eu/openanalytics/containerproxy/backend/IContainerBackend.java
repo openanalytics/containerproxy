@@ -107,4 +107,6 @@ public interface IContainerBackend {
     default Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) throws ContainerProxyException {
         return proxy;
     }
+
+    boolean isProxyHealthy(Proxy proxy);
 }

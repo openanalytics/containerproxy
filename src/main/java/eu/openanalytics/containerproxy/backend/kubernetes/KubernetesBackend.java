@@ -49,9 +49,12 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.Event;
+import io.fabric8.kubernetes.api.model.EventSource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
@@ -772,6 +775,55 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
 
         return containers;
+    }
+
+    private Optional<String> getContainerFailure(Proxy proxy, String podNamespace, String podName) {
+        Pod pod = kubeClient.pods().inNamespace(podNamespace).withName(podName).get();
+        if (pod == null) {
+            return Optional.of("Kubernetes container failed, pod does not exist");
+        } else {
+            Optional<ContainerStatus> containerStatus = pod.getStatus().getContainerStatuses().stream().findFirst();
+            ContainerState state = null;
+            if (containerStatus.isPresent() && containerStatus.get().getState() != null) {
+                state = containerStatus.get().getState();
+            } else if (containerStatus.isPresent() && containerStatus.get().getLastState() != null) {
+                state = containerStatus.get().getLastState();
+            }
+            if (state != null && state.getTerminated() != null) {
+                String message = pod.getStatus().getMessage();
+                String logs = state.getTerminated().getMessage();
+                String reason = state.getTerminated().getReason();
+                Integer exitCode = state.getTerminated().getExitCode();
+                return Optional.of(String.format("Kubernetes pod failed, reason: '%s', exitCode: '%s', node: '%s', message:\n%s\nlogs:\n%s\n", reason, exitCode, pod.getSpec().getNodeName(), message, logs));
+            }
+            if (pod.isMarkedForDeletion()) {
+                return Optional.of(String.format("Kubernetes pod is being terminated, node: '%s'", pod.getSpec().getNodeName()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        for (Container container : proxy.getContainers()) {
+            Optional<Pair<String, String>> podInfo = getPodInfo(container);
+            if (podInfo.isEmpty()) {
+                continue;
+            }
+            for (int i = 0; i < 5; i++) {
+                Optional<String> error = getContainerFailure(proxy, podInfo.get().getFirst(), podInfo.get().getSecond());
+                if (error.isPresent()) {
+                    slog.warn(proxy, error.get());
+                    return false;
+                }
+                try {
+                    // wait for k8s events to propagate
+                    Thread.sleep(1_000);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+        return true;
     }
 
     private Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,

@@ -115,9 +115,15 @@ public class ProxyMappingManager {
                             originalURL += "?" + responseExchange.getQueryString();
                         }
                         String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
-                        slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
-                            responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
-                        asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
+                        if (!proxyService.isProxyHealthy(proxy)) {
+                            slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
+                                responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
+                            asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
+                        } else {
+                            slogger.info(proxy, String.format("Failed request: %s %s was proxied to: %s, status: %s",
+                                responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
+                            return false;
+                        }
                     }
                 } catch (Throwable t) {
                     // ignore in order to complete request

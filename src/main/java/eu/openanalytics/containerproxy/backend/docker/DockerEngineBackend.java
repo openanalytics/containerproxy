@@ -296,6 +296,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     }
 
     @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        return true; // TODO
+    }
+
+    @Override
     public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
         Container c = getPrimaryContainer(proxy);
         if (c == null) return null;

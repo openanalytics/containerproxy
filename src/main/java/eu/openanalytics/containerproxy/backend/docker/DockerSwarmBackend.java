@@ -355,6 +355,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     }
 
     @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        return true; // TODO
+    }
+
+    @Override
     public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
         Container container = getPrimaryContainer(proxy);
         if (container == null) return null;

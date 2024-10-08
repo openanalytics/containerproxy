@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
+import eu.openanalytics.containerproxy.util.Retrying;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -55,9 +56,13 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -415,6 +420,35 @@ public class ProxyService {
                 cleanupIfPendingAppWasStopped(result);
             }
         });
+    }
+
+    public boolean isProxyHealthy(Proxy proxy) {
+        if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
+            return false;
+        }
+        int timeoutMs = Integer.parseInt(environment.getProperty("proxy.container-wait-timeout", "5000"));
+        if (proxy.getTargets().isEmpty()) {
+            slog.info(proxy, "Proxy failed: no targets available");
+            return false;
+        }
+        try {
+            URI targetURI = proxy.getTargets().get("");
+
+            URL testURL = new URL(targetURI.toString() + "/");
+            HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
+            connection.setConnectTimeout(timeoutMs);
+            connection.setReadTimeout(timeoutMs);
+            connection.setInstanceFollowRedirects(false);
+            int responseCode = connection.getResponseCode();
+            if (!Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
+                slog.info(proxy, String.format("Proxy failed: HTTP connection attempt returned invalid status: %s", responseCode));
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            slog.info(proxy, String.format("Proxy failed: HTTP connection attempt returned exception: %s", e.getMessage()));
+            return false;
+        }
     }
 
     private Pair<ProxySpec, Proxy> prepareProxyForStart(Authentication user, Proxy proxy, ProxySpec spec) {

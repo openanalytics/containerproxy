@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
@@ -91,6 +92,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_REGION = "region";
     private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
+    private static final Pattern LOG_GORUP_REPLACE_PATTERN = Pattern.compile("[^a-zA-Z0-9_\\-.#]");
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
 
     private EcsClient ecsClient;
@@ -198,7 +200,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 }
             }
 
-            String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, containerId, tags);
+            String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, tags);
 
             // tell the status service we are starting the pod/container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -259,7 +261,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
     }
 
-    private String getTaskDefinition(Authentication user, ContainerSpec spec, EcsSpecExtension specExtension, Proxy proxy, Container initialContainer, String containerId, List<Tag> tags) throws IOException {
+    private String getTaskDefinition(Authentication user, ContainerSpec spec, EcsSpecExtension specExtension, Proxy proxy, Container initialContainer, List<Tag> tags) throws IOException {
         if (spec.getImage().getValue().startsWith("arn:aws:ecs:")) {
             // external task definition
             return spec.getImage().getValue();
@@ -286,16 +288,20 @@ public class EcsBackend extends AbstractContainerBackend {
             .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
             .build();
 
+        // name of the container inside the task (it's not possible to choose a name for the task)
+        // automatically used in the cloudwatch stream name
+        String containerName = StringUtils.left(spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex()), 255);
+
        RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
             .containerDefinitions(ContainerDefinition.builder()
-                .name("sp-container-" + containerId)
+                .name(containerName)
                 .image(spec.getImage().getValue())
                 .command(spec.getCmd().getValueOrNull())
                 .environment(env)
                 .stopTimeout(2)
                 .dockerLabels(dockerLabels)
-                .logConfiguration(getLogConfiguration(proxy.getId()))
+                .logConfiguration(getLogConfiguration(proxy.getSpecId()))
                 .mountPoints(volumes.getSecond())
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
@@ -316,12 +322,13 @@ public class EcsBackend extends AbstractContainerBackend {
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();
     }
 
-    private LogConfiguration getLogConfiguration(String proxyId) {
+    private LogConfiguration getLogConfiguration(String specId) {
         if (enableCloudWatch) {
             LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
             logConfiguration.logDriver(LogDriver.AWSLOGS);
             HashMap<String, String> options = new HashMap<>();
-            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxyId);
+            String sanitizedSpecId = LOG_GORUP_REPLACE_PATTERN.matcher(specId).replaceAll("");
+            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + sanitizedSpecId);
             options.put("awslogs-region", cloudWatchRegion);
             options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
             options.put("awslogs-create-group", "true");

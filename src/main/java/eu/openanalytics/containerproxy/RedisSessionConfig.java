@@ -31,10 +31,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.session.MapSession;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
+import org.springframework.session.data.redis.RedisSessionMapper;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 @Configuration
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
@@ -59,7 +64,10 @@ public class RedisSessionConfig {
 
     @Bean
     public SessionRepositoryCustomizer<RedisIndexedSessionRepository> sessionRepositorySessionRepositoryCustomizer() {
-        return redisIndexedSessionRepository -> redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
+        return redisIndexedSessionRepository -> {
+            redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
+            redisIndexedSessionRepository.setRedisSessionMapper(new SafeRedisSessionMapper(redisIndexedSessionRepository.getSessionRedisOperations()));
+        };
     }
 
     @Bean
@@ -82,6 +90,30 @@ public class RedisSessionConfig {
                 }
             };
         }
+    }
+
+    class SafeRedisSessionMapper implements BiFunction<String, Map<String, Object>, MapSession> {
+
+        private final RedisSessionMapper delegate = new RedisSessionMapper();
+
+        private final RedisOperations<String, Object> redisOperations;
+
+        SafeRedisSessionMapper(RedisOperations<String, Object> redisOperations) {
+            this.redisOperations = redisOperations;
+        }
+
+        @Override
+        public MapSession apply(String sessionId, Map<String, Object> map) {
+            try {
+                return this.delegate.apply(sessionId, map);
+            }
+            catch (IllegalStateException ex) {
+                // do not invoke RedisIndexedSessionRepository#deleteById to avoid an infinite loop because the method also invokes this mapper
+                redisOperations.delete(getRedisNamespace() + ":sessions:" + sessionId);
+                return null;
+            }
+        }
+
     }
 
 }

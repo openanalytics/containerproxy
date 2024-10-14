@@ -120,9 +120,11 @@ public class HeartbeatService {
     @EventListener
     public void onSessionDestroyedEvent(HttpSessionDestroyedEvent event) {
         // stop every websocket connection started by the session
-        heartbeatConnectors.get(event.getId()).forEach(HeartbeatConnector::closeConnection);
-        // remove the session from the map
         List<HeartbeatConnector> removedConnectors = heartbeatConnectors.removeAll(event.getId());
+        for (HeartbeatConnector connector : removedConnectors) {
+            connector.closeConnection();
+        }
+        // remove the connector from the proxy map
         for (HeartbeatConnector connector : removedConnectors) {
             heartbeatConnectorsByProxyId.remove(connector.proxy.getId(), connector);
         }
@@ -130,11 +132,12 @@ public class HeartbeatService {
 
     @EventListener
     public void onProxyStoppedEvent(ProxyStopEvent event) {
-        // stop every websocket connection started by this proxy
-        heartbeatConnectorsByProxyId.get(event.getProxyId()).forEach(HeartbeatConnector::closeConnection);
-        // remove the session from the map
-
         List<HeartbeatConnector> removedConnectors = heartbeatConnectorsByProxyId.removeAll(event.getProxyId());
+        // stop every websocket connection started by this proxy
+        for (HeartbeatConnector connector : removedConnectors) {
+            connector.closeConnection();
+        }
+        // remove the connector from the session map
         for (HeartbeatConnector connector : removedConnectors) {
             heartbeatConnectors.remove(connector.sessionId, connector);
         }

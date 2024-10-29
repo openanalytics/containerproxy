@@ -102,10 +102,6 @@ public class ErrorController extends BaseController implements org.springframewo
             return ApiResponse.fail("bad request");
         }
 
-        if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
-            return ApiResponse.fail("bad request");
-        }
-
         Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
         if (status != null) {
             int statusCode = Integer.parseInt(status.toString());

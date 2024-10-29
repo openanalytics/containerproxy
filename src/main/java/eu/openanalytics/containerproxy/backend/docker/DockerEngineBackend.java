@@ -73,15 +73,18 @@ import java.util.stream.Stream;
 public class DockerEngineBackend extends AbstractDockerBackend {
 
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
+    private static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
 
     private ImagePullPolicy imagePullPolicy;
     private String nonInternalNetworkTargetProtocol;
     private URL hostURL;
+    private String containerNetwork;
 
     @PostConstruct
     public void initialize() {
         super.initialize();
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
+        containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
 
         try {
             hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
@@ -130,7 +133,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 hostConfigBuilder.cpuQuota(quota);
             }
 
-            spec.getNetwork().ifPresent(hostConfigBuilder::networkMode);
+            if (spec.getNetwork().isPresent()) {
+                hostConfigBuilder.networkMode(spec.getNetwork().getValueAsString());
+            } else if (containerNetwork != null) {
+                hostConfigBuilder.networkMode(containerNetwork);
+            }
             spec.getDns().ifPresent(hostConfigBuilder::dns);
             spec.getVolumes().ifPresent(hostConfigBuilder::binds);
             hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());

@@ -424,7 +424,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private void logKubernetesWarnings(Proxy proxy, String podNamespace, String podName) {
         List<Event> events;
         try {
-            events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+            events = kubeClient.v1().events().inNamespace(podNamespace)
+                .withInvolvedObject(new ObjectReferenceBuilder()
                 .withKind("Pod")
                 .withName(podName)
                 .withNamespace(podNamespace)
@@ -469,7 +470,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private void parseKubernetesEvents(int containerIdx, Pod pod, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) {
         List<Event> events;
         try {
-            events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
+            events = kubeClient.v1().events().inNamespace(pod.getMetadata().getNamespace())
+                .withInvolvedObject(new ObjectReferenceBuilder()
                 .withKind("Pod")
                 .withName(pod.getMetadata().getName())
                 .withNamespace(pod.getMetadata().getNamespace())

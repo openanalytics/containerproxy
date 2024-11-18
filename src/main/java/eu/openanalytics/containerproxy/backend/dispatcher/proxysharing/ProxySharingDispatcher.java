@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -175,7 +176,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, delegateProxy.getId()), true);
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdKey.inst, seat.getId()), true);
 
-        Container resultContainer = proxy.getContainer(0).toBuilder().id(UUID.randomUUID().toString()).build();
+        Container resultContainer = proxy.getContainer(0).toBuilder()
+            .id(UUID.randomUUID().toString())
+            .addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, delegateProxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst)), true)
+            .build();
         resultProxy.updateContainer(resultContainer);
 
         return resultProxy.build();

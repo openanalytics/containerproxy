@@ -71,7 +71,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -226,6 +225,10 @@ public class ProxySharingScaler implements AutoCloseable {
             logger.info("[{}] Received external request to remove all DelegateProxies", kv("specId", proxySpec.getId()));
             globalEventLoop.schedule(this::markAllDelegateProxiesForRemoval);
         }
+    }
+
+    public Collection<DelegateProxy> getAllDelegateProxies() {
+        return delegateProxyStore.getAllDelegateProxies();
     }
 
     /**

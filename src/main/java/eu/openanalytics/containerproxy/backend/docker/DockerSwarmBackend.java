@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -211,7 +212,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             // tell the status service we are starting the container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceName), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(serviceName)), false);
 
             // Give the service some time to start up and launch a container.
             boolean containerFound = Retrying.retry((currentAttempt, maxAttempts) -> {
@@ -294,10 +295,10 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     @Override
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
-            String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+            BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
             if (serviceId != null) {
                 try {
-                    dockerClient.removeService(serviceId);
+                    dockerClient.removeService(serviceId.getName());
                 } catch (ServiceNotFoundException e) {
                     // ignore, service is already removed
                 }
@@ -328,7 +329,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 continue;
             }
             runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
-            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, service.id()));
+            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(service.id())));
 
             String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
             if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
@@ -363,11 +364,11 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
         Container container = getPrimaryContainer(proxy);
         if (container == null) return null;
-        String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.serviceLogs(serviceId, DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                LogStream logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {

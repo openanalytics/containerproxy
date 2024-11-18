@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
-public class BackendContainerNameKey extends RuntimeValueKey<String> {
+public class BackendContainerNameKey extends RuntimeValueKey<BackendContainerName> {
 
     public final static BackendContainerNameKey inst = new BackendContainerNameKey();
 
@@ -33,17 +33,17 @@ public class BackendContainerNameKey extends RuntimeValueKey<String> {
             false, // important: may not be exposed in API for security
             false,
             true,
-            String.class);
+            BackendContainerName.class);
     }
 
     @Override
-    public String deserializeFromString(String value) {
-        return value;
+    public BackendContainerName deserializeFromString(String value) {
+        return new BackendContainerName(value);
     }
 
     @Override
-    public String serializeToString(String value) {
-        return value;
+    public String serializeToString(BackendContainerName value) {
+        return value.toString();
     }
 
 }

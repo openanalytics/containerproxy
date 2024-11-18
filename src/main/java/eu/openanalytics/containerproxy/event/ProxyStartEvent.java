@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -37,6 +39,9 @@ public class ProxyStartEvent extends BridgeableEvent {
     String proxyId;
     String userId;
     String specId;
+    String instance;
+    Long createdTimestamp;
+    BackendContainerName backendContainerName;
     ProxyStartupLog proxyStartupLog;
 
     @JsonCreator
@@ -44,21 +49,33 @@ public class ProxyStartEvent extends BridgeableEvent {
                            @JsonProperty("proxyId") String proxyId,
                            @JsonProperty("userId") String userId,
                            @JsonProperty("specId") String specId,
+                           @JsonProperty("instance") String instance,
+                           @JsonProperty("createdTimestamp") Long createdTimestamp,
+                           @JsonProperty("backendContainerName") BackendContainerName backendContainerName,
                            @JsonProperty("proxyStartupLog") ProxyStartupLog proxyStartupLog) {
         super(source);
         this.proxyId = proxyId;
         this.userId = userId;
         this.specId = specId;
+        this.instance = instance;
+        this.createdTimestamp = createdTimestamp;
+        this.backendContainerName = backendContainerName;
         this.proxyStartupLog = proxyStartupLog;
     }
 
     public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
-        this(SOURCE_NOT_AVAILABLE, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), proxyStartupLog);
+        this(SOURCE_NOT_AVAILABLE, proxy.getId(),
+            proxy.getUserId(),
+            proxy.getSpecId(),
+            proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+            proxy.getCreatedTimestamp(),
+            proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst),
+            proxyStartupLog);
     }
 
     @Override
     public ProxyStartEvent withSource(String source) {
-        return new ProxyStartEvent(source, proxyId, userId, specId, proxyStartupLog);
+        return new ProxyStartEvent(source, proxyId, userId, specId, instance, createdTimestamp, backendContainerName, proxyStartupLog);
     }
 
 }

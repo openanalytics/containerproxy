@@ -29,6 +29,8 @@ import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.ProxyService;
@@ -36,11 +38,12 @@ import eu.openanalytics.containerproxy.service.session.ISessionService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
@@ -53,11 +56,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.ToDoubleFunction;
+import java.util.stream.Collectors;
+
+import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class Micrometer implements IStatCollector {
 
     private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every 20 seconds
-    private final Logger logger = LogManager.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     // keeps track of the number of proxies per spec id
     private final ConcurrentHashMap<String, Integer> proxyCountCache = new ConcurrentHashMap<>();
     // need to store a reference to the proxyCounters as the Micrometer library only stores weak references
@@ -124,6 +130,7 @@ public class Micrometer implements IStatCollector {
             @Override
             public void run() {
                 updateCachedProxyCount();
+                updateAppInfo();
             }
         }, 0, CACHE_UPDATE_INTERVAL);
     }
@@ -142,11 +149,27 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
+        // must run on each instance (gauge is registered on every instance)
+        if (event.getBackendContainerName() != null) {
+            // container not fully ready, will be registered later
+            registry.gauge("appInfo",
+                Tags.of(
+                    "spec.id", event.getSpecId(),
+                    "user.id", event.getUserId(),
+                    "proxy.instance", event.getInstance(),
+                    "proxy.id", event.getProxyId(),
+                    "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                    "resource.id", event.getBackendContainerName().getName(),
+                    "proxy.namespace", event.getBackendContainerName().getNamespace()),
+                1
+            );
+        }
         if (!event.isLocalEvent()) {
             return;
         }
         logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
         registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
+
 
         ProxyStartupLog startupLog = event.getProxyStartupLog();
         startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
@@ -178,6 +201,11 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
+        try {
+            // must run on each instance (gauge is registered on every instance)
+            registry.remove(registry.get("appInfo").tag("proxy.id", event.getProxyId()).gauge());
+        } catch (MeterNotFoundException ignored) {
+        }
         if (!event.isLocalEvent()) {
             return;
         }
@@ -263,6 +291,59 @@ public class Micrometer implements IStatCollector {
             return proxyCountCache.getOrDefault(specId, null);
         }
 
+    }
+
+    /**
+     * Registers the appInfo gauge for every running app and removes any registrations for apps that have been stopped.
+     * All gauges must be registered on every replica. If the gauge was only registered on the instance the app was started,
+     * it would be removed from prometheus when that instance stopped, although the app could still be running.
+     *
+     * The periodic sync keeps the registry in sync (e.g. on startup).
+     */
+    private void updateAppInfo() {
+        Map<String, Gauge> existingGauges = getAppInfoGauges();
+        for (Proxy proxy : proxyService.getAllUpProxies()) {
+            if (existingGauges.remove(proxy.getId()) != null) {
+                // gauge already exists, no need to re-create
+                continue;
+            }
+            BackendContainerName backendContainerName = getBackendContainerName(proxy);
+            if (backendContainerName == null) {
+                // container not fully ready, will be registered later
+                continue;
+            }
+            registry.gauge("appInfo",
+                Tags.of(
+                    "spec.id", proxy.getSpecId(),
+                    "user.id", proxy.getUserId(),
+                    "proxy.instance", proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+                    "proxy.id", proxy.getId(),
+                    "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
+                    "resource.id", backendContainerName.getName(),
+                    "proxy.namespace", backendContainerName.getNamespace()),
+                1
+            );
+        }
+        for (Gauge gauge : existingGauges.values()) {
+            // the proxy of this gauge no longer exists -> remove the gauge
+            registry.remove(gauge);
+        }
+    }
+
+    private Map<String, Gauge> getAppInfoGauges() {
+        try {
+            return new HashMap<>(registry.get("appInfo").gauges().stream()
+                .collect(Collectors.toMap(g -> g.getId().getTag("proxy.id"), g -> g)));
+        } catch (MeterNotFoundException ignored) {
+            return new HashMap<>();
+        }
+    }
+
+    private BackendContainerName getBackendContainerName(Proxy proxy) {
+        if (!proxy.getContainers().isEmpty()) {
+            return proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        }
+        return null;
     }
 
 }

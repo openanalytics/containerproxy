@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
@@ -333,7 +334,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod, initialContainer);
             final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(effectiveKubeNamespace, patchedPod.getMetadata().getName())), false);
 
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
             createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace, initialContainer);
@@ -648,13 +649,13 @@ public class KubernetesBackend extends AbstractContainerBackend {
     @Override
     protected void doStopProxy(Proxy proxy) {
         for (Container container : proxy.getContainers()) {
-            Optional<Pair<String, String>> podInfo = getPodInfo(container);
+            Optional<BackendContainerName> podInfo = getPodInfo(container);
             if (podInfo.isEmpty()) {
                 // container was not yet fully created
                 continue;
             }
-            String podNamespace = podInfo.get().getFirst();
-            String podName = podInfo.get().getSecond();
+            String podNamespace = podInfo.get().getNamespace();
+            String podName = podInfo.get().getName();
 
             if (getContainerFailure(proxy, podNamespace, podName).isPresent()) {
                 logKubernetesWarnings(proxy, podNamespace, podName);
@@ -676,11 +677,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
     }
 
-    private boolean canAccessLogs(Proxy proxy, Pair<String, String> pod) {
+    private boolean canAccessLogs(Proxy proxy, BackendContainerName pod) {
         try {
             // try to access logs and see if we get an exception
             // must be checked for each pod, since pods may be in different namespaces
-            kubeClient.pods().inNamespace(pod.getFirst()).withName(pod.getSecond()).getLog();
+            kubeClient.pods().inNamespace(pod.getNamespace()).withName(pod.getName()).getLog();
             return true;
         } catch (KubernetesClientException ex) {
             slog.warn(proxy, ex, "Cannot access pod logs, not collecting logs");
@@ -695,10 +696,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
             LogWatch watcher = null;
             try {
                 Container container = proxy.getContainers().get(0);
-                Optional<Pair<String, String>> pod = getPodInfo(container);
+                Optional<BackendContainerName> pod = getPodInfo(container);
                 if (pod.isPresent()) {
                     if (canAccessLogs(proxy, pod.get())) {
-                        watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
+                        watcher = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).watchLog();
                         IOUtils.copy(watcher.getOutput(), stdOut);
                     }
                 } else {
@@ -749,7 +750,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
                     continue;
                 }
                 runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().get(0).getImage()));
-                runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
+                runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(pod.getMetadata().getNamespace(), pod.getMetadata().getName())));
 
                 String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
                 if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
@@ -808,12 +809,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
     @Override
     public boolean isProxyHealthy(Proxy proxy) {
         for (Container container : proxy.getContainers()) {
-            Optional<Pair<String, String>> podInfo = getPodInfo(container);
+            Optional<BackendContainerName> podInfo = getPodInfo(container);
             if (podInfo.isEmpty()) {
                 continue;
             }
             for (int i = 0; i < 5; i++) {
-                Optional<String> error = getContainerFailure(proxy, podInfo.get().getFirst(), podInfo.get().getSecond());
+                Optional<String> error = getContainerFailure(proxy, podInfo.get().getNamespace(), podInfo.get().getName());
                 if (error.isPresent()) {
                     slog.warn(proxy, error.get());
                     return false;
@@ -854,13 +855,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return runtimeValues;
     }
 
-    private Optional<Pair<String, String>> getPodInfo(Container container) {
-        String podId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+    private Optional<BackendContainerName> getPodInfo(Container container) {
+        BackendContainerName podId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         if (podId == null) {
             return Optional.empty();
         }
-        String[] tmp = podId.split("/");
-        return Optional.of(Pair.of(tmp[0], tmp[1]));
+        return Optional.of(podId);
     }
 
     private String getServiceName(Proxy proxy, Container container) {
@@ -871,8 +871,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return getPodInfo(container).flatMap(this::getPod);
     }
 
-    private Optional<Pod> getPod(Pair<String, String> podInfo) {
-        return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getFirst()).withName(podInfo.getSecond()).get());
+    private Optional<Pod> getPod(BackendContainerName podInfo) {
+        return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getNamespace()).withName(podInfo.getName()).get());
     }
 
 }

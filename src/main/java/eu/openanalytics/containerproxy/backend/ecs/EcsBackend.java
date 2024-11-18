@@ -27,6 +27,7 @@ import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
@@ -243,7 +244,7 @@ public class EcsBackend extends AbstractContainerBackend {
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
             if (!serviceReady) {
@@ -478,11 +479,11 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     private Optional<String> getTaskInfo(Container container) {
-        String taskId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        BackendContainerName taskId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         if (taskId == null) {
             return Optional.empty();
         }
-        return Optional.of(taskId);
+        return Optional.of(taskId.getName());
     }
 
     private Optional<Task> getTask(String taskInfo) {

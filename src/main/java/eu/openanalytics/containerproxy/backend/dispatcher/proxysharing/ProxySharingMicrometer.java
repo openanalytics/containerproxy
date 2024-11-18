@@ -20,19 +20,32 @@
  */
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
+import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.search.MeterNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.ToDoubleFunction;
+import java.util.stream.Collectors;
 
 public class ProxySharingMicrometer implements IStatCollector {
+
+    private static final int CACHE_UPDATE_INTERVAL = 20 * 1000; // update cache every 20 seconds
 
     @Inject
     private MeterRegistry registry;
@@ -71,10 +84,66 @@ public class ProxySharingMicrometer implements IStatCollector {
             registry.gauge("seats_claimed", Tags.of("spec.id", specId), scaler, wrapHandleNull(ProxySharingScaler::getNumClaimedSeats));
             registry.gauge("seats_creating", Tags.of("spec.id", specId), scaler, wrapHandleNull(ProxySharingScaler::getNumPendingSeats));
         }
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                updateDelegateAppInfo();
+            }
+        }, 0, CACHE_UPDATE_INTERVAL);
     }
 
     public void registerSeatWaitTime(String specId, Duration time) {
         registry.timer("seats_wait_time", "spec.id", specId).record(time);
+    }
+
+    private void updateDelegateAppInfo() {
+        Map<String, Gauge> existingGauges = getDelegateAppInfoGauges();
+        for (ProxySharingScaler scaler : proxySharingScalers) {
+            String specId = scaler.getSpec().getId();
+            for (DelegateProxy delegateProxy : scaler.getAllDelegateProxies()) {
+                Proxy proxy = delegateProxy.getProxy();
+                if (existingGauges.remove(proxy.getId()) != null) {
+                    // gauge already exists, no need to re-create
+                    continue;
+                }
+
+                BackendContainerName backendContainerName = getBackendContainerName(proxy);
+                if (backendContainerName == null) {
+                    // container not fully ready, will be registered later
+                    continue;
+                }
+
+                registry.gauge("delegate_app_info",
+                    Tags.of(
+                        "spec.id", specId,
+                        "proxy.id", proxy.getId(),
+                        "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
+                        "resource.id", backendContainerName.getName(),
+                        "proxy.namespace", backendContainerName.getNamespace()),
+                    1
+                );
+            }
+        }
+        for (Gauge gauge : existingGauges.values()) {
+            // the proxy of this gauge no longer exists -> remove the gauge
+            registry.remove(gauge);
+        }
+    }
+
+    private Map<String, Gauge> getDelegateAppInfoGauges() {
+        try {
+            return new HashMap<>(registry.get("delegate_app_info").gauges().stream()
+                .collect(Collectors.toMap(g -> g.getId().getTag("proxy.id"), g -> g)));
+        } catch (MeterNotFoundException ignored) {
+            return new HashMap<>();
+        }
+    }
+
+    private BackendContainerName getBackendContainerName(Proxy proxy) {
+        if (!proxy.getContainers().isEmpty()) {
+            return proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        }
+        return null;
     }
 
     @FunctionalInterface

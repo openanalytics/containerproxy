@@ -76,7 +76,7 @@ import java.util.function.Consumer;
 public class ProxyMappingManager {
 
     private static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
-    private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
+    public static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
     private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
     private static final AttachmentKey<OriginalUrlAttachmentKey> ATTACHMENT_ORIGINAL_URL = AttachmentKey.create(OriginalUrlAttachmentKey.class);
 
@@ -84,7 +84,7 @@ public class ProxyMappingManager {
     private final StructuredLogger slogger = new StructuredLogger(logger);
     // the current set of prefixPaths registered in the pathHandler
     private final Map<String, List<String>> prefixPaths = new HashMap<>();
-    private PathHandler pathHandler;
+    private ProxyPathHandler pathHandler;
     private volatile boolean isShuttingDown = false;
 
     @Inject
@@ -170,6 +170,11 @@ public class ProxyMappingManager {
         }
 
         prefixPaths.put(proxy.getId(), newPrefixPaths);
+    }
+
+    public PathHandler getHttpHandler() {
+        if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
+        return pathHandler;
     }
 
     @SuppressWarnings("deprecation")

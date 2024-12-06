@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
@@ -30,6 +31,7 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.springframework.security.core.Authentication;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -43,6 +45,8 @@ public class ProxyStartEvent extends BridgeableEvent {
     Long createdTimestamp;
     BackendContainerName backendContainerName;
     ProxyStartupLog proxyStartupLog;
+    @JsonIgnore
+    Authentication authentication;
 
     @JsonCreator
     public ProxyStartEvent(@JsonProperty("source") String source,
@@ -53,6 +57,18 @@ public class ProxyStartEvent extends BridgeableEvent {
                            @JsonProperty("createdTimestamp") Long createdTimestamp,
                            @JsonProperty("backendContainerName") BackendContainerName backendContainerName,
                            @JsonProperty("proxyStartupLog") ProxyStartupLog proxyStartupLog) {
+        this(source, proxyId, userId, specId, instance, createdTimestamp, backendContainerName, proxyStartupLog, null);
+    }
+
+    public ProxyStartEvent(String source,
+                           String proxyId,
+                           String userId,
+                           String specId,
+                           String instance,
+                           long createdTimestamp,
+                           BackendContainerName backendContainerName,
+                           ProxyStartupLog proxyStartupLog,
+                           Authentication authentication) {
         super(source);
         this.proxyId = proxyId;
         this.userId = userId;
@@ -61,16 +77,19 @@ public class ProxyStartEvent extends BridgeableEvent {
         this.createdTimestamp = createdTimestamp;
         this.backendContainerName = backendContainerName;
         this.proxyStartupLog = proxyStartupLog;
+        this.authentication = authentication;
     }
 
-    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog) {
-        this(SOURCE_NOT_AVAILABLE, proxy.getId(),
+    public ProxyStartEvent(Proxy proxy, ProxyStartupLog proxyStartupLog, Authentication authentication) {
+        this(SOURCE_NOT_AVAILABLE,
+            proxy.getId(),
             proxy.getUserId(),
             proxy.getSpecId(),
             proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
             proxy.getCreatedTimestamp(),
             proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst),
-            proxyStartupLog);
+            proxyStartupLog,
+            authentication);
     }
 
     @Override

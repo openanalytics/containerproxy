@@ -32,6 +32,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
 
@@ -55,6 +56,7 @@ public class SpecExpressionContext {
     List<String> groups;
     String userId;
     JsonNode json;
+    ApplicationEvent event;
 
     public static SpecExpressionContext create(Object... objects) {
         SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
@@ -79,6 +81,8 @@ public class SpecExpressionContext {
                 builder.webServiceUser = (WebServiceAuthenticationBackend.WebServiceUser) o;
             } else if (o instanceof JsonNode) {
                 builder.json = (JsonNode) o;
+            } else if (o instanceof ApplicationEvent) {
+                builder.event = (ApplicationEvent) o;
             }
             if (o instanceof Authentication) {
                 builder.groups = UserService.getGroups((Authentication) o);

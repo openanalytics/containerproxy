@@ -299,7 +299,7 @@ public class ProxyService {
 
             if (result != null) {
                 slog.info(result, "Proxy activated");
-                applicationEventPublisher.publishEvent(new ProxyStartEvent(result, proxyStartupLog.succeeded()));
+                applicationEventPublisher.publishEvent(new ProxyStartEvent(result, proxyStartupLog.succeeded(), user));
 
                 // final check to see if the app was stopped
                 cleanupIfPendingAppWasStopped(result);
@@ -355,7 +355,7 @@ public class ProxyService {
             }
             slog.info(stoppedProxy, "Proxy released");
 
-            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy, proxyStopReason));
+            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy, proxyStopReason, user));
         });
     }
 

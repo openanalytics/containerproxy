@@ -21,6 +21,8 @@
 package eu.openanalytics.containerproxy.stat.impl;
 
 import org.apache.commons.io.IOUtils;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.security.core.Authentication;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -44,7 +46,7 @@ public class InfluxDBCollector extends AbstractDbCollector {
     }
 
     @Override
-    protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
+    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
         String body = String.format("event,username=%s,type=%s data=\"%s\"",
             userId.replace(" ", "\\ "),
             type.replace(" ", "\\ "),

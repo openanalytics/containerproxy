@@ -24,6 +24,9 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxyShar
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.BeansException;
@@ -32,19 +35,42 @@ import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.boot.context.properties.bind.BindResult;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Nonnull;
+import java.util.List;
+
 
 @Component
 public class StatCollectorFactory implements BeanFactoryPostProcessor, EnvironmentAware {
 
-    private static final String PROP_USAGE_STATS_MULTI_URL = "proxy.usage-stats[%d].url";
-    private static final String PROP_USAGE_STATS_MULTI_USERNAME = "proxy.usage-stats[%d].username";
-    private static final String PROP_USAGE_STATS_MULTI_PASSWORD = "proxy.usage-stats[%d].password";
-    private static final String PROP_USAGE_STATS_MULTI_TABLE_NAME = "proxy.usage-stats[%d].table-name";
+    @Setter
+    @Getter
+    private List<UsageStats> usageStats;
+
+    @Setter
+    @Getter
+    private String usageStatsUrl;
+
+    @Setter
+    @Getter
+    private String usageStatsUsername;
+
+    @Setter
+    @Getter
+    private String usageStatsPassword;
+
+    @Setter
+    @Getter
+    private String usageStatsTableName;
+
+    @Setter
+    @Getter
+    private List<UsageStatsAttribute> usageStatsAttributes;
 
     private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
 
@@ -52,32 +78,25 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
 
     @Override
     public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory configurableListableBeanFactory) throws BeansException {
+        BindResult<StatCollectorFactory> bindResult = Binder.get(environment).bind("proxy", StatCollectorFactory.class);
+        if (!bindResult.isBound()) {
+            return;
+        }
+        StatCollectorFactory result = bindResult.get();
         DefaultListableBeanFactory registry = (DefaultListableBeanFactory) configurableListableBeanFactory;
 
-        int i = 0;
-        String usageStatsUrl = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_URL, i));
-        while (usageStatsUrl != null) {
-            String username = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_USERNAME, i));
-            String password = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_PASSWORD, i));
-            String tableName = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_TABLE_NAME, i));
-
-            createCollector(registry, usageStatsUrl, username, password, tableName);
-
-            i++;
-            usageStatsUrl = environment.getProperty(String.format(PROP_USAGE_STATS_MULTI_URL, i));
+        if (result.getUsageStats() != null) {
+            for (UsageStats usageStats : result.getUsageStats()) {
+                createCollector(registry, usageStats.url, usageStats.username, usageStats.password, usageStats.tableName, usageStats.attributes);
+            }
         }
 
-        String baseURL = environment.getProperty("proxy.usage-stats-url");
-        if (baseURL != null && !baseURL.isEmpty()) {
-            String username = environment.getProperty("proxy.usage-stats-username");
-            String password = environment.getProperty("proxy.usage-stats-password");
-            String tableName = environment.getProperty("proxy.usage-stats-table-name");
-
-            createCollector(registry, baseURL, username, password, tableName);
+        if (result.usageStatsUrl != null && !result.usageStatsUrl.isEmpty()) {
+            createCollector(registry, result.usageStatsUrl, result.usageStatsUsername, result.usageStatsPassword, result.usageStatsTableName, result.usageStatsAttributes);
         }
     }
 
-    private void createCollector(DefaultListableBeanFactory registry, String url, String username, String password, String tableName) {
+    private void createCollector(DefaultListableBeanFactory registry, String url, String username, String password, String tableName, List<UsageStatsAttribute> usageStatsAttributes) {
         log.info(String.format("Enabled. Sending usage statistics to %s.", url));
 
         BeanDefinition bd = new GenericBeanDefinition();
@@ -90,6 +109,7 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
             bd.getConstructorArgumentValues().addGenericArgumentValue(username);
             bd.getConstructorArgumentValues().addGenericArgumentValue(password);
             bd.getConstructorArgumentValues().addGenericArgumentValue(tableName == null ? "event" : tableName);
+            bd.getConstructorArgumentValues().addGenericArgumentValue(usageStatsAttributes);
         } else if (url.equalsIgnoreCase("micrometer")) {
             bd.setBeanClassName(Micrometer.class.getName());
 
@@ -107,4 +127,24 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
     public void setEnvironment(Environment environment) {
         this.environment = environment;
     }
+
+    @Data
+    public static class UsageStats {
+
+        private String url;
+        private String username;
+        private String password;
+        private String tableName;
+        private List<UsageStatsAttribute> attributes;
+
+    }
+
+    @Data
+    public static class UsageStatsAttribute {
+
+        private String name;
+        private String expression;
+
+    }
+
 }

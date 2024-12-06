@@ -233,7 +233,8 @@ public class UserService {
         applicationEventPublisher.publishEvent(new UserLogoutEvent(
             this,
             userId,
-            false));
+            false,
+            auth));
     }
 
     @EventListener
@@ -246,7 +247,8 @@ public class UserService {
 
         applicationEventPublisher.publishEvent(new UserLoginEvent(
             this,
-            userId));
+            userId,
+            auth));
     }
 
     @EventListener
@@ -263,6 +265,7 @@ public class UserService {
                 SecurityContext securityContext = event.getSecurityContexts().get(0);
                 if (securityContext == null || authNull(securityContext.getAuthentication())) return;
 
+                Authentication auth = securityContext.getAuthentication();
                 String userId = securityContext.getAuthentication().getName();
                 if (logoutStrategy != null) logoutStrategy.onLogout(userId);
 
@@ -270,7 +273,8 @@ public class UserService {
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
                     this,
                     userId,
-                    true
+                    true,
+                    auth
                 ));
             } else if (authBackend.getName().equals("none")) {
                 String userId = NoAuthenticationBackend.extractUserId(event.getSession());
@@ -281,7 +285,8 @@ public class UserService {
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
                     this,
                     userId,
-                    true
+                    true,
+                    null
                 ));
             }
         }

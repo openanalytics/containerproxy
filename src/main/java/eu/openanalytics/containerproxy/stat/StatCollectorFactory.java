@@ -21,32 +21,33 @@
 package eu.openanalytics.containerproxy.stat;
 
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingMicrometer;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
+import eu.openanalytics.containerproxy.spec.expression.SpelField;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
+import jakarta.inject.Inject;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
-import org.springframework.boot.context.properties.bind.BindResult;
-import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.context.EnvironmentAware;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
-import javax.annotation.Nonnull;
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 
-@Component
-public class StatCollectorFactory implements BeanFactoryPostProcessor, EnvironmentAware {
+@Configuration
+@ConfigurationProperties(prefix = "proxy")
+public class StatCollectorFactory {
 
     @Setter
     @Getter
@@ -54,19 +55,19 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
 
     @Setter
     @Getter
-    private String usageStatsUrl;
+    private SpelField.String usageStatsUrl = new SpelField.String();
 
     @Setter
     @Getter
-    private String usageStatsUsername;
+    private SpelField.String usageStatsUsername = new SpelField.String();
 
     @Setter
     @Getter
-    private String usageStatsPassword;
+    private SpelField.String usageStatsPassword = new SpelField.String();
 
     @Setter
     @Getter
-    private String usageStatsTableName;
+    private SpelField.String usageStatsTableName = new SpelField.String();
 
     @Setter
     @Getter
@@ -74,68 +75,84 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
 
     private final Logger log = LogManager.getLogger(StatCollectorFactory.class);
 
-    private Environment environment;
+    @Inject
+    private SpecExpressionResolver specExpressionResolver;
 
-    @Override
-    public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory configurableListableBeanFactory) throws BeansException {
-        BindResult<StatCollectorFactory> bindResult = Binder.get(environment).bind("proxy", StatCollectorFactory.class);
-        if (!bindResult.isBound()) {
-            return;
+    @Inject
+    private ConfigurableListableBeanFactory beanFactory;
+
+    @PostConstruct
+    public void init() {
+        SpecExpressionContext specExpressionContext = SpecExpressionContext.create();
+        String resolvedUsageStatsUrl = usageStatsUrl.resolve(specExpressionResolver, specExpressionContext).getValueOrNull();
+        if (resolvedUsageStatsUrl != null && !resolvedUsageStatsUrl.isEmpty()) {
+            createBean(createCollector(
+                resolvedUsageStatsUrl,
+                usageStatsUsername.resolve(specExpressionResolver, specExpressionContext).getValueOrNull(),
+                usageStatsPassword.resolve(specExpressionResolver, specExpressionContext).getValueOrNull(),
+                usageStatsTableName.resolve(specExpressionResolver, specExpressionContext).getValueOrNull(),
+                usageStatsAttributes), "IStatsCollector");
         }
-        StatCollectorFactory result = bindResult.get();
-        DefaultListableBeanFactory registry = (DefaultListableBeanFactory) configurableListableBeanFactory;
 
-        if (result.getUsageStats() != null) {
-            for (UsageStats usageStats : result.getUsageStats()) {
-                createCollector(registry, usageStats.url, usageStats.username, usageStats.password, usageStats.tableName, usageStats.attributes);
+        if (usageStats != null) {
+            int i = 0;
+            for (UsageStats usageStats : getUsageStats()) {
+                UsageStats resolved = usageStats.resolve(specExpressionResolver, specExpressionContext);
+                createBean(createCollector(
+                    resolved.url.getValueOrNull(),
+                    resolved.username.getValueOrNull(),
+                    resolved.password.getValueOrNull(),
+                    resolved.tableName.getValueOrNull(),
+                    usageStats.attributes), "IStatsCollector-" + i);
+                i++;
             }
         }
 
-        if (result.usageStatsUrl != null && !result.usageStatsUrl.isEmpty()) {
-            createCollector(registry, result.usageStatsUrl, result.usageStatsUsername, result.usageStatsPassword, result.usageStatsTableName, result.usageStatsAttributes);
-        }
     }
 
-    private void createCollector(DefaultListableBeanFactory registry, String url, String username, String password, String tableName, List<UsageStatsAttribute> usageStatsAttributes) {
-        log.info(String.format("Enabled. Sending usage statistics to %s.", url));
+    private IStatCollector createCollector(String url, String username, String password, String tableName, List<UsageStatsAttribute> usageStatsAttributes) {
+        log.info("Enabled. Sending usage statistics to {}.", url);
 
-        BeanDefinition bd = new GenericBeanDefinition();
         if (url.toLowerCase().contains("/write?db=")) {
-            bd.setBeanClassName(InfluxDBCollector.class.getName());
-            bd.getConstructorArgumentValues().addGenericArgumentValue(url);
+            return new InfluxDBCollector(url);
         } else if (url.toLowerCase().startsWith("jdbc")) {
-            bd.setBeanClassName(JDBCCollector.class.getName());
-            bd.getConstructorArgumentValues().addGenericArgumentValue(url);
-            bd.getConstructorArgumentValues().addGenericArgumentValue(username);
-            bd.getConstructorArgumentValues().addGenericArgumentValue(password);
-            bd.getConstructorArgumentValues().addGenericArgumentValue(tableName == null ? "event" : tableName);
-            bd.getConstructorArgumentValues().addGenericArgumentValue(usageStatsAttributes);
+            return new JDBCCollector(url, username, password, tableName == null ? "event" : tableName, usageStatsAttributes);
         } else if (url.equalsIgnoreCase("micrometer")) {
-            bd.setBeanClassName(Micrometer.class.getName());
-
-            BeanDefinition bd2 = new GenericBeanDefinition();
-            bd2.setBeanClassName(ProxySharingMicrometer.class.getName());
-            registry.registerBeanDefinition("ProxySharingMicrometer", bd2);
+            createBean(new ProxySharingMicrometer(), "ProxySharingMicrometer");
+            return new Micrometer();
         } else {
             throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", url));
         }
-
-        registry.registerBeanDefinition(url, bd);
-    }
-
-    @Override
-    public void setEnvironment(Environment environment) {
-        this.environment = environment;
     }
 
     @Data
+    @Builder(toBuilder = true)
+    @AllArgsConstructor(access = AccessLevel.PRIVATE) // force Spring to not use constructor
+    @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE) // Jackson deserialize compatibility
     public static class UsageStats {
 
-        private String url;
-        private String username;
-        private String password;
-        private String tableName;
+        @Builder.Default
+        private SpelField.String url = new SpelField.String();
+
+        @Builder.Default
+        private SpelField.String username = new SpelField.String();
+
+        @Builder.Default
+        private SpelField.String password = new SpelField.String();
+
+        @Builder.Default
+        private SpelField.String tableName = new SpelField.String();
+
         private List<UsageStatsAttribute> attributes;
+
+        public UsageStats resolve(SpecExpressionResolver specExpressionResolver, SpecExpressionContext specExpressionContext) {
+            return toBuilder()
+                .url(url.resolve(specExpressionResolver, specExpressionContext))
+                .username(username.resolve(specExpressionResolver, specExpressionContext))
+                .password(password.resolve(specExpressionResolver, specExpressionContext))
+                .tableName(tableName.resolve(specExpressionResolver, specExpressionContext))
+                .build();
+        }
 
     }
 
@@ -145,6 +162,12 @@ public class StatCollectorFactory implements BeanFactoryPostProcessor, Environme
         private String name;
         private String expression;
 
+    }
+
+    private <T> void createBean(T bean, String beanName) {
+        beanFactory.autowireBean(bean);
+        Object initializedBean = beanFactory.initializeBean(bean, beanName);
+        beanFactory.registerSingleton(beanName, initializedBean);
     }
 
 }

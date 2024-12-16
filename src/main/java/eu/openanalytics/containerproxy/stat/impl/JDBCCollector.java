@@ -21,11 +21,7 @@
 package eu.openanalytics.containerproxy.stat.impl;
 
 import com.zaxxer.hikari.HikariDataSource;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
-import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.stat.StatCollectorFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -40,7 +36,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,11 +71,6 @@ public class JDBCCollector extends AbstractDbCollector {
 
     @Inject
     private Environment environment;
-
-    @Inject
-    private SpecExpressionResolver specExpressionResolver;
-
-    private Logger logger = LoggerFactory.getLogger(getClass());
 
     public JDBCCollector(String url, String username, String password, String tableName, List<StatCollectorFactory.UsageStatsAttribute> usageStatsAttributes) {
         this.url = url;
@@ -159,7 +149,7 @@ public class JDBCCollector extends AbstractDbCollector {
     @Override
     protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
         try (Connection con = ds.getConnection()) {
-            Map<String, String> attributes = resolveAttributes(authentication, event);
+            Map<String, String> attributes = resolveAttributes(authentication, event, usageStatsAttributes);
             String sql = buildQuery(attributes.keySet());
 
             try (PreparedStatement stmt = con.prepareStatement(sql)) {
@@ -177,8 +167,6 @@ public class JDBCCollector extends AbstractDbCollector {
             }
         } catch (SQLException e) {
             throw new IOException("Exception while logging stats", e);
-        } catch (Exception e) {
-            logger.error("oops", e); //TODO
         }
     }
 
@@ -198,28 +186,4 @@ public class JDBCCollector extends AbstractDbCollector {
         sql.append(")");
         return sql.toString();
     }
-
-    private Map<String, String> resolveAttributes(Authentication authentication, ApplicationEvent event) {
-        if (usageStatsAttributes == null) {
-            return new HashMap<>();
-        }
-        SpecExpressionContext context;
-        if (authentication != null) {
-            context = SpecExpressionContext.create(authentication, authentication.getPrincipal(), authentication.getCredentials(), event);
-        } else {
-            context = SpecExpressionContext.create(event);
-        }
-
-        Map<String, String> result = new HashMap<>();
-
-        for (StatCollectorFactory.UsageStatsAttribute attribute : usageStatsAttributes) {
-            try {
-                result.put(attribute.getName(), specExpressionResolver.evaluateToString(attribute.getExpression(), context));
-            } catch (Exception e) {
-                logger.warn("Error while resolving attribute expression '{}'", attribute.getName(), e);
-            }
-        }
-        return result;
-    }
-
 }

@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxyShar
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import eu.openanalytics.containerproxy.stat.impl.CSVCollector;
 import eu.openanalytics.containerproxy.stat.impl.InfluxDBCollector;
 import eu.openanalytics.containerproxy.stat.impl.JDBCCollector;
 import eu.openanalytics.containerproxy.stat.impl.Micrometer;
@@ -120,6 +121,8 @@ public class StatCollectorFactory {
         } else if (url.equalsIgnoreCase("micrometer")) {
             createBean(new ProxySharingMicrometer(), "ProxySharingMicrometer");
             return new Micrometer();
+        } else if (url.toLowerCase().endsWith(".csv")) {
+                return new CSVCollector(url, usageStatsAttributes);
         } else {
             throw new IllegalArgumentException(String.format("Base url for statistics contains an unrecognized values, baseURL %s.", url));
         }

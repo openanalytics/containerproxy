@@ -104,4 +104,18 @@ public abstract class RuntimeValueStore {
         return key.serializeToString(runtimeValue.getObject());
     }
 
+    public <T> String getRuntimeValueOrNull(RuntimeValueKey<T> key) {
+        Objects.requireNonNull(key, "key may not be null");
+        RuntimeValue runtimeValue = getRuntimeValues().get(key);
+        if (runtimeValue == null) {
+            return null;
+        }
+        return key.serializeToString(runtimeValue.getObject());
+    }
+
+    public String getRuntimeValueOrNull(String keyAsEnvVar) {
+        Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+        return getRuntimeValueOrNull(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+    }
+
 }

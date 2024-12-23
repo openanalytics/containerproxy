@@ -62,6 +62,7 @@ import eu.openanalytics.containerproxy.util.MathUtil;
 import eu.openanalytics.containerproxy.util.Sha1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
@@ -122,6 +123,8 @@ public class ProxySharingScaler implements AutoCloseable {
     private ApplicationEventPublisher applicationEventPublisher;
     @Inject
     private Environment environment;
+    @Autowired(required = false)
+    private ProxySharingMicrometer proxySharingMicrometer = null;
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);

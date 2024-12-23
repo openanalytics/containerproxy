@@ -228,9 +228,7 @@ public class EcsBackend extends AbstractContainerBackend {
             String taskArn = runTaskResponse.tasks().get(0).taskArn();
 
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
-            if (user != null) {
-                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
-            }
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder

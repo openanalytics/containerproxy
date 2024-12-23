@@ -337,9 +337,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(effectiveKubeNamespace, patchedPod.getMetadata().getName())), false);
 
-            if (user != null) {
-                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
-            }
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
             createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace, initialContainer);

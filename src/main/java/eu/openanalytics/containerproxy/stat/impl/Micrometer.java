@@ -171,7 +171,7 @@ public class Micrometer implements IStatCollector {
     @EventListener
     public void onNewProxyEvent(NewProxyEvent event) {
         // must run on each instance (gauge is registered on every instance)
-        if (event.getBackendContainerName() != null) {
+        if (event.getUserId() != null && event.getBackendContainerName() != null) {
             registry.gauge("appInfo",
                 Tags.of(
                     "spec.id", event.getSpecId(),

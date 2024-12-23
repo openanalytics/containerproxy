@@ -183,9 +183,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             String containerName = spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex());
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(containerName)), false);
-            if (user != null) {
-                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
-            }
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             ContainerCreation containerCreation = dockerClient.createContainer(containerConfig, containerName);
             rContainerBuilder.id(containerCreation.id());

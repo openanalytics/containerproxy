@@ -20,7 +20,11 @@
  */
 package eu.openanalytics.containerproxy.stat.impl;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Scheduler;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartEvent;
 import eu.openanalytics.containerproxy.event.ProxyStartFailedEvent;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
@@ -28,6 +32,7 @@ import eu.openanalytics.containerproxy.event.UserLoginEvent;
 import eu.openanalytics.containerproxy.event.UserLogoutEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
@@ -55,10 +60,9 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
-
-import static net.logstash.logback.argument.StructuredArguments.kv;
 
 public class Micrometer implements IStatCollector {
 
@@ -84,6 +88,19 @@ public class Micrometer implements IStatCollector {
 
     private Counter userLogouts;
 
+    private Cache<String, String> recentlyStoppedProxies;
+
+    private static final Map<ProxyStatus, Integer> PROXY_STATUS_TO_INTEGER = Map.of(
+        ProxyStatus.New, 1,
+        ProxyStatus.Up, 10,
+        ProxyStatus.Paused, 20,
+        ProxyStatus.Resuming, 30,
+        ProxyStatus.Stopped, 40
+    );
+
+    private static final Integer PROXY_STATUS_CRASHED_TO_INTEGER = 50;
+    private static final Integer PROXY_STATUS_FAILED_TO_START_TO_INTEGER = 100;
+
     /**
      * Wraps a function that returns an Integer into a function that returns a double.
      * When the provided Integer is null, the resulting function returns Double.NaN.
@@ -102,6 +119,10 @@ public class Micrometer implements IStatCollector {
 
     @PostConstruct
     public void init() {
+        recentlyStoppedProxies = Caffeine.newBuilder()
+            .scheduler(Scheduler.systemScheduler())
+            .expireAfterWrite(2, TimeUnit.MINUTES)
+            .build();
         userLogins = registry.counter("userLogins");
         userLogouts = registry.counter("userLogouts");
         authFailedCounter = registry.counter("authFailed");
@@ -148,10 +169,9 @@ public class Micrometer implements IStatCollector {
     }
 
     @EventListener
-    public void onProxyStartEvent(ProxyStartEvent event) {
+    public void onNewProxyEvent(NewProxyEvent event) {
         // must run on each instance (gauge is registered on every instance)
         if (event.getBackendContainerName() != null) {
-            // container not fully ready, will be registered later
             registry.gauge("appInfo",
                 Tags.of(
                     "spec.id", event.getSpecId(),
@@ -161,7 +181,27 @@ public class Micrometer implements IStatCollector {
                     "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
                     "resource.id", event.getBackendContainerName().getName(),
                     "proxy.namespace", event.getBackendContainerName().getNamespace()),
-                1
+                PROXY_STATUS_TO_INTEGER.get(ProxyStatus.New)
+            );
+        }
+        logger.debug("NewProxyEvent [user: {}]", event.getUserId());
+    }
+
+    @EventListener
+    public void onProxyStartEvent(ProxyStartEvent event) {
+        // must run on each instance (gauge is registered on every instance)
+        if (event.getBackendContainerName() != null) {
+            removeExistingAppInfo(event.getProxyId());
+            registry.gauge("appInfo",
+                Tags.of(
+                    "spec.id", event.getSpecId(),
+                    "user.id", event.getUserId(),
+                    "proxy.instance", event.getInstance(),
+                    "proxy.id", event.getProxyId(),
+                    "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                    "resource.id", event.getBackendContainerName().getName(),
+                    "proxy.namespace", event.getBackendContainerName().getNamespace()),
+                PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Up)
             );
         }
         if (!event.isLocalEvent()) {
@@ -201,11 +241,24 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) {
-        try {
-            // must run on each instance (gauge is registered on every instance)
-            registry.remove(registry.get("appInfo").tag("proxy.id", event.getProxyId()).gauge());
-        } catch (MeterNotFoundException ignored) {
+        recentlyStoppedProxies.put(event.getProxyId(), event.getProxyId());
+        // must run on each instance (gauge is registered on every instance)
+        removeExistingAppInfo(event.getProxyId());
+        Integer value = PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped);
+        if (event.getProxyStopReason().equals(ProxyStopReason.Crashed)) {
+            value = PROXY_STATUS_CRASHED_TO_INTEGER;
         }
+        registry.gauge("appInfo",
+            Tags.of(
+                "spec.id", event.getSpecId(),
+                "user.id", event.getUserId(),
+                "proxy.instance", event.getInstance(),
+                "proxy.id", event.getProxyId(),
+                "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                "resource.id", event.getBackendContainerName().getName(),
+                "proxy.namespace", event.getBackendContainerName().getNamespace()),
+            value
+        );
         if (!event.isLocalEvent()) {
             return;
         }
@@ -221,6 +274,33 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
+        recentlyStoppedProxies.put(event.getProxyId(), event.getProxyId());
+        // must run on each instance (gauge is registered on every instance)
+        String resourceId;
+        String namespace;
+        Gauge gauge = removeExistingAppInfo(event.getProxyId());
+        if (event.getBackendContainerName() != null) {
+            resourceId = event.getBackendContainerName().getName();
+            namespace = event.getBackendContainerName().getNamespace();
+        } else if (gauge != null) {
+            resourceId = gauge.getId().getTag("resource.id");
+            namespace = gauge.getId().getTag("proxy.namespace");
+        } else {
+            resourceId = "NA";
+            namespace = "NA";
+        }
+        registry.gauge("appInfo",
+            Tags.of(
+                "spec.id", event.getSpecId(),
+                "user.id", event.getUserId(),
+                "proxy.instance", event.getInstance(),
+                "proxy.id", event.getProxyId(),
+                "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                "resource.id", resourceId,
+                "proxy.namespace", namespace
+            ),
+            PROXY_STATUS_FAILED_TO_START_TO_INTEGER
+        );
         if (!event.isLocalEvent()) {
             return;
         }
@@ -299,10 +379,12 @@ public class Micrometer implements IStatCollector {
      * it would be removed from prometheus when that instance stopped, although the app could still be running.
      *
      * The periodic sync keeps the registry in sync (e.g. on startup).
+     * It also ensure the appInfo gauge is removed after the proxy has stopped. We can't do this in the onProxyStopEvent function,
+     * since otherwise the Gauge will not be updated to the Stopped state.
      */
     private void updateAppInfo() {
         Map<String, Gauge> existingGauges = getAppInfoGauges();
-        for (Proxy proxy : proxyService.getAllUpProxies()) {
+        for (Proxy proxy : proxyService.getAllProxies()) {
             if (existingGauges.remove(proxy.getId()) != null) {
                 // gauge already exists, no need to re-create
                 continue;
@@ -325,6 +407,12 @@ public class Micrometer implements IStatCollector {
             );
         }
         for (Gauge gauge : existingGauges.values()) {
+            String proxyId = gauge.getId().getTag("proxy.id");
+            if (proxyId != null && recentlyStoppedProxies.getIfPresent(proxyId) != null) {
+                // this proxy was recently stopped, we should not yet remove the gauge
+                // so that the metrics systems knows the app was stopped
+                continue;
+            }
             // the proxy of this gauge no longer exists -> remove the gauge
             registry.remove(gauge);
         }
@@ -337,6 +425,17 @@ public class Micrometer implements IStatCollector {
         } catch (MeterNotFoundException ignored) {
             return new HashMap<>();
         }
+    }
+
+    private Gauge removeExistingAppInfo(String proxyId) {
+        try {
+            Gauge gauge = registry.get("appInfo").tag("proxy.id", proxyId).gauge();
+            registry.remove(gauge);
+            return gauge;
+        } catch (MeterNotFoundException ignored) {
+
+        }
+        return null;
     }
 
     private BackendContainerName getBackendContainerName(Proxy proxy) {

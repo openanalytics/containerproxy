@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.ecs;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
@@ -226,6 +227,11 @@ public class EcsBackend extends AbstractContainerBackend {
 
             String taskArn = runTaskResponse.tasks().get(0).taskArn();
 
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
+            if (user != null) {
+                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
+            }
+
             boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
                     .cluster(cluster)
@@ -244,7 +250,6 @@ public class EcsBackend extends AbstractContainerBackend {
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
             if (!serviceReady) {

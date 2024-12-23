@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.backend.docker;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
@@ -146,7 +147,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             List<HostConfig.DeviceRequest> deviceRequests = new ArrayList<>();
             for (DockerDeviceRequest deviceRequest : spec.getDockerDeviceRequests()) {
-                HostConfig.DeviceRequest.Builder builder= HostConfig.DeviceRequest.builder();
+                HostConfig.DeviceRequest.Builder builder = HostConfig.DeviceRequest.builder();
                 deviceRequest.getDriver().ifPresent(builder::driver);
                 deviceRequest.getCount().ifPresent(builder::count);
                 deviceRequest.getDeviceIds().ifPresent(builder::deviceIds);
@@ -181,6 +182,10 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             String containerName = spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex());
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(containerName)), false);
+            if (user != null) {
+                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
+            }
 
             ContainerCreation containerCreation = dockerClient.createContainer(containerConfig, containerName);
             rContainerBuilder.id(containerCreation.id());
@@ -192,7 +197,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             }
 
             dockerClient.startContainer(containerCreation.id());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(containerName)), false);
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             Container rContainer = rContainerBuilder.build();

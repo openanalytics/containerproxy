@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -81,6 +82,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected AppRecoveryService appRecoveryService;
     @Inject
     protected IdentifierService identifierService;
+    @Inject
+    protected ApplicationEventPublisher applicationEventPublisher;
     private boolean useInternalNetwork;
     private boolean privileged;
     private String defaultTargetProtocol;

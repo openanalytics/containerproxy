@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -41,8 +43,11 @@ public class ProxyStopEvent extends BridgeableEvent {
     String proxyId;
     String userId;
     String specId;
-    ProxyStopReason proxyStopReason;
+    String instance;
+    Long createdTimestamp;
+    BackendContainerName backendContainerName;
     Duration usageTime;
+    ProxyStopReason proxyStopReason;
     @JsonIgnore
     Authentication authentication;
 
@@ -51,15 +56,21 @@ public class ProxyStopEvent extends BridgeableEvent {
                           @JsonProperty("proxyId") String proxyId,
                           @JsonProperty("userId") String userId,
                           @JsonProperty("specId") String specId,
+                          @JsonProperty("instance") String instance,
+                          @JsonProperty("createdTimestamp") Long createdTimestamp,
+                          @JsonProperty("backendContainerName") BackendContainerName backendContainerName,
                           @JsonProperty("proxyStopReason") ProxyStopReason proxyStopReason,
                           @JsonProperty("usageTime") Duration usageTime) {
-        this(source, proxyId, userId, specId, proxyStopReason, usageTime, null);
+        this(source, proxyId, userId, specId, instance, createdTimestamp, backendContainerName, proxyStopReason, usageTime, null);
     }
 
     public ProxyStopEvent(String source,
                           String proxyId,
                           String userId,
                           String specId,
+                          String instance,
+                          Long createdTimestamp,
+                          BackendContainerName backendContainerName,
                           ProxyStopReason proxyStopReason,
                           Duration usageTime,
                           Authentication authentication) {
@@ -67,6 +78,9 @@ public class ProxyStopEvent extends BridgeableEvent {
         this.proxyId = proxyId;
         this.userId = userId;
         this.specId = specId;
+        this.instance = instance;
+        this.createdTimestamp = createdTimestamp;
+        this.backendContainerName = backendContainerName;
         this.proxyStopReason = proxyStopReason;
         this.usageTime = usageTime;
         this.authentication = authentication;
@@ -77,6 +91,9 @@ public class ProxyStopEvent extends BridgeableEvent {
             proxy.getId(),
             proxy.getUserId(),
             proxy.getSpecId(),
+            proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+            proxy.getCreatedTimestamp(),
+            proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst),
             proxyStopReason,
             proxy.getStartupTimestamp() == 0 ? null : Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp()),
             authentication);
@@ -84,7 +101,15 @@ public class ProxyStopEvent extends BridgeableEvent {
 
     @Override
     public ProxyStopEvent withSource(String source) {
-        return new ProxyStopEvent(source, proxyId, userId, specId, proxyStopReason, usageTime);
+        return new ProxyStopEvent(source,
+            proxyId,
+            userId,
+            specId,
+            instance,
+            createdTimestamp,
+            backendContainerName,
+            proxyStopReason,
+            usageTime);
     }
 
 }

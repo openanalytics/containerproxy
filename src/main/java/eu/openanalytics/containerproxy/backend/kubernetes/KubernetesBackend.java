@@ -27,6 +27,7 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.google.common.base.Splitter;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
@@ -92,7 +93,7 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.data.util.Pair;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -336,6 +337,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(effectiveKubeNamespace, patchedPod.getMetadata().getName())), false);
 
+            if (user != null) {
+                applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
+            }
+
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
             createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace, initialContainer);
 
@@ -427,10 +432,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
         try {
             events = kubeClient.v1().events().inNamespace(podNamespace)
                 .withInvolvedObject(new ObjectReferenceBuilder()
-                .withKind("Pod")
-                .withName(podName)
-                .withNamespace(podNamespace)
-                .build()).list().getItems();
+                    .withKind("Pod")
+                    .withName(podName)
+                    .withNamespace(podNamespace)
+                    .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
                 log.warn("Cannot parse events of pod because of insufficient permissions. Give the ShinyProxy ServiceAccount permission to get events of pods in order to show Kubernetes warnings in ShinyProxy logs.");
@@ -473,10 +478,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
         try {
             events = kubeClient.v1().events().inNamespace(pod.getMetadata().getNamespace())
                 .withInvolvedObject(new ObjectReferenceBuilder()
-                .withKind("Pod")
-                .withName(pod.getMetadata().getName())
-                .withNamespace(pod.getMetadata().getNamespace())
-                .build()).list().getItems();
+                    .withKind("Pod")
+                    .withName(pod.getMetadata().getName())
+                    .withNamespace(pod.getMetadata().getNamespace())
+                    .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
                 log.warn("Cannot parse events of pod because of insufficient permissions. If fine-grained statistics are desired, give the ShinyProxy ServiceAccount permission to events of pods.");

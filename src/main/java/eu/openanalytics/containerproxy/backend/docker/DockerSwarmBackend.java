@@ -22,6 +22,7 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
@@ -213,6 +214,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             // tell the status service we are starting the container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(serviceName)), false);
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             // Give the service some time to start up and launch a container.
             boolean containerFound = Retrying.retry((currentAttempt, maxAttempts) -> {

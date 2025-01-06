@@ -50,6 +50,7 @@ public class CSVCollector extends AbstractDbCollector implements AutoCloseable {
     private FileWriter fileWriter;
     private SequenceWriter writer;
     private CsvSchema schema;
+    private CsvMapper csvMapper;
 
     public CSVCollector(String url, List<StatCollectorFactory.UsageStatsAttribute> usageStatsAttributes) {
         this.url = Path.of(url);
@@ -58,7 +59,7 @@ public class CSVCollector extends AbstractDbCollector implements AutoCloseable {
 
     @PostConstruct
     public void init() throws IOException {
-        CsvMapper csvMapper = new CsvMapper();
+        csvMapper = new CsvMapper();
         csvMapper.enable(CsvGenerator.Feature.ALWAYS_QUOTE_STRINGS);
         csvMapper.enable(CsvGenerator.Feature.ALWAYS_QUOTE_EMPTY_STRINGS);
         CsvSchema.Builder schemaBuilder = CsvSchema.builder();
@@ -110,16 +111,25 @@ public class CSVCollector extends AbstractDbCollector implements AutoCloseable {
 
     @Override
     protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
-        Map<String, String> row = new HashMap<>();
-        for (String column : schema.getColumnNames()) {
-            row.put(column, "");
+        try {
+            Map<String, String> row = new HashMap<>();
+            for (String column : schema.getColumnNames()) {
+                row.put(column, "");
+            }
+            row.put("event_time", Long.toString(timestamp));
+            row.put("username", Objects.requireNonNullElse(userId, ""));
+            row.put("type", Objects.requireNonNullElse(type, ""));
+            row.put("data", Objects.requireNonNullElse(data, ""));
+            row.putAll(resolveAttributes(authentication, event, usageStatsAttributes));
+            try {
+                writer.write(row);
+            } catch (Exception e) {
+                logger.warn("Error while writing to CSV file, data: {}", row, e);
+                writer = csvMapper.writer(schema).writeValues(fileWriter);
+            }
+        } catch (Exception e) {
+            logger.warn("Error while collecting statistic", e);
         }
-        row.put("event_time", Long.toString(timestamp));
-        row.put("username", Objects.requireNonNullElse(userId, ""));
-        row.put("type", Objects.requireNonNullElse(type, ""));
-        row.put("data", Objects.requireNonNullElse(data, ""));
-        row.putAll(resolveAttributes(authentication, event, usageStatsAttributes));
-        writer.write(row);
     }
 
     @Override

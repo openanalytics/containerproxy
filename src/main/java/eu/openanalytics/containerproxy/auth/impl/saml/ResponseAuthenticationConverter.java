@@ -39,6 +39,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.DEFAULT_NAME_ATTRIBUTE;
+import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.NAME_ATTRIBUTE_NAME_ID_VALUE;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_LOG_ATTRIBUTES;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_NAME_ATTRIBUTE;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
@@ -75,7 +76,13 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
             logAttributes(principal);
         }
 
-        Optional<String> nameValue = getSingleAttributeValue(principal, nameAttribute);
+        Optional<String> nameValue;
+        if (nameAttribute.equalsIgnoreCase(NAME_ATTRIBUTE_NAME_ID_VALUE)) {
+            nameValue = Optional.ofNullable(nameId);
+        } else {
+            nameValue = getSingleAttributeValue(principal, nameAttribute);
+        }
+
         if (nameValue.isEmpty()) {
             throw new UsernameNotFoundException(String.format("[SAML] User: \"%s\" => name attribute missing from SAML assertion", nameId));
         }

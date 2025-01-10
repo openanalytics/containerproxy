@@ -61,6 +61,7 @@ import java.security.cert.X509Certificate;
 public class SAMLConfiguration {
 
     public static final String DEFAULT_NAME_ATTRIBUTE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+    public static final String NAME_ATTRIBUTE_NAME_ID_VALUE = "https://shinyproxy.io/nameid";
 
     public static final String PROP_LOG_ATTRIBUTES = "proxy.saml.log-attributes";
     public static final String PROP_FORCE_AUTHN = "proxy.saml.force-authn";

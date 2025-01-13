@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 
 import javax.inject.Inject;
@@ -48,16 +49,19 @@ public abstract class AbstractDbCollector implements IStatCollector {
     private SpecExpressionResolver specExpressionResolver;
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
+    @Async
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
         writeToDb(event, event.getTimestamp(), event.getUserId(), "Logout", null, event.getAuthentication());
     }
 
+    @Async
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) throws IOException {
         writeToDb(event, event.getTimestamp(), event.getUserId(), "Login", null, event.getAuthentication());
     }
 
+    @Async
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) throws IOException {
         if (event.isLocalEvent()) {
@@ -65,6 +69,7 @@ public abstract class AbstractDbCollector implements IStatCollector {
         }
     }
 
+    @Async
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) throws IOException {
         if (event.isLocalEvent()) {

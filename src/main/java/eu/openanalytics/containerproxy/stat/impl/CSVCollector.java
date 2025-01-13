@@ -107,10 +107,11 @@ public class CSVCollector extends AbstractDbCollector implements AutoCloseable {
 
         schema = schemaBuilder.build();
         writer = csvMapper.writer(schema).writeValues(fileWriter);
+        schema = schemaBuilder.setUseHeader(false).build(); // don't write header when writer re-starts
     }
 
     @Override
-    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
+    protected synchronized void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) {
         try {
             Map<String, String> row = new HashMap<>();
             for (String column : schema.getColumnNames()) {

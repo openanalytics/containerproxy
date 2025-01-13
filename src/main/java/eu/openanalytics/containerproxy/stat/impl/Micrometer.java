@@ -93,8 +93,10 @@ public class Micrometer implements IStatCollector {
     private static final Map<ProxyStatus, Integer> PROXY_STATUS_TO_INTEGER = Map.of(
         ProxyStatus.New, 1,
         ProxyStatus.Up, 10,
+        ProxyStatus.Pausing, 20,
         ProxyStatus.Paused, 20,
         ProxyStatus.Resuming, 30,
+        ProxyStatus.Stopping, 40,
         ProxyStatus.Stopped, 40
     );
 
@@ -170,29 +172,107 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onNewProxyEvent(NewProxyEvent event) {
-        // must run on each instance (gauge is registered on every instance)
-        if (event.getUserId() != null && event.getBackendContainerName() != null) {
-            registry.gauge("appInfo",
-                Tags.of(
-                    "spec.id", event.getSpecId(),
-                    "user.id", event.getUserId(),
-                    "proxy.instance", event.getInstance(),
-                    "proxy.id", event.getProxyId(),
-                    "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
-                    "resource.id", event.getBackendContainerName().getName(),
-                    "proxy.namespace", event.getBackendContainerName().getNamespace()),
-                PROXY_STATUS_TO_INTEGER.get(ProxyStatus.New)
-            );
-            recentProxies.put(event.getProxyId(), event.getProxyId());
+        try {
+            // must run on each instance (gauge is registered on every instance)
+            if (event.getUserId() != null && event.getBackendContainerName() != null) {
+                registry.gauge("appInfo",
+                    Tags.of(
+                        "spec.id", event.getSpecId(),
+                        "user.id", event.getUserId(),
+                        "proxy.instance", event.getInstance(),
+                        "proxy.id", event.getProxyId(),
+                        "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                        "resource.id", event.getBackendContainerName().getName(),
+                        "proxy.namespace", event.getBackendContainerName().getNamespace()),
+                    PROXY_STATUS_TO_INTEGER.get(ProxyStatus.New)
+                );
+                recentProxies.put(event.getProxyId(), event.getProxyId());
+            }
+            logger.debug("NewProxyEvent [user: {}]", event.getUserId());
+        } catch (Exception e) {
+            logger.error("Error in onNewProxyEvent", e);
         }
-        logger.debug("NewProxyEvent [user: {}]", event.getUserId());
     }
 
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) {
-        // must run on each instance (gauge is registered on every instance)
-        if (event.getBackendContainerName() != null) {
-            removeExistingAppInfo(event.getProxyId());
+        try {
+            // must run on each instance (gauge is registered on every instance)
+            if (event.getBackendContainerName() != null) {
+                removeExistingAppInfo(event.getProxyId());
+                registry.gauge("appInfo",
+                    Tags.of(
+                        "spec.id", event.getSpecId(),
+                        "user.id", event.getUserId(),
+                        "proxy.instance", event.getInstance(),
+                        "proxy.id", event.getProxyId(),
+                        "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                        "resource.id", event.getBackendContainerName().getName(),
+                        "proxy.namespace", event.getBackendContainerName().getNamespace()),
+                    PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Up)
+                );
+                recentProxies.put(event.getProxyId(), event.getProxyId());
+            }
+            if (!event.isLocalEvent()) {
+                return;
+            }
+            logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
+            registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
+
+
+            ProxyStartupLog startupLog = event.getProxyStartupLog();
+            startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
+                registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);
+            });
+
+            startupLog.getPullImage().forEach((idx, step) -> {
+                step.getStepDuration().ifPresent((d) -> {
+                    registry.timer("imagePullTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+                });
+            });
+
+            startupLog.getScheduleContainer().forEach((idx, step) -> {
+                step.getStepDuration().ifPresent((d) -> {
+                    registry.timer("containerScheduleTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+                });
+            });
+
+            startupLog.getStartContainer().forEach((idx, step) -> {
+                step.getStepDuration().ifPresent((d) -> {
+                    registry.timer("containerStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
+                });
+            });
+
+            startupLog.getStartApplication().getStepDuration().ifPresent((d) -> {
+                registry.timer("applicationStartupTime", "spec.id", event.getSpecId()).record(d);
+            });
+        } catch (Exception e) {
+            logger.error("Error in onProxyStartEvent", e);
+        }
+    }
+
+    @EventListener
+    public void onProxyStopEvent(ProxyStopEvent event) {
+        try {
+            recentProxies.put(event.getProxyId(), event.getProxyId());
+            // must run on each instance (gauge is registered on every instance)
+            Integer value = PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped);
+            if (event.getProxyStopReason().equals(ProxyStopReason.Crashed)) {
+                value = PROXY_STATUS_CRASHED_TO_INTEGER;
+            }
+            String resourceId;
+            String namespace;
+            Gauge gauge = removeExistingAppInfo(event.getProxyId());
+            if (event.getBackendContainerName() != null) {
+                resourceId = event.getBackendContainerName().getName();
+                namespace = event.getBackendContainerName().getNamespace();
+            } else if (gauge != null) {
+                resourceId = gauge.getId().getTag("resource.id");
+                namespace = gauge.getId().getTag("proxy.namespace");
+            } else {
+                resourceId = "NA";
+                namespace = "NA";
+            }
             registry.gauge("appInfo",
                 Tags.of(
                     "spec.id", event.getSpecId(),
@@ -200,114 +280,64 @@ public class Micrometer implements IStatCollector {
                     "proxy.instance", event.getInstance(),
                     "proxy.id", event.getProxyId(),
                     "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
-                    "resource.id", event.getBackendContainerName().getName(),
-                    "proxy.namespace", event.getBackendContainerName().getNamespace()),
-                PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Up)
+                    "resource.id", resourceId,
+                    "proxy.namespace", namespace),
+                value
             );
-            recentProxies.put(event.getProxyId(), event.getProxyId());
-        }
-        if (!event.isLocalEvent()) {
-            return;
-        }
-        logger.debug("ProxyStartEvent [user: {}]", event.getUserId());
-        registry.counter("appStarts", "spec.id", event.getSpecId()).increment();
-
-
-        ProxyStartupLog startupLog = event.getProxyStartupLog();
-        startupLog.getCreateProxy().getStepDuration().ifPresent((d) -> {
-            registry.timer("startupTime", "spec.id", event.getSpecId()).record(d);
-        });
-
-        startupLog.getPullImage().forEach((idx, step) -> {
-            step.getStepDuration().ifPresent((d) -> {
-                registry.timer("imagePullTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
-            });
-        });
-
-        startupLog.getScheduleContainer().forEach((idx, step) -> {
-            step.getStepDuration().ifPresent((d) -> {
-                registry.timer("containerScheduleTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
-            });
-        });
-
-        startupLog.getStartContainer().forEach((idx, step) -> {
-            step.getStepDuration().ifPresent((d) -> {
-                registry.timer("containerStartupTime", "spec.id", event.getSpecId(), "container.idx", idx.toString()).record(d);
-            });
-        });
-
-        startupLog.getStartApplication().getStepDuration().ifPresent((d) -> {
-            registry.timer("applicationStartupTime", "spec.id", event.getSpecId()).record(d);
-        });
-    }
-
-    @EventListener
-    public void onProxyStopEvent(ProxyStopEvent event) {
-        recentProxies.put(event.getProxyId(), event.getProxyId());
-        // must run on each instance (gauge is registered on every instance)
-        removeExistingAppInfo(event.getProxyId());
-        Integer value = PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped);
-        if (event.getProxyStopReason().equals(ProxyStopReason.Crashed)) {
-            value = PROXY_STATUS_CRASHED_TO_INTEGER;
-        }
-        registry.gauge("appInfo",
-            Tags.of(
-                "spec.id", event.getSpecId(),
-                "user.id", event.getUserId(),
-                "proxy.instance", event.getInstance(),
-                "proxy.id", event.getProxyId(),
-                "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
-                "resource.id", event.getBackendContainerName().getName(),
-                "proxy.namespace", event.getBackendContainerName().getNamespace()),
-            value
-        );
-        if (!event.isLocalEvent()) {
-            return;
-        }
-        logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
-        registry.counter("appStops", "spec.id", event.getSpecId()).increment();
-        if (event.getUsageTime() != null) {
-            registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
-        }
-        if (event.getProxyStopReason() == ProxyStopReason.Crashed) {
-            registry.counter("appCrashes", "spec.id", event.getSpecId()).increment();
+            if (!event.isLocalEvent()) {
+                return;
+            }
+            logger.debug("ProxyStopEvent [user: {}, usageTime: {}]", event.getUserId(), event.getUsageTime());
+            registry.counter("appStops", "spec.id", event.getSpecId()).increment();
+            if (event.getUsageTime() != null) {
+                registry.timer("usageTime", "spec.id", event.getSpecId()).record(event.getUsageTime());
+            }
+            if (event.getProxyStopReason() == ProxyStopReason.Crashed) {
+                registry.counter("appCrashes", "spec.id", event.getSpecId()).increment();
+            }
+        } catch (Exception e) {
+            logger.error("Error in onProxyStopEvent", e);
         }
     }
 
     @EventListener
     public void onProxyStartFailedEvent(ProxyStartFailedEvent event) {
-        recentProxies.put(event.getProxyId(), event.getProxyId());
-        // must run on each instance (gauge is registered on every instance)
-        String resourceId;
-        String namespace;
-        Gauge gauge = removeExistingAppInfo(event.getProxyId());
-        if (event.getBackendContainerName() != null) {
-            resourceId = event.getBackendContainerName().getName();
-            namespace = event.getBackendContainerName().getNamespace();
-        } else if (gauge != null) {
-            resourceId = gauge.getId().getTag("resource.id");
-            namespace = gauge.getId().getTag("proxy.namespace");
-        } else {
-            resourceId = "NA";
-            namespace = "NA";
+        try {
+            recentProxies.put(event.getProxyId(), event.getProxyId());
+            // must run on each instance (gauge is registered on every instance)
+            String resourceId;
+            String namespace;
+            Gauge gauge = removeExistingAppInfo(event.getProxyId());
+            if (event.getBackendContainerName() != null) {
+                resourceId = event.getBackendContainerName().getName();
+                namespace = event.getBackendContainerName().getNamespace();
+            } else if (gauge != null) {
+                resourceId = gauge.getId().getTag("resource.id");
+                namespace = gauge.getId().getTag("proxy.namespace");
+            } else {
+                resourceId = "NA";
+                namespace = "NA";
+            }
+            registry.gauge("appInfo",
+                Tags.of(
+                    "spec.id", event.getSpecId(),
+                    "user.id", event.getUserId(),
+                    "proxy.instance", event.getInstance(),
+                    "proxy.id", event.getProxyId(),
+                    "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
+                    "resource.id", resourceId,
+                    "proxy.namespace", namespace
+                ),
+                PROXY_STATUS_FAILED_TO_START_TO_INTEGER
+            );
+            if (!event.isLocalEvent()) {
+                return;
+            }
+            logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
+            registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
+        } catch (Exception e) {
+            logger.error("Error in onProxyStartFailedEvent", e);
         }
-        registry.gauge("appInfo",
-            Tags.of(
-                "spec.id", event.getSpecId(),
-                "user.id", event.getUserId(),
-                "proxy.instance", event.getInstance(),
-                "proxy.id", event.getProxyId(),
-                "proxy.created.timestamp", event.getCreatedTimestamp().toString(),
-                "resource.id", resourceId,
-                "proxy.namespace", namespace
-            ),
-            PROXY_STATUS_FAILED_TO_START_TO_INTEGER
-        );
-        if (!event.isLocalEvent()) {
-            return;
-        }
-        logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
-        registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
     }
 
     @EventListener
@@ -385,62 +415,66 @@ public class Micrometer implements IStatCollector {
      * since otherwise the Gauge will not be updated to the Stopped state.
      */
     private void updateAppInfo() {
-        Map<String, Gauge> existingGauges = getAppInfoGauges();
-        for (Proxy proxy : proxyService.getAllProxies()) {
-            Gauge existingGauge = existingGauges.remove(proxy.getId());
-            if (existingGauge != null && (existingGauge.value() == PROXY_STATUS_TO_INTEGER.get(proxy.getStatus())
-                || existingGauge.value() == PROXY_STATUS_CRASHED_TO_INTEGER
-                || existingGauge.value() == PROXY_STATUS_FAILED_TO_START_TO_INTEGER)) {
-                // gauge already exists and value is correct
-                continue;
-            }
-            if (existingGauge != null) {
-                registry.remove(existingGauge);
-            }
-
-            BackendContainerName backendContainerName = getBackendContainerName(proxy);
-            if (backendContainerName == null) {
-                // container not fully ready, will be registered later
-                continue;
-            }
-            registry.gauge("appInfo",
-                Tags.of(
-                    "spec.id", proxy.getSpecId(),
-                    "user.id", proxy.getUserId(),
-                    "proxy.instance", proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
-                    "proxy.id", proxy.getId(),
-                    "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
-                    "resource.id", backendContainerName.getName(),
-                    "proxy.namespace", backendContainerName.getNamespace()),
-                PROXY_STATUS_TO_INTEGER.get(proxy.getStatus())
-            );
-        }
-        for (Gauge gauge : existingGauges.values()) {
-            String proxyId = gauge.getId().getTag("proxy.id");
-            if (proxyId != null && recentProxies.getIfPresent(proxyId) != null) {
-                // this proxy was recently stopped, we should not yet remove the gauge
-                // so that the metrics systems knows the app was stopped
-                if (gauge.value() != PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped)
-                    && gauge.value() != PROXY_STATUS_CRASHED_TO_INTEGER
-                    && gauge.value() != PROXY_STATUS_FAILED_TO_START_TO_INTEGER) {
-                    // gauge not yet updated -> set is as stopped
-                    registry.remove(gauge);
-                    registry.gauge("appInfo",
-                        Tags.of(
-                            "spec.id", gauge.getId().getTag("spec.id"),
-                            "user.id", gauge.getId().getTag("user.id"),
-                            "proxy.instance", gauge.getId().getTag("proxy.instance"),
-                            "proxy.id", gauge.getId().getTag("proxy.id"),
-                            "proxy.created.timestamp", gauge.getId().getTag("proxy.created.timestamp"),
-                            "resource.id", gauge.getId().getTag("resource.id"),
-                            "proxy.namespace", gauge.getId().getTag("proxy.namespace")),
-                        PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped)
-                    );
+        try {
+            Map<String, Gauge> existingGauges = getAppInfoGauges();
+            for (Proxy proxy : proxyService.getAllProxies()) {
+                Gauge existingGauge = existingGauges.remove(proxy.getId());
+                if (existingGauge != null && (existingGauge.value() == PROXY_STATUS_TO_INTEGER.get(proxy.getStatus())
+                    || existingGauge.value() == PROXY_STATUS_CRASHED_TO_INTEGER
+                    || existingGauge.value() == PROXY_STATUS_FAILED_TO_START_TO_INTEGER)) {
+                    // gauge already exists and value is correct
+                    continue;
                 }
-                continue;
+                if (existingGauge != null) {
+                    registry.remove(existingGauge);
+                }
+
+                BackendContainerName backendContainerName = getBackendContainerName(proxy);
+                if (backendContainerName == null) {
+                    // container not fully ready, will be registered later
+                    continue;
+                }
+                registry.gauge("appInfo",
+                    Tags.of(
+                        "spec.id", proxy.getSpecId(),
+                        "user.id", proxy.getUserId(),
+                        "proxy.instance", proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+                        "proxy.id", proxy.getId(),
+                        "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
+                        "resource.id", backendContainerName.getName(),
+                        "proxy.namespace", backendContainerName.getNamespace()),
+                    PROXY_STATUS_TO_INTEGER.get(proxy.getStatus())
+                );
             }
-            // the proxy of this gauge no longer exists -> remove the gauge
-            registry.remove(gauge);
+            for (Gauge gauge : existingGauges.values()) {
+                String proxyId = gauge.getId().getTag("proxy.id");
+                if (proxyId != null && recentProxies.getIfPresent(proxyId) != null) {
+                    // this proxy was recently stopped, we should not yet remove the gauge
+                    // so that the metrics systems knows the app was stopped
+                    if (gauge.value() != PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped)
+                        && gauge.value() != PROXY_STATUS_CRASHED_TO_INTEGER
+                        && gauge.value() != PROXY_STATUS_FAILED_TO_START_TO_INTEGER) {
+                        // gauge not yet updated -> set is as stopped
+                        registry.remove(gauge);
+                        registry.gauge("appInfo",
+                            Tags.of(
+                                "spec.id", gauge.getId().getTag("spec.id"),
+                                "user.id", gauge.getId().getTag("user.id"),
+                                "proxy.instance", gauge.getId().getTag("proxy.instance"),
+                                "proxy.id", gauge.getId().getTag("proxy.id"),
+                                "proxy.created.timestamp", gauge.getId().getTag("proxy.created.timestamp"),
+                                "resource.id", gauge.getId().getTag("resource.id"),
+                                "proxy.namespace", gauge.getId().getTag("proxy.namespace")),
+                            PROXY_STATUS_TO_INTEGER.get(ProxyStatus.Stopped)
+                        );
+                    }
+                    continue;
+                }
+                // the proxy of this gauge no longer exists -> remove the gauge
+                registry.remove(gauge);
+            }
+        } catch (Exception e) {
+            logger.error("Error in updateAppInfo", e);
         }
     }
 

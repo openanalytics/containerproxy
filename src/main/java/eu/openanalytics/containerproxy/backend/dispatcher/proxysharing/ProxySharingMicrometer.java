@@ -29,11 +29,14 @@ import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 
@@ -72,6 +75,7 @@ public class ProxySharingMicrometer implements IStatCollector {
     );
 
     private Cache<String, String> recentProxies;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
      * Wraps a function that returns an Integer into a function that returns a double.
@@ -138,59 +142,63 @@ public class ProxySharingMicrometer implements IStatCollector {
     }
 
     private void updateDelegateAppInfo() {
-        Map<String, Gauge> existingGauges = getDelegateAppInfoGauges();
-        for (ProxySharingScaler scaler : proxySharingScalers) {
-            String specId = scaler.getSpec().getId();
-            for (DelegateProxy delegateProxy : scaler.getAllDelegateProxies()) {
-                Proxy proxy = delegateProxy.getProxy();
-                recentProxies.put(proxy.getId(), proxy.getId());
-                Gauge existingGauge = existingGauges.remove(proxy.getId());
-                if (existingGauge != null && existingGauge.value() == PROXY_STATUS_TO_INTEGER.get(delegateProxy.getDelegateProxyStatus())) {
-                    // gauge already exists and value is correct
-                    continue;
-                }
-                if (existingGauge != null) {
-                    registry.remove(existingGauge);
-                }
+        try {
+            Map<String, Gauge> existingGauges = getDelegateAppInfoGauges();
+            for (ProxySharingScaler scaler : proxySharingScalers) {
+                String specId = scaler.getSpec().getId();
+                for (DelegateProxy delegateProxy : scaler.getAllDelegateProxies()) {
+                    Proxy proxy = delegateProxy.getProxy();
+                    recentProxies.put(proxy.getId(), proxy.getId());
+                    Gauge existingGauge = existingGauges.remove(proxy.getId());
+                    if (existingGauge != null && existingGauge.value() == PROXY_STATUS_TO_INTEGER.get(delegateProxy.getDelegateProxyStatus())) {
+                        // gauge already exists and value is correct
+                        continue;
+                    }
+                    if (existingGauge != null) {
+                        registry.remove(existingGauge);
+                    }
 
-                BackendContainerName backendContainerName = getBackendContainerName(proxy);
-                if (backendContainerName == null) {
-                    // container not fully ready, will be registered later
-                    continue;
-                }
+                    BackendContainerName backendContainerName = getBackendContainerName(proxy);
+                    if (backendContainerName == null) {
+                        // container not fully ready, will be registered later
+                        continue;
+                    }
 
-                registry.gauge("delegate_app_info",
-                    Tags.of(
-                        "spec.id", specId,
-                        "proxy.id", proxy.getId(),
-                        "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
-                        "resource.id", backendContainerName.getName(),
-                        "proxy.namespace", backendContainerName.getNamespace()),
-                    PROXY_STATUS_TO_INTEGER.get(delegateProxy.getDelegateProxyStatus())
-                );
+                    registry.gauge("delegate_app_info",
+                        Tags.of(
+                            "spec.id", specId,
+                            "proxy.id", proxy.getId(),
+                            "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
+                            "resource.id", backendContainerName.getName(),
+                            "proxy.namespace", backendContainerName.getNamespace()),
+                        PROXY_STATUS_TO_INTEGER.get(delegateProxy.getDelegateProxyStatus())
+                    );
+                }
             }
-        }
-        for (Gauge gauge : existingGauges.values()) {
-            String proxyId = gauge.getId().getTag("proxy.id");
-            if (proxyId != null && recentProxies.getIfPresent(proxyId) != null) {
-                // this DelegateProxy has been removed, mark it as ToRemove
-                // when the TTL of this proxy in recentProxies expires, the gauge will be removed
-                // this waiting period allows the metric system to pick up that the proxy is being removed
+            for (Gauge gauge : existingGauges.values()) {
+                String proxyId = gauge.getId().getTag("proxy.id");
+                if (proxyId != null && recentProxies.getIfPresent(proxyId) != null) {
+                    // this DelegateProxy has been removed, mark it as ToRemove
+                    // when the TTL of this proxy in recentProxies expires, the gauge will be removed
+                    // this waiting period allows the metric system to pick up that the proxy is being removed
+                    registry.remove(gauge);
+                    registry.gauge("delegate_app_info",
+                        Tags.of(
+                            "spec.id", gauge.getId().getTag("spec.id"),
+                            "proxy.id", gauge.getId().getTag("proxy.id"),
+                            "proxy.created.timestamp", gauge.getId().getTag("proxy.created.timestamp"),
+                            "resource.id", gauge.getId().getTag("resource.id"),
+                            "proxy.namespace", gauge.getId().getTag("proxy.namespace")),
+                        PROXY_STATUS_TO_INTEGER.get(DelegateProxyStatus.ToRemove)
+                    );
+                    continue;
+                }
+
+                // the proxy of this gauge no longer exists -> remove the gauge
                 registry.remove(gauge);
-                registry.gauge("delegate_app_info",
-                    Tags.of(
-                        "spec.id", gauge.getId().getTag("spec.id"),
-                        "proxy.id",  gauge.getId().getTag("proxy.id"),
-                        "proxy.created.timestamp", gauge.getId().getTag("proxy.created.timestamp"),
-                        "resource.id", gauge.getId().getTag("resource.id"),
-                        "proxy.namespace", gauge.getId().getTag("proxy.namespace")),
-                    PROXY_STATUS_TO_INTEGER.get(DelegateProxyStatus.ToRemove)
-                );
-                continue;
             }
-
-            // the proxy of this gauge no longer exists -> remove the gauge
-            registry.remove(gauge);
+        } catch (Exception e) {
+            logger.warn("Error while updating delegateAppInfo", e);
         }
     }
 

@@ -85,7 +85,8 @@ public class RedisProxyStore implements IProxyStore {
     public void removeProxy(Proxy proxy) {
         logger.debug("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
-        updateMappings(proxy.getId(), proxy);
+        logger.debug("Redis: remove mappings (event) {}", proxy.getId());
+        mappingManager.removeMappings(proxy.getId());
         userProxyOps.remove(userProxyRedisKey + proxy.getUserId(), proxy.getId());
     }
 

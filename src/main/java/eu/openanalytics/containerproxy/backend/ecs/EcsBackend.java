@@ -295,7 +295,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .environment(env)
                 .stopTimeout(2)
                 .dockerLabels(dockerLabels)
-                .logConfiguration(getLogConfiguration(proxy.getId()))
+                .logConfiguration(getLogConfiguration(proxy.getSpecId()))
                 .mountPoints(volumes.getSecond())
                 .build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate

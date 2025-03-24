@@ -8,6 +8,7 @@
     <version>1.2.0-SNAPSHOT</version>
     <name>ContainerProxy</name>
     <packaging>jar</packaging>
+    <inceptionYear>2016</inceptionYear>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -23,6 +24,8 @@
         <maven.compiler.target>17</maven.compiler.target>
         <spring-boot.version>3.2.6</spring-boot.version>
         <aws.java.sdk.version>2.23.12</aws.java.sdk.version>
+        <maven.license.plugin.version>4.6</maven.license.plugin.version>
+        <maven.build-helper-maven.plugin.version>3.6.0</maven.build-helper-maven.plugin.version>
     </properties>
 
     <distributionManagement>
@@ -440,9 +443,9 @@
             </plugin>
 
             <plugin>
-                <groupId>com.mycila.maven-license-plugin</groupId>
-                <artifactId>maven-license-plugin</artifactId>
-                <version>1.9.0</version>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${maven.license.plugin.version}</version>
 
                 <executions>
                     <execution>
@@ -455,22 +458,59 @@
                 </executions>
 
                 <configuration>
-                    <header>LICENSE_HEADER</header>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>LICENSE_HEADER</header>
+                            <excludes>
+                                <exclude>**/*.bak</exclude>
+                                <exclude>**/*.conf</exclude>
+                                <exclude>**/*.json</exclude>
+                                <exclude>**/*.pem</exclude>
+                                <exclude>**/*.properties</exclude>
+                                <exclude>**/*.raml</exclude>
+                                <exclude>**/*.sh</exclude>
+                                <exclude>**/*.txt</exclude>
+                                <exclude>**/*.xml</exclude>
+                                <exclude>**/*.yaml</exclude>
+                                <exclude>**/*.yml</exclude>
+                                <exclude>**/Dockerfile</exclude>
+                                <exclude>.editorconfig</exclude>
+                                <exclude>.gitignore</exclude>
+                                <exclude>JenkinsfileSCM</exclude>
+                                <exclude>LICENSE</exclude>
+                                <exclude>LICENSE_HEADER</exclude>
+                                <exclude>README.md</exclude>
+                                <exclude>docs/**</exclude>
+                                <exclude>src/main/resources/configs/**</exclude>
+                                <exclude>src/test/resources/**</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
                     <aggregate>true</aggregate>
                     <strictCheck>true</strictCheck>
-                    <excludes>
-                        <exclude>**/*.properties</exclude>
-                        <exclude>**/*.yml</exclude>
-                        <exclude>**/*.json</exclude>
-                        <exclude>**/*.raml</exclude>
-                        <exclude>**/*.sh</exclude>
-                        <exclude>**/*.xml</exclude>
-                        <exclude>LICENSE</exclude>
-                        <exclude>LICENSE_HEADER</exclude>
-                        <exclude>README.md</exclude>
-                        <exclude>.gitignore</exclude>
-                    </excludes>
+                    <properties>
+                        <year>${current.year}</year>
+                    </properties>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${maven.build-helper-maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>timestamp-property</id>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
+                        <phase>validate</phase>
+                        <configuration>
+                            <name>current.year</name>
+                            <pattern>yyyy</pattern>
+                            <locale>en-GB</locale>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

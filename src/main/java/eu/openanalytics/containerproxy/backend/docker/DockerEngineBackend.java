@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -48,6 +50,7 @@ import org.mandas.docker.client.messages.AttachedNetwork;
 import org.mandas.docker.client.messages.ContainerConfig;
 import org.mandas.docker.client.messages.ContainerCreation;
 import org.mandas.docker.client.messages.ContainerInfo;
+import org.mandas.docker.client.messages.ContainerState;
 import org.mandas.docker.client.messages.HostConfig;
 import org.mandas.docker.client.messages.PortBinding;
 import org.mandas.docker.client.messages.RegistryAuth;
@@ -307,7 +310,24 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
     @Override
     public boolean isProxyHealthy(Proxy proxy) {
-        return true; // TODO
+        for (Container container : proxy.getContainers()) {
+            try {
+                ContainerInfo info = dockerClient.inspectContainer(container.getId());
+                ContainerState state = info.state();
+                if (!state.running() || !state.status().equals("running")) {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    slog.warn(proxy, "Docker container failed: container not running, state reported by docker: " + objectMapper.writeValueAsString(state));
+                    return false;
+                }
+                return true;
+            } catch (ContainerNotFoundException e) {
+                slog.warn(proxy, "Docker container failed: container does not exist");
+                return false;
+            } catch (DockerException | InterruptedException | JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return true;
     }
 
     @Override

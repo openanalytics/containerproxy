@@ -178,6 +178,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 .name(serviceName)
                 .taskTemplate(TaskSpec.builder()
                     .containerSpec(containerSpec)
+                    .restartPolicy(RestartPolicy.builder().condition(RestartPolicy.RESTART_POLICY_NONE).build())
                     .resources(ResourceRequirements.builder()
                         .reservations(reservationsBuilder.build())
                         .limits(limitsBuilder.build())

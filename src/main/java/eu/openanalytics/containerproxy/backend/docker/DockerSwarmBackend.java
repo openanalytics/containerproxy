@@ -44,6 +44,7 @@ import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.LogStream;
 import org.mandas.docker.client.exceptions.DockerException;
 import org.mandas.docker.client.exceptions.ServiceNotFoundException;
+import org.mandas.docker.client.exceptions.TaskNotFoundException;
 import org.mandas.docker.client.messages.RegistryAuth;
 import org.mandas.docker.client.messages.mount.Mount;
 import org.mandas.docker.client.messages.swarm.DnsConfig;
@@ -53,6 +54,7 @@ import org.mandas.docker.client.messages.swarm.PortConfig;
 import org.mandas.docker.client.messages.swarm.Reservations;
 import org.mandas.docker.client.messages.swarm.ResourceRequirements;
 import org.mandas.docker.client.messages.swarm.Resources;
+import org.mandas.docker.client.messages.swarm.RestartPolicy;
 import org.mandas.docker.client.messages.swarm.SecretBind;
 import org.mandas.docker.client.messages.swarm.SecretFile;
 import org.mandas.docker.client.messages.swarm.Service;
@@ -314,7 +316,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
         for (Service service : dockerClient.listServices()) {
-           org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
+            org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
 
             if (containerSpec == null) {
                 continue;
@@ -359,7 +361,34 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
     @Override
     public boolean isProxyHealthy(Proxy proxy) {
-        return true; // TODO
+        for (Container container : proxy.getContainers()) {
+            try {
+                BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+                if (serviceId == null) {
+                    slog.warn(proxy, "Docker Swarm container failed: no service id found");
+                    return false;
+                }
+                dockerClient.inspectService(serviceId.getName()); // check service exists
+                List<Task> serviceTask = dockerClient.listTasks(Task.Criteria.builder().serviceName(serviceId.getName()).build());
+                if (serviceTask.isEmpty()) {
+                    slog.warn(proxy, "Docker Swarm container failed: service does not exist");
+                    return false;
+                }
+                Task task = serviceTask.get(0);
+                if (!task.status().state().equals("running")) {
+                    slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(task.status()));
+                    return false;
+                }
+                return true;
+            } catch (ServiceNotFoundException e) {
+                slog.warn(proxy, "Docker Swarm container failed: service does not exist");
+                return false;
+            } catch (DockerException | InterruptedException e) {
+                slog.warn(proxy, e, "Failed to check Docker Swarm container health");
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -31,9 +33,12 @@ import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 import org.mandas.docker.client.DockerCertificates;
 import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.LogStream;
+import org.mandas.docker.client.ObjectMapperProvider;
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
 import org.mandas.docker.client.exceptions.DockerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -64,6 +69,8 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     protected Integer portRangeTo;
 
     private final ScheduledExecutorService releasePortExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
     public void initialize() throws ContainerProxyException {
@@ -142,6 +149,15 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected void releasePort(String ownerId) {
         releasePortExecutor.schedule(() -> portAllocator.release(ownerId), 10, TimeUnit.SECONDS);
+    }
+
+    protected String toJson(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            logger.warn("Error while generating json", e);
+            return null;
+        }
     }
 
 }

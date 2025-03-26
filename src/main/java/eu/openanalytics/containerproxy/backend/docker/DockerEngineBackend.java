@@ -20,8 +20,6 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -315,15 +313,14 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 ContainerInfo info = dockerClient.inspectContainer(container.getId());
                 ContainerState state = info.state();
                 if (!state.running() || !state.status().equals("running")) {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    slog.warn(proxy, "Docker container failed: container not running, state reported by docker: " + objectMapper.writeValueAsString(state));
+                    slog.warn(proxy, "Docker container failed: container not running, state reported by docker: " + toJson(state));
                     return false;
                 }
                 return true;
             } catch (ContainerNotFoundException e) {
                 slog.warn(proxy, "Docker container failed: container does not exist");
                 return false;
-            } catch (DockerException | InterruptedException | JsonProcessingException e) {
+            } catch (DockerException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }

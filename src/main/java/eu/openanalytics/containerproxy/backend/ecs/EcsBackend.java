@@ -449,7 +449,19 @@ public class EcsBackend extends AbstractContainerBackend {
 
     @Override
     public boolean isProxyHealthy(Proxy proxy) {
-        return true; // TODO
+        for (Container container : proxy.getContainers()) {
+            Optional<Task> _task = getTask(container);
+            if (_task.isEmpty()) {
+                slog.warn(proxy, "ECS container failed: task not found");
+                return false;
+            }
+            Task task = _task.get();
+            if (!task.lastStatus().equals("RUNNING") || !task.desiredStatus().equals("RUNNING")) {
+                slog.warn(proxy, String.format("ECS container failed: task not running, stopCode: '%s', stoppingAt: '%s', stoppedAt: '%s', stoppedReason: '%s'", task.stopCode(), task.stoppingAt(), task.stoppedAt(), task.stoppedReason()));
+                return false;
+            }
+        }
+        return true;
     }
 
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {

@@ -225,7 +225,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
     @Override
     public boolean isProxyHealthy(Proxy proxy) {
-        return false; // TODO
+        // do not check container status, it will fallback to HTTP check
+        return true;
     }
 
     @EventListener

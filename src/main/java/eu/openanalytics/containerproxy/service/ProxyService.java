@@ -111,11 +111,13 @@ public class ProxyService {
     private SpecExpressionResolver expressionResolver;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
+    private int requestTimeout;
 
     @PostConstruct
     public void init() {
         stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, "true"));
         maxTotalInstances = environment.getProperty("proxy.max-total-instances", Integer.class, -1);
+        requestTimeout = Integer.parseInt(environment.getProperty("proxy.container-wait-timeout", "5000"));
     }
 
     @PreDestroy
@@ -435,8 +437,8 @@ public class ProxyService {
 
             URL testURL = new URL(targetURI.toString() + "/");
             HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
-            connection.setConnectTimeout(timeoutMs);
-            connection.setReadTimeout(timeoutMs);
+            connection.setConnectTimeout(requestTimeout);
+            connection.setReadTimeout(requestTimeout);
             connection.setInstanceFollowRedirects(false);
             int responseCode = connection.getResponseCode();
             if (!Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {

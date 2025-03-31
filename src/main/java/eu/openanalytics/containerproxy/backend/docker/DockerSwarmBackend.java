@@ -44,7 +44,6 @@ import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.LogStream;
 import org.mandas.docker.client.exceptions.DockerException;
 import org.mandas.docker.client.exceptions.ServiceNotFoundException;
-import org.mandas.docker.client.exceptions.TaskNotFoundException;
 import org.mandas.docker.client.messages.RegistryAuth;
 import org.mandas.docker.client.messages.mount.Mount;
 import org.mandas.docker.client.messages.swarm.DnsConfig;
@@ -87,6 +86,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     private URL hostURL;
 
     private int serviceWaitTime;
+
+    private static final List<String> STARTING_STATES = List.of("new", "pending", "assigned", "accepted", "ready", "preparing", "starting", "running");
 
     @PostConstruct
     public void initialize() {
@@ -221,21 +222,18 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             // Give the service some time to start up and launch a container.
             boolean containerFound = Retrying.retry((currentAttempt, maxAttempts) -> {
-                try {
-                    Task serviceTask = dockerClient
-                        .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
-                        .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
-                    if (serviceTask.status().containerStatus() != null) {
-                        rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
-                        return true;
-                    } else if (currentAttempt > 10 && log != null) {
-                        slog.info(proxy, String.format("Docker Swarm Service not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to inspect swarm service tasks", e);
+                Task serviceTask = dockerClient
+                    .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
+                    .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
+                if (serviceTask.status().containerStatus() != null && serviceTask.status().state().equals("running")) {
+                    rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
+                    return Retrying.SUCCESS;
+                } else if (!STARTING_STATES.contains(serviceTask.status().state())) {
+                    slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(serviceTask.status()));
+                    return new Retrying.Result(false, false);
                 }
-                return false;
-            }, serviceWaitTime, true);
+                return Retrying.FAILURE;
+            }, serviceWaitTime, "Docker Swarm Service", 10, proxy, slog);
 
             if (!containerFound) {
                 dockerClient.removeService(serviceId);

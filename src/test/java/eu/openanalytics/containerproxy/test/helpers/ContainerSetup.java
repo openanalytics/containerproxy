@@ -81,7 +81,7 @@ public class ContainerSetup implements AutoCloseable {
                 client.namespaces().withName(namespace).delete();
             }
             for (String namespace : managedNamespaces) {
-                Retrying.retry((c, m) -> client.namespaces().withName(namespace).get() == null, 60_000, "namespace deletion: " + namespace, 1, true);
+                Retrying.retry((c, m) -> new Retrying.Result(client.namespaces().withName(namespace).get() == null), 60_000, "namespace deletion: " + namespace, 1);
             }
         } catch (Throwable t) {
             throw new TestHelperException("Error while cleaning kubernetes", t);
@@ -111,23 +111,23 @@ public class ContainerSetup implements AutoCloseable {
                     case "docker" -> {
                         DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
                         long count = dockerClient.listContainers().stream().filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app")).count();
-                        return count <= 0;
+                        return new Retrying.Result(count <= 0);
                     }
                     case "docker-swarm" -> {
                         DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
-                        return dockerClient.listServices().isEmpty();
+                        return new Retrying.Result(dockerClient.listServices().isEmpty());
                     }
                     case "kubernetes" -> {
                         List<Pod> pods1 = client.pods().inNamespace(namespace).list().getItems();
                         List<Pod> pods2 = client.pods().inNamespace(overriddenNamespace).list().getItems();
-                        return pods1.isEmpty() && pods2.isEmpty();
+                        return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
                     }
                 }
-                return true;
+                return Retrying.SUCCESS;
             } catch (DockerException | InterruptedException | DockerCertificateException e) {
                 throw new TestHelperException("Error while checking if Docker is clean", e);
             }
-        }, 60_000, "docker/swarm/k8s is clean", 1, true);
+        }, 60_000, "docker/swarm/k8s is clean", 1);
     }
 
 

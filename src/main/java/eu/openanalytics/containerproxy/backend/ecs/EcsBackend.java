@@ -96,6 +96,8 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
     private static final Pattern LOG_GORUP_REPLACE_PATTERN = Pattern.compile("[^a-zA-Z0-9_\\-.#]");
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
+    private static final List<String> STARTING_STATES = List.of("PROVISIONING", "PENDING", "ACTIVATING");
+    private static final List<String> STOPPING_STATES = List.of("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
 
     private EcsClient ecsClient;
     private Boolean enableCloudWatch;
@@ -235,15 +237,17 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
-                    return true;
-                } else {
-                    if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("ECS Task not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                if (response.hasTasks()) {
+                    Task task = response.tasks().get(0);
+                    if (task.lastStatus().equals("RUNNING")) {
+                        return Retrying.SUCCESS;
+                    } else if (!STARTING_STATES.contains(task.lastStatus()) || !task.desiredStatus().equals("RUNNING")) {
+                        slog.warn(proxy, String.format("ECS container failed: task not running, stopCode: '%s', stoppingAt: '%s', stoppedAt: '%s', stoppedReason: '%s'", task.stopCode(), task.stoppingAt(), task.stoppedAt(), task.stoppedReason()));
+                        return new Retrying.Result(false, false);
                     }
-                    return false;
                 }
-            }, totalWaitMs);
+                return Retrying.FAILURE;
+            }, totalWaitMs, "ECS Task", 10, proxy, slog);
 
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
@@ -413,8 +417,6 @@ public class EcsBackend extends AbstractContainerBackend {
             ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
         }
 
-        List<String> stoppingState = Arrays.asList("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
-
         boolean isInactive = Retrying.retry((currentAttempt, maxAttempts) -> {
             for (Container container : proxy.getContainers()) {
                 String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
@@ -422,15 +424,12 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
-                    if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("ECS Task not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                    return false;
+                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().get(0).lastStatus())) {
+                    return Retrying.FAILURE;
                 }
             }
-            return true;
-        }, totalWaitMs);
+            return Retrying.SUCCESS;
+        }, totalWaitMs, "Stopping ECS Task", 10, proxy, slog);
 
         if (!isInactive) {
             slog.warn(proxy, "Container did not get into stopping state");

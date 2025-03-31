@@ -108,5 +108,11 @@ public interface IContainerBackend {
         return proxy;
     }
 
+    /**
+     * Checks the health of the proxy, by checking the health of the underlying container.
+     * Assumes that the container has started and reached the running state.
+     * @param proxy the proxy to check the health of
+     * @return whether the proxy is healthy
+     */
     boolean isProxyHealthy(Proxy proxy);
 }

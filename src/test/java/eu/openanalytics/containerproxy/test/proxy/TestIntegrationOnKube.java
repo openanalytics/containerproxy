@@ -57,7 +57,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import javax.json.JsonObject;
 import java.io.ByteArrayInputStream;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -1536,8 +1535,8 @@ public class TestIntegrationOnKube {
         boolean cleanedUp = Retrying.retry((c, m) -> {
             List<Pod> pods1 = k8s.client.pods().inNamespace(k8s.namespace).list().getItems();
             List<Pod> pods2 = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list().getItems();
-            return pods1.isEmpty() && pods2.isEmpty();
-        }, 5_000, "assert no pods", 1, true);
+            return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
+        }, 5_000, "assert no pods", 1);
         Assertions.assertTrue(cleanedUp);
         Assertions.assertEquals(0, inst.proxyService.getAllProxies().size());
     }
@@ -1546,8 +1545,8 @@ public class TestIntegrationOnKube {
         boolean cleanedUp = Retrying.retry((c, m) -> {
             List<PersistentVolumeClaim> pods1 = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list().getItems();
             List<PersistentVolumeClaim> pods2 = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list().getItems();
-            return pods1.isEmpty() && pods2.isEmpty();
-        }, 5_000, "assert no pvcs", 1, true);
+            return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
+        }, 5_000, "assert no pvcs", 1);
         Assertions.assertTrue(cleanedUp);
     }
 
@@ -1555,8 +1554,8 @@ public class TestIntegrationOnKube {
         boolean cleanedUp = Retrying.retry((c, m) -> {
             List<Secret> pods1 = k8s.getSecrets(k8s.namespace);
             List<Secret> pods2 = k8s.getSecrets(k8s.overriddenNamespace);
-            return pods1.isEmpty() && pods2.isEmpty();
-        }, 5_000, "assert no secrets", 1, true);
+            return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
+        }, 5_000, "assert no secrets", 1);
         Assertions.assertTrue(cleanedUp);
     }
 
@@ -1564,8 +1563,8 @@ public class TestIntegrationOnKube {
         boolean cleanedUp = Retrying.retry((c, m) -> {
             List<Service> pods1 = k8s.client.services().inNamespace(k8s.namespace).list().getItems();
             List<Service> pods2 = k8s.client.services().inNamespace(k8s.overriddenNamespace).list().getItems();
-            return pods1.isEmpty() && pods2.isEmpty();
-        }, 5_000, "assert no secrets", 1, true);
+            return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
+        }, 5_000, "assert no secrets", 1);
         Assertions.assertTrue(cleanedUp);
     }
 

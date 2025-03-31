@@ -605,16 +605,16 @@ public class TestIntegrationProxySharing {
     private void waitUntilNoPendingSeats(ShinyProxyInstance inst) {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getNumPendingSeats() == 0;
-        }, 60_000, "assert no pending seats", 1, true);
+            return new Retrying.Result(proxySharingScaler.getNumPendingSeats() == 0);
+        }, 60_000, "assert no pending seats", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 
     private void waitUntilUnNumberOfUnClaimedSeats(ShinyProxyInstance inst, int numSeats) {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getNumUnclaimedSeats() == numSeats;
-        }, 180_000, "assert number of unclaimed seats", 1, true);
+            return new Retrying.Result(proxySharingScaler.getNumUnclaimedSeats() == numSeats);
+        }, 180_000, "assert number of unclaimed seats", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 
@@ -630,11 +630,11 @@ public class TestIntegrationProxySharing {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         IDelegateProxyStore delegateProxyStore = proxySharingScaler.getDelegateProxyStore();
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return delegateProxyStore.getAllDelegateProxies().size() == numDelegateProxies
+            return new Retrying.Result(delegateProxyStore.getAllDelegateProxies().size() == numDelegateProxies
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Available).count() == numAvailable
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Pending).count() == numPending
-                && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.ToRemove).count() == numRemove;
-        }, 120_000, "assert number delegated proxies", 1, true);
+                && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.ToRemove).count() == numRemove);
+        }, 120_000, "assert number delegated proxies", 1);
         Assertions.assertTrue(noPendingSeats,
             String.format("Total: %s, Available: %s, Pending: %s, ToRemove: %s",
                 delegateProxyStore.getAllDelegateProxies().size(),
@@ -647,8 +647,8 @@ public class TestIntegrationProxySharing {
 
     private void waitUntilDelegateProxyIsToRemove(TestProxySharingScaler proxySharingScaler, String delegateProxyId) {
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.ToRemove;
-        }, 60_000, "assert number delegated proxies", 1, true);
+            return new Retrying.Result(proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.ToRemove);
+        }, 60_000, "assert number delegated proxies", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 

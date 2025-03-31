@@ -93,7 +93,6 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -349,14 +348,17 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
 
             boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
-                if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-                    if (currentAttempt > 10 && log != null) {
-                        slog.info(proxy, String.format("Kubernetes Pod not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                    return false;
+                Pod pod = kubeClient.resource(startedPod).fromServer().get();
+                Optional<String> error = getContainerFailure(pod);
+                if (error.isPresent()) {
+                    slog.warn(proxy, error.get());
+                    return new Retrying.Result(false, false);
                 }
-                return true;
-            }, totalWaitMs);
+                if (!Readiness.getInstance().isReady(pod)) {
+                    return Retrying.FAILURE;
+                }
+                return Retrying.SUCCESS;
+            }, totalWaitMs, "Kubernetes Pod", 10, proxy, slog);
 
             if (!podReady) {
                 // check a final time whether the pod is ready
@@ -396,7 +398,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
                         .build());
 
                 // Workaround: waitUntilReady appears to be buggy.
-                Retrying.retry((currentAttempt, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
+                Retrying.retry((currentAttempt, maxAttempts) -> new Retrying.Result(isServiceReady(kubeClient.resource(startupService).fromServer().get())), 60_000);
 
                 service = kubeClient.resource(startupService).fromServer().get();
                 portBindings = service.getSpec().getPorts().stream()
@@ -660,7 +662,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             String podNamespace = podInfo.get().getNamespace();
             String podName = podInfo.get().getName();
 
-            if (getContainerFailure(proxy, podNamespace, podName).isPresent()) {
+            if (getContainerFailure(podNamespace, podName).isPresent()) {
                 logKubernetesWarnings(proxy, podNamespace, podName);
             }
 
@@ -783,28 +785,31 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return containers;
     }
 
-    private Optional<String> getContainerFailure(Proxy proxy, String podNamespace, String podName) {
+    private Optional<String> getContainerFailure(String podNamespace, String podName) {
         Pod pod = kubeClient.pods().inNamespace(podNamespace).withName(podName).get();
+        return getContainerFailure(pod);
+    }
+
+    private Optional<String> getContainerFailure(Pod pod) {
         if (pod == null) {
             return Optional.of("Kubernetes container failed, pod does not exist");
-        } else {
-            Optional<ContainerStatus> containerStatus = pod.getStatus().getContainerStatuses().stream().findFirst();
-            ContainerState state = null;
-            if (containerStatus.isPresent() && containerStatus.get().getState() != null) {
-                state = containerStatus.get().getState();
-            } else if (containerStatus.isPresent() && containerStatus.get().getLastState() != null) {
-                state = containerStatus.get().getLastState();
-            }
-            if (state != null && state.getTerminated() != null) {
-                String message = pod.getStatus().getMessage();
-                String logs = state.getTerminated().getMessage();
-                String reason = state.getTerminated().getReason();
-                Integer exitCode = state.getTerminated().getExitCode();
-                return Optional.of(String.format("Kubernetes pod failed, reason: '%s', exitCode: '%s', node: '%s', message:\n%s\nlogs:\n%s\n", reason, exitCode, pod.getSpec().getNodeName(), message, logs));
-            }
-            if (pod.isMarkedForDeletion()) {
-                return Optional.of(String.format("Kubernetes pod is being terminated, node: '%s'", pod.getSpec().getNodeName()));
-            }
+        }
+        Optional<ContainerStatus> containerStatus = pod.getStatus().getContainerStatuses().stream().findFirst();
+        ContainerState state = null;
+        if (containerStatus.isPresent() && containerStatus.get().getState() != null) {
+            state = containerStatus.get().getState();
+        } else if (containerStatus.isPresent() && containerStatus.get().getLastState() != null) {
+            state = containerStatus.get().getLastState();
+        }
+        if (state != null && state.getTerminated() != null) {
+            String message = pod.getStatus().getMessage();
+            String logs = state.getTerminated().getMessage();
+            String reason = state.getTerminated().getReason();
+            Integer exitCode = state.getTerminated().getExitCode();
+            return Optional.of(String.format("Kubernetes pod failed, reason: '%s', exitCode: '%s', node: '%s', message:\n%s\nlogs:\n%s\n", reason, exitCode, pod.getSpec().getNodeName(), message, logs));
+        }
+        if (pod.isMarkedForDeletion()) {
+            return Optional.of(String.format("Kubernetes pod is being terminated, node: '%s'", pod.getSpec().getNodeName()));
         }
         return Optional.empty();
     }
@@ -817,7 +822,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 continue;
             }
             for (int i = 0; i < 5; i++) {
-                Optional<String> error = getContainerFailure(proxy, podInfo.get().getNamespace(), podInfo.get().getName());
+                Optional<String> error = getContainerFailure(podInfo.get().getNamespace(), podInfo.get().getName());
                 if (error.isPresent()) {
                     slog.warn(proxy, error.get());
                     return false;

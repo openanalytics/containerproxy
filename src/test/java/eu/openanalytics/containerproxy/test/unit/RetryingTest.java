@@ -54,7 +54,7 @@ public class RetryingTest {
         AtomicInteger called = new AtomicInteger(0);
         Retrying.retry((i, m) -> {
             called.incrementAndGet();
-            return false;
+            return Retrying.FAILURE;
         }, 3_000);
         long time = Duration.between(start, Instant.now()).toMillis();
         Assertions.assertTrue(time >= 3_000);
@@ -68,7 +68,7 @@ public class RetryingTest {
         AtomicInteger called = new AtomicInteger(0);
         Retrying.retry((i, m) -> {
             called.incrementAndGet();
-            return false;
+            return Retrying.FAILURE;
         }, 10_000);
         long time = Duration.between(start, Instant.now()).toMillis();
         Assertions.assertTrue(time >= 10_000);

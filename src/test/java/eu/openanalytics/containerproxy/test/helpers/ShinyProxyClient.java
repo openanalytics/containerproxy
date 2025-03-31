@@ -182,14 +182,14 @@ public class ShinyProxyClient {
 
                 try (Response response = client.newCall(request).execute()) {
                     if (response.code() == 200) {
-                        return true;
+                        return Retrying.SUCCESS;
                     }
                 }
-                return false;
+                return Retrying.FAILURE;
             } catch (Throwable t) {
                 throw new TestHelperException("Error during http request", t);
             }
-        }, 60_000, "proxy is reachable", 1, true);
+        }, 60_000, "proxy is reachable", 1);
         if (!res) {
             throw new TestHelperException("Proxy not reachable");
         }

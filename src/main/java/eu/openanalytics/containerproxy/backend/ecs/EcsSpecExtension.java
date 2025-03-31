@@ -66,6 +66,9 @@ public class EcsSpecExtension extends AbstractSpecExtension {
     List<EcsEfsVolume> ecsEfsVolumes = new ArrayList<>();
 
     @Builder.Default
+    List<EcsManagedSecret> ecsManagedSecrets = new ArrayList<>();
+
+    @Builder.Default
     SpelField.Boolean ecsEnableExecuteCommand = new SpelField.Boolean();
 
     @Builder.Default
@@ -80,6 +83,7 @@ public class EcsSpecExtension extends AbstractSpecExtension {
             .ecsOperationSystemFamily(ecsOperationSystemFamily.resolve(resolver, context))
             .ecsEphemeralStorageSize(ecsEphemeralStorageSize.resolve(resolver, context))
             .ecsEfsVolumes(ecsEfsVolumes.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+            .ecsManagedSecrets(ecsManagedSecrets.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
             .ecsEnableExecuteCommand(ecsEnableExecuteCommand.resolve(resolver, context))
             .ecsRepositoryCredentialsParameter(ecsRepositoryCredentialsParameter.resolve(resolver, context))
             .build();

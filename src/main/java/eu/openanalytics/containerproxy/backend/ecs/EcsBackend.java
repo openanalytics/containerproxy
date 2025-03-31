@@ -67,6 +67,7 @@ import software.amazon.awssdk.services.ecs.model.RegisterTaskDefinitionResponse;
 import software.amazon.awssdk.services.ecs.model.RepositoryCredentials;
 import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
 import software.amazon.awssdk.services.ecs.model.RuntimePlatform;
+import software.amazon.awssdk.services.ecs.model.Secret;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 import software.amazon.awssdk.services.ecs.model.Volume;
@@ -295,6 +296,8 @@ public class EcsBackend extends AbstractContainerBackend {
 
         Pair<List<Volume>, List<MountPoint>> volumes = getVolumes(spec, specExtension);
 
+        List<Secret> secrets = getSecrets(spec, specExtension);
+
         EphemeralStorage ephemeralStorage = EphemeralStorage
             .builder()
             .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
@@ -312,7 +315,8 @@ public class EcsBackend extends AbstractContainerBackend {
             .stopTimeout(2)
             .dockerLabels(dockerLabels)
             .logConfiguration(getLogConfiguration(proxy.getSpecId()))
-            .mountPoints(volumes.getSecond());
+            .mountPoints(volumes.getSecond())
+            .secrets(secrets);
 
         String credentials = specExtension.getEcsRepositoryCredentialsParameter().getValueOrDefault(defaultRepositoryCredentialsParameter);
         if (credentials != null && !credentials.isBlank()) {
@@ -414,6 +418,17 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         return Pair.of(efsVolumeConfigurations, mountPoints);
+    }
+
+    private List<Secret> getSecrets(ContainerSpec spec, EcsSpecExtension specExtension) {
+        List<Secret> secrets = new ArrayList<>();
+        for (EcsManagedSecret managedSecrets : specExtension.getEcsManagedSecrets()) {
+            Secret.Builder secretBuilder = Secret.builder();
+            secretBuilder.name(managedSecrets.getName().getValue());
+            secretBuilder.valueFrom(managedSecrets.getValueFrom().getValue());
+            secrets.add(secretBuilder.build());
+        }
+        return secrets;
     }
 
     @Override

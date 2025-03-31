@@ -164,6 +164,8 @@ public class ContainerProxyApplication {
         properties.put("spring.application.name", "ContainerProxy");
         // do not include application name in every log message
         properties.put("logging.include-application-name", "false");
+        // hide too verbose log message
+        properties.put("logging.level.org.mandas.docker.client.DefaultDockerClient", "WARN");
 
         // Metrics configuration
         // ====================

@@ -438,7 +438,7 @@ public class Micrometer implements IStatCollector {
                     Tags.of(
                         "spec.id", proxy.getSpecId(),
                         "user.id", proxy.getUserId(),
-                        "proxy.instance", proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+                        "proxy.instance", proxy.getRuntimeValueOrDefault("SHINYPROXY_APP_INSTANCE", ""),
                         "proxy.id", proxy.getId(),
                         "proxy.created.timestamp", Long.toString(proxy.getCreatedTimestamp()),
                         "resource.id", backendContainerName.getName(),

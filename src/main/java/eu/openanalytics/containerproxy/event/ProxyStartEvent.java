@@ -85,7 +85,7 @@ public class ProxyStartEvent extends BridgeableEvent {
             proxy.getId(),
             proxy.getUserId(),
             proxy.getSpecId(),
-            proxy.getRuntimeValue("SHINYPROXY_APP_INSTANCE"),
+            proxy.getRuntimeValueOrDefault("SHINYPROXY_APP_INSTANCE", ""),
             proxy.getCreatedTimestamp(),
             proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst),
             proxyStartupLog,

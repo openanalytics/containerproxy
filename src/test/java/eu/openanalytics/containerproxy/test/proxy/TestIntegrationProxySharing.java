@@ -302,16 +302,16 @@ public class TestIntegrationProxySharing {
                     waitUntilDelegateProxyIsToRemove(proxySharingScaler, proxy.getTargetId());
                     DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(proxy.getTargetId());
                     Assertions.assertEquals(DelegateProxyStatus.ToRemove, delegateProxy.getDelegateProxyStatus());
-                    Assertions.assertEquals("fce37588fb3e3c7a750f85170881409163e7f367", delegateProxy.getProxySpecHash());
+                    Assertions.assertEquals("4403ea3958c9a03feb959b876a0107a049df54be", delegateProxy.getProxySpecHash());
 
                     // a DelegateProxy with new config should exist in DelegateProxyStore
                     waitUntilNumberOfDelegateProxies(inst, 3, 1, 0, 2);
                     Optional<DelegateProxy> newDelegateProxy = delegateProxyStore.getAllDelegateProxies().stream()
-                        .filter(it -> !it.getProxySpecHash().equals("fce37588fb3e3c7a750f85170881409163e7f367"))
+                        .filter(it -> !it.getProxySpecHash().equals("4403ea3958c9a03feb959b876a0107a049df54be"))
                         .findFirst();
                     Assertions.assertTrue(newDelegateProxy.isPresent());
                     Assertions.assertEquals(DelegateProxyStatus.Available, newDelegateProxy.get().getDelegateProxyStatus());
-                    Assertions.assertEquals("7287798e3cfaaa1228a19bf6c7dff453041a78c1", newDelegateProxy.get().getProxySpecHash());
+                    Assertions.assertEquals("80caf5ffa2298e4fdb24c81f3cf59df6b4fbf830", newDelegateProxy.get().getProxySpecHash());
 
                     // stop running app
                     inst.client.stopProxy(oldAppId);
@@ -322,7 +322,7 @@ public class TestIntegrationProxySharing {
                     waitUntilNumberOfDelegateProxies(inst, 1, 1);
                     DelegateProxy newDelegateProxy3 = delegateProxyStore.getAllDelegateProxies().stream().findFirst().get();
                     Assertions.assertEquals(newDelegateProxy.get().getProxy().getId(), newDelegateProxy3.getProxy().getId());
-                    Assertions.assertEquals("7287798e3cfaaa1228a19bf6c7dff453041a78c1", newDelegateProxy3.getProxySpecHash());
+                    Assertions.assertEquals("80caf5ffa2298e4fdb24c81f3cf59df6b4fbf830", newDelegateProxy3.getProxySpecHash());
                 }
             }
         }

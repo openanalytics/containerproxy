@@ -296,8 +296,6 @@ public class EcsBackend extends AbstractContainerBackend {
 
         Pair<List<Volume>, List<MountPoint>> volumes = getVolumes(spec, specExtension);
 
-        List<Secret> secrets = getSecrets(spec, specExtension);
-
         EphemeralStorage ephemeralStorage = EphemeralStorage
             .builder()
             .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
@@ -316,7 +314,7 @@ public class EcsBackend extends AbstractContainerBackend {
             .dockerLabels(dockerLabels)
             .logConfiguration(getLogConfiguration(proxy.getSpecId()))
             .mountPoints(volumes.getSecond())
-            .secrets(secrets);
+            .secrets(getSecrets(specExtension));
 
         String credentials = specExtension.getEcsRepositoryCredentialsParameter().getValueOrDefault(defaultRepositoryCredentialsParameter);
         if (credentials != null && !credentials.isBlank()) {
@@ -420,7 +418,7 @@ public class EcsBackend extends AbstractContainerBackend {
         return Pair.of(efsVolumeConfigurations, mountPoints);
     }
 
-    private List<Secret> getSecrets(ContainerSpec spec, EcsSpecExtension specExtension) {
+    private List<Secret> getSecrets(EcsSpecExtension specExtension) {
         List<Secret> secrets = new ArrayList<>();
         for (EcsManagedSecret managedSecrets : specExtension.getEcsManagedSecrets()) {
             Secret.Builder secretBuilder = Secret.builder();

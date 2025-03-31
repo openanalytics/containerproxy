@@ -68,6 +68,9 @@ public class EcsSpecExtension extends AbstractSpecExtension {
     @Builder.Default
     SpelField.Boolean ecsEnableExecuteCommand = new SpelField.Boolean();
 
+    @Builder.Default
+    SpelField.String ecsRepositoryCredentialsParameter = new SpelField.String();
+
     @Override
     public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return toBuilder()
@@ -78,6 +81,7 @@ public class EcsSpecExtension extends AbstractSpecExtension {
             .ecsEphemeralStorageSize(ecsEphemeralStorageSize.resolve(resolver, context))
             .ecsEfsVolumes(ecsEfsVolumes.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
             .ecsEnableExecuteCommand(ecsEnableExecuteCommand.resolve(resolver, context))
+            .ecsRepositoryCredentialsParameter(ecsRepositoryCredentialsParameter.resolve(resolver, context))
             .build();
     }
 

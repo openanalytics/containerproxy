@@ -155,7 +155,7 @@ public class TestIntegrationOnEcs {
                 LogConfiguration logConfiguration = containerDefinition.logConfiguration();
                 Assertions.assertNotNull(logConfiguration);
                 Assertions.assertEquals(LogDriver.AWSLOGS, logConfiguration.logDriver());
-                Assertions.assertEquals("/ecs/sp-" + proxy.getId(), logConfiguration.options().get("awslogs-group"));
+                Assertions.assertEquals("/ecs/sp-" + proxy.getSpecId(), logConfiguration.options().get("awslogs-group"));
                 Assertions.assertEquals(System.getenv("ITEST_ECS_REGION"), logConfiguration.options().get("awslogs-region"));
                 Assertions.assertEquals("true", logConfiguration.options().get("awslogs-create-group"));
                 Assertions.assertEquals("ecs", logConfiguration.options().get("awslogs-stream-prefix"));

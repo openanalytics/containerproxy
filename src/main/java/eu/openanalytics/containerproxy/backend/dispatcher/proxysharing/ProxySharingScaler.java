@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.integration.leader.event.OnGrantedEvent;
@@ -104,6 +105,7 @@ public class ProxySharingScaler implements AutoCloseable {
     private Instant lastScaleUp = null;
 
     @Inject
+    @Lazy
     private IProxyTestStrategy testStrategy;
     @Inject
     private IContainerBackend containerBackend;

@@ -90,7 +90,7 @@ import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import org.apache.commons.compress.utils.IOUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
@@ -101,6 +101,7 @@ import javax.inject.Inject;
 import javax.json.JsonPatch;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
@@ -695,17 +696,23 @@ public class KubernetesBackend extends AbstractContainerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         if (proxy.getContainers().isEmpty()) return null;
         return (stdOut, stdErr) -> {
             LogWatch watcher = null;
+            InputStream inputStream = null;
             try {
                 Container container = proxy.getContainers().get(0);
                 Optional<BackendContainerName> pod = getPodInfo(container);
                 if (pod.isPresent()) {
                     if (canAccessLogs(proxy, pod.get())) {
-                        watcher = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).watchLog();
-                        IOUtils.copy(watcher.getOutput(), stdOut);
+                        if (follow) {
+                            watcher = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).watchLog();
+                            IOUtils.copy(watcher.getOutput(), stdOut);
+                        } else {
+                            inputStream = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).getLogInputStream();
+                            IOUtils.copy(inputStream, stdOut);
+                        }
                     }
                 } else {
                     slog.warn(proxy, "Error while attaching to container output: pod info not found");
@@ -716,6 +723,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
             } finally {
                 if (watcher != null) {
                     watcher.close();
+                }
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                    } catch (IOException ignored) {
+                    }
                 }
             }
         };

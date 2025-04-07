@@ -109,6 +109,8 @@ public class ProxyService {
     private RuntimeValueService runtimeValueService;
     @Inject
     private SpecExpressionResolver expressionResolver;
+    @Inject
+    private LogService logService;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
     private int requestTimeout;
@@ -427,7 +429,6 @@ public class ProxyService {
         if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
             return false;
         }
-        int timeoutMs = Integer.parseInt(environment.getProperty("proxy.container-wait-timeout", "5000"));
         if (proxy.getTargets().isEmpty()) {
             slog.info(proxy, "Proxy failed: no targets available");
             return false;
@@ -515,6 +516,13 @@ public class ProxyService {
         } catch (ProxyFailedToStartException t) {
             slog.warn(t.getProxy(), t, "Proxy failed to start");
             try {
+                logService.onProxyStartFailed(t.getProxy());
+            } catch (Throwable t2) {
+                // log error, but ignore it otherwise
+                // most important is that we remove the proxy from memory
+                slog.warn(t.getProxy(), t, "Error while collecting logs of failed proxy");
+            }
+            try {
                 proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(t.getProxy());
             } catch (Throwable t2) {
                 // log error, but ignore it otherwise
@@ -536,6 +544,13 @@ public class ProxyService {
         }
 
         if (!testStrategy.testProxy(proxy)) {
+            try {
+                logService.onProxyStartFailed(proxy);
+            } catch (Throwable t2) {
+                // log error, but ignore it otherwise
+                // most important is that we remove the proxy from memory
+                slog.warn(proxy, t2, "Error while collecting logs of failed proxy");
+            }
             try {
                 proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(proxy);
             } catch (Throwable t) {

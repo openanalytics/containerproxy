@@ -328,13 +328,18 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         Container c = getPrimaryContainer(proxy);
         if (c == null) return null;
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                LogStream logStream;
+                if (follow) {
+                    logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                } else {
+                    logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                }
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {

@@ -152,7 +152,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected abstract void doStopProxy(Proxy proxy) throws Exception;
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         // Default: do not support output attaching.
         return null;
     }

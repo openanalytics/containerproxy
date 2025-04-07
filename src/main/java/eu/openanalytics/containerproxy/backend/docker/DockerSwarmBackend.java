@@ -391,14 +391,19 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         Container container = getPrimaryContainer(proxy);
         if (container == null) return null;
         BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                LogStream logStream;
+                if (follow) {
+                    logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                } else {
+                    logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                }
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {

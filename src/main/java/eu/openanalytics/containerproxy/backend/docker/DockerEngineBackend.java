@@ -50,6 +50,7 @@ import org.mandas.docker.client.messages.ContainerCreation;
 import org.mandas.docker.client.messages.ContainerInfo;
 import org.mandas.docker.client.messages.ContainerState;
 import org.mandas.docker.client.messages.HostConfig;
+import org.mandas.docker.client.messages.LogConfig;
 import org.mandas.docker.client.messages.PortBinding;
 import org.mandas.docker.client.messages.RegistryAuth;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -77,17 +78,20 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
     private static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
+    private static final String PROPERTY_LOKI_URL = "loki-url";
 
     private ImagePullPolicy imagePullPolicy;
     private String nonInternalNetworkTargetProtocol;
     private URL hostURL;
     private String containerNetwork;
+    private String lokiUrl;
 
     @PostConstruct
     public void initialize() {
         super.initialize();
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
         containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
+        lokiUrl = environment.getProperty(getPropertyPrefix() + PROPERTY_LOKI_URL);
 
         try {
             hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
@@ -170,6 +174,17 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                     labels.put(runtimeValue.getKey().getKeyAsLabel(), runtimeValue.toString());
                 }
             });
+
+            if (lokiUrl != null) {
+                hostConfigBuilder.logConfig(LogConfig.builder()
+                    .logType("loki")
+                    .logOptions(Map.of(
+                        "loki-url", lokiUrl,
+                        "mode", "non-blocking",
+                        "loki-external-labels", String.format("sp_realm_id=%s,namespace=default,sp_proxy_id=%s", identifierService.realmId, proxy.getId())
+                    ))
+                    .build());
+            }
 
             ContainerConfig containerConfig = ContainerConfig.builder()
                 .hostConfig(hostConfigBuilder.build())

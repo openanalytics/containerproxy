@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.msgraph.MicrosoftGraphGroupFetcher;
 import eu.openanalytics.containerproxy.auth.impl.oidc.AccessTokenDecoder;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
@@ -72,6 +73,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -98,6 +100,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     private SpecExpressionResolver specExpressionResolver;
     @Inject
     private ContextPathHelper contextPathHelper;
+    @Autowired(required = false)
+    private MicrosoftGraphGroupFetcher microsoftGraphGroupFetcher;
 
     /**
      * Parses the claim containing the roles to a List of Strings.
@@ -287,6 +291,18 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     }
 
     protected GrantedAuthoritiesMapper createAuthoritiesMapper() {
+        if (microsoftGraphGroupFetcher != null) {
+            log.info("Using  MS graph");
+            return authorities -> {
+                for (GrantedAuthority auth : authorities) {
+                    if (auth instanceof OidcUserAuthority) {
+                        OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
+                        return microsoftGraphGroupFetcher.fetchGroups(idToken.getSubject());
+                    }
+                }
+                return Set.of();
+            };
+        }
         String rolesClaimName = environment.getProperty("proxy.openid.roles-claim");
         return authorities -> {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>();

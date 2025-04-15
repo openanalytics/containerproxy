@@ -834,17 +834,10 @@ public class KubernetesBackend extends AbstractContainerBackend {
             if (podInfo.isEmpty()) {
                 continue;
             }
-            for (int i = 0; i < 5; i++) {
-                Optional<String> error = getContainerFailure(podInfo.get().getNamespace(), podInfo.get().getName());
-                if (error.isPresent()) {
-                    slog.warn(proxy, error.get());
-                    return false;
-                }
-                try {
-                    // wait for k8s events to propagate
-                    Thread.sleep(1_000);
-                } catch (InterruptedException ignored) {
-                }
+            Optional<String> error = getContainerFailure(podInfo.get().getNamespace(), podInfo.get().getName());
+            if (error.isPresent()) {
+                slog.warn(proxy, error.get());
+                return false;
             }
         }
         return true;

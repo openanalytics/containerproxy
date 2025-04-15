@@ -426,8 +426,15 @@ public class ProxyService {
     }
 
     public boolean isProxyHealthy(Proxy proxy) {
-        if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
-            return false;
+        for (int i = 0; i < 5; i++) {
+            if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
+                return false;
+            }
+            try {
+                // wait for events to propagate
+                Thread.sleep(1_000);
+            } catch (InterruptedException ignored) {
+            }
         }
         if (proxy.getTargets().isEmpty()) {
             slog.info(proxy, "Proxy failed: no targets available");

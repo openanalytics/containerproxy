@@ -67,7 +67,7 @@ public class ProxyStartFailedEvent extends BridgeableEvent {
             proxy.getSpecId(),
             proxy.getRuntimeValueOrDefault("SHINYPROXY_APP_INSTANCE", ""),
             proxy.getCreatedTimestamp(),
-            proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst)
+            proxy.getContainers().isEmpty() ? null : proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst)
         );
     }
 

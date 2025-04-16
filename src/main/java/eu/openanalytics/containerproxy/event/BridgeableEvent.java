@@ -23,7 +23,6 @@ package eu.openanalytics.containerproxy.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.With;
 import org.springframework.context.ApplicationEvent;
 
 @JsonTypeInfo(

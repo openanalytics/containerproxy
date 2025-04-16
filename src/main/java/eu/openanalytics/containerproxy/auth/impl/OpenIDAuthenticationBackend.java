@@ -73,7 +73,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -366,7 +365,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
                 Object emails = getAttributes().get(ID_ATTR_EMAILS);
                 if (emails instanceof String[]) return ((String[]) emails)[0];
                 else if (emails instanceof JSONArray) return ((JSONArray) emails)
-                    .get(0)
+                    .getFirst()
                     .toString();
                 else if (emails instanceof Collection) return ((Collection<?>) emails)
                     .stream()

@@ -67,9 +67,8 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -83,7 +82,7 @@ import java.util.stream.Stream;
 @ConditionalOnProperty(name = "proxy.container-backend", havingValue = "docker-swarm")
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
-    private URL hostURL;
+    private URI hostURL;
 
     private int serviceWaitTime;
 
@@ -99,8 +98,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         }
         if (swarmId == null) throw new ContainerProxyException("Backend is not a Docker Swarm");
         try {
-            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-        } catch (MalformedURLException e) {
+            hostURL = new URI(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
         serviceWaitTime = environment.getProperty("proxy.docker.service-wait-time", Integer.class, 60000);
@@ -327,16 +326,16 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 continue;
             }
 
-            Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
+            Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.getFirst().id(), containerSpec.labels());
             if (runtimeValues == null) {
                 continue;
             }
-            runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
+            runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.getFirst().image()));
             runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(service.id())));
 
             String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
             if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
-                log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.get(0).id(), containerInstanceId);
+                log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.getFirst().id(), containerInstanceId);
                 continue;
             }
 
@@ -350,7 +349,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 }
             }
 
-            containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
+            containers.add(new ExistingContainerInfo(containersInService.getFirst().id(), runtimeValues,
                 containerSpec.image(), portBindings));
 
         }
@@ -373,7 +372,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                     slog.warn(proxy, "Docker Swarm container failed: service does not exist");
                     return false;
                 }
-                Task task = serviceTask.get(0);
+                Task task = serviceTask.getFirst();
                 if (!task.status().state().equals("running")) {
                     slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(task.status()));
                     return false;

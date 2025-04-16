@@ -28,7 +28,6 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.security.core.Authentication;
 
 import java.io.OutputStream;

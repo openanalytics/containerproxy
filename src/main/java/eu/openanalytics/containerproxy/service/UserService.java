@@ -262,7 +262,7 @@ public class UserService {
             // user did not initiated the logout -> session expired
             // not already handled by any other handler
             if (!event.getSecurityContexts().isEmpty()) {
-                SecurityContext securityContext = event.getSecurityContexts().get(0);
+                SecurityContext securityContext = event.getSecurityContexts().getFirst();
                 if (securityContext == null || authNull(securityContext.getAuthentication())) return;
 
                 Authentication auth = securityContext.getAuthentication();

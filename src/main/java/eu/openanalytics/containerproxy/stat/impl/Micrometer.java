@@ -500,7 +500,7 @@ public class Micrometer implements IStatCollector {
 
     private BackendContainerName getBackendContainerName(Proxy proxy) {
         if (!proxy.getContainers().isEmpty()) {
-            return proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+            return proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         }
         return null;
     }

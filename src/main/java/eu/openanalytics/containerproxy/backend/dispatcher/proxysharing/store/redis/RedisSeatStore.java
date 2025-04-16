@@ -170,7 +170,7 @@ public class RedisSeatStore implements ISeatStore {
                 operations.multi();
                 ops.remove(seatIds);
                 var res = operations.exec();
-                if (!res.isEmpty() && (Long) res.get(0) == seatIds.length) {
+                if (!res.isEmpty() && (Long) res.getFirst() == seatIds.length) {
                     // seats were removed successfully
                     return true;
                 }

@@ -131,7 +131,7 @@ public class AccessControlServiceTest {
         when(userService.isMember(auth1, "myGroup1")).thenReturn(false);
         Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
 
-        // user is part of the correct -> hass access
+        // user is part of the correct -> has access
         Authentication auth2 = mock(Authentication.class);
         when(userService.isMember(auth2, "myGroup1")).thenReturn(true);
         Assertions.assertTrue(accessControlService.canAccess(auth2, createProxySpec(proxyAccessControl)));
@@ -148,7 +148,7 @@ public class AccessControlServiceTest {
         when(auth1.getName()).thenReturn("Bart");
         Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
 
-        // user is part of the user access list -> hass access
+        // user is part of the user access list -> has access
         Authentication auth2 = mock(Authentication.class);
         when(auth2.getName()).thenReturn("myUser1");
         when(userService.isMember(auth2, "myGroup1")).thenReturn(true);

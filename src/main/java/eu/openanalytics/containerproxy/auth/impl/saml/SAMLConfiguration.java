@@ -139,12 +139,12 @@ public class SAMLConfiguration {
 
         RelyingPartyRegistration.Builder registration = RelyingPartyRegistrations
             .fromMetadataLocation(metadataUrl)
-            .assertionConsumerServiceLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_SERVICE_LOCATION_PATH).toUriString())
+            .assertionConsumerServiceLocation(ServletUriComponentsBuilder.fromUriString(baseUrl).path(SAML_SERVICE_LOCATION_PATH).toUriString())
             .registrationId(REG_ID)
             .entityId(entityId)
             .singleLogoutServiceBinding(Saml2MessageBinding.POST)
-            .singleLogoutServiceLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_LOCATION_PATH).toUriString())
-            .singleLogoutServiceResponseLocation(ServletUriComponentsBuilder.fromHttpUrl(baseUrl).path(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH).toUriString());
+            .singleLogoutServiceLocation(ServletUriComponentsBuilder.fromUriString(baseUrl).path(SAML_LOGOUT_SERVICE_LOCATION_PATH).toUriString())
+            .singleLogoutServiceResponseLocation(ServletUriComponentsBuilder.fromUriString(baseUrl).path(SAML_LOGOUT_SERVICE_RESPONSE_LOCATION_PATH).toUriString());
 
         Saml2X509Credential signingCredential = getSingingCredential();
         if (signingCredential != null) {
@@ -169,7 +169,6 @@ public class SAMLConfiguration {
      * Saml2LogoutRequestResolver that always returns the ShinyProxy registration.
      * This is required because the registrationId is not part of the URL.
      */
-    @SuppressWarnings("deprecation")
     @Bean
     public Saml2LogoutRequestResolver saml2LogoutRequestResolver(RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
         return new OpenSaml4LogoutRequestResolver(
@@ -177,7 +176,6 @@ public class SAMLConfiguration {
         );
     }
 
-    @SuppressWarnings("deprecation")
     @Bean
     public OpenSaml4AuthenticationProvider openSamlAuthenticationProvider() {
         OpenSaml4AuthenticationProvider authenticationProvider = new OpenSaml4AuthenticationProvider();

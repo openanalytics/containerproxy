@@ -43,9 +43,9 @@ public class RetryingTest {
 
     @Test
     public void testNumberOfAttempts() {
-        Assertions.assertEquals(Retrying.numberOfAttempts(3_000), 11);
-        Assertions.assertEquals(Retrying.numberOfAttempts(10_000), 15);
-        Assertions.assertEquals(Retrying.numberOfAttempts(60_000), 40); // compared to 30 when not using the faster checks
+        Assertions.assertEquals(11, Retrying.numberOfAttempts(3_000));
+        Assertions.assertEquals(15, Retrying.numberOfAttempts(10_000));
+        Assertions.assertEquals(40, Retrying.numberOfAttempts(60_000)); // compared to 30 when not using the faster checks
     }
 
     @Test

@@ -36,7 +36,7 @@ import java.io.IOException;
 
 /**
  * Filter that disables the {@link Saml2LogoutRequestFilter} filter, except for the SAML single logout endpoint.
- * The SAML filter calls getParameter and thefore consumes the POST  body.
+ * The SAML filter calls getParameter and therefore consumes the POST  body.
  * The name of {@link Saml2LogoutRequestFilter must be fixed in order for this to work (see {@link SAMLAuthenticationBackend}
  * See #33066.
  */

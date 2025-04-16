@@ -25,7 +25,8 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.Assertions;
 import org.mandas.docker.client.DefaultDockerClient;
@@ -40,7 +41,7 @@ public class ContainerSetup implements AutoCloseable {
 
     public final String namespace = "itest";
     public final String overriddenNamespace = "itest-overridden";
-    public final DefaultKubernetesClient client = new DefaultKubernetesClient();
+    public final KubernetesClient client = new KubernetesClientBuilder().build();
     public final NamespacedKubernetesClient namespacedClient;
     private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
     private final String backend;
@@ -54,7 +55,7 @@ public class ContainerSetup implements AutoCloseable {
                 createNamespaces();
 
                 TestUtil.sleep(1000); // wait for namespaces and tokens to become ready
-                namespacedClient = client.inNamespace(namespace);
+                namespacedClient = client.adapt(NamespacedKubernetesClient.class).inNamespace(namespace);
             } else {
                 namespacedClient = null;
             }
@@ -90,7 +91,7 @@ public class ContainerSetup implements AutoCloseable {
 
     private void createNamespaces() {
         for (String namespace : managedNamespaces) {
-            client.namespaces().create(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
+            client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build()).create();
         }
     }
 
@@ -101,7 +102,7 @@ public class ContainerSetup implements AutoCloseable {
     public Secret getSingleSecret(String namespace) {
         List<Secret> secrets = getSecrets(namespace);
         Assertions.assertEquals(1, secrets.size());
-        return secrets.get(0);
+        return secrets.getFirst();
     }
 
     public boolean checkDockerIsClean() {

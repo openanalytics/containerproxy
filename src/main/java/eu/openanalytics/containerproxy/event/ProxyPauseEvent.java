@@ -27,7 +27,6 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import org.springframework.context.annotation.PropertySource;
 
 import java.time.Duration;
 

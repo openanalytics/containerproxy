@@ -40,7 +40,7 @@ public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
                 // proxy got stopped while loading -> no need to try to connect it since the container will already be deleted
                 return Retrying.SUCCESS;
             }
-            URL testURL = new URL(targetURI.toString() + "/");
+            URL testURL = new URI(targetURI.toString() + "/").toURL();
             HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
             connection.setInstanceFollowRedirects(false);
             int responseCode = connection.getResponseCode();

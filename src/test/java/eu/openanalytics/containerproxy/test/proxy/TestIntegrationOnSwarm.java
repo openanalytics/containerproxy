@@ -58,7 +58,7 @@ public class TestIntegrationOnSwarm {
 
                 List<Service> services = dockerClient.listServices();
                 Assertions.assertEquals(1, services.size());
-                Service service = services.get(0);
+                Service service = services.getFirst();
                 Assertions.assertEquals("openanalytics/shinyproxy-integration-test-app", service.spec().taskTemplate().containerSpec().image());
 
                 inst.proxyService.stopProxy(null, proxy, true).run();
@@ -85,10 +85,10 @@ public class TestIntegrationOnSwarm {
 
                 List<Service> services = dockerClient.listServices();
                 Assertions.assertEquals(1, services.size());
-                Service service = services.get(0);
+                Service service = services.getFirst();
                 Assertions.assertEquals("openanalytics/shinyproxy-integration-test-app", service.spec().taskTemplate().containerSpec().image());
 
-                SecretBind secret1 = service.spec().taskTemplate().containerSpec().secrets().get(0);
+                SecretBind secret1 = service.spec().taskTemplate().containerSpec().secrets().getFirst();
 
                 Assertions.assertEquals(secret1Id, secret1.secretId());
                 Assertions.assertEquals("my_secret", secret1.secretName());

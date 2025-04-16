@@ -40,7 +40,7 @@ public class OverridingHeaderWriter implements HeaderWriter {
     @Override
     public void writeHeaders(HttpServletRequest request, HttpServletResponse response) {
         for (Header header : this.headers) {
-            response.setHeader(header.getName(), header.getValues().get(0));
+            response.setHeader(header.getName(), header.getValues().getFirst());
         }
     }
 

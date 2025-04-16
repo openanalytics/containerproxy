@@ -36,7 +36,6 @@ import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 /**
@@ -69,7 +68,7 @@ public class IdentifierService {
     private Environment environment;
 
     @PostConstruct
-    public void init() throws IOException, NoSuchAlgorithmException {
+    public void init() throws IOException {
         String podName = environment.getProperty("SP_KUBE_POD_NAME");
         if (podName != null) {
             runtimeId = StringUtils.right(podName, 4);
@@ -110,7 +109,7 @@ public class IdentifierService {
     /**
      * Calculates a hash of the config file (i.e. application.yaml).
      */
-    private String calculateInstanceId() throws IOException, NoSuchAlgorithmException {
+    private String calculateInstanceId() throws IOException {
         /**
          * We need a hash of some "canonical" version of the config file.
          * The hash should not change when e.g. comments are added to the file.

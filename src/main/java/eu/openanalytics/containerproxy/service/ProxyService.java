@@ -443,7 +443,7 @@ public class ProxyService {
         try {
             URI targetURI = proxy.getTargets().get("");
 
-            URL testURL = new URL(targetURI.toString() + "/");
+            URL testURL = new URI(targetURI.toString() + "/").toURL();
             HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
             connection.setConnectTimeout(requestTimeout);
             connection.setReadTimeout(requestTimeout);

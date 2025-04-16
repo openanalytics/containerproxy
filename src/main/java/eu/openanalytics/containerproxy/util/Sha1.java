@@ -24,7 +24,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.google.common.base.Charsets;
 
 import java.math.BigInteger;
@@ -46,9 +46,10 @@ public class Sha1 {
 
     public static String hash(Object value) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-            objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-            objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+            ObjectMapper objectMapper = YAMLMapper.builder()
+                .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
+                .build();
             String canonicalConfig = objectMapper.writeValueAsString(value);
             return Sha1.hash(canonicalConfig);
         } catch (JsonProcessingException ex) {

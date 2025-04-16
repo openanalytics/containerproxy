@@ -32,7 +32,7 @@ public interface ILogStorage {
 
     LogStreams createOutputStreams(Proxy proxy) throws IOException;
 
-    LogPaths getLogs(Proxy proxy) throws IOException;
+    LogPaths getLogs(Proxy proxy);
 
     void stopService();
 

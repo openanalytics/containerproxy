@@ -128,12 +128,11 @@ public class RedisStoreConfiguration {
         RedisTemplate<String, Proxy> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Proxy.class);
         ObjectMapper om = new ObjectMapper();
-
         om.setConfig(om.getSerializationConfig().withView(Views.Internal.class));
 
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+        Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, Proxy.class);
+
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(jackson2JsonRedisSerializer);
@@ -214,10 +213,10 @@ public class RedisStoreConfiguration {
         RedisTemplate<K, V> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<V> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(clazz);
         ObjectMapper om = new ObjectMapper();
         om.registerModule(new JavaTimeModule());
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+
+        Jackson2JsonRedisSerializer<V> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, clazz);
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(jackson2JsonRedisSerializer);

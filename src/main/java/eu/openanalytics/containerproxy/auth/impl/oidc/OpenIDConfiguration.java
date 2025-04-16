@@ -44,7 +44,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import javax.inject.Inject;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 

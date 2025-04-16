@@ -44,7 +44,6 @@ import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.P
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_NAME_ATTRIBUTE;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
 
-@SuppressWarnings("deprecation")
 public class ResponseAuthenticationConverter implements Converter<OpenSaml4AuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
 
     private final Boolean logAttributes;
@@ -125,10 +124,10 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
 
     private Optional<String> getSingleAttributeValue(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         Optional<List<Object>> res = getAttributeIgnoringCase(principal, attributeName);
-        if (res.isEmpty() || res.get().size() == 0) {
+        if (res.isEmpty() || res.get().isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(res.get().get(0).toString());
+        return Optional.of(res.get().getFirst().toString());
     }
 
     private Optional<List<String>> getMultipleAttributeValues(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {

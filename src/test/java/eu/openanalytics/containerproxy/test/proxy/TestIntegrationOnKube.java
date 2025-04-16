@@ -47,6 +47,7 @@ import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -80,28 +81,28 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
+            String containerId = proxy.getContainers().getFirst().getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
-            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertFalse(pod.getSpec().getContainers().getFirst().getSecurityContext().getPrivileged());
 
             ServiceList serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, serviceList.getItems().size());
-            Service service = serviceList.getItems().get(0);
+            Service service = serviceList.getItems().getFirst();
             Assertions.assertEquals(k8s.namespace, service.getMetadata().getNamespace());
             Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
             Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
             Assertions.assertEquals(1, service.getSpec().getPorts().size());
-            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().getFirst().getTargetPort().getIntVal());
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -123,18 +124,18 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Volumes
             Assertions.assertTrue(pod.getSpec().getVolumes().size() >= 2); // at least two volumes should be created
-            Assertions.assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().get(0).getName());
+            Assertions.assertEquals("shinyproxy-volume-0", pod.getSpec().getVolumes().getFirst().getName());
             Assertions.assertEquals("/srv/myvolume1", pod.getSpec().getVolumes().get(0).getHostPath().getPath());
             Assertions.assertEquals("", pod.getSpec().getVolumes().get(0).getHostPath().getType());
             Assertions.assertEquals("shinyproxy-volume-1", pod.getSpec().getVolumes().get(1).getName());
@@ -142,7 +143,7 @@ public class TestIntegrationOnKube {
             Assertions.assertEquals("", pod.getSpec().getVolumes().get(1).getHostPath().getType());
 
             // Check Volume mounts
-            List<VolumeMount> volumeMounts = pod.getSpec().getContainers().get(0).getVolumeMounts();
+            List<VolumeMount> volumeMounts = pod.getSpec().getContainers().getFirst().getVolumeMounts();
             Assertions.assertTrue(volumeMounts.size() >= 2); // at least two volume mounts should be created
             Assertions.assertEquals("shinyproxy-volume-0", volumeMounts.get(0).getName());
             Assertions.assertEquals("/srv/myvolume1", volumeMounts.get(0).getMountPath());
@@ -167,17 +168,17 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertTrue(env.containsKey("SHINYPROXY_USERNAME"));
             Assertions.assertEquals("demo", env.get("SHINYPROXY_USERNAME").getValue()); // value is a String "null"
@@ -202,25 +203,24 @@ public class TestIntegrationOnKube {
     public void launchProxyWithSecretRef() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create the required secret
-            k8s.client.secrets().inNamespace(k8s.namespace).create(
-                new SecretBuilder().withNewMetadata().withName("mysecret").endMetadata().addToData("username", "YWRtaW4=").build());
+            k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder().withNewMetadata().withName("mysecret").endMetadata().addToData("username", "YWRtaW4=").build()).create();
 
             String id = inst.client.startProxy("01_hello_secret");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertTrue(env.containsKey("MY_SECRET"));
             Assertions.assertEquals("username", env.get("MY_SECRET").getValueFrom().getSecretKeyRef().getKey());
@@ -241,17 +241,17 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Resource limits/requests
-            ResourceRequirements req = pod.getSpec().getContainers().get(0).getResources();
+            ResourceRequirements req = pod.getSpec().getContainers().getFirst().getResources();
             Assertions.assertEquals(new Quantity("1"), req.getRequests().get("cpu"));
             Assertions.assertEquals(new Quantity("1Gi"), req.getRequests().get("memory"));
             Assertions.assertEquals(new Quantity("2"), req.getLimits().get("cpu"));
@@ -272,16 +272,16 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
-            Assertions.assertTrue(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertTrue(pod.getSpec().getContainers().getFirst().getSecurityContext().getPrivileged());
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -295,20 +295,21 @@ public class TestIntegrationOnKube {
         final String serviceAccountName = "sp-ittest-b9fa0a24-account";
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             try {
-                k8s.client.serviceAccounts().inNamespace(k8s.overriddenNamespace).create(new ServiceAccountBuilder()
+                k8s.client.serviceAccounts().inNamespace(k8s.overriddenNamespace).resource(new ServiceAccountBuilder()
                     .withNewMetadata()
                     .withName(serviceAccountName).withNamespace(k8s.overriddenNamespace)
                     .endMetadata()
-                    .build());
+                    .build())
+                    .create();
 
                 // Give Kube time to setup ServiceAccount
                 TestUtil.sleep(2000);
                 String id = inst.client.startProxy("01_hello_patches1");
                 Proxy proxy = inst.proxyService.getProxy(id);
-                String containerId = proxy.getContainers().get(0).getId();
+                String containerId = proxy.getContainers().getFirst().getId();
 
                 // Check whether the effectively used namespace is correct
-                Assertions.assertEquals(k8s.overriddenNamespace, proxy.getContainers().get(0).getRuntimeValue(BackendContainerNameKey.inst).split("/")[0]);
+                Assertions.assertEquals(k8s.overriddenNamespace, proxy.getContainers().getFirst().getRuntimeValue(BackendContainerNameKey.inst).split("/")[0]);
                 // no pods should exist in the default namespace
                 PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
                 Assertions.assertEquals(0, podList.getItems().size());
@@ -319,24 +320,24 @@ public class TestIntegrationOnKube {
 
                 podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
                 Assertions.assertEquals(1, podList.getItems().size());
-                Pod pod = podList.getItems().get(0);
+                Pod pod = podList.getItems().getFirst();
                 Assertions.assertEquals("Running", pod.getStatus().getPhase());
                 Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
                 Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
                 Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
                 Assertions.assertEquals(serviceAccountName, pod.getSpec().getServiceAccount());
-                ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+                ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
                 Assertions.assertEquals(true, container.getReady());
                 Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
                 serviceList = k8s.client.services().inNamespace(k8s.overriddenNamespace).list();
                 Assertions.assertEquals(1, serviceList.getItems().size());
-                Service service = serviceList.getItems().get(0);
+                Service service = serviceList.getItems().getFirst();
                 Assertions.assertEquals(k8s.overriddenNamespace, service.getMetadata().getNamespace());
                 Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
                 Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
                 Assertions.assertEquals(1, service.getSpec().getPorts().size());
-                Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+                Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().getFirst().getTargetPort().getIntVal());
 
                 inst.proxyService.stopProxy(null, proxy, true).run();
 
@@ -362,12 +363,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -380,7 +381,7 @@ public class TestIntegrationOnKube {
             Assertions.assertNotNull(pod.getSpec().getVolumes().get(0).getEmptyDir());
 
             // Check Env Variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertTrue(env.containsKey("VAR1"));
             Assertions.assertEquals("VALUE1", env.get("VAR1").getValue()); // value is a String "null"
@@ -407,18 +408,18 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.overriddenNamespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
@@ -465,25 +466,25 @@ public class TestIntegrationOnKube {
                               storage: 5Gi""";
 
 
-            k8s.client.inNamespace(k8s.overriddenNamespace).load(new ByteArrayInputStream(pvcSpec.getBytes())).createOrReplace();
+            k8s.client.adapt(NamespacedKubernetesClient.class).inNamespace(k8s.overriddenNamespace).load(new ByteArrayInputStream(pvcSpec.getBytes())).serverSideApply();
 
             String id = inst.client.startProxy("01_hello_manifests");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.overriddenNamespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
             // IMPORTANT: PVC should not have any labels, since it is the already existing resource and not created by shinyproxy
@@ -519,18 +520,18 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
 
             // check env variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertTrue(env.containsKey("CUSTOM_USERNAME"));
             Assertions.assertTrue(env.containsKey("PROXY_ID"));
@@ -539,12 +540,12 @@ public class TestIntegrationOnKube {
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.namespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("home-dir-pvc-demo", claim.getMetadata().getName());
 
             // check volume mount
-            Volume volume = pod.getSpec().getVolumes().get(0);
+            Volume volume = pod.getSpec().getVolumes().getFirst();
             Assertions.assertEquals("home-dir-pvc-demo", volume.getName());
             Assertions.assertEquals("home-dir-pvc-demo", volume.getPersistentVolumeClaim().getClaimName());
 
@@ -572,18 +573,18 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.overriddenNamespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("manifests-pvc", claim.getMetadata().getName());
 
@@ -613,12 +614,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -639,7 +640,7 @@ public class TestIntegrationOnKube {
         // case 2: secret does already exist, check that it does not get overridden
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
-            k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
+            k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder()
                 .withNewMetadata()
                 .withName("manifests-secret")
                 .withLabels(Map.of(
@@ -649,19 +650,20 @@ public class TestIntegrationOnKube {
                 ))
                 .endMetadata()
                 .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                .build());
+                .build())
+                .create();
 
             String id = inst.client.startProxy("01_hello_manifests_policy_create_once");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -690,12 +692,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -717,12 +719,13 @@ public class TestIntegrationOnKube {
         // case 2: secret does already exist, check that it gets overridden
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
-            Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
+            Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder()
                 .withNewMetadata()
                 .withName("manifests-secret")
                 .endMetadata()
                 .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                .build());
+                .build())
+                .create();
 
             String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
 
@@ -733,12 +736,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -765,24 +768,25 @@ public class TestIntegrationOnKube {
         // case 1: secret does already exist, check that it gets deleted
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
-            k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
+            k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder()
                 .withNewMetadata()
                 .withName("manifests-secret")
                 .endMetadata()
                 .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                .build());
+                .build())
+                .create();
 
             String id = inst.client.startProxy("01_hello_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -805,12 +809,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -832,12 +836,13 @@ public class TestIntegrationOnKube {
         // case 2: secret does already exist, check that it gets overridden
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
-            Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
+            Secret originalSecret = k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder()
                 .withNewMetadata()
                 .withName("manifests-secret")
                 .endMetadata()
                 .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                .build());
+                .build())
+                .create();
 
             String originalCreationTimestamp = originalSecret.getMetadata().getCreationTimestamp();
 
@@ -849,12 +854,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -885,12 +890,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -941,12 +946,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -994,24 +999,25 @@ public class TestIntegrationOnKube {
         // case 1: secret does already exist, check that it gets deleted
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             // first create secret
-            k8s.client.secrets().inNamespace(k8s.namespace).create(new SecretBuilder()
+            k8s.client.secrets().inNamespace(k8s.namespace).resource(new SecretBuilder()
                 .withNewMetadata()
                 .withName("manifests-secret")
                 .endMetadata()
                 .withData(Collections.singletonMap("password", "b2xkX3Bhc3N3b3Jk"))
-                .build());
+                .build())
+                .create();
 
             String id = inst.client.startProxy("01_hello_persistent_manifests_policy_delete");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -1034,12 +1040,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -1090,32 +1096,32 @@ public class TestIntegrationOnKube {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
             String id = inst.client.startProxy("01_hello_advanced_runtime_labels");
             Proxy proxy = inst.proxyService.getProxy(id);
-            String containerId = proxy.getContainers().get(0).getId();
+            String containerId = proxy.getContainers().getFirst().getId();
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
-            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertFalse(pod.getSpec().getContainers().getFirst().getSecurityContext().getPrivileged());
 
             ServiceList serviceList = k8s.client.services().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, serviceList.getItems().size());
-            Service service = serviceList.getItems().get(0);
+            Service service = serviceList.getItems().getFirst();
             Assertions.assertEquals(k8s.namespace, service.getMetadata().getNamespace());
             Assertions.assertEquals("sp-service-" + proxy.getId() + "-0", service.getMetadata().getName());
             Assertions.assertEquals(containerId, service.getSpec().getSelector().get("app"));
             Assertions.assertEquals(1, service.getSpec().getPorts().size());
-            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().get(0).getTargetPort().getIntVal());
+            Assertions.assertEquals(Integer.valueOf(3838), service.getSpec().getPorts().getFirst().getTargetPort().getIntVal());
 
 
             // assert env
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
             Assertions.assertTrue(env.containsKey("TEST_PROXY_ID"));
@@ -1162,13 +1168,13 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Pod pod = podList.getItems().getFirst();
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
 
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
-            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Assertions.assertEquals("2", pod.getSpec().getContainers().getFirst().getResources().getLimits().get("memory").getAmount());
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
             Assertions.assertTrue(env.containsKey("ENVIRONMENT"));
@@ -1199,13 +1205,13 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Pod pod = podList.getItems().getFirst();
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
 
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
-            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Assertions.assertEquals("2", pod.getSpec().getContainers().getFirst().getResources().getLimits().get("memory").getAmount());
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
             Assertions.assertTrue(env.containsKey("VALUESET_NAME"));
@@ -1227,8 +1233,8 @@ public class TestIntegrationOnKube {
                 "version", "4.0.5",
                 "memory", "2G"
             ));
-            Assertions.assertEquals(resp.getString("status"), "error");
-            Assertions.assertEquals(resp.getString("data"), "Failed to start proxy");
+            Assertions.assertEquals("error", resp.getString("status"));
+            Assertions.assertEquals("Failed to start proxy", resp.getString("data"));
 
             // case 2: test using ProxyService
             Authentication auth = UsernamePasswordAuthenticationToken.authenticated("demo", null, List.of(new SimpleGrantedAuthority("ROLE_GROUP1")));
@@ -1272,13 +1278,13 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            Pod pod = podList.getItems().getFirst();
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
 
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("ledfan/rstudio_base_r:4_0_5"));
-            Assertions.assertEquals("2", pod.getSpec().getContainers().get(0).getResources().getLimits().get("memory").getAmount());
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            Assertions.assertEquals("2", pod.getSpec().getContainers().getFirst().getResources().getLimits().get("memory").getAmount());
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
 
             Assertions.assertTrue(env.containsKey("ENVIRONMENT"));
@@ -1325,12 +1331,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.overriddenNamespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.overriddenNamespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -1368,17 +1374,17 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertTrue(env.containsKey("VAR_FOR_DEMO"));
             Assertions.assertEquals("VALUE", env.get("VAR_FOR_DEMO").getValue()); // value is a String "null"
@@ -1397,17 +1403,17 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
             // Check Env Variables
-            List<EnvVar> envList = pod.getSpec().getContainers().get(0).getEnv();
+            List<EnvVar> envList = pod.getSpec().getContainers().getFirst().getEnv();
             Map<String, EnvVar> env = envList.stream().collect(Collectors.toMap(EnvVar::getName, e -> e));
             Assertions.assertFalse(env.containsKey("VAR_FOR_DEMO"));
             Assertions.assertTrue(env.containsKey("VAR_FOR_DEMO2"));
@@ -1429,12 +1435,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -1446,7 +1452,7 @@ public class TestIntegrationOnKube {
             // additional persistent manifest
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.namespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("manifests-pvc-demo", claim.getMetadata().getName());
 
@@ -1469,12 +1475,12 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
 
@@ -1486,7 +1492,7 @@ public class TestIntegrationOnKube {
             // additional persistent manifest
             PersistentVolumeClaimList claimList = k8s.client.persistentVolumeClaims().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, claimList.getItems().size());
-            PersistentVolumeClaim claim = claimList.getItems().get(0);
+            PersistentVolumeClaim claim = claimList.getItems().getFirst();
             Assertions.assertEquals(k8s.namespace, claim.getMetadata().getNamespace());
             Assertions.assertEquals("manifests-pvc-demo2", claim.getMetadata().getName());
 
@@ -1510,15 +1516,15 @@ public class TestIntegrationOnKube {
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();
             Assertions.assertEquals(1, podList.getItems().size());
-            Pod pod = podList.getItems().get(0);
+            Pod pod = podList.getItems().getFirst();
             Assertions.assertEquals("Running", pod.getStatus().getPhase());
             Assertions.assertEquals(k8s.namespace, pod.getMetadata().getNamespace());
             Assertions.assertEquals("sp-pod-" + proxy.getId() + "-0", pod.getMetadata().getName());
             Assertions.assertEquals(1, pod.getStatus().getContainerStatuses().size());
-            ContainerStatus container = pod.getStatus().getContainerStatuses().get(0);
+            ContainerStatus container = pod.getStatus().getContainerStatuses().getFirst();
             Assertions.assertEquals(true, container.getReady());
             Assertions.assertTrue(container.getImage().endsWith("openanalytics/shinyproxy-integration-test-app:latest"));
-            Assertions.assertFalse(pod.getSpec().getContainers().get(0).getSecurityContext().getPrivileged());
+            Assertions.assertFalse(pod.getSpec().getContainers().getFirst().getSecurityContext().getPrivileged());
             Assertions.assertEquals(List.of("9.9.9.9"), pod.getSpec().getDnsConfig().getNameservers());
 
             inst.proxyService.stopProxy(null, proxy, true).run();

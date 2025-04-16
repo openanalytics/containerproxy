@@ -29,7 +29,6 @@ import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
-import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.stat.IStatCollector;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -213,7 +212,7 @@ public class ProxySharingMicrometer implements IStatCollector {
 
     private BackendContainerName getBackendContainerName(Proxy proxy) {
         if (!proxy.getContainers().isEmpty()) {
-            return proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+            return proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         }
         return null;
     }

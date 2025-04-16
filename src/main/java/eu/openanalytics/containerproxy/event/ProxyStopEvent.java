@@ -93,7 +93,7 @@ public class ProxyStopEvent extends BridgeableEvent {
             proxy.getSpecId(),
             proxy.getRuntimeValueOrDefault("SHINYPROXY_APP_INSTANCE", ""),
             proxy.getCreatedTimestamp(),
-            proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst),
+            proxy.getContainers().isEmpty() ? null : proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst),
             proxyStopReason,
             proxy.getStartupTimestamp() == 0 ? null : Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp()),
             authentication);

@@ -464,7 +464,7 @@ public class ProxySharingScaler implements AutoCloseable {
 
                 for (int i = 0; i < specExtension.seatsPerContainer; i++) {
                     if (!pendingDelegatingProxies.isEmpty()) {
-                        String intendedProxyId = pendingDelegatingProxies.remove(0);
+                        String intendedProxyId = pendingDelegatingProxies.removeFirst();
                         applicationEventPublisher.publishEvent(new SeatAvailableEvent(proxySpec.getId(), intendedProxyId));
                     }
                 }
@@ -652,7 +652,7 @@ public class ProxySharingScaler implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (!stopAppsOnShutdown) {
             return;
         }

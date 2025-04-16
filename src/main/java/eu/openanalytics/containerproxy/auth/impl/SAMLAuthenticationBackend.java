@@ -31,7 +31,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.config.annotation.ObjectPostProcessor;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
@@ -70,7 +70,6 @@ public class SAMLAuthenticationBackend implements IAuthenticationBackend {
     private Environment environment;
 
     @Inject
-    @SuppressWarnings("deprecation")
     private OpenSaml4AuthenticationProvider samlAuthenticationProvider;
 
     @Autowired

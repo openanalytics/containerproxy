@@ -177,7 +177,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
         Container resultContainer = proxy.getContainer(0).toBuilder()
             .id(UUID.randomUUID().toString())
-            .addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, delegateProxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst)), true)
+            .addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, delegateProxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst)), true)
             .build();
         resultProxy.updateContainer(resultContainer);
 

@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.re
 
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.IDelegateProxyStore;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
-import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
 import org.springframework.data.redis.core.BoundHashOperations;
 
 import java.util.Collection;

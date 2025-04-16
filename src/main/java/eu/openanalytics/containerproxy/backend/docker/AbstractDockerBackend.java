@@ -32,18 +32,12 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 import org.mandas.docker.client.DockerCertificates;
 import org.mandas.docker.client.DockerClient;
-import org.mandas.docker.client.LogStream;
-import org.mandas.docker.client.ObjectMapperProvider;
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
-import org.mandas.docker.client.exceptions.DockerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.channels.ClosedChannelException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,7 +46,6 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
@@ -110,7 +103,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     }
 
     protected Container getPrimaryContainer(Proxy proxy) {
-        return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
+        return proxy.getContainers().isEmpty() ? null : proxy.getContainers().getFirst();
     }
 
     protected List<String> convertEnv(Map<String, String> env) {

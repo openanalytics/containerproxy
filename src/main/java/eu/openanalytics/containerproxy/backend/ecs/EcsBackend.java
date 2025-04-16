@@ -157,7 +157,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         for (ProxySpec spec : proxySpecProvider.getSpecs()) {
-            ContainerSpec containerSpec = spec.getContainerSpecs().get(0);
+            ContainerSpec containerSpec = spec.getContainerSpecs().getFirst();
             if (!containerSpec.getMemoryRequest().isOriginalValuePresent()) {
                 throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'memory-request' configured, this is required for running on ECS fargate", spec.getId()));
             }
@@ -231,18 +231,19 @@ public class EcsBackend extends AbstractContainerBackend {
                 throw new ContainerFailedToStartException("No task in taskResponse", null, rContainerBuilder.build());
             }
 
-            String taskArn = runTaskResponse.tasks().get(0).taskArn();
+            String taskArn = runTaskResponse.tasks().getFirst().taskArn();
 
             rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
             applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
-            boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
+            boolean serviceReady;
+            if (Retrying.retry((currentAttempt, maxAttempts) -> {
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
                     .cluster(cluster)
                     .tasks(taskArn));
 
                 if (response.hasTasks()) {
-                    Task task = response.tasks().get(0);
+                    Task task = response.tasks().getFirst();
                     if (task.lastStatus().equals("RUNNING")) {
                         return Retrying.SUCCESS;
                     } else if (!STARTING_STATES.contains(task.lastStatus()) || !task.desiredStatus().equals("RUNNING")) {
@@ -252,11 +253,12 @@ public class EcsBackend extends AbstractContainerBackend {
                     }
                 }
                 return Retrying.FAILURE;
-            }, totalWaitMs, "ECS Task", 10, proxy, slog);
+            }, totalWaitMs, "ECS Task", 10, proxy, slog)) serviceReady = true;
+            else serviceReady = false;
 
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
-            String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
+            String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().getFirst().containers().getFirst().image();
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
             if (!serviceReady) {
@@ -430,7 +432,7 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     @Override
-    protected void doStopProxy(Proxy proxy) throws Exception {
+    protected void doStopProxy(Proxy proxy) {
         for (Container container : proxy.getContainers()) {
             String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
             ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
@@ -447,7 +449,7 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().get(0).lastStatus())) {
+                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().getFirst().lastStatus())) {
                     return Retrying.FAILURE;
                 }
             }
@@ -492,7 +494,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
         Task task = getTask(container).orElseThrow(() -> new ContainerFailedToStartException("Task not found while calculating target", null, container));
 
-        Attachment attachment = task.attachments().get(0);
+        Attachment attachment = task.attachments().getFirst();
         for (KeyValuePair detail : attachment.details()) {
             if (detail.name().equals("privateIPv4Address")) {
                 targetHostName = detail.value();
@@ -530,7 +532,7 @@ public class EcsBackend extends AbstractContainerBackend {
             .build()
         ).tasks();
 
-        return Optional.ofNullable(tasks.get(0));
+        return Optional.ofNullable(tasks.getFirst());
     }
 
     private boolean validateEcsTagValue(Proxy proxy, String key, String value) {

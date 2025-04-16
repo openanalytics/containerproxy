@@ -28,7 +28,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
@@ -52,20 +53,24 @@ public class InfluxDBCollector extends AbstractDbCollector {
             type.replace(" ", "\\ "),
             Optional.ofNullable(data).orElse(""));
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(destination).openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
-            dos.write(body.getBytes(StandardCharsets.UTF_8));
-            dos.flush();
-        }
-        int responseCode = conn.getResponseCode();
-        if (responseCode == 204) {
-            // All is well.
-        } else {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            IOUtils.copy(conn.getErrorStream(), bos);
-            throw new IOException(bos.toString());
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URI(destination).toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
+                dos.write(body.getBytes(StandardCharsets.UTF_8));
+                dos.flush();
+            }
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 204) {
+                // All is well.
+            } else {
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                IOUtils.copy(conn.getErrorStream(), bos);
+                throw new IOException(bos.toString());
+            }
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
         }
     }
 }

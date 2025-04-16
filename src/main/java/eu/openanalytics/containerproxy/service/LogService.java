@@ -97,13 +97,7 @@ public class LogService {
     public LogPaths getLogs(Proxy proxy) {
         if (!isLoggingEnabled()) return null;
 
-        try {
-            return logStorage.getLogs(proxy);
-        } catch (IOException e) {
-            slog.error(proxy, e, "Failed to locate logs for proxy " + proxy.getId());
-        }
-
-        return null;
+        return logStorage.getLogs(proxy);
     }
 
     @EventListener

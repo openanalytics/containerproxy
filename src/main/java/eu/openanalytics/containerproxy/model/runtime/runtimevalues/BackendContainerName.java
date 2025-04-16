@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.model.runtime.runtimevalues;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.annotation.JsonView;
 import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode

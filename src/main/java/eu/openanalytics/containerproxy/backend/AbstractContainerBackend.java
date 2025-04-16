@@ -46,7 +46,6 @@ import org.springframework.security.core.Authentication;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;

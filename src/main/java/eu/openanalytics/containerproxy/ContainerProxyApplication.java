@@ -174,9 +174,6 @@ public class ContainerProxyApplication {
         properties.put("management.defaults.metrics.export.enabled", "false");
         // set actuator to port 9090 (can be overwritten)
         properties.put("management.server.port", "9090");
-        // enable prometheus endpoint by default (but not the exporter)
-        properties.put("management.endpoint.prometheus.enabled", "true");
-        properties.put("management.endpoint.recyclable.enabled", "true");
         // include prometheus and health endpoint in exposure
         properties.put("management.endpoints.web.exposure.include", "health,prometheus,recyclable");
 

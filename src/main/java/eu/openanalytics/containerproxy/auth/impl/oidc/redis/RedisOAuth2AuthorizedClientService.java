@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth.impl.oidc.redis;
 
+import eu.openanalytics.containerproxy.RedisSessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.HashOperations;
@@ -38,13 +39,16 @@ public class RedisOAuth2AuthorizedClientService implements OAuth2AuthorizedClien
     @Inject
     private RedisTemplate<String, OAuth2AuthorizedClient> redisTemplate;
 
+    @Inject
+    private RedisSessionConfig redisSessionConfig;
+
     private String redisKey;
 
     private HashOperations<String, String, OAuth2AuthorizedClient> ops;
 
     @PostConstruct
     public void init() {
-        redisKey = "shinyproxy_spring_oauth_authorized_clients__";
+        redisKey = redisSessionConfig.getRedisNamespace() + "_oauth_authorized_clients__";
         ops = redisTemplate.opsForHash();
     }
 

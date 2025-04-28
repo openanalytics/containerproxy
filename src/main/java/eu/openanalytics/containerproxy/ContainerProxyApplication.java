@@ -167,6 +167,10 @@ public class ContainerProxyApplication {
         properties.put("logging.include-application-name", "false");
         // hide too verbose log message
         properties.put("logging.level.org.mandas.docker.client.DefaultDockerClient", "WARN");
+        // hide confusing warnings
+        properties.put("logging.level.io.undertow.websockets.jsr", "ERROR");
+        properties.put("logging.level.org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean", "WARN");
+        properties.put("logging.level.org.springframework.integration.config.DefaultConfiguringBeanFactoryPostProcessor", "WARN");
 
         // Metrics configuration
         // ====================

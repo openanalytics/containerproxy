@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy;
 
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.fasterxml.jackson.datatype.jsonp.JSONPModule;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
@@ -349,8 +349,8 @@ public class ContainerProxyApplication {
      * @return
      */
     @Bean
-    public JSR353Module jsr353Module() {
-        return new JSR353Module();
+    public JSONPModule jsonpModule() {
+        return new JSONPModule();
     }
 
     /**

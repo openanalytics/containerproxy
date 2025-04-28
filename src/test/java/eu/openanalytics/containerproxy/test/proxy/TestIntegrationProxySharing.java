@@ -39,6 +39,7 @@ import eu.openanalytics.containerproxy.test.helpers.TestHelperException;
 import eu.openanalytics.containerproxy.test.helpers.TestProxySharingScaler;
 import eu.openanalytics.containerproxy.test.helpers.TestUtil;
 import eu.openanalytics.containerproxy.util.Retrying;
+import jakarta.json.JsonObject;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.Assertions;
@@ -51,7 +52,6 @@ import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
 import org.mandas.docker.client.exceptions.DockerException;
 
-import javax.json.JsonObject;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;

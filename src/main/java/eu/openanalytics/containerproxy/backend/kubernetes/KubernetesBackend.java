@@ -23,7 +23,7 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.fasterxml.jackson.datatype.jsonp.JSONPModule;
 import com.google.common.base.Splitter;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
@@ -90,6 +90,7 @@ import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import jakarta.json.JsonPatch;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -98,7 +99,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.json.JsonPatch;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -526,7 +526,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
 
         ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-        yamlReader.registerModule(new JSR353Module());
+        yamlReader.registerModule(new JSONPModule());
         return yamlReader.readValue(patchAsString, JsonPatch.class);
     }
 

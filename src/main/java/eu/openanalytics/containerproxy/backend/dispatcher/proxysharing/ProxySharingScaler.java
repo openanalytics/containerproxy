@@ -646,6 +646,12 @@ public class ProxySharingScaler implements AutoCloseable {
     }
 
     public void stopAll() {
+        executor.shutdown();
+        try {
+            executor.awaitTermination(3, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
             containerBackend.stopProxy(delegateProxy.getProxy());
         }

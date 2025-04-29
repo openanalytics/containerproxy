@@ -298,7 +298,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 .environment(env)
                 .stopTimeout(2)
                 .dockerLabels(dockerLabels)
-                .logConfiguration(getLogConfiguration(proxy.getId()))
+                .logConfiguration(getLogConfiguration(proxy.getSpecId()))
                 .mountPoints(volumes.getSecond())
                 .secrets(secrets)
                 .build())
@@ -307,7 +307,7 @@ public class EcsBackend extends AbstractContainerBackend {
             .cpu(spec.getCpuRequest().getValue()) // required by fargate
             .memory(spec.getMemoryRequest().getValue()) // required by fargate
             .taskRoleArn(specExtension.ecsTaskRole.getValueOrNull())
-            .executionRoleArn(specExtension.ecsExecutionRole.getValueOrNull())
+            .executionRoleArn(specExtension.ecsExecutionRole.getValueOrNull())            
             .runtimePlatform(RuntimePlatform.builder()
                 .cpuArchitecture(specExtension.ecsCpuArchitecture.getValueOrNull())
                 .operatingSystemFamily(specExtension.ecsOperationSystemFamily.getValueOrNull())

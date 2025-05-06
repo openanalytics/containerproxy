@@ -54,6 +54,7 @@ public class OpenIDConfiguration {
     public static final String REG_ID = "shinyproxy";
     public static final String PROP_OPENID_JWKS_SIGNATURE_ALGORITHM = "proxy.openid.jwks-signature-algorithm";
     public static final String PROP_DEFAULT_ALGORITHM = "RS256";
+    public static final String PROP_INCLUDE_DEFAULT_SCOPES = "proxy.openid.include-default-scopes";
 
     @Inject
     private Environment environment;
@@ -69,8 +70,10 @@ public class OpenIDConfiguration {
     @Bean
     public ClientRegistrationRepository clientRegistrationRepository() {
         Set<String> scopes = new HashSet<>();
-        scopes.add("openid");
-        scopes.add("email");
+        if (environment.getProperty(PROP_INCLUDE_DEFAULT_SCOPES, Boolean.class, true)) {
+            scopes.add("openid");
+            scopes.add("email");
+        }
 
         Optional.ofNullable(EnvironmentUtils.readList(environment, "proxy.openid.scopes"))
             .ifPresent(scopes::addAll);

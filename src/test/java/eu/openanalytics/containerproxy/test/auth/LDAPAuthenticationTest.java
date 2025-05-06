@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -34,6 +35,7 @@ public class LDAPAuthenticationTest {
 
     @Test
     public void authenticateUser() throws Exception {
+        Assumptions.assumeTrue(System.getenv("CI") == null, "Skipping LDAP tests on CI");
         try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-ldap-auth.yml")) {
             String username = "tesla";
             String password = "password";

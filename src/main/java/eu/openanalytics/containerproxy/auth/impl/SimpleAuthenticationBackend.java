@@ -22,13 +22,17 @@ package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.provisioning.InMemoryUserDetailsManagerConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import javax.inject.Inject;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Simple authentication method where user/password combinations are
@@ -40,6 +44,7 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
 
     @Inject
     private Environment environment;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
     public String getName() {
@@ -59,13 +64,19 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
     @Override
     public void configureAuthenticationManagerBuilder(AuthenticationManagerBuilder auth) throws Exception {
         InMemoryUserDetailsManagerConfigurer<AuthenticationManagerBuilder> userDetails = auth.inMemoryAuthentication();
+        Set<String> usernames = new HashSet<>();
         int i = 0;
         SimpleUser user = loadUser(i++);
         while (user != null) {
-            userDetails
-                .withUser(user.name)
-                .password("{noop}" + user.password)
-                .roles(user.roles);
+            if (usernames.contains(user.name.toLowerCase())) {
+                logger.warn("Ignoring duplicate user with username '{}' in 'proxy.users[{}]' (usernames are case-insensitive)", user.name, i - 1);
+            } else {
+                userDetails
+                    .withUser(user.name)
+                    .password("{noop}" + user.password)
+                    .roles(user.roles);
+                usernames.add(user.name.toLowerCase());
+            }
             user = loadUser(i++);
         }
     }
@@ -75,7 +86,6 @@ public class SimpleAuthenticationBackend implements IAuthenticationBackend {
         if (userName == null) return null;
         String password = environment.getProperty(String.format("proxy.users[%d].password", index));
 
-        // method 1: single property with comma seperated groups
         List<String> groups = EnvironmentUtils.readList(environment, String.format("proxy.users[%d].groups", index));
         if (groups != null) {
             return new SimpleUser(userName, password, groups.toArray(new String[0]));

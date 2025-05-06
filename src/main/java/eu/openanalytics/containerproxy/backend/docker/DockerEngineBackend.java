@@ -186,6 +186,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                     .build());
             }
 
+            hostConfigBuilder.groupAdd(spec.getDockerGroupAdd().getValueOrNull());
+
             ContainerConfig containerConfig = ContainerConfig.builder()
                 .hostConfig(hostConfigBuilder.build())
                 .image(spec.getImage().getValue())

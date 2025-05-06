@@ -8,6 +8,10 @@ pipeline {
         }
     }
 
+    parameters {
+        booleanParam(name: 'SkipTests', defaultValue: false)
+    }
+
     options {
         buildDiscarder(logRotator(numToKeepStr: '3'))
     }
@@ -24,7 +28,6 @@ pipeline {
 
         stage('prepare') {
             steps {
-
                 container('docker') {
                     sh 'echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories'
                     sh 'apk add minikube@testing'
@@ -39,25 +42,50 @@ pipeline {
                         env.KUBERNETES_MASTER = "https://" + sh(returnStdout: true, script: "su user  /bin/sh -c 'minikube ip'").trim() + ":8443"
                     }
                 }
-
             }
-
         }
 
-        stage('build and deploy to nexus') {
-
+        stage('build') {
             environment {
                 KUBECONFIG = "/tmp/kubeconfig"
             }
 
             steps {
-
                 container('containerproxy-build') {
-
                     configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
+                        sh 'mvn -Dmaven.repo.local=/tmp/m2 -B -s $MAVEN_SETTINGS_RSB -U clean package -DskipTests'
+                    }
+                }
+            }
+        }
 
-                        sh 'mvn -Dmaven.repo.local=/tmp/m2 -B -s $MAVEN_SETTINGS_RSB -U clean deploy'
+        stage('test') {
+            environment {
+                KUBECONFIG = "/tmp/kubeconfig"
+            }
 
+            when {
+                equals expected: false, actual: params.SkipTests
+            }
+
+            steps {
+                container('containerproxy-build') {
+                    configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
+                        sh 'mvn -Dmaven.repo.local=/tmp/m2 -B -s $MAVEN_SETTINGS_RSB test'
+                    }
+                }
+            }
+        }
+
+        stage('deploy to Nexus') {
+            environment {
+                KUBECONFIG = "/tmp/kubeconfig"
+            }
+
+            steps {
+                container('containerproxy-build') {
+                    configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
+                        sh 'mvn -Dmaven.repo.local=/tmp/m2 -B -s $MAVEN_SETTINGS_RSB deploy -DskipTests'
                     }
                 }
             }

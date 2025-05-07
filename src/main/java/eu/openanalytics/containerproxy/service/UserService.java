@@ -224,7 +224,9 @@ public class UserService {
         if (authNull(auth)) return;
         String userId = auth.getName();
 
-        if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+        if (logoutStrategy != null) {
+            logoutStrategy.onLogout(auth);
+        }
         log.info(String.format("User logged out [user: %s]", userId));
 
         HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
@@ -267,7 +269,9 @@ public class UserService {
 
                 Authentication auth = securityContext.getAuthentication();
                 String userId = securityContext.getAuthentication().getName();
-                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+                if (logoutStrategy != null) {
+                    logoutStrategy.onLogout(auth);
+                }
 
                 log.info(String.format("User logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
@@ -278,8 +282,12 @@ public class UserService {
                 ));
             } else if (authBackend.getName().equals("none")) {
                 String userId = NoAuthenticationBackend.extractUserId(event.getSession());
-                if (userId == null) return;
-                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+                if (userId == null) {
+                    return;
+                }
+                if (logoutStrategy != null) {
+                    logoutStrategy.onLogout(userId);
+                }
 
                 log.info(String.format("Anonymous user logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(

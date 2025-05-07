@@ -95,9 +95,9 @@ public abstract class AbstractDbCollector implements IStatCollector {
         }
         SpecExpressionContext context;
         if (authentication != null) {
-            context = SpecExpressionContext.create(authentication, authentication.getPrincipal(), authentication.getCredentials(), event);
+            context = SpecExpressionContext.create(authentication, authentication.getPrincipal(), authentication.getCredentials(), event).build();
         } else {
-            context = SpecExpressionContext.create(event);
+            context = SpecExpressionContext.create(event).build();
         }
 
         Map<String, String> result = new HashMap<>();

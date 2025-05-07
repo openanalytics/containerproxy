@@ -84,7 +84,7 @@ public class StatCollectorFactory {
 
     @PostConstruct
     public void init() {
-        SpecExpressionContext specExpressionContext = SpecExpressionContext.create();
+        SpecExpressionContext specExpressionContext = SpecExpressionContext.create().build();
         String resolvedUsageStatsUrl = usageStatsUrl.resolve(specExpressionResolver, specExpressionContext).getValueOrNull();
         if (resolvedUsageStatsUrl != null && !resolvedUsageStatsUrl.isEmpty()) {
             createBean(createCollector(

@@ -25,7 +25,6 @@ import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -48,10 +47,12 @@ public class AccessControlEvaluationService {
     public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (auth instanceof AnonymousAuthenticationToken) {
             // if anonymous -> only allow access if the backend has no authorization enabled
-            return !authBackend.hasAuthorization();
+            if (authBackend.hasAuthorization()) {
+                return false;
+            }
         }
 
-        if (hasAccessControl(accessControl)) {
+        if (hasNoAccessControl(accessControl)) {
             return true;
         }
 
@@ -66,7 +67,7 @@ public class AccessControlEvaluationService {
         return allowedByExpression(auth, spec, accessControl, objects);
     }
 
-    public boolean hasAccessControl(AccessControl accessControl) {
+    public boolean hasNoAccessControl(AccessControl accessControl) {
         if (accessControl == null) {
             return true;
         }
@@ -107,14 +108,15 @@ public class AccessControlEvaluationService {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        Object[] args;
-        if (auth == null) {
-             args = ArrayUtils.addAll(new Object[]{spec}, objects);
-        } else {
-            args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
+        SpecExpressionContext.SpecExpressionContextBuilder contextBuilder = SpecExpressionContext
+            .create(objects)
+            .addServerName()
+            .extend(spec);
+
+        if (auth != null) {
+            contextBuilder.extend(auth, auth.getPrincipal(), auth.getCredentials());
         }
-        SpecExpressionContext context = SpecExpressionContext.create(args);
-        return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
+        return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), contextBuilder.build());
     }
 
 }

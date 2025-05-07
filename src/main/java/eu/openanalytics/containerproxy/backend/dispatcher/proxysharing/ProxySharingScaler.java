@@ -400,7 +400,7 @@ public class ProxySharingScaler implements AutoCloseable {
                 DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().proxy(proxy).build();
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
 
-                SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
+                SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec).build();
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
                 context = context.copy(resolvedSpec, proxy);
                 resolvedSpec = resolvedSpec.finalResolve(expressionResolver, context);

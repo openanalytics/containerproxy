@@ -35,6 +35,8 @@ import lombok.Value;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,39 +59,11 @@ public class SpecExpressionContext {
     String userId;
     JsonNode json;
     ApplicationEvent event;
+    String serverName;
 
-    public static SpecExpressionContext create(Object... objects) {
+    public static SpecExpressionContextBuilder create(Object... objects) {
         SpecExpressionContextBuilder builder = SpecExpressionContext.builder();
-        return create(builder, objects);
-    }
-
-    public static SpecExpressionContext create(SpecExpressionContextBuilder builder, Object... objects) {
-        for (Object o : objects) {
-            if (o instanceof ContainerSpec) {
-                builder.containerSpec = (ContainerSpec) o;
-            } else if (o instanceof ProxySpec) {
-                builder.proxySpec = (ProxySpec) o;
-            } else if (o instanceof Proxy) {
-                builder.proxy = (Proxy) o;
-            } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
-                builder.oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
-            } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
-                builder.samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
-            } else if (o instanceof LdapUserDetails) {
-                builder.ldapUser = (LdapUserDetails) o;
-            } else if (o instanceof WebServiceAuthenticationBackend.WebServiceUser) {
-                builder.webServiceUser = (WebServiceAuthenticationBackend.WebServiceUser) o;
-            } else if (o instanceof JsonNode) {
-                builder.json = (JsonNode) o;
-            } else if (o instanceof ApplicationEvent) {
-                builder.event = (ApplicationEvent) o;
-            }
-            if (o instanceof Authentication) {
-                builder.groups = UserService.getGroups((Authentication) o);
-                builder.userId = ((Authentication) o).getName();
-            }
-        }
-        return builder.build();
+        return builder.extend(objects);
     }
 
     /**
@@ -150,7 +124,49 @@ public class SpecExpressionContext {
     }
 
     public SpecExpressionContext copy(Object... objects) {
-        return create(toBuilder(), objects);
+        return toBuilder().extend(objects).build();
     }
+
+    public static class SpecExpressionContextBuilder {
+        public SpecExpressionContextBuilder extend(Object... objects) {
+            for (Object o : objects) {
+                if (o instanceof ContainerSpec) {
+                    containerSpec = (ContainerSpec) o;
+                } else if (o instanceof ProxySpec) {
+                    proxySpec = (ProxySpec) o;
+                } else if (o instanceof Proxy) {
+                    proxy = (Proxy) o;
+                } else if (o instanceof OpenIDAuthenticationBackend.CustomNameOidcUser) {
+                    oidcUser = (OpenIDAuthenticationBackend.CustomNameOidcUser) o;
+                } else if (o instanceof ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) {
+                    samlCredential = (ResponseAuthenticationConverter.Saml2AuthenticatedPrincipal) o;
+                } else if (o instanceof LdapUserDetails) {
+                    ldapUser = (LdapUserDetails) o;
+                } else if (o instanceof WebServiceAuthenticationBackend.WebServiceUser) {
+                    webServiceUser = (WebServiceAuthenticationBackend.WebServiceUser) o;
+                } else if (o instanceof JsonNode) {
+                    json = (JsonNode) o;
+                } else if (o instanceof ApplicationEvent) {
+                    event = (ApplicationEvent) o;
+                }
+                if (o instanceof Authentication) {
+                    groups = UserService.getGroups((Authentication) o);
+                    userId = ((Authentication) o).getName();
+                }
+            }
+            return this;
+        }
+
+        public SpecExpressionContextBuilder addServerName() {
+            try {
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+                serverName = servletRequestAttributes.getRequest().getServerName();
+            } catch (IllegalStateException ignored) {
+                // not in a request
+            }
+            return this;
+        }
+    }
+
 
 }

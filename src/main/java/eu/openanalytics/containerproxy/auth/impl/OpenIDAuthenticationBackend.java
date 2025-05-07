@@ -277,7 +277,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
         return (httpServletRequest, httpServletResponse, authentication) -> {
             String resolvedLogoutUrl;
             if (authentication != null) {
-                SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
+                SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials()).build();
                 resolvedLogoutUrl = specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context);
             } else {
                 resolvedLogoutUrl = getLogoutSuccessURL();

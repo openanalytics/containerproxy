@@ -46,6 +46,7 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.security.access.AccessDeniedException;
@@ -111,6 +112,9 @@ public class ProxyService {
     private SpecExpressionResolver expressionResolver;
     @Inject
     private LogService logService;
+    @Inject
+    @Lazy
+    private ProxyAccessControlService proxyAccessControlService;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
     private int requestTimeout;
@@ -199,15 +203,29 @@ public class ProxyService {
 
     /**
      * Get all proxies that are owned by the current user.
+     * Checks whether the user can still access the spec.
      *
      * @return A List of matching proxies, may be empty.
      */
     public List<Proxy> getUserProxies() {
-        return proxyStore.getUserProxies(userService.getCurrentUserId());
+        return getUserProxies(userService.getCurrentAuth());
     }
 
     /**
      * Get all proxies that are owned by the given user.
+     * Checks whether the user can still access the spec.
+     *
+     * @return A List of matching proxies, may be empty.
+     */
+    public List<Proxy> getUserProxies(Authentication authentication) {
+        return proxyStore.getUserProxies(authentication.getName())
+            .stream()
+            .filter(p -> proxyAccessControlService.canAccess(authentication, p.getSpecId())).toList();
+    }
+
+    /**
+     * Get all proxies that are owned by the given user.
+     * Does **not** check whether the user can still access the spec.
      *
      * @return A List of matching proxies, may be empty.
      */
@@ -470,7 +488,7 @@ public class ProxyService {
                 spec,
                 user,
                 user.getPrincipal(),
-                user.getCredentials());
+                user.getCredentials()).build();
 
             // resolve SpEL expression in spec
             spec = spec.firstResolve(expressionResolver, context);

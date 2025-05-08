@@ -46,7 +46,7 @@ import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.util.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
@@ -88,8 +88,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private IProxyStore proxyStore;
     @Inject
     private Environment environment;
-    @Autowired(required = false)
-    private ProxySharingMicrometer proxySharingMicrometer = null;
+    @Inject
+    private ObjectProvider<ProxySharingMicrometer> proxySharingMicrometer;
 
     public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, ISeatStore seatStore) {
         this.proxySpec = proxySpec;
@@ -162,9 +162,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         info(proxy, seat, "Seat claimed");
         applicationEventPublisher.publishEvent(new SeatClaimedEvent(spec.getId(), proxy.getId()));
         LocalDateTime endTime = LocalDateTime.now();
-        if (proxySharingMicrometer != null) {
-            proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
-        }
+        proxySharingMicrometer.ifAvailable(p -> p.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime)));
 
         Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId()).getProxy();
 

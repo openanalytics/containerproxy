@@ -105,9 +105,9 @@ public class AccessControlServiceTest {
         AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setGroups(new String[]{"myGroup"});
 
-        // when anonymous -> has access
+        // when anonymous -> has no access
         Authentication anonymousAuth = mock(AnonymousAuthenticationToken.class);
-        Assertions.assertTrue(accessControlService.canAccess(anonymousAuth, createProxySpec(proxyAccessControl)));
+        Assertions.assertFalse(accessControlService.canAccess(anonymousAuth, createProxySpec(proxyAccessControl)));
 
         // when not-anonymous -> has no access
         Authentication auth = mock(Authentication.class);
@@ -115,6 +115,17 @@ public class AccessControlServiceTest {
 
         // when spec has no Access Control -> has access
         Assertions.assertTrue(accessControlService.canAccess(anonymousAuth, createProxySpec(null)));
+
+        proxyAccessControl = new AccessControl();
+        proxyAccessControl.setExpression("#{false}");
+
+        // when spec has 'false' expression -> has no access
+        Assertions.assertFalse(accessControlService.canAccess(anonymousAuth, createProxySpec(proxyAccessControl)));
+
+        proxyAccessControl.setExpression("#{true}");
+
+        // when spec has 'true' expression -> has access
+        Assertions.assertTrue(accessControlService.canAccess(anonymousAuth, createProxySpec(proxyAccessControl)));
     }
 
     @Test

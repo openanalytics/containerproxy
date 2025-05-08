@@ -38,6 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,6 +56,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
     protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
+    protected static final String PROPERTY_TARGET_URL = "target-url";
     protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
     private static final String PROPERTY_PREFIX = "proxy.docker.";
     @Inject
@@ -60,6 +65,8 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected Integer portRangeFrom;
     protected Integer portRangeTo;
+    protected String nonInternalNetworkTargetProtocol;
+    protected URL nonInternalNetworkTargetURL;
 
     private final ScheduledExecutorService releasePortExecutor = Executors.newSingleThreadScheduledExecutor();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -88,14 +95,21 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         }
 
         String confUrl = getProperty(PROPERTY_URL);
-        if (confUrl != null) builder.uri(confUrl);
+        if (confUrl != null) {
+            builder.uri(confUrl);
+        }
 
         dockerClient = builder.build();
         portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
         portRangeTo = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
+
+        try {
+            nonInternalNetworkTargetURL = new URI(getProperty(PROPERTY_TARGET_URL, DEFAULT_TARGET_URL)).toURL();
+            nonInternalNetworkTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, nonInternalNetworkTargetURL.getProtocol());
+        } catch (MalformedURLException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
-
-
 
     @Override
     protected String getPropertyPrefix() {

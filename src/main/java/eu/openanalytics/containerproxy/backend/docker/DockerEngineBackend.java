@@ -60,9 +60,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,8 +79,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     private static final String PROPERTY_LOKI_URL = "loki-url";
 
     private ImagePullPolicy imagePullPolicy;
-    private String nonInternalNetworkTargetProtocol;
-    private URL hostURL;
     private String containerNetwork;
     private String lokiUrl;
 
@@ -92,13 +88,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
         containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
         lokiUrl = environment.getProperty(getPropertyPrefix() + PROPERTY_LOKI_URL);
-
-        try {
-            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-            nonInternalNetworkTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, hostURL.getProtocol());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -228,7 +217,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
         String targetProtocol;
         String targetHostName;
-        String targetPort;
+        int targetPort;
 
         if (isUseInternalNetwork()) {
             targetProtocol = getDefaultTargetProtocol();
@@ -238,11 +227,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             ContainerInfo info = dockerClient.inspectContainer(container.getId());
             targetHostName = info.config().hostname();
 
-            targetPort = String.valueOf(portMapping.getPort());
+            targetPort = portMapping.getPort();
         } else {
             targetProtocol = nonInternalNetworkTargetProtocol;
-            targetHostName = hostURL.getHost();
-            targetPort = String.valueOf(hostPort);
+            targetHostName = nonInternalNetworkTargetURL.getHost();
+            targetPort = hostPort;
         }
         return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
     }

@@ -68,7 +68,6 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,8 +80,6 @@ import java.util.stream.Stream;
 @Component
 @ConditionalOnProperty(name = "proxy.container-backend", havingValue = "docker-swarm")
 public class DockerSwarmBackend extends AbstractDockerBackend {
-
-    private URI hostURL;
 
     private int serviceWaitTime;
 
@@ -97,11 +94,6 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         } catch (Exception e) {
         }
         if (swarmId == null) throw new ContainerProxyException("Backend is not a Docker Swarm");
-        try {
-            hostURL = new URI(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
         serviceWaitTime = environment.getProperty("proxy.docker.service-wait-time", Integer.class, 60000);
     }
 
@@ -252,20 +244,24 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
     @Override
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
+        String targetProtocol;
         String targetHostName;
         int targetPort;
 
         if (isUseInternalNetwork()) {
+            targetProtocol = getDefaultTargetProtocol();
+
             // Access on containerShortId:containerPort
             targetHostName = container.getId().substring(0, 12);
             targetPort = portMapping.getPort();
         } else {
             // Access on dockerHostName:servicePort
-            targetHostName = hostURL.getHost();
+            targetProtocol = nonInternalNetworkTargetProtocol;
+            targetHostName = nonInternalNetworkTargetURL.getHost();
             targetPort = servicePort;
         }
 
-        return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
+        return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
     private SecretBind convertSecret(DockerSwarmSecret secret) throws DockerException, InterruptedException {

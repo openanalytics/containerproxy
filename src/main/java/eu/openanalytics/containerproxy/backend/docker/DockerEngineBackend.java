@@ -77,10 +77,13 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
     private static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
     private static final String PROPERTY_LOKI_URL = "loki-url";
+    private static final String PROPERTY_TARGET_BIND_IP = "target-bind-ip";
+    private static final String DEFAULT_TARGET_BIND_IP = "127.0.0.1";
 
     private ImagePullPolicy imagePullPolicy;
     private String containerNetwork;
     private String lokiUrl;
+    private String nonInternalTargetBindIp;
 
     @PostConstruct
     public void initialize() {
@@ -88,6 +91,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
         containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
         lokiUrl = environment.getProperty(getPropertyPrefix() + PROPERTY_LOKI_URL);
+        nonInternalTargetBindIp = environment.getProperty(getPropertyPrefix() + PROPERTY_TARGET_BIND_IP, DEFAULT_TARGET_BIND_IP);
     }
 
     @Override
@@ -113,7 +117,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 // Allocate ports on the docker host to proxy to.
                 for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping : spec.getPortMapping()) {
                     int hostPort = portAllocator.allocate(portRangeFrom, portRangeTo, proxy.getId());
-                    dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
+                    dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of(nonInternalTargetBindIp, hostPort)));
                     portBindings.put(portMapping.getPort(), hostPort);
                 }
             }

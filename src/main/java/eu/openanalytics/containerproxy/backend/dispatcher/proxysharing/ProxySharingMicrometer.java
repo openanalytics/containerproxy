@@ -128,7 +128,7 @@ public class ProxySharingMicrometer implements IStatCollector {
         }
         if (specIds.contains(event.getSpecId())) {
             recentProxies.put(event.getProxyId(), event.getProxyId());
-            registry.gauge("delegate.app.info",
+            registry.gauge("delegate.app.status",
                 Tags.of(
                     "spec.id", event.getSpecId(),
                     "proxy.id", event.getProxyId(),
@@ -163,7 +163,7 @@ public class ProxySharingMicrometer implements IStatCollector {
                         continue;
                     }
 
-                    registry.gauge("delegate.app.info",
+                    registry.gauge("delegate.app.status",
                         Tags.of(
                             "spec.id", specId,
                             "proxy.id", proxy.getId(),
@@ -181,7 +181,7 @@ public class ProxySharingMicrometer implements IStatCollector {
                     // when the TTL of this proxy in recentProxies expires, the gauge will be removed
                     // this waiting period allows the metric system to pick up that the proxy is being removed
                     registry.remove(gauge);
-                    registry.gauge("delegate.app.info",
+                    registry.gauge("delegate.app.status",
                         Tags.of(
                             "spec.id", gauge.getId().getTag("spec.id"),
                             "proxy.id", gauge.getId().getTag("proxy.id"),
@@ -203,7 +203,7 @@ public class ProxySharingMicrometer implements IStatCollector {
 
     private Map<String, Gauge> getDelegateAppInfoGauges() {
         try {
-            return new HashMap<>(registry.get("delegate.app.info").gauges().stream()
+            return new HashMap<>(registry.get("delegate.app.status").gauges().stream()
                 .collect(Collectors.toMap(g -> g.getId().getTag("proxy.id"), g -> g)));
         } catch (MeterNotFoundException ignored) {
             return new HashMap<>();

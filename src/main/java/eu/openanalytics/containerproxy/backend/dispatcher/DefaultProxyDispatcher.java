@@ -84,4 +84,9 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
         return containerBackend.isProxyHealthy(proxy);
     }
 
+    @Override
+    public boolean isProxyHealthySupported() {
+        return true;
+    }
+
 }

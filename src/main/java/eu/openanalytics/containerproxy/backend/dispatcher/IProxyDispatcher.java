@@ -49,4 +49,6 @@ public interface IProxyDispatcher {
     Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy);
 
     boolean isProxyHealthy(Proxy proxy);
+
+    boolean isProxyHealthySupported();
 }

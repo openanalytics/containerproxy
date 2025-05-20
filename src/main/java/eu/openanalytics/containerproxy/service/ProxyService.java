@@ -444,14 +444,16 @@ public class ProxyService {
     }
 
     public boolean isProxyHealthy(Proxy proxy) {
-        for (int i = 0; i < 5; i++) {
-            if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
-                return false;
-            }
-            try {
-                // wait for events to propagate
-                Thread.sleep(1_000);
-            } catch (InterruptedException ignored) {
+        if (proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthySupported()) {
+            for (int i = 0; i < 5; i++) {
+                if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
+                    return false;
+                }
+                try {
+                    // wait for events to propagate
+                    Thread.sleep(1_000);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
         if (proxy.getTargets().isEmpty()) {

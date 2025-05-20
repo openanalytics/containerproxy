@@ -135,11 +135,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
     private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
     private static final String PROPERTY_NODE_SELECTOR = "node-selector";
+    private static final String PROPERTY_CLUSTER_DOMAIN = "cluster-domain";
 
     private static final String DEFAULT_NAMESPACE = "default";
     private static final String DEFAULT_API_VERSION = "v1";
+    private static final String DEFAULT_CLUSTER_DOMAIN = "cluster.local";
 
     private static final String SECRET_KEY_REF = "secretKeyRef";
+    private static final String HEADLESS_SERVICE_NAME = "sp-headless-service";
+    private static final String HEADLESS_SERVICE_LABEL = "openanalytics.eu/sp-headless-service";
+    private static final String HEADLESS_SERVICE_LABEL_VALUE = "true";
 
     private static final String ANNOTATION_MANIFEST_POLICY = "openanalytics.eu/sp-additional-manifest-policy";
     private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
@@ -158,6 +163,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private String kubeNamespace;
     private String apiVersion;
     private String imagePullPolicy;
+    private String clusterDomain;
 
     @PostConstruct
     public void initialize() {
@@ -197,6 +203,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
         apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
         imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
+        clusterDomain = getProperty(PROPERTY_CLUSTER_DOMAIN, DEFAULT_CLUSTER_DOMAIN);
 
         String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
         if (imagePullSecret != null) {
@@ -284,6 +291,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Map<String, String> serviceLabels = new HashMap<>();
             Map<String, String> podLabels = new HashMap<>();
             podLabels.put("app", containerId);
+            podLabels.put(HEADLESS_SERVICE_LABEL, HEADLESS_SERVICE_LABEL_VALUE);
 
             String podName = StringUtils.left(spec.getResourceName().getValueOrDefault("sp-pod-" + proxy.getId() + "-" + initialContainer.getIndex()), 63);
 
@@ -325,11 +333,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
             podSpec.setVolumes(volumes);
             podSpec.setImagePullSecrets(imagePullSecrets);
             podSpec.setRestartPolicy("Never");
+            podSpec.setHostname(podName);
+            podSpec.setSubdomain(HEADLESS_SERVICE_NAME);
 
             if (nodeSelectorString != null) {
                 podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
             }
-
 
             Pod startupPod = podBuilder.withSpec(podSpec).build();
             Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod, initialContainer);
@@ -377,27 +386,30 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Service service;
             Map<Integer, Integer> portBindings = new HashMap<>();
             if (isUseInternalNetwork()) {
-                // If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.
+                // If SP runs inside the cluster, it re-uses an existing headless service
+                createHeadlessService(effectiveKubeNamespace);
             } else {
                 List<ServicePort> servicePorts = spec.getPortMapping().stream()
                     .map(p -> new ServicePortBuilder().withPort(p.getPort()).build())
                     .toList();
 
+                // @formatter:off
                 Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace)
                     .resource(new ServiceBuilder()
                         .withApiVersion(apiVersion)
                         .withKind("Service")
                         .withNewMetadata()
-                        .withName(getServiceName(proxy, initialContainer))
-                        .withLabels(serviceLabels)
+                            .withName(getServiceName(proxy, initialContainer))
+                            .withLabels(serviceLabels)
                         .endMetadata()
                         .withNewSpec()
-                        .addToSelector("app", containerId)
-                        .withType("NodePort")
-                        .withPorts(servicePorts)
+                            .addToSelector("app", containerId)
+                            .withType("NodePort")
+                            .withPorts(servicePorts)
                         .endSpec()
                         .build())
-                        .create();
+                    .create();
+                // @formatter:on
 
                 // Workaround: waitUntilReady appears to be buggy.
                 Retrying.retry((currentAttempt, maxAttempts) -> new Retrying.Result(isServiceReady(kubeClient.resource(startupService).get())), 60_000);
@@ -636,6 +648,36 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return service.getStatus().getLoadBalancer() != null;
     }
 
+    private void createHeadlessService(String effectiveKubeNamespace) {
+        if (kubeClient.services().inNamespace(effectiveKubeNamespace).withName(HEADLESS_SERVICE_NAME).get() == null) {
+            // @formatter:off
+            kubeClient.services().inNamespace(effectiveKubeNamespace)
+                .resource(new ServiceBuilder()
+                    .withApiVersion(apiVersion)
+                    .withKind("Service")
+                    .withNewMetadata()
+                        .withName(HEADLESS_SERVICE_NAME)
+                    .endMetadata()
+                    .withNewSpec()
+                        .addToSelector(HEADLESS_SERVICE_LABEL, HEADLESS_SERVICE_LABEL_VALUE)
+                        .withClusterIP("None")
+                        .endSpec()
+                    .build())
+                .create();
+            // @formatter:on
+        }
+    }
+
+    private String getPodFqdn(Pod pod) {
+        return String.format(
+            "%s.%s.%s.svc.%s",
+            pod.getSpec().getHostname(),
+            pod.getSpec().getSubdomain(),
+            pod.getMetadata().getNamespace(),
+            clusterDomain);
+
+    }
+
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
         String targetHostName;
         int targetPort;
@@ -643,7 +685,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         Pod pod = getPod(container).orElseThrow(() -> new ContainerFailedToStartException("Pod not found while calculating target", null, container));
 
         if (isUseInternalNetwork()) {
-            targetHostName = pod.getStatus().getPodIP();
+            targetHostName = getPodFqdn(pod);
             targetPort = portMapping.getPort();
         } else {
             targetHostName = pod.getStatus().getHostIP();

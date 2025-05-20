@@ -171,6 +171,11 @@ public class ContainerProxyApplication {
         properties.put("logging.level.io.undertow.websockets.jsr", "ERROR");
         properties.put("logging.level.org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean", "WARN");
         properties.put("logging.level.org.springframework.integration.config.DefaultConfiguringBeanFactoryPostProcessor", "WARN");
+        properties.put("logging.level.org.springframework.boot.web.servlet.RegistrationBean", "WARN");
+        properties.put("logging.level.org.springframework.data.repository.config.RepositoryConfigurationDelegate", "WARN");
+        properties.put("logging.level.org.springframework.integration.endpoint.EventDrivenConsumer", "WARN");
+        properties.put("logging.level.org.springframework.integration.channel.PublishSubscribeChannel", "WARN");
+        properties.put("logging.level.org.springframework.boot.autoconfigure.web.servlet.WelcomePageHandlerMapping", "WARN");
 
         // Metrics configuration
         // ====================

@@ -51,29 +51,45 @@ public abstract class AbstractDbCollector implements IStatCollector {
 
     @Async
     @EventListener
-    public void onUserLogoutEvent(UserLogoutEvent event) throws IOException {
-        writeToDb(event, event.getTimestamp(), event.getUserId(), "Logout", null, event.getAuthentication());
+    public void onUserLogoutEvent(UserLogoutEvent event) {
+        try {
+            writeToDb(event, event.getTimestamp(), event.getUserId(), "Logout", null, event.getAuthentication());
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
+        }
     }
 
     @Async
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) throws IOException {
-        writeToDb(event, event.getTimestamp(), event.getUserId(), "Login", null, event.getAuthentication());
+        try {
+            writeToDb(event, event.getTimestamp(), event.getUserId(), "Login", null, event.getAuthentication());
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
+        }
     }
 
     @Async
     @EventListener
     public void onProxyStartEvent(ProxyStartEvent event) throws IOException {
-        if (event.isLocalEvent()) {
-            writeToDb(event,event.getTimestamp(), event.getUserId(), "ProxyStart", event.getSpecId(), event.getAuthentication());
+        try {
+            if (event.isLocalEvent()) {
+                writeToDb(event, event.getTimestamp(), event.getUserId(), "ProxyStart", event.getSpecId(), event.getAuthentication());
+            }
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
         }
     }
 
     @Async
     @EventListener
     public void onProxyStopEvent(ProxyStopEvent event) throws IOException {
-        if (event.isLocalEvent()) {
-            writeToDb(event, event.getTimestamp(), event.getUserId(), "ProxyStop", event.getSpecId(), event.getAuthentication());
+        try {
+            if (event.isLocalEvent()) {
+                writeToDb(event, event.getTimestamp(), event.getUserId(), "ProxyStop", event.getSpecId(), event.getAuthentication());
+            }
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
         }
     }
 
@@ -87,7 +103,7 @@ public abstract class AbstractDbCollector implements IStatCollector {
         // TODO
     }
 
-    protected abstract void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException;
+    protected abstract void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws Exception;
 
     protected Map<String, String> resolveAttributes(Authentication authentication, ApplicationEvent event, List<StatCollectorFactory.UsageStatsAttribute> usageStatsAttributes) {
         if (usageStatsAttributes == null) {

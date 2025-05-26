@@ -47,30 +47,27 @@ public class InfluxDBCollector extends AbstractDbCollector {
     }
 
     @Override
-    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
+    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws Exception {
         String body = String.format("event,username=%s,type=%s data=\"%s\"",
             userId.replace(" ", "\\ "),
             type.replace(" ", "\\ "),
             Optional.ofNullable(data).orElse(""));
 
-        try {
-            HttpURLConnection conn = (HttpURLConnection) new URI(destination).toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
-                dos.write(body.getBytes(StandardCharsets.UTF_8));
-                dos.flush();
-            }
-            int responseCode = conn.getResponseCode();
-            if (responseCode == 204) {
-                // All is well.
-            } else {
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                IOUtils.copy(conn.getErrorStream(), bos);
-                throw new IOException(bos.toString());
-            }
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
+        HttpURLConnection conn = (HttpURLConnection) new URI(destination).toURL().openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
+            dos.write(body.getBytes(StandardCharsets.UTF_8));
+            dos.flush();
+        }
+        int responseCode = conn.getResponseCode();
+        if (responseCode == 204) {
+            // All is well.
+        } else {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            IOUtils.copy(conn.getErrorStream(), bos);
+            throw new IOException(bos.toString());
         }
     }
+
 }

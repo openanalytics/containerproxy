@@ -160,14 +160,22 @@ public class Micrometer implements IStatCollector {
 
     @EventListener
     public void onUserLogoutEvent(UserLogoutEvent event) {
-        logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(), event.getWasExpired());
-        userLogouts.increment();
+        try {
+            logger.debug("UserLogoutEvent [user: {},  expired: {}]", event.getUserId(), event.getWasExpired());
+            userLogouts.increment();
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
+        }
     }
 
     @EventListener
     public void onUserLoginEvent(UserLoginEvent event) {
-        logger.debug("UserLoginEvent [user: {}]", event.getUserId());
-        userLogins.increment();
+        try {
+            logger.debug("UserLoginEvent [user: {}]", event.getUserId());
+            userLogins.increment();
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
+        }
     }
 
     @EventListener
@@ -190,7 +198,7 @@ public class Micrometer implements IStatCollector {
             }
             logger.debug("NewProxyEvent [user: {}]", event.getUserId());
         } catch (Exception e) {
-            logger.error("Error in onNewProxyEvent", e);
+            logger.warn("Collecting event failed", e);
         }
     }
 
@@ -247,7 +255,7 @@ public class Micrometer implements IStatCollector {
                 registry.timer("applicationStartupTime", "spec.id", event.getSpecId()).record(d);
             });
         } catch (Exception e) {
-            logger.error("Error in onProxyStartEvent", e);
+            logger.warn("Collecting event failed", e);
         }
     }
 
@@ -296,7 +304,7 @@ public class Micrometer implements IStatCollector {
                 registry.counter("appCrashes", "spec.id", event.getSpecId()).increment();
             }
         } catch (Exception e) {
-            logger.error("Error in onProxyStopEvent", e);
+            logger.warn("Collecting event failed", e);
         }
     }
 
@@ -336,14 +344,18 @@ public class Micrometer implements IStatCollector {
             logger.debug("ProxyStartFailedEvent [user: {}, specId: {}]", event.getUserId(), event.getSpecId());
             registry.counter("startFailed", "spec.id", event.getSpecId()).increment();
         } catch (Exception e) {
-            logger.error("Error in onProxyStartFailedEvent", e);
+            logger.warn("Collecting event failed", e);
         }
     }
 
     @EventListener
     public void onAuthFailedEvent(AuthFailedEvent event) {
-        logger.debug("AuthFailedEvent [user: {}]", event.getUserId());
-        authFailedCounter.increment();
+        try {
+            logger.debug("AuthFailedEvent [user: {}]", event.getUserId());
+            authFailedCounter.increment();
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
+        }
     }
 
     /**

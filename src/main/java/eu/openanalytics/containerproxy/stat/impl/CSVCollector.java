@@ -111,25 +111,21 @@ public class CSVCollector extends AbstractDbCollector implements AutoCloseable {
     }
 
     @Override
-    protected synchronized void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) {
+    protected synchronized void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws Exception {
+        Map<String, String> row = new HashMap<>();
+        for (String column : schema.getColumnNames()) {
+            row.put(column, "");
+        }
+        row.put("event_time", Long.toString(timestamp));
+        row.put("username", Objects.requireNonNullElse(userId, ""));
+        row.put("type", Objects.requireNonNullElse(type, ""));
+        row.put("data", Objects.requireNonNullElse(data, ""));
+        row.putAll(resolveAttributes(authentication, event, usageStatsAttributes));
         try {
-            Map<String, String> row = new HashMap<>();
-            for (String column : schema.getColumnNames()) {
-                row.put(column, "");
-            }
-            row.put("event_time", Long.toString(timestamp));
-            row.put("username", Objects.requireNonNullElse(userId, ""));
-            row.put("type", Objects.requireNonNullElse(type, ""));
-            row.put("data", Objects.requireNonNullElse(data, ""));
-            row.putAll(resolveAttributes(authentication, event, usageStatsAttributes));
-            try {
-                writer.write(row);
-            } catch (Exception e) {
-                logger.warn("Error while writing to CSV file, data: {}", row, e);
-                writer = csvMapper.writer(schema).writeValues(fileWriter);
-            }
+            writer.write(row);
         } catch (Exception e) {
-            logger.warn("Error while collecting statistic", e);
+            logger.warn("Error while writing to CSV file, data: {}", row, e);
+            writer = csvMapper.writer(schema).writeValues(fileWriter);
         }
     }
 

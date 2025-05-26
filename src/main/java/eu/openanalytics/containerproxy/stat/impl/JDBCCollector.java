@@ -147,7 +147,7 @@ public class JDBCCollector extends AbstractDbCollector {
     }
 
     @Override
-    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws IOException {
+    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws Exception {
         try (Connection con = ds.getConnection()) {
             Map<String, String> attributes = resolveAttributes(authentication, event, usageStatsAttributes);
             String sql = buildQuery(attributes.keySet());
@@ -165,8 +165,6 @@ public class JDBCCollector extends AbstractDbCollector {
 
                 stmt.executeUpdate();
             }
-        } catch (SQLException e) {
-            throw new IOException("Exception while logging stats", e);
         }
     }
 

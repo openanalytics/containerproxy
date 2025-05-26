@@ -123,20 +123,24 @@ public class ProxySharingMicrometer implements IStatCollector {
 
     @EventListener
     public void onNewProxyEvent(NewProxyEvent event) {
-        if (event.getUserId() != null || event.getBackendContainerName() == null) {
-            return;
-        }
-        if (specIds.contains(event.getSpecId())) {
-            recentProxies.put(event.getProxyId(), event.getProxyId());
-            registry.gauge("delegate.app.status",
-                Tags.of(
-                    "spec.id", event.getSpecId(),
-                    "proxy.id", event.getProxyId(),
-                    "proxy.created.timestamp", Long.toString(event.getCreatedTimestamp()),
-                    "resource.id", event.getBackendContainerName().getName(),
-                    "proxy.namespace", event.getBackendContainerName().getNamespace()),
-                PROXY_STATUS_TO_INTEGER.get(DelegateProxyStatus.Pending)
-            );
+        try {
+            if (event.getUserId() != null || event.getBackendContainerName() == null) {
+                return;
+            }
+            if (specIds.contains(event.getSpecId())) {
+                recentProxies.put(event.getProxyId(), event.getProxyId());
+                registry.gauge("delegate.app.status",
+                    Tags.of(
+                        "spec.id", event.getSpecId(),
+                        "proxy.id", event.getProxyId(),
+                        "proxy.created.timestamp", Long.toString(event.getCreatedTimestamp()),
+                        "resource.id", event.getBackendContainerName().getName(),
+                        "proxy.namespace", event.getBackendContainerName().getNamespace()),
+                    PROXY_STATUS_TO_INTEGER.get(DelegateProxyStatus.Pending)
+                );
+            }
+        } catch (Exception e) {
+            logger.warn("Collecting event failed", e);
         }
     }
 

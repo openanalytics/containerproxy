@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
@@ -79,8 +80,8 @@ public class RedisStoreConfiguration {
     // Store beans
 
     @Bean
-    public IProxyStore proxyStore() {
-        return new RedisProxyStore();
+    public IProxyStore proxyStore(AccessControlEvaluationService accessControlEvaluationService) {
+        return new RedisProxyStore(accessControlEvaluationService);
     }
 
     @Bean

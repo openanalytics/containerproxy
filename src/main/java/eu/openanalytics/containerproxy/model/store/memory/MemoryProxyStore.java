@@ -25,6 +25,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,6 +37,11 @@ public class MemoryProxyStore implements IProxyStore {
 
     private final ConcurrentHashMap<String, Proxy> activeProxies = new ConcurrentHashMap<>();
     private final ListMultimap<String, String> userProxies = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
+    private final AccessControlEvaluationService accessControlEvaluationService;
+
+    public MemoryProxyStore(AccessControlEvaluationService accessControlEvaluationService) {
+        this.accessControlEvaluationService = accessControlEvaluationService;
+    }
 
     @Override
     public Collection<Proxy> getAllProxies() {
@@ -70,7 +76,7 @@ public class MemoryProxyStore implements IProxyStore {
         List<String> ids = userProxies.get(userId);
         for (String proxyId : ids) {
             Proxy proxy = activeProxies.get(proxyId);
-            if (proxy != null && proxy.getUserId().equalsIgnoreCase(userId)) {
+            if (proxy != null && accessControlEvaluationService.usernameEquals(proxy.getUserId(), userId)) {
                 result.add(proxy);
             }
         }

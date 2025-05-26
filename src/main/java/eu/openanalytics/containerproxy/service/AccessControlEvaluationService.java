@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -33,15 +34,19 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccessControlEvaluationService {
 
+    public static final String PROP_USERNAME_CASE_SENSITIVE = "proxy.username-case-sensitive";
+
     private final IAuthenticationBackend authBackend;
     private final UserService userService;
 
     private final SpecExpressionResolver specExpressionResolver;
+    private final Boolean usernameCaseSensitive;
 
-    public AccessControlEvaluationService(@Lazy IAuthenticationBackend authBackend, UserService userService, SpecExpressionResolver specExpressionResolver) {
+    public AccessControlEvaluationService(@Lazy IAuthenticationBackend authBackend, UserService userService, SpecExpressionResolver specExpressionResolver, Environment environment) {
         this.authBackend = authBackend;
         this.userService = userService;
         this.specExpressionResolver = specExpressionResolver;
+        usernameCaseSensitive = environment.getProperty(PROP_USERNAME_CASE_SENSITIVE, Boolean.class, true);
     }
 
     public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
@@ -96,7 +101,7 @@ public class AccessControlEvaluationService {
             return false;
         }
         for (String user : accessControl.getUsers()) {
-            if (auth.getName().equals(user)) {
+            if (usernameEquals(auth.getName(), user)) {
                 return true;
             }
         }
@@ -117,6 +122,13 @@ public class AccessControlEvaluationService {
             contextBuilder.extend(auth, auth.getPrincipal(), auth.getCredentials());
         }
         return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), contextBuilder.build());
+    }
+
+    public boolean usernameEquals(String authenticatedUser, String other) {
+        if (usernameCaseSensitive) {
+            return authenticatedUser.equals(other);
+        }
+        return authenticatedUser.equalsIgnoreCase(other);
     }
 
 }

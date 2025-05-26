@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -39,6 +40,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.util.Collection;
 import java.util.Collections;
 
+import static eu.openanalytics.containerproxy.service.AccessControlEvaluationService.PROP_USERNAME_CASE_SENSITIVE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,15 +50,25 @@ public class AccessControlServiceTest {
     private final UserService userService;
     private final IProxySpecProvider specProvider;
     private final ProxyAccessControlService accessControlService;
+    private final ProxyAccessControlService accessControlServiceCaseInsensitive;
     private final ProxyService proxyService;
+    private final Environment environment;
 
     public AccessControlServiceTest() {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         specProvider = mock(IProxySpecProvider.class);
         proxyService = mock(ProxyService.class);
+        environment = mock(Environment.class);
         SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(new GenericApplicationContext());
-        accessControlService = new ProxyAccessControlService(proxyService, specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver));
+
+        // case-sensitive access controller
+        when(environment.getProperty(PROP_USERNAME_CASE_SENSITIVE, Boolean.class, true)).thenReturn(true);
+        accessControlService = new ProxyAccessControlService(proxyService, specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver, environment));
+
+        // case-insensitive access controller
+        when(environment.getProperty(PROP_USERNAME_CASE_SENSITIVE, Boolean.class, true)).thenReturn(false);
+        accessControlServiceCaseInsensitive = new ProxyAccessControlService(proxyService, specProvider, new AccessControlEvaluationService(authBackend, userService, specExpressionResolver, environment));
     }
 
     @Test
@@ -149,7 +161,7 @@ public class AccessControlServiceTest {
     }
 
     @Test
-    public void hasUserAccessTest() {
+    public void hasUserAccessTestCaseSensitive() {
         when(authBackend.hasAuthorization()).thenReturn(true);
         AccessControl proxyAccessControl = new AccessControl();
         proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
@@ -164,6 +176,24 @@ public class AccessControlServiceTest {
         when(auth2.getName()).thenReturn("myUser1");
         when(userService.isMember(auth2, "myGroup1")).thenReturn(true);
         Assertions.assertTrue(accessControlService.canAccess(auth2, createProxySpec(proxyAccessControl)));
+
+        // test should be case-sensitive
+        Authentication auth3 = mock(Authentication.class);
+        when(auth3.getName()).thenReturn("myuser1");
+        when(userService.isMember(auth3, "myGroup1")).thenReturn(true);
+        Assertions.assertFalse(accessControlService.canAccess(auth3, createProxySpec(proxyAccessControl)));
+    }
+
+    @Test
+    public void hasUserAccessTestCaseInSensitive() {
+        when(authBackend.hasAuthorization()).thenReturn(true);
+        AccessControl proxyAccessControl = new AccessControl();
+        proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
+
+        // user in lowercase should have access
+        Authentication auth1 = mock(Authentication.class);
+        when(auth1.getName()).thenReturn("myuser1");
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
     }
 
     @Test

@@ -81,6 +81,9 @@ public class UserService {
     @Inject
     @Lazy
     private ProxyAccessControlService accessControlService;
+    @Inject
+    @Lazy
+    private AccessControlEvaluationService accessControlEvaluationService;
 
     public UserService() {
         // cache isAdmin status results for (at least) 60 minutes, since this never changes during the lifetime of a session
@@ -174,7 +177,7 @@ public class UserService {
             }
 
             for (String adminUser : getAdminUsers()) {
-                if (userName.equalsIgnoreCase(adminUser)) {
+                if (accessControlEvaluationService.usernameEquals(userName, adminUser)) {
                     return true;
                 }
             }
@@ -195,8 +198,10 @@ public class UserService {
     }
 
     public boolean isOwner(Authentication auth, Proxy proxy) {
-        if (auth == null || proxy == null) return false;
-        return proxy.getUserId().equalsIgnoreCase(auth.getName());
+        if (auth == null || proxy == null) {
+            return false;
+        }
+        return accessControlEvaluationService.usernameEquals(proxy.getUserId(), auth.getName());
     }
 
     public boolean isMember(Authentication auth, String groupName) {

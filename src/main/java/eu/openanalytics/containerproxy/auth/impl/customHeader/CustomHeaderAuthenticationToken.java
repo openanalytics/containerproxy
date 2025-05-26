@@ -21,13 +21,16 @@
 package eu.openanalytics.containerproxy.auth.impl.customHeader;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+
+import java.util.Collection;
 
 public class CustomHeaderAuthenticationToken extends AbstractAuthenticationToken {
 
     private final String username;
 
-    public CustomHeaderAuthenticationToken(String username, boolean isAuthenticated) {
-        super(null);
+    public CustomHeaderAuthenticationToken(String username, Collection<GrantedAuthority> authorities, boolean isAuthenticated) {
+        super(authorities);
         this.username = username;
         super.setAuthenticated(isAuthenticated);
     }

@@ -31,7 +31,7 @@ public class CustomHeaderAuthenticationProvider implements AuthenticationProvide
         CustomHeaderAuthenticationToken authRequest = (CustomHeaderAuthenticationToken) authentication;
 
         if (authRequest.isValid()) {
-            return new CustomHeaderAuthenticationToken(authRequest.getPrincipal().toString(), true);
+            return new CustomHeaderAuthenticationToken(authRequest.getPrincipal().toString(), authRequest.getAuthorities(), true);
         }
 
         throw new CustomHeaderAuthenticationException("Invalid username");

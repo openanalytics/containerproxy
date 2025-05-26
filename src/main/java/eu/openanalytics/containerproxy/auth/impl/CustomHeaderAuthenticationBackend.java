@@ -37,14 +37,16 @@ public class CustomHeaderAuthenticationBackend implements IAuthenticationBackend
     public final static String NAME = "customHeader";
 
     private final static String PROP_CUSTOM_AUTH_USERNAME_HEADER_NAME = "proxy.custom-header.username-header-name";
+    private final static String PROP_CUSTOM_AUTH_GROUPS_HEADER_NAME = "proxy.custom-header.groups-header-name";
     private final static String DEFAULT_USERNAME_HEADER_NAME = "REMOTE_USER";
 
     private final CustomHeaderAuthenticationFilter filter;
 
     public CustomHeaderAuthenticationBackend(Environment environment, ApplicationEventPublisher applicationEventPublisher) {
         String usernameHeaderName = environment.getProperty(PROP_CUSTOM_AUTH_USERNAME_HEADER_NAME, DEFAULT_USERNAME_HEADER_NAME);
+        String groupsHeaderName = environment.getProperty(PROP_CUSTOM_AUTH_GROUPS_HEADER_NAME); // disabled by default
         ProviderManager providerManager = new ProviderManager(new CustomHeaderAuthenticationProvider());
-        filter = new CustomHeaderAuthenticationFilter(providerManager, applicationEventPublisher, usernameHeaderName);
+        filter = new CustomHeaderAuthenticationFilter(providerManager, applicationEventPublisher, usernameHeaderName, groupsHeaderName);
     }
 
     @Override

@@ -70,6 +70,17 @@ proxy:
           cpu-limit: 2
           memory-request: "1Gi"
           memory-limit: "2Gi"
+    - id: 01_hello_limits2
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+          cpu-request: 1000M
+          cpu-limit: 2000m
+          memory-request: "1024mi"
+          memory-limit: "2gi"
     - id: 01_hello_priv
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"

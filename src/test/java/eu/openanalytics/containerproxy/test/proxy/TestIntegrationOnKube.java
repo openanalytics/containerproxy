@@ -52,6 +52,8 @@ import jakarta.json.JsonObject;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -233,10 +235,11 @@ public class TestIntegrationOnKube {
         }
     }
 
-    @Test
-    public void launchProxyWithResources() {
+    @ValueSource(strings = {"01_hello_limits2", "01_hello_limits"})
+    @ParameterizedTest
+    public void launchProxyWithResources(String file) {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
-            String id = inst.client.startProxy("01_hello_limits");
+            String id = inst.client.startProxy(file);
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();

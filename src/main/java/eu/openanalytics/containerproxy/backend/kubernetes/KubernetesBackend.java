@@ -266,10 +266,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 .build();
 
             ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
-            resourceRequirementsBuilder.addToRequests("cpu", spec.getCpuRequest().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToLimits("cpu", spec.getCpuLimit().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToRequests("memory", spec.getMemoryRequest().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToLimits("memory", spec.getMemoryLimit().mapOrNull(Quantity::new));
+            try {
+                resourceRequirementsBuilder.addToRequests("cpu", parseCpuQuantity(spec.getCpuRequest().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-cpu-request: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToLimits("cpu", parseCpuQuantity(spec.getCpuLimit().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-cpu-limit: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToRequests("memory", parseMemoryQuantity(spec.getMemoryRequest().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-memory-request: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToLimits("memory", parseMemoryQuantity(spec.getMemoryLimit().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-memory-limit: " + ex.getMessage());
+            }
 
             List<ContainerPort> containerPorts = spec.getPortMapping().stream()
                 .map(p -> new ContainerPortBuilder().withContainerPort(p.getPort()).build())
@@ -930,6 +946,44 @@ public class KubernetesBackend extends AbstractContainerBackend {
 
     private Optional<Pod> getPod(BackendContainerName podInfo) {
         return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getNamespace()).withName(podInfo.getName()).get());
+    }
+
+    private Quantity parseCpuQuantity(String value) {
+        if (value == null) {
+            return null;
+        }
+        // convert upper case suffix automatically to a value accepted by k8s
+        if (value.endsWith("M")) {
+            value = value.substring(0, value.length() - 1) + "m";
+        }
+        Quantity quantity = new Quantity(value);
+        quantity.getNumericalAmount(); // validates the quantity
+        if (!quantity.getFormat().equals("m") && !quantity.getFormat().isEmpty()) {
+            throw new IllegalArgumentException("Invalid format for CPU resources");
+        }
+        return quantity;
+    }
+
+    private Quantity parseMemoryQuantity(String value) {
+        if (value == null) {
+            return null;
+        }
+        // convert lower case suffixes automatically to a value accepted by k8s
+        for (String suffix : List.of("p", "t", "g", "m", "k")) {
+            if (value.endsWith(suffix)) {
+                value = value.substring(0, value.length() - 1) + suffix.toUpperCase();
+                break;
+            } else if (value.endsWith(suffix + "i")) {
+                value = value.substring(0, value.length() - 2) + suffix.toUpperCase() + "i";
+                break;
+            }
+        }
+        Quantity quantity = new Quantity(value);
+        quantity.getNumericalAmount(); // validates the quantity
+        if (quantity.getFormat().equals("m") || quantity.getFormat().equals("mi") || quantity.getFormat() == "") {
+            throw new IllegalArgumentException("Invalid format for memory resources");
+        }
+        return quantity;
     }
 
 }

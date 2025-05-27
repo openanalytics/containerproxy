@@ -46,6 +46,7 @@ proxy:
               port: 3838
           memory-request: 256Mi
           memory-limit: 1G
+          cpu-limit: 250m
     - id: 01_hello_memory2
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
@@ -70,3 +71,13 @@ proxy:
             - name: default
               port: 3838
           memory-request: 0,5Gi
+    - id: 01_hello_memory5
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          port-mapping:
+            - name: default
+              port: 3838
+          memory-request: 256Mi
+          memory-limit: 1G
+          cpu-limit: 0.25

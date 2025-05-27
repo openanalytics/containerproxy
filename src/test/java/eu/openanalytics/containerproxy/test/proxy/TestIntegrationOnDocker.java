@@ -30,6 +30,9 @@ import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mandas.docker.client.DefaultDockerClient;
 import org.mandas.docker.client.DockerClient;
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
@@ -55,11 +58,12 @@ public class TestIntegrationOnDocker {
         inst.close();
     }
 
-    @Test
-    public void testMemorySpecification() throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
+    @ValueSource(strings = {"01_hello_memory1", "01_hello_memory5"})
+    @ParameterizedTest
+    public void testMemoryAndCpuSpecification(String value) throws DockerCertificateException, DockerException, InterruptedException, InvalidParametersException {
         try (ContainerSetup containerSetup = new ContainerSetup("docker")) {
             try (DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build()) {
-                String id = inst.client.startProxy("01_hello_memory1");
+                String id = inst.client.startProxy(value);
                 Proxy proxy = inst.proxyService.getProxy(id);
 
                 List<Container> containers = dockerClient.listContainers(DockerClient.ListContainersParam.withStatusRunning(), DockerClient.ListContainersParam.withLabel("openanalytics.eu/sp-proxied-app"));
@@ -69,6 +73,8 @@ public class TestIntegrationOnDocker {
                 ContainerInfo containerInfo = dockerClient.inspectContainer(container.id());
                 Assertions.assertEquals(268435456, containerInfo.hostConfig().memoryReservation());
                 Assertions.assertEquals(1073741824, containerInfo.hostConfig().memory());
+                Assertions.assertEquals(100_000, containerInfo.hostConfig().cpuPeriod());
+                Assertions.assertEquals(25_000, containerInfo.hostConfig().cpuQuota());
 
                 inst.proxyService.stopProxy(null, proxy, true).run();
             }

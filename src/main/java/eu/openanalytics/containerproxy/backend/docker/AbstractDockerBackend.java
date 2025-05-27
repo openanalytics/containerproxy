@@ -167,4 +167,14 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         }
     }
 
+    protected long getCpuQuota(Long cpuPeriod, String cpu) {
+        double converted;
+        if (cpu.endsWith("m")) {
+            converted = Double.parseDouble(cpu.substring(0, cpu.length() - 1)) / 1_000;
+        } else {
+            converted = Double.parseDouble(cpu);
+        }
+        return Double.valueOf(cpuPeriod.doubleValue() * converted).longValue();
+    }
+
 }

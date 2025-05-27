@@ -149,7 +149,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             // reservations are used by the Docker swarm scheduler
             if (spec.getCpuRequest().isPresent()) {
                 // note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-                reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest().getValue()) * 10e8));
+                reservationsBuilder.nanoCpus(getCpuQuota(1000_000_000L, spec.getCpuRequest().getValue()));
             }
             if (spec.getMemoryRequest().isPresent()) {
                 reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest().getValue()));
@@ -158,7 +158,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             Resources.Builder limitsBuilder = Resources.builder();
             if (spec.getCpuLimit().isPresent()) {
                 // note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-                limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit().getValue()) * 10e8));
+                limitsBuilder.nanoCpus(getCpuQuota(1000_000_000L, spec.getCpuLimit().getValue()));
             }
             if (spec.getMemoryLimit().isPresent()) {
                 limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));

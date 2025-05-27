@@ -122,13 +122,15 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 }
             }
             hostConfigBuilder.portBindings(dockerPortBindings);
-
             hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
             hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
+            if (spec.getCpuRequest().isPresent()) {
+                slog.warn(proxy, "Ignoring 'container-memory-request', this is not supported in Docker.");
+            }
             if (spec.getCpuLimit().isPresent()) {
                 // Workaround, see https://github.com/spotify/docker-client/issues/959
-                long period = 100000;
-                long quota = (long) (period * Float.parseFloat(spec.getCpuLimit().getValue()));
+                long period = 100_000;
+                long quota = getCpuQuota(period, spec.getCpuLimit().getValue());
                 hostConfigBuilder.cpuPeriod(period);
                 hostConfigBuilder.cpuQuota(quota);
             }

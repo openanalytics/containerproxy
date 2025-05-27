@@ -134,7 +134,7 @@ public class EcsBackend extends AbstractContainerBackend {
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
         totalWaitMs = environment.getProperty(PROPERTY_PREFIX + PROPERTY_SERVICE_WAIT_TIME, Integer.class, 180000);
 
-        enableCloudWatch = environment.getProperty("proxy.ecs.enable-cloudwatch", Boolean.class, false);
+        enableCloudWatch = EnvironmentUtils.getProperty(environment, "proxy.ecs.enable-cloud-watch", "proxy.ecs.enable-cloudwatch", Boolean.class, false);
         cloudWatchGroupPrefix = environment.getProperty("proxy.ecs.cloud-watch-group-prefix", String.class, "/ecs/");
         cloudWatchRegion = environment.getProperty("proxy.ecs.cloud-watch-region", String.class, getProperty(PROPERTY_REGION));
         cloudWatchStreamPrefix = environment.getProperty("proxy.ecs.cloud-watch-stream-prefix", String.class, "ecs");

@@ -70,4 +70,22 @@ public class EnvironmentUtils {
         return result;
     }
 
+    /**
+     * Reads a property from the environment (i.e. config file). Supports reading a fallback property.
+     * This is useful to rename properties.
+     * @param environment environment to read the property from
+     * @param propertyName property name
+     * @param fallbackPropertyName property name used when no value found
+     * @param targetType the expected type of the property value
+     * @param defaultValue the default value to return if no value is found
+     * @return the property value or null
+     */
+    public static <T> T getProperty(Environment environment, String propertyName, String fallbackPropertyName, Class<T> targetType, T defaultValue) {
+        T result = environment.getProperty(propertyName, targetType);
+        if (result != null) {
+            return result;
+        }
+        return environment.getProperty(fallbackPropertyName, targetType, defaultValue);
+    }
+
 }

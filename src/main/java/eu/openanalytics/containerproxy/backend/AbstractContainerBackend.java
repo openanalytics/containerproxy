@@ -171,19 +171,25 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected abstract String getPropertyPrefix();
 
     protected Long memoryToBytes(String memory) {
-        if (memory == null || memory.isEmpty()) return null;
-        Matcher matcher = Pattern.compile("(\\d+)([bkmg]?)").matcher(memory.toLowerCase());
-        if (!matcher.matches()) throw new IllegalArgumentException("Invalid memory argument: " + memory);
-        long mem = Long.parseLong(matcher.group(1));
+        if (memory == null || memory.isEmpty()) {
+            return null;
+        }
+        if (memory.contains(",")) {
+            throw new IllegalArgumentException("Invalid memory argument: " + memory + ", no ',' allowed in number");
+        }
+        Matcher matcher = Pattern.compile("(\\d+\\.?\\d*)([bkmg]?)i?").matcher(memory.toLowerCase());
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Invalid memory argument: " + memory);
+        }
+        Double mem = Double.parseDouble(matcher.group(1));
         String unit = matcher.group(2);
         switch (unit) {
             case "k" -> mem *= 1024;
             case "m" -> mem *= 1024 * 1024;
             case "g" -> mem *= 1024 * 1024 * 1024;
-            default -> {
-            }
+            default -> throw new IllegalArgumentException("Invalid memory argument: " + memory);
         }
-        return mem;
+        return mem.longValue();
     }
 
     protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {

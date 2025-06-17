@@ -247,6 +247,44 @@ public class AccessControlServiceTest {
         Assertions.assertTrue(accessControlService.canAccess(auth2, createProxySpec(proxyAccessControl)));
     }
 
+    @Test
+    public void accessStrictExpressionTest() {
+        when(authBackend.hasAuthorization()).thenReturn(true);
+        AccessControl proxyAccessControl = new AccessControl();
+//        proxyAccessControl.setGroups(new String[]{"myGroup1", "myGroupAbc", "xxy"});
+//        proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
+        proxyAccessControl.setStrictExpression("#{false}");
+
+        // no access control + expression is false -> never access to app
+        Authentication auth1 = mock(Authentication.class);
+        when(auth1.getName()).thenReturn("myUser1");
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // access-groups + expression is false -> no access to app
+        proxyAccessControl.setGroups(new String[]{"myGroup1", "myGroupAbc", "xxy"});
+        when(userService.isMember(auth1, "myGroup1")).thenReturn(true);
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // access-users + expression is false -> no access to app
+        proxyAccessControl.setUsers(new String[]{"myUser1", "myUser2"});
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // access-expression + expression is false -> no access to app
+        proxyAccessControl.setExpression("#{true}");
+        Assertions.assertFalse(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // change expression to return true
+        proxyAccessControl.setStrictExpression("#{true}");
+
+        // expression is true -> access to app based on group
+        when(userService.isMember(auth1, "myGroup1")).thenReturn(true);
+        Assertions.assertTrue(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+
+        // expression is true -> access to app based on user
+        when(userService.isMember(auth1, "myGroup1")).thenReturn(false);
+        Assertions.assertTrue(accessControlService.canAccess(auth1, createProxySpec(proxyAccessControl)));
+    }
+
     private ProxySpec createProxySpec(AccessControl proxyAccessControl) {
         return ProxySpec.builder()
             .id("myId")

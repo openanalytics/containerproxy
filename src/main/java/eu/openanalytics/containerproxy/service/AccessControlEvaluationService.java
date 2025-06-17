@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -57,6 +59,26 @@ public class AccessControlEvaluationService {
             }
         }
 
+        // create context only when necessary (lazy)
+        Supplier<SpecExpressionContext> context = Suppliers.memoize(() -> {
+            SpecExpressionContext.SpecExpressionContextBuilder contextBuilder = SpecExpressionContext
+                .create(objects)
+                .addServerName()
+                .extend(spec);
+            if (auth != null) {
+                contextBuilder.extend(auth, auth.getPrincipal(), auth.getCredentials());
+            }
+            return contextBuilder.build();
+        });
+
+        if (accessControl.hasStrictExpressionAccess()) {
+            // strict expression is always checked
+            if (!specExpressionResolver.evaluateToBoolean(accessControl.getStrictExpression(), context.get())) {
+                // not allowed by strict expression
+                return false;
+            }
+        }
+
         if (hasNoAccessControl(accessControl)) {
             return true;
         }
@@ -69,7 +91,7 @@ public class AccessControlEvaluationService {
             return true;
         }
 
-        return allowedByExpression(auth, spec, accessControl, objects);
+        return allowedByExpression(context.get(), accessControl);
     }
 
     public boolean hasNoAccessControl(AccessControl accessControl) {
@@ -108,20 +130,13 @@ public class AccessControlEvaluationService {
         return false;
     }
 
-    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
+    public boolean allowedByExpression(SpecExpressionContext context, AccessControl accessControl) {
         if (!accessControl.hasExpressionAccess()) {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        SpecExpressionContext.SpecExpressionContextBuilder contextBuilder = SpecExpressionContext
-            .create(objects)
-            .addServerName()
-            .extend(spec);
 
-        if (auth != null) {
-            contextBuilder.extend(auth, auth.getPrincipal(), auth.getCredentials());
-        }
-        return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), contextBuilder.build());
+        return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
     }
 
     public boolean usernameEquals(String authenticatedUser, String other) {

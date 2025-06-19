@@ -71,7 +71,7 @@ public class AccessControlEvaluationService {
             return contextBuilder.build();
         });
 
-        if (accessControl.hasStrictExpressionAccess()) {
+        if (accessControl != null && accessControl.hasStrictExpressionAccess()) {
             // strict expression is always checked
             if (!specExpressionResolver.evaluateToBoolean(accessControl.getStrictExpression(), context.get())) {
                 // not allowed by strict expression

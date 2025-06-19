@@ -58,11 +58,13 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
     protected static final String PROPERTY_TARGET_URL = "target-url";
     protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
+    protected static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
     private static final String PROPERTY_PREFIX = "proxy.docker.";
     @Inject
     protected IPortAllocator portAllocator;
     protected DockerClient dockerClient;
 
+    protected String containerNetwork;
     protected Integer portRangeFrom;
     protected Integer portRangeTo;
     protected String nonInternalNetworkTargetProtocol;
@@ -100,6 +102,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         }
 
         dockerClient = builder.build();
+        containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
         portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
         portRangeTo = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
 

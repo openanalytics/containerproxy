@@ -75,13 +75,11 @@ import java.util.stream.Stream;
 public class DockerEngineBackend extends AbstractDockerBackend {
 
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
-    private static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
     private static final String PROPERTY_LOKI_URL = "loki-url";
     private static final String PROPERTY_TARGET_BIND_IP = "target-bind-ip";
     private static final String DEFAULT_TARGET_BIND_IP = "127.0.0.1";
 
     private ImagePullPolicy imagePullPolicy;
-    private String containerNetwork;
     private String lokiUrl;
     private String nonInternalTargetBindIp;
 
@@ -89,7 +87,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     public void initialize() {
         super.initialize();
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
-        containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
         lokiUrl = environment.getProperty(getPropertyPrefix() + PROPERTY_LOKI_URL);
         nonInternalTargetBindIp = environment.getProperty(getPropertyPrefix() + PROPERTY_TARGET_BIND_IP, DEFAULT_TARGET_BIND_IP);
     }

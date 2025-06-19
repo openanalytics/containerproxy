@@ -143,6 +143,8 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             if (spec.getNetwork().isPresent()) {
                 networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
+            } else if (containerNetwork != null) {
+                networks.add(NetworkAttachmentConfig.builder().target(containerNetwork).build());
             }
 
             Reservations.Builder reservationsBuilder = Reservations.builder();

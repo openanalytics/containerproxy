@@ -291,12 +291,15 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
 
     protected GrantedAuthoritiesMapper createAuthoritiesMapper() {
         if (microsoftGraphGroupFetcher != null) {
-            log.info("Using  MS graph");
             return authorities -> {
                 for (GrantedAuthority auth : authorities) {
                     if (auth instanceof OidcUserAuthority) {
                         OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
-                        return microsoftGraphGroupFetcher.fetchGroups(idToken.getSubject());
+                        if (!idToken.hasClaim("oid")) {
+                            log.warn("Required claim 'oid' not found, make sure to include the 'profile' scope - continuing without groups");
+                            return Set.of();
+                        }
+                        return microsoftGraphGroupFetcher.fetchGroups(idToken.getClaimAsString("oid"));
                     }
                 }
                 return Set.of();

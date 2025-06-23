@@ -42,6 +42,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @ConditionalOnProperty("proxy.ms-graph.client-id")
@@ -106,11 +107,14 @@ public class MicrosoftGraphGroupFetcher {
             }
 
             Set<GrantedAuthority> result = new HashSet<>(memberships.value.stream().map(m -> {
+                if (m == null || m.displayName == null) {
+                    return null;
+                }
                 String mappedRole = m.displayName
                     .toUpperCase()
                     .startsWith("ROLE_") ? m.displayName : "ROLE_" + m.displayName;
                 return new SimpleGrantedAuthority(mappedRole.toUpperCase());
-            }).toList());
+            }).filter(Objects::nonNull).toList());
             logger.debug("Received groups from Microsoft Graph api for user: {}, groups: {}", userId, result);
             return result;
         } catch (Exception e) {

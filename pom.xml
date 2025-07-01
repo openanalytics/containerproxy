@@ -524,6 +524,8 @@
                                 <exclude>docs/**</exclude>
                                 <exclude>src/main/resources/configs/**</exclude>
                                 <exclude>src/test/resources/**</exclude>
+                                <exclude>**/bootstrap.css</exclude>
+                                <exclude>**/bootstrap.js</exclude>
                             </excludes>
                         </licenseSet>
                     </licenseSets>

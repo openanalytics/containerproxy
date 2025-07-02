@@ -55,6 +55,7 @@ public class OpenIDConfiguration {
     public static final String PROP_OPENID_JWKS_SIGNATURE_ALGORITHM = "proxy.openid.jwks-signature-algorithm";
     public static final String PROP_DEFAULT_ALGORITHM = "RS256";
     public static final String PROP_INCLUDE_DEFAULT_SCOPES = "proxy.openid.include-default-scopes";
+    public static final String PROP_ENFORCE_HTTPS_REDIRECT_URI = "proxy.openid.enforce-https-redirect-uri";
 
     @Inject
     private Environment environment;
@@ -82,7 +83,7 @@ public class OpenIDConfiguration {
             .withRegistrationId(REG_ID)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .clientName(REG_ID)
-            .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+            .redirectUri(getOpenIdRedirectUri())
             .scope(scopes.toArray(new String[0]))
             .userNameAttributeName(environment.getProperty("proxy.openid.username-attribute", "email"))
             .authorizationUri(environment.getProperty("proxy.openid.auth-url"))
@@ -118,6 +119,13 @@ public class OpenIDConfiguration {
         SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.from(environment.getProperty(PROP_OPENID_JWKS_SIGNATURE_ALGORITHM, PROP_DEFAULT_ALGORITHM));
         factory.setJwsAlgorithmResolver(clientRegistration -> signatureAlgorithm);
         return factory;
+    }
+
+    private String getOpenIdRedirectUri() {
+        if (environment.getProperty(PROP_ENFORCE_HTTPS_REDIRECT_URI, Boolean.class, false)) {
+            return "https://{baseHost}{basePort}{basePath}/login/oauth2/code/{registrationId}";
+        }
+        return "{baseUrl}/login/oauth2/code/{registrationId}";
     }
 
 }

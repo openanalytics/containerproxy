@@ -8,8 +8,6 @@
 
 </pre>
 
-[![Build Status](https://travis-ci.org/openanalytics/containerproxy.svg?branch=master)](https://travis-ci.org/openanalytics/containerproxy)
-
 # ContainerProxy
 
 ContainerProxy is an application that launches and manages containers for users, to perform specific tasks.

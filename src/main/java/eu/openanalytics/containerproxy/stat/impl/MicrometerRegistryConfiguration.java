@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,9 +23,9 @@ package eu.openanalytics.containerproxy.stat.impl;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.lang.NonNull;
-import io.micrometer.core.lang.Nullable;
-import io.micrometer.prometheus.PrometheusNamingConvention;
+import io.micrometer.common.lang.NonNull;
+import io.micrometer.common.lang.Nullable;
+import io.micrometer.prometheusmetrics.PrometheusNamingConvention;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

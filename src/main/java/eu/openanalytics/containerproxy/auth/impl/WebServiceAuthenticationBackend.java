@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -153,7 +153,7 @@ public class WebServiceAuthenticationBackend implements IAuthenticationBackend {
             try {
                 jsonResponse = objectMapper.readTree(body);
                 if (groupsExpression != null) {
-                    SpecExpressionContext context = SpecExpressionContext.create(jsonResponse);
+                    SpecExpressionContext context = SpecExpressionContext.create(jsonResponse).build();
                     List<String> groups = specExpressionResolver.evaluateToList(List.of(groupsExpression), context);
                     for (String role: groups) {
                         String mappedRole = role.toUpperCase().startsWith("ROLE_") ? role : "ROLE_" + role;

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -78,7 +78,22 @@ public interface IContainerBackend {
      * @return A function that will attach the output, or null if this backend does
      * not support output attaching.
      */
-    BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy);
+    default BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+        return getOutputAttacher(proxy, true);
+    }
+
+    /**
+     * Get a function that will forward the standard output and standard error of
+     * the given proxy's containers to two output streams.
+     *
+     * If follow is false the function does not follow the logs until the container stops.
+     *
+     * @param proxy The proxy whose container output should be attached to the output streams.
+     * @param follow Whether to follow logs until the container stops.
+     * @return A function that will attach the output, or null if this backend does
+     * not support output attaching.
+     */
+    BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow);
 
     /**
      * Scans for running/existing apps that need to be recovered.
@@ -107,4 +122,13 @@ public interface IContainerBackend {
     default Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) throws ContainerProxyException {
         return proxy;
     }
+
+    /**
+     * Checks the health of the proxy, by checking the health of the underlying container.
+     * Assumes that the container has started and reached the running state.
+     * @param proxy the proxy to check the health of
+     * @return whether the proxy is healthy
+     */
+    boolean isProxyHealthy(Proxy proxy);
+
 }

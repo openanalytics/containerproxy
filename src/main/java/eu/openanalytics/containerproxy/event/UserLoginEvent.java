@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,19 +21,24 @@
 package eu.openanalytics.containerproxy.event;
 
 import org.springframework.context.ApplicationEvent;
+import org.springframework.security.core.Authentication;
 
 public class UserLoginEvent extends ApplicationEvent {
 
     private final String userId;
+    private final Authentication authentication;
 
-    public UserLoginEvent(Object source, String userId) {
+    public UserLoginEvent(Object source, String userId, Authentication authentication) {
         super(source);
         this.userId = userId;
+        this.authentication = authentication;
     }
-
 
     public String getUserId() {
         return userId;
     }
 
+    public Authentication getAuthentication() {
+        return authentication;
+    }
 }

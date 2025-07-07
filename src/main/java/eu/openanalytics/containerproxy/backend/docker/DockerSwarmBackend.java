@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,11 +22,13 @@ package eu.openanalytics.containerproxy.backend.docker;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -51,6 +53,7 @@ import org.mandas.docker.client.messages.swarm.PortConfig;
 import org.mandas.docker.client.messages.swarm.Reservations;
 import org.mandas.docker.client.messages.swarm.ResourceRequirements;
 import org.mandas.docker.client.messages.swarm.Resources;
+import org.mandas.docker.client.messages.swarm.RestartPolicy;
 import org.mandas.docker.client.messages.swarm.SecretBind;
 import org.mandas.docker.client.messages.swarm.SecretFile;
 import org.mandas.docker.client.messages.swarm.Service;
@@ -64,9 +67,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,9 +81,9 @@ import java.util.stream.Stream;
 @ConditionalOnProperty(name = "proxy.container-backend", havingValue = "docker-swarm")
 public class DockerSwarmBackend extends AbstractDockerBackend {
 
-    private URL hostURL;
-
     private int serviceWaitTime;
+
+    private static final List<String> STARTING_STATES = List.of("new", "pending", "assigned", "accepted", "ready", "preparing", "starting", "running");
 
     @PostConstruct
     public void initialize() {
@@ -93,11 +94,6 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         } catch (Exception e) {
         }
         if (swarmId == null) throw new ContainerProxyException("Backend is not a Docker Swarm");
-        try {
-            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
         serviceWaitTime = environment.getProperty("proxy.docker.service-wait-time", Integer.class, 60000);
     }
 
@@ -147,13 +143,15 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             if (spec.getNetwork().isPresent()) {
                 networks.add(NetworkAttachmentConfig.builder().target(spec.getNetwork().getValue()).build());
+            } else if (containerNetwork != null) {
+                networks.add(NetworkAttachmentConfig.builder().target(containerNetwork).build());
             }
 
             Reservations.Builder reservationsBuilder = Reservations.builder();
             // reservations are used by the Docker swarm scheduler
             if (spec.getCpuRequest().isPresent()) {
                 // note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-                reservationsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuRequest().getValue()) * 10e8));
+                reservationsBuilder.nanoCpus(getCpuQuota(1000_000_000L, spec.getCpuRequest().getValue()));
             }
             if (spec.getMemoryRequest().isPresent()) {
                 reservationsBuilder.memoryBytes(memoryToBytes(spec.getMemoryRequest().getValue()));
@@ -162,7 +160,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
             Resources.Builder limitsBuilder = Resources.builder();
             if (spec.getCpuLimit().isPresent()) {
                 // note: 1 CPU = 1 * 10e8 nanoCpu -> equivalent to --cpus option
-                limitsBuilder.nanoCpus((long) (Double.parseDouble(spec.getCpuLimit().getValue()) * 10e8));
+                limitsBuilder.nanoCpus(getCpuQuota(1000_000_000L, spec.getCpuLimit().getValue()));
             }
             if (spec.getMemoryLimit().isPresent()) {
                 limitsBuilder.memoryBytes(memoryToBytes(spec.getMemoryLimit().getValue()));
@@ -174,6 +172,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 .name(serviceName)
                 .taskTemplate(TaskSpec.builder()
                     .containerSpec(containerSpec)
+                    .restartPolicy(RestartPolicy.builder().condition(RestartPolicy.RESTART_POLICY_NONE).build())
                     .resources(ResourceRequirements.builder()
                         .reservations(reservationsBuilder.build())
                         .limits(limitsBuilder.build())
@@ -211,25 +210,23 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
             // tell the status service we are starting the container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, serviceName), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(serviceName)), false);
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             // Give the service some time to start up and launch a container.
             boolean containerFound = Retrying.retry((currentAttempt, maxAttempts) -> {
-                try {
-                    Task serviceTask = dockerClient
-                        .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
-                        .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
-                    if (serviceTask.status().containerStatus() != null) {
-                        rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
-                        return true;
-                    } else if (currentAttempt > 10 && log != null) {
-                        slog.info(proxy, String.format("Docker Swarm Service not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to inspect swarm service tasks", e);
+                Task serviceTask = dockerClient
+                    .listTasks(Task.Criteria.builder().serviceName(serviceName).build())
+                    .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
+                if (serviceTask.status().containerStatus() != null && serviceTask.status().state().equals("running")) {
+                    rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
+                    return Retrying.SUCCESS;
+                } else if (!STARTING_STATES.contains(serviceTask.status().state())) {
+                    slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(serviceTask.status()));
+                    return new Retrying.Result(false, false);
                 }
-                return false;
-            }, serviceWaitTime, true);
+                return Retrying.FAILURE;
+            }, serviceWaitTime, "Docker Swarm Service", 10, proxy, slog);
 
             if (!containerFound) {
                 dockerClient.removeService(serviceId);
@@ -249,20 +246,24 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
 
     @Override
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
+        String targetProtocol;
         String targetHostName;
         int targetPort;
 
         if (isUseInternalNetwork()) {
+            targetProtocol = getDefaultTargetProtocol();
+
             // Access on containerShortId:containerPort
             targetHostName = container.getId().substring(0, 12);
             targetPort = portMapping.getPort();
         } else {
             // Access on dockerHostName:servicePort
-            targetHostName = hostURL.getHost();
+            targetProtocol = nonInternalNetworkTargetProtocol;
+            targetHostName = nonInternalNetworkTargetURL.getHost();
             targetPort = servicePort;
         }
 
-        return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
+        return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
     private SecretBind convertSecret(DockerSwarmSecret secret) throws DockerException, InterruptedException {
@@ -294,10 +295,10 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     @Override
     protected void doStopProxy(Proxy proxy) throws Exception {
         for (Container container : proxy.getContainers()) {
-            String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+            BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
             if (serviceId != null) {
                 try {
-                    dockerClient.removeService(serviceId);
+                    dockerClient.removeService(serviceId.getName());
                 } catch (ServiceNotFoundException e) {
                     // ignore, service is already removed
                 }
@@ -311,7 +312,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
         ArrayList<ExistingContainerInfo> containers = new ArrayList<>();
 
         for (Service service : dockerClient.listServices()) {
-           org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
+            org.mandas.docker.client.messages.swarm.ContainerSpec containerSpec = service.spec().taskTemplate().containerSpec();
 
             if (containerSpec == null) {
                 continue;
@@ -323,16 +324,16 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 continue;
             }
 
-            Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.get(0).id(), containerSpec.labels());
+            Map<RuntimeValueKey<?>, RuntimeValue> runtimeValues = parseLabelsAsRuntimeValues(containersInService.getFirst().id(), containerSpec.labels());
             if (runtimeValues == null) {
                 continue;
             }
-            runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.get(0).image()));
-            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, service.id()));
+            runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, containersInService.getFirst().image()));
+            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(service.id())));
 
             String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
             if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
-                log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.get(0).id(), containerInstanceId);
+                log.warn("Ignoring container {} because instanceId {} is not correct", containersInService.getFirst().id(), containerInstanceId);
                 continue;
             }
 
@@ -346,7 +347,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                 }
             }
 
-            containers.add(new ExistingContainerInfo(containersInService.get(0).id(), runtimeValues,
+            containers.add(new ExistingContainerInfo(containersInService.getFirst().id(), runtimeValues,
                 containerSpec.image(), portBindings));
 
         }
@@ -355,14 +356,51 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public boolean isProxyHealthy(Proxy proxy) {
+        for (Container container : proxy.getContainers()) {
+            try {
+                BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+                if (serviceId == null) {
+                    slog.warn(proxy, "Docker Swarm container failed: no service id found");
+                    return false;
+                }
+                dockerClient.inspectService(serviceId.getName()); // check service exists
+                List<Task> serviceTask = dockerClient.listTasks(Task.Criteria.builder().serviceName(serviceId.getName()).build());
+                if (serviceTask.isEmpty()) {
+                    slog.warn(proxy, "Docker Swarm container failed: service does not exist");
+                    return false;
+                }
+                Task task = serviceTask.getFirst();
+                if (!task.status().state().equals("running")) {
+                    slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(task.status()));
+                    return false;
+                }
+                return true;
+            } catch (ServiceNotFoundException e) {
+                slog.warn(proxy, "Docker Swarm container failed: service does not exist");
+                return false;
+            } catch (DockerException | InterruptedException e) {
+                slog.warn(proxy, e, "Failed to check Docker Swarm container health");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         Container container = getPrimaryContainer(proxy);
         if (container == null) return null;
-        String serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        BackendContainerName serviceId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.serviceLogs(serviceId, DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                LogStream logStream;
+                if (follow) {
+                    logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                } else {
+                    logStream = dockerClient.serviceLogs(serviceId.getName(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                }
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {

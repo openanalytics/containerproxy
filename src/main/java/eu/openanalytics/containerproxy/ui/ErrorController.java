@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -96,10 +96,6 @@ public class ErrorController extends BaseController implements org.springframewo
         Optional<Throwable> exception = getException(request);
         if (response.getStatus() == 200 && exception.isPresent() && isAccountStatusException(exception.get())) {
             return ApiResponse.failUnauthorized();
-        }
-
-        if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {
-            return ApiResponse.fail("bad request");
         }
 
         if (exception.isPresent() && exception.get() instanceof RequestRejectedException) {

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -163,7 +163,7 @@ public class LDAPAuthenticationBackend implements IAuthenticationBackend {
 
     private static class CNLdapAuthoritiesPopulator extends DefaultLdapAuthoritiesPopulator {
 
-        private static final Log logger = LogFactory.getLog(DefaultLdapAuthoritiesPopulator.class);
+        private static final Log logger = LogFactory.getLog(CNLdapAuthoritiesPopulator.class);
 
         public CNLdapAuthoritiesPopulator(ContextSource contextSource, String groupSearchBase) {
             super(contextSource, groupSearchBase);

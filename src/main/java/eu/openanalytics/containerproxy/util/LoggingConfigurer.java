@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -40,7 +40,7 @@ import org.springframework.context.ApplicationListener;
  */
 public class LoggingConfigurer implements ApplicationListener<ApplicationPreparedEvent> {
 
-    private static final String PROP_LOG_AS_JSON = "proxy.log-as-json";
+    public static final String PROP_LOG_AS_JSON = "proxy.log-as-json";
 
     public void onApplicationEvent(ApplicationPreparedEvent event) {
         // this event is called after the loggers are configured but before anything is logged

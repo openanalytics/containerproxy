@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -88,6 +88,8 @@ public class ContainerSpec {
     @Builder.Default
     private SpelField.String dockerIpc = new SpelField.String();
     @Builder.Default
+    private SpelField.StringList dockerGroupAdd = new SpelField.StringList();
+    @Builder.Default
     private List<DockerDeviceRequest> dockerDeviceRequests = new ArrayList<>();
 
     @Builder.Default
@@ -134,6 +136,7 @@ public class ContainerSpec {
             .dockerRuntime(dockerRuntime.resolve(resolver, context))
             .dockerUser(dockerUser.resolve(resolver, context))
             .dockerIpc(dockerIpc.resolve(resolver, context))
+            .dockerGroupAdd(dockerGroupAdd.resolve(resolver, context))
             .build();
     }
 

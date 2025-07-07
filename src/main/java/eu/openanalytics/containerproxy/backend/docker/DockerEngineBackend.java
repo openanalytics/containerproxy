@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,11 +21,13 @@
 package eu.openanalytics.containerproxy.backend.docker;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
@@ -46,7 +48,9 @@ import org.mandas.docker.client.messages.AttachedNetwork;
 import org.mandas.docker.client.messages.ContainerConfig;
 import org.mandas.docker.client.messages.ContainerCreation;
 import org.mandas.docker.client.messages.ContainerInfo;
+import org.mandas.docker.client.messages.ContainerState;
 import org.mandas.docker.client.messages.HostConfig;
+import org.mandas.docker.client.messages.LogConfig;
 import org.mandas.docker.client.messages.PortBinding;
 import org.mandas.docker.client.messages.RegistryAuth;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -56,9 +60,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,22 +75,20 @@ import java.util.stream.Stream;
 public class DockerEngineBackend extends AbstractDockerBackend {
 
     private static final String PROPERTY_IMG_PULL_POLICY = "image-pull-policy";
+    private static final String PROPERTY_LOKI_URL = "loki-url";
+    private static final String PROPERTY_TARGET_BIND_IP = "target-bind-ip";
+    private static final String DEFAULT_TARGET_BIND_IP = "127.0.0.1";
 
     private ImagePullPolicy imagePullPolicy;
-    private String nonInternalNetworkTargetProtocol;
-    private URL hostURL;
+    private String lokiUrl;
+    private String nonInternalTargetBindIp;
 
     @PostConstruct
     public void initialize() {
         super.initialize();
         imagePullPolicy = environment.getProperty(getPropertyPrefix() + PROPERTY_IMG_PULL_POLICY, ImagePullPolicy.class, ImagePullPolicy.IfNotPresent);
-
-        try {
-            hostURL = new URL(getProperty(PROPERTY_URL, DEFAULT_TARGET_URL));
-            nonInternalNetworkTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, hostURL.getProtocol());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        lokiUrl = environment.getProperty(getPropertyPrefix() + PROPERTY_LOKI_URL);
+        nonInternalTargetBindIp = environment.getProperty(getPropertyPrefix() + PROPERTY_TARGET_BIND_IP, DEFAULT_TARGET_BIND_IP);
     }
 
     @Override
@@ -114,23 +114,29 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 // Allocate ports on the docker host to proxy to.
                 for (eu.openanalytics.containerproxy.model.spec.PortMapping portMapping : spec.getPortMapping()) {
                     int hostPort = portAllocator.allocate(portRangeFrom, portRangeTo, proxy.getId());
-                    dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of("0.0.0.0", hostPort)));
+                    dockerPortBindings.put(portMapping.getPort().toString(), Collections.singletonList(PortBinding.of(nonInternalTargetBindIp, hostPort)));
                     portBindings.put(portMapping.getPort(), hostPort);
                 }
             }
             hostConfigBuilder.portBindings(dockerPortBindings);
-
             hostConfigBuilder.memoryReservation(memoryToBytes(spec.getMemoryRequest().getValueOrNull()));
             hostConfigBuilder.memory(memoryToBytes(spec.getMemoryLimit().getValueOrNull()));
+            if (spec.getCpuRequest().isPresent()) {
+                slog.warn(proxy, "Ignoring 'container-memory-request', this is not supported in Docker.");
+            }
             if (spec.getCpuLimit().isPresent()) {
                 // Workaround, see https://github.com/spotify/docker-client/issues/959
-                long period = 100000;
-                long quota = (long) (period * Float.parseFloat(spec.getCpuLimit().getValue()));
+                long period = 100_000;
+                long quota = getCpuQuota(period, spec.getCpuLimit().getValue());
                 hostConfigBuilder.cpuPeriod(period);
                 hostConfigBuilder.cpuQuota(quota);
             }
 
-            spec.getNetwork().ifPresent(hostConfigBuilder::networkMode);
+            if (spec.getNetwork().isPresent()) {
+                hostConfigBuilder.networkMode(spec.getNetwork().getValueAsString());
+            } else if (containerNetwork != null) {
+                hostConfigBuilder.networkMode(containerNetwork);
+            }
             spec.getDns().ifPresent(hostConfigBuilder::dns);
             spec.getVolumes().ifPresent(hostConfigBuilder::binds);
             hostConfigBuilder.privileged(isPrivileged() || spec.isPrivileged());
@@ -138,7 +144,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             List<HostConfig.DeviceRequest> deviceRequests = new ArrayList<>();
             for (DockerDeviceRequest deviceRequest : spec.getDockerDeviceRequests()) {
-                HostConfig.DeviceRequest.Builder builder= HostConfig.DeviceRequest.builder();
+                HostConfig.DeviceRequest.Builder builder = HostConfig.DeviceRequest.builder();
                 deviceRequest.getDriver().ifPresent(builder::driver);
                 deviceRequest.getCount().ifPresent(builder::count);
                 deviceRequest.getDeviceIds().ifPresent(builder::deviceIds);
@@ -161,6 +167,19 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 }
             });
 
+            if (lokiUrl != null) {
+                hostConfigBuilder.logConfig(LogConfig.builder()
+                    .logType("loki")
+                    .logOptions(Map.of(
+                        "loki-url", lokiUrl,
+                        "mode", "non-blocking",
+                        "loki-external-labels", String.format("sp_realm_id=%s,namespace=default,sp_proxy_id=%s", identifierService.realmId, proxy.getId())
+                    ))
+                    .build());
+            }
+
+            hostConfigBuilder.groupAdd(spec.getDockerGroupAdd().getValueOrNull());
+
             ContainerConfig containerConfig = ContainerConfig.builder()
                 .hostConfig(hostConfigBuilder.build())
                 .image(spec.getImage().getValue())
@@ -173,6 +192,8 @@ public class DockerEngineBackend extends AbstractDockerBackend {
 
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
             String containerName = spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex());
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(containerName)), false);
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             ContainerCreation containerCreation = dockerClient.createContainer(containerConfig, containerName);
             rContainerBuilder.id(containerCreation.id());
@@ -184,7 +205,6 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             }
 
             dockerClient.startContainer(containerCreation.id());
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, containerName), false);
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             Container rContainer = rContainerBuilder.build();
@@ -200,7 +220,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
         String targetProtocol;
         String targetHostName;
-        String targetPort;
+        int targetPort;
 
         if (isUseInternalNetwork()) {
             targetProtocol = getDefaultTargetProtocol();
@@ -210,11 +230,11 @@ public class DockerEngineBackend extends AbstractDockerBackend {
             ContainerInfo info = dockerClient.inspectContainer(container.getId());
             targetHostName = info.config().hostname();
 
-            targetPort = String.valueOf(portMapping.getPort());
+            targetPort = portMapping.getPort();
         } else {
             targetProtocol = nonInternalNetworkTargetProtocol;
-            targetHostName = hostURL.getHost();
-            targetPort = String.valueOf(hostPort);
+            targetHostName = nonInternalNetworkTargetURL.getHost();
+            targetPort = hostPort;
         }
         return new URI(String.format("%s://%s:%s%s", targetProtocol, targetHostName, targetPort, portMapping.getTargetPath()));
     }
@@ -268,7 +288,7 @@ public class DockerEngineBackend extends AbstractDockerBackend {
                 continue;
             }
             runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, container.image()));
-            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, container.id()));
+            runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(container.id())));
 
             // add ports to PortAllocator (even if we don't recover the proxy)
             for (org.mandas.docker.client.messages.Container.PortMapping portMapping : container.ports()) {
@@ -296,13 +316,39 @@ public class DockerEngineBackend extends AbstractDockerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public boolean isProxyHealthy(Proxy proxy) {
+        for (Container container : proxy.getContainers()) {
+            try {
+                ContainerInfo info = dockerClient.inspectContainer(container.getId());
+                ContainerState state = info.state();
+                if (!state.running() || !state.status().equals("running")) {
+                    slog.warn(proxy, "Docker container failed: container not running, state reported by docker: " + toJson(state));
+                    return false;
+                }
+                return true;
+            } catch (ContainerNotFoundException e) {
+                slog.warn(proxy, "Docker container failed: container does not exist");
+                return false;
+            } catch (DockerException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         Container c = getPrimaryContainer(proxy);
         if (c == null) return null;
 
         return (stdOut, stdErr) -> {
             try {
-                LogStream logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                LogStream logStream;
+                if (follow) {
+                    logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.follow(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                } else {
+                    logStream = dockerClient.logs(c.getId(), DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr());
+                }
                 logStream.attach(stdOut, stdErr);
             } catch (ClosedChannelException ignored) {
             } catch (IOException | InterruptedException | DockerException e) {

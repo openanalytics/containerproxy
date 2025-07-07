@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.auth.impl;
 
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.msgraph.MicrosoftGraphGroupFetcher;
 import eu.openanalytics.containerproxy.auth.impl.oidc.AccessTokenDecoder;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
@@ -98,6 +99,8 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     private SpecExpressionResolver specExpressionResolver;
     @Inject
     private ContextPathHelper contextPathHelper;
+    @Autowired(required = false)
+    private MicrosoftGraphGroupFetcher microsoftGraphGroupFetcher;
 
     /**
      * Parses the claim containing the roles to a List of Strings.
@@ -274,7 +277,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
         return (httpServletRequest, httpServletResponse, authentication) -> {
             String resolvedLogoutUrl;
             if (authentication != null) {
-                SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials());
+                SpecExpressionContext context = SpecExpressionContext.create(authentication.getPrincipal(), authentication.getCredentials()).build();
                 resolvedLogoutUrl = specExpressionResolver.evaluateToString(getLogoutSuccessURL(), context);
             } else {
                 resolvedLogoutUrl = getLogoutSuccessURL();
@@ -287,6 +290,21 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     }
 
     protected GrantedAuthoritiesMapper createAuthoritiesMapper() {
+        if (microsoftGraphGroupFetcher != null) {
+            return authorities -> {
+                for (GrantedAuthority auth : authorities) {
+                    if (auth instanceof OidcUserAuthority) {
+                        OidcIdToken idToken = ((OidcUserAuthority) auth).getIdToken();
+                        if (!idToken.hasClaim("oid")) {
+                            log.warn("Required claim 'oid' not found, make sure to include the 'profile' scope - continuing without groups");
+                            return Set.of();
+                        }
+                        return microsoftGraphGroupFetcher.fetchGroups(idToken.getClaimAsString("oid"));
+                    }
+                }
+                return Set.of();
+            };
+        }
         String rolesClaimName = environment.getProperty("proxy.openid.roles-claim");
         return authorities -> {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
@@ -350,7 +368,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
                 Object emails = getAttributes().get(ID_ATTR_EMAILS);
                 if (emails instanceof String[]) return ((String[]) emails)[0];
                 else if (emails instanceof JSONArray) return ((JSONArray) emails)
-                    .get(0)
+                    .getFirst()
                     .toString();
                 else if (emails instanceof Collection) return ((Collection<?>) emails)
                     .stream()

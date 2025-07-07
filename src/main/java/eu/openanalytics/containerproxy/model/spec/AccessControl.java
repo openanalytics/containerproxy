@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,6 +25,7 @@ public class AccessControl {
     private String[] groups;
     private String[] users;
     private String expression;
+    private String strictExpression;
 
     public String[] getGroups() {
         return groups;
@@ -50,6 +51,14 @@ public class AccessControl {
         this.expression = expression;
     }
 
+    public String getStrictExpression() {
+        return strictExpression;
+    }
+
+    public void setStrictExpression(String strictExpression) {
+        this.strictExpression = strictExpression;
+    }
+
     public boolean hasGroupAccess() {
         return groups != null && groups.length > 0;
     }
@@ -60,6 +69,10 @@ public class AccessControl {
 
     public boolean hasExpressionAccess() {
         return expression != null && expression.length() > 0;
+    }
+
+    public boolean hasStrictExpressionAccess() {
+        return strictExpression != null && strictExpression.length() > 0;
     }
 
 }

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -77,6 +77,16 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
     @Override
     public Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) {
         return containerBackend.addRuntimeValuesAfterSpel(user, spec, proxy);
+    }
+
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        return containerBackend.isProxyHealthy(proxy);
+    }
+
+    @Override
+    public boolean isProxyHealthySupported() {
+        return true;
     }
 
 }

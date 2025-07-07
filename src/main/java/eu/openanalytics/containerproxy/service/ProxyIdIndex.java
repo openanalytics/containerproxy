@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -36,9 +36,11 @@ public abstract class ProxyIdIndex<T> {
     private final LoadingCache<T, String> cache;
     private final IProxyStore proxyStore;
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final AccessControlEvaluationService accessControlEvaluationService;
 
-    public ProxyIdIndex(IProxyStore proxyStore, Filter<T> filter) {
+    public ProxyIdIndex(IProxyStore proxyStore, AccessControlEvaluationService accessControlEvaluationService, Filter<T> filter) {
         this.proxyStore = proxyStore;
+        this.accessControlEvaluationService = accessControlEvaluationService;
         cache = Caffeine.newBuilder()
             .scheduler(Scheduler.systemScheduler())
             .expireAfterAccess(10, TimeUnit.MINUTES)
@@ -93,7 +95,7 @@ public abstract class ProxyIdIndex<T> {
             logger.warn("Invalid proxy state, proxyId: {}, does not match expected: {}", proxy.getId(), proxyId);
             return true;
         }
-        if (!proxy.getUserId().equals(userId)) {
+        if (!accessControlEvaluationService.usernameEquals(proxy.getUserId(), userId)) {
             logger.warn("Invalid proxy state for proxyId: {}, userId: {} does not match expected: {}", proxyId, proxy.getUserId(), userId);
             return true;
         }

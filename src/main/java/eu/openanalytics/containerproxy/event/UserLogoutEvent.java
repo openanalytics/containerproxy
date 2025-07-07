@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,21 +21,24 @@
 package eu.openanalytics.containerproxy.event;
 
 import org.springframework.context.ApplicationEvent;
+import org.springframework.security.core.Authentication;
 
 public class UserLogoutEvent extends ApplicationEvent {
 
     private final String userId;
     private final Boolean wasExpired;
+    private final Authentication authentication;
 
     /**
      * @param source
      * @param userId
      * @param wasExpired whether the user is logged automatically because the session has expired
      */
-    public UserLogoutEvent(Object source, String userId, Boolean wasExpired) {
+    public UserLogoutEvent(Object source, String userId, Boolean wasExpired, Authentication authentication) {
         super(source);
         this.userId = userId;
         this.wasExpired = wasExpired;
+        this.authentication = authentication;
     }
 
     public String getUserId() {
@@ -44,5 +47,9 @@ public class UserLogoutEvent extends ApplicationEvent {
 
     public Boolean getWasExpired() {
         return wasExpired;
+    }
+
+    public Authentication getAuthentication() {
+        return authentication;
     }
 }

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,11 +22,13 @@ package eu.openanalytics.containerproxy.backend.ecs;
 
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PortMappingsKey;
@@ -38,6 +40,7 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
 import eu.openanalytics.containerproxy.util.Retrying;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
@@ -61,8 +64,10 @@ import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.NetworkMode;
 import software.amazon.awssdk.services.ecs.model.PropagateTags;
 import software.amazon.awssdk.services.ecs.model.RegisterTaskDefinitionResponse;
+import software.amazon.awssdk.services.ecs.model.RepositoryCredentials;
 import software.amazon.awssdk.services.ecs.model.RunTaskResponse;
 import software.amazon.awssdk.services.ecs.model.RuntimePlatform;
+import software.amazon.awssdk.services.ecs.model.Secret;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 import software.amazon.awssdk.services.ecs.model.Volume;
@@ -91,7 +96,10 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_REGION = "region";
     private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
+    private static final Pattern LOG_GORUP_REPLACE_PATTERN = Pattern.compile("[^a-zA-Z0-9_\\-.#]");
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
+    private static final List<String> STARTING_STATES = List.of("PROVISIONING", "PENDING", "ACTIVATING");
+    private static final List<String> STOPPING_STATES = List.of("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
 
     private EcsClient ecsClient;
     private Boolean enableCloudWatch;
@@ -102,6 +110,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private List<String> securityGroups;
     private int totalWaitMs;
     private String cluster;
+    private String defaultRepositoryCredentialsParameter;
 
     @Inject
     private IProxySpecProvider proxySpecProvider;
@@ -125,10 +134,11 @@ public class EcsBackend extends AbstractContainerBackend {
         securityGroups = EnvironmentUtils.readList(environment, "proxy.ecs.security-groups");
         totalWaitMs = environment.getProperty(PROPERTY_PREFIX + PROPERTY_SERVICE_WAIT_TIME, Integer.class, 180000);
 
-        enableCloudWatch = environment.getProperty("proxy.ecs.enable-cloudwatch", Boolean.class, false);
+        enableCloudWatch = EnvironmentUtils.getProperty(environment, "proxy.ecs.enable-cloud-watch", "proxy.ecs.enable-cloudwatch", Boolean.class, false);
         cloudWatchGroupPrefix = environment.getProperty("proxy.ecs.cloud-watch-group-prefix", String.class, "/ecs/");
         cloudWatchRegion = environment.getProperty("proxy.ecs.cloud-watch-region", String.class, getProperty(PROPERTY_REGION));
-        cloudWatchStreamPrefix =  environment.getProperty("proxy.ecs.cloud-watch-stream-prefix", String.class, "ecs");
+        cloudWatchStreamPrefix = environment.getProperty("proxy.ecs.cloud-watch-stream-prefix", String.class, "ecs");
+        defaultRepositoryCredentialsParameter = environment.getProperty("proxy.ecs.default-repository-credentials-parameter", String.class);
 
         if (cluster == null) {
             throw new IllegalStateException("Error in configuration of ECS backend: proxy.ecs.cluster not set to name of cluster");
@@ -147,7 +157,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
 
         for (ProxySpec spec : proxySpecProvider.getSpecs()) {
-            ContainerSpec containerSpec = spec.getContainerSpecs().get(0);
+            ContainerSpec containerSpec = spec.getContainerSpecs().getFirst();
             if (!containerSpec.getMemoryRequest().isOriginalValuePresent()) {
                 throw new IllegalStateException(String.format("Error in configuration of specs: spec with id '%s' has non 'memory-request' configured, this is required for running on ECS fargate", spec.getId()));
             }
@@ -198,7 +208,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 }
             }
 
-            String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, containerId, tags);
+            String taskDefinitionArn = getTaskDefinition(user, spec, specExtension, proxy, initialContainer, tags);
 
             // tell the status service we are starting the pod/container
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
@@ -221,27 +231,34 @@ public class EcsBackend extends AbstractContainerBackend {
                 throw new ContainerFailedToStartException("No task in taskResponse", null, rContainerBuilder.build());
             }
 
-            String taskArn = runTaskResponse.tasks().get(0).taskArn();
+            String taskArn = runTaskResponse.tasks().getFirst().taskArn();
 
-            boolean serviceReady = Retrying.retry((currentAttempt, maxAttempts) -> {
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(taskArn)), false);
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
+
+            boolean serviceReady;
+            if (Retrying.retry((currentAttempt, maxAttempts) -> {
                 DescribeTasksResponse response = ecsClient.describeTasks(builder -> builder
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && response.tasks().get(0).lastStatus().equals("RUNNING")) {
-                    return true;
-                } else {
-                    if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("ECS Task not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
+                if (response.hasTasks()) {
+                    Task task = response.tasks().getFirst();
+                    if (task.lastStatus().equals("RUNNING")) {
+                        return Retrying.SUCCESS;
+                    } else if (!STARTING_STATES.contains(task.lastStatus()) || !task.desiredStatus().equals("RUNNING")) {
+                        slog.warn(proxy, String.format("ECS container failed: task not running, stopCode: '%s', stoppingAt: '%s', stoppedAt: '%s', stoppedReason: '%s'", task.stopCode(), task.stoppingAt(), task.stoppedAt(),
+                            task.stoppedReason()));
+                        return new Retrying.Result(false, false);
                     }
-                    return false;
                 }
-            }, totalWaitMs);
+                return Retrying.FAILURE;
+            }, totalWaitMs, "ECS Task", 10, proxy, slog)) serviceReady = true;
+            else serviceReady = false;
 
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
-            String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().get(0).containers().get(0).image();
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, taskArn), false);
+            String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().getFirst().containers().getFirst().image();
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
 
             if (!serviceReady) {
@@ -259,7 +276,7 @@ public class EcsBackend extends AbstractContainerBackend {
         }
     }
 
-    private String getTaskDefinition(Authentication user, ContainerSpec spec, EcsSpecExtension specExtension, Proxy proxy, Container initialContainer, String containerId, List<Tag> tags) throws IOException {
+    private String getTaskDefinition(Authentication user, ContainerSpec spec, EcsSpecExtension specExtension, Proxy proxy, Container initialContainer, List<Tag> tags) throws IOException {
         if (spec.getImage().getValue().startsWith("arn:aws:ecs:")) {
             // external task definition
             return spec.getImage().getValue();
@@ -286,18 +303,29 @@ public class EcsBackend extends AbstractContainerBackend {
             .sizeInGiB(specExtension.ecsEphemeralStorageSize.getValueOrDefault(21))
             .build();
 
-       RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
+        // name of the container inside the task (it's not possible to choose a name for the task)
+        // automatically used in the cloudwatch stream name
+        String containerName = StringUtils.left(spec.getResourceName().getValueOrDefault("sp-container-" + proxy.getId() + "-" + initialContainer.getIndex()), 255);
+
+        ContainerDefinition.Builder containerDefinitionBuilder = ContainerDefinition.builder()
+            .name(containerName)
+            .image(spec.getImage().getValue())
+            .command(spec.getCmd().getValueOrNull())
+            .environment(env)
+            .stopTimeout(2)
+            .dockerLabels(dockerLabels)
+            .logConfiguration(getLogConfiguration(proxy.getSpecId()))
+            .mountPoints(volumes.getSecond())
+            .secrets(getSecrets(specExtension));
+
+        String credentials = specExtension.getEcsRepositoryCredentialsParameter().getValueOrDefault(defaultRepositoryCredentialsParameter);
+        if (credentials != null && !credentials.isBlank()) {
+            containerDefinitionBuilder.repositoryCredentials(RepositoryCredentials.builder().credentialsParameter(credentials).build());
+        }
+
+        RegisterTaskDefinitionResponse registerTaskDefinitionResponse = ecsClient.registerTaskDefinition(builder -> builder
             .family("sp-task-definition-" + proxy.getId()) // family is a name for the task definition
-            .containerDefinitions(ContainerDefinition.builder()
-                .name("sp-container-" + containerId)
-                .image(spec.getImage().getValue())
-                .command(spec.getCmd().getValueOrNull())
-                .environment(env)
-                .stopTimeout(2)
-                .dockerLabels(dockerLabels)
-                .logConfiguration(getLogConfiguration(proxy.getId()))
-                .mountPoints(volumes.getSecond())
-                .build())
+            .containerDefinitions(containerDefinitionBuilder.build())
             .networkMode(NetworkMode.AWSVPC) // only option when using fargate
             .requiresCompatibilities(Compatibility.FARGATE)
             .cpu(spec.getCpuRequest().getValue()) // required by fargate
@@ -316,12 +344,13 @@ public class EcsBackend extends AbstractContainerBackend {
         return registerTaskDefinitionResponse.taskDefinition().taskDefinitionArn();
     }
 
-    private LogConfiguration getLogConfiguration(String proxyId) {
+    private LogConfiguration getLogConfiguration(String specId) {
         if (enableCloudWatch) {
             LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
             logConfiguration.logDriver(LogDriver.AWSLOGS);
             HashMap<String, String> options = new HashMap<>();
-            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + proxyId);
+            String sanitizedSpecId = LOG_GORUP_REPLACE_PATTERN.matcher(specId).replaceAll("");
+            options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + sanitizedSpecId);
             options.put("awslogs-region", cloudWatchRegion);
             options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);
             options.put("awslogs-create-group", "true");
@@ -391,8 +420,19 @@ public class EcsBackend extends AbstractContainerBackend {
         return Pair.of(efsVolumeConfigurations, mountPoints);
     }
 
+    private List<Secret> getSecrets(EcsSpecExtension specExtension) {
+        List<Secret> secrets = new ArrayList<>();
+        for (EcsManagedSecret managedSecrets : specExtension.getEcsManagedSecrets()) {
+            Secret.Builder secretBuilder = Secret.builder();
+            secretBuilder.name(managedSecrets.getName().getValue());
+            secretBuilder.valueFrom(managedSecrets.getValueFrom().getValue());
+            secrets.add(secretBuilder.build());
+        }
+        return secrets;
+    }
+
     @Override
-    protected void doStopProxy(Proxy proxy) throws Exception {
+    protected void doStopProxy(Proxy proxy) {
         for (Container container : proxy.getContainers()) {
             String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
             ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
@@ -402,8 +442,6 @@ public class EcsBackend extends AbstractContainerBackend {
             ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions("sp-task-definition-" + proxy.getId() + ":1"));
         }
 
-        List<String> stoppingState = Arrays.asList("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
-
         boolean isInactive = Retrying.retry((currentAttempt, maxAttempts) -> {
             for (Container container : proxy.getContainers()) {
                 String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
@@ -411,15 +449,12 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && !stoppingState.contains(response.tasks().get(0).lastStatus())) {
-                    if (currentAttempt > 10) {
-                        slog.info(proxy, String.format("ECS Task not in stopping state yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                    return false;
+                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().getFirst().lastStatus())) {
+                    return Retrying.FAILURE;
                 }
             }
-            return true;
-        }, totalWaitMs);
+            return Retrying.SUCCESS;
+        }, totalWaitMs, "Stopping ECS Task", 10, proxy, slog);
 
         if (!isInactive) {
             slog.warn(proxy, "Container did not get into stopping state");
@@ -436,13 +471,30 @@ public class EcsBackend extends AbstractContainerBackend {
         return new ArrayList<>();
     }
 
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        for (Container container : proxy.getContainers()) {
+            Optional<Task> _task = getTask(container);
+            if (_task.isEmpty()) {
+                slog.warn(proxy, "ECS container failed: task not found");
+                return false;
+            }
+            Task task = _task.get();
+            if (!task.lastStatus().equals("RUNNING") || !task.desiredStatus().equals("RUNNING")) {
+                slog.warn(proxy, String.format("ECS container failed: task not running, stopCode: '%s', stoppingAt: '%s', stoppedAt: '%s', stoppedReason: '%s'", task.stopCode(), task.stoppingAt(), task.stoppedAt(), task.stoppedReason()));
+                return false;
+            }
+        }
+        return true;
+    }
+
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer hostPort) throws Exception {
         String targetHostName = "";
         int targetPort;
 
         Task task = getTask(container).orElseThrow(() -> new ContainerFailedToStartException("Task not found while calculating target", null, container));
 
-        Attachment attachment = task.attachments().get(0);
+        Attachment attachment = task.attachments().getFirst();
         for (KeyValuePair detail : attachment.details()) {
             if (detail.name().equals("privateIPv4Address")) {
                 targetHostName = detail.value();
@@ -466,11 +518,11 @@ public class EcsBackend extends AbstractContainerBackend {
     }
 
     private Optional<String> getTaskInfo(Container container) {
-        String taskId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+        BackendContainerName taskId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         if (taskId == null) {
             return Optional.empty();
         }
-        return Optional.of(taskId);
+        return Optional.of(taskId.getName());
     }
 
     private Optional<Task> getTask(String taskInfo) {
@@ -480,7 +532,7 @@ public class EcsBackend extends AbstractContainerBackend {
             .build()
         ).tasks();
 
-        return Optional.ofNullable(tasks.get(0));
+        return Optional.ofNullable(tasks.getFirst());
     }
 
     private boolean validateEcsTagValue(Proxy proxy, String key, String value) {

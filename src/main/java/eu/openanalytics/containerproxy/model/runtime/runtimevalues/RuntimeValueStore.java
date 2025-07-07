@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -64,12 +64,12 @@ public abstract class RuntimeValueStore {
      */
     public String getRuntimeValue(String keyAsEnvVar) {
         Objects.requireNonNull(keyAsEnvVar, "key may not be null");
-        return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+        return getRuntimeValue(RuntimeValueKeyRegistry.getRuntimeValueKey(keyAsEnvVar));
     }
 
     public Object getRuntimeObject(String keyAsEnvVar) {
         Objects.requireNonNull(keyAsEnvVar, "key may not be null");
-        return getRuntimeObject(RuntimeValueKeyRegistry.getRuntimeValue(keyAsEnvVar));
+        return getRuntimeObject(RuntimeValueKeyRegistry.getRuntimeValueKey(keyAsEnvVar));
     }
 
     public <T> T getRuntimeObject(RuntimeValueKey<T> key) {
@@ -102,6 +102,42 @@ public abstract class RuntimeValueStore {
         RuntimeValue runtimeValue = getRuntimeValues().get(key);
         Objects.requireNonNull(runtimeValue, "did not found a value for key " + key.getKeyAsEnvVar());
         return key.serializeToString(runtimeValue.getObject());
+    }
+
+    public <T> String getRuntimeValueOrNull(RuntimeValueKey<T> key) {
+        Objects.requireNonNull(key, "key may not be null");
+        RuntimeValue runtimeValue = getRuntimeValues().get(key);
+        if (runtimeValue == null) {
+            return null;
+        }
+        return key.serializeToString(runtimeValue.getObject());
+    }
+
+    public <T> String getRuntimeValueOrDefault(RuntimeValueKey<T> key, String defaultValue) {
+        Objects.requireNonNull(key, "key may not be null");
+        RuntimeValue runtimeValue = getRuntimeValues().get(key);
+        if (runtimeValue == null) {
+            return defaultValue;
+        }
+        return key.serializeToString(runtimeValue.getObject());
+    }
+
+    public String getRuntimeValueOrNull(String keyAsEnvVar) {
+        Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+        RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValueKeyOrNull(keyAsEnvVar);
+        if (key == null) {
+            return null;
+        }
+        return getRuntimeValueOrNull(key);
+    }
+
+    public String getRuntimeValueOrDefault(String keyAsEnvVar, String defaultValue) {
+        Objects.requireNonNull(keyAsEnvVar, "key may not be null");
+        RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValueKeyOrNull(keyAsEnvVar);
+        if (key == null) {
+            return defaultValue;
+        }
+        return getRuntimeValueOrDefault(key, defaultValue);
     }
 
 }

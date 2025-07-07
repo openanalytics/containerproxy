@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,17 +23,17 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.fasterxml.jackson.datatype.jsonp.JSONPModule;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
 import io.fabric8.kubernetes.api.model.Pod;
+import jakarta.json.JsonPatch;
+import jakarta.json.JsonStructure;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.json.JsonPatch;
-import javax.json.JsonStructure;
 
 @Component
 public class PodPatcher {
@@ -48,8 +48,8 @@ public class PodPatcher {
 
     @PostConstruct
     public void init() {
-        mapper.registerModule(new JSR353Module());
-        writer.registerModule(new JSR353Module());
+        mapper.registerModule(new JSONPModule());
+        writer.registerModule(new JSONPModule());
         loggingEnabled = environment.getProperty(DEBUG_PROPERTY, Boolean.class, false);
     }
 

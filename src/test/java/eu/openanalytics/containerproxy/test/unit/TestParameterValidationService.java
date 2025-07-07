@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -92,7 +92,7 @@ public class TestParameterValidationService {
                 Resource resource = configurableApplicationContext.getResource(location);
                 YamlPropertySourceLoader sourceLoader = new YamlPropertySourceLoader();
                 List<PropertySource<?>> yamlTestProperties = sourceLoader.load("yamlTestProperties", resource);
-                propertySources.addFirst(yamlTestProperties.get(0));
+                propertySources.addFirst(yamlTestProperties.getFirst());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

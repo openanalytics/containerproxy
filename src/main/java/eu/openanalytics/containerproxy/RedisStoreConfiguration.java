@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -31,6 +31,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.redis.RedisProxyStore;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.RedisEventBridge;
 import eu.openanalytics.containerproxy.service.leader.GlobalEventLoopService;
@@ -79,8 +80,8 @@ public class RedisStoreConfiguration {
     // Store beans
 
     @Bean
-    public IProxyStore proxyStore() {
-        return new RedisProxyStore();
+    public IProxyStore proxyStore(AccessControlEvaluationService accessControlEvaluationService) {
+        return new RedisProxyStore(accessControlEvaluationService);
     }
 
     @Bean
@@ -128,12 +129,11 @@ public class RedisStoreConfiguration {
         RedisTemplate<String, Proxy> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Proxy.class);
         ObjectMapper om = new ObjectMapper();
-
         om.setConfig(om.getSerializationConfig().withView(Views.Internal.class));
 
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+        Jackson2JsonRedisSerializer<Proxy> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, Proxy.class);
+
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(jackson2JsonRedisSerializer);
@@ -214,10 +214,10 @@ public class RedisStoreConfiguration {
         RedisTemplate<K, V> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<V> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(clazz);
         ObjectMapper om = new ObjectMapper();
         om.registerModule(new JavaTimeModule());
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+
+        Jackson2JsonRedisSerializer<V> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, clazz);
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(jackson2JsonRedisSerializer);

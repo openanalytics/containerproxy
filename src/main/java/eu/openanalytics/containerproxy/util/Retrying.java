@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.util;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.StructuredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,35 +30,49 @@ public class Retrying {
     private static final Logger log = LoggerFactory.getLogger(Retrying.class);
 
     public static boolean retry(Attempt job, int maxDelay) {
-        return retry(job, maxDelay, false);
+        return retry(job, maxDelay, null, -1);
     }
 
-    public static boolean retry(Attempt job, int maxDelay, boolean retryOnException) {
-        return retry(job, maxDelay, null, -1, retryOnException);
+    public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttempts) {
+        return retry(job, maxDelay, logMessage, logAfterAttempts, null, null);
     }
 
-    public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttmepts, boolean retryOnException) {
-        boolean retVal = false;
+    public static boolean retry(Attempt job, int maxDelay, String logMessage, int logAfterAttempts, Proxy proxy, StructuredLogger slog) {
         Exception exception = null;
         int maxAttempts = numberOfAttempts(maxDelay);
         for (int currentAttempt = 0; currentAttempt < maxAttempts; currentAttempt++) {
             delay(currentAttempt); // delay here so that we don't delay for the last iteration
             try {
-                if (job.attempt(currentAttempt, maxAttempts)) {
-                    retVal = true;
-                    exception = null;
-                    break;
+                Result result = job.attempt(currentAttempt, maxAttempts);
+                if (!result.keepGoing) {
+                    if (result.success && currentAttempt > logAfterAttempts && logMessage != null) {
+                        if (slog != null && proxy != null) {
+                            slog.info(proxy, String.format("Ready: %s", logMessage));
+                        } else {
+                            log.info(String.format("Ready: %s", logMessage));
+                        }
+                    }
+                    return result.success;
                 }
             } catch (Exception e) {
-                if (retryOnException) exception = e;
-                else throw new RuntimeException(e);
+                exception = e;
             }
-            if (currentAttempt > logAfterAttmepts && logMessage != null) {
-                log.info(String.format("Retry: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
+            if (currentAttempt > logAfterAttempts && logMessage != null) {
+                if (slog != null && proxy != null) {
+                    slog.info(proxy, String.format("Waiting: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
+                } else {
+                    log.info(String.format("Waiting: %s (%d/%d)", logMessage, currentAttempt, maxAttempts));
+                }
             }
         }
-        if (exception == null) return retVal;
-        else throw new RuntimeException(exception);
+        if (exception != null) {
+            if (slog != null && proxy != null) {
+                slog.warn(proxy, exception, String.format("Failed: %s", logMessage));
+            } else {
+                log.warn(String.format("Failed: %s", logMessage), exception);
+            }
+        }
+        return false;
     }
 
     public static void delay(Integer attempt) {
@@ -84,7 +100,18 @@ public class Retrying {
 
     @FunctionalInterface
     public interface Attempt {
-        boolean attempt(int currentAttempt, int maxAttempts) throws Exception;
+        Result attempt(int currentAttempt, int maxAttempts) throws Exception;
     }
+
+    public record Result(boolean success, boolean keepGoing) {
+
+        public Result(boolean success) {
+            this(success, !success);
+        }
+
+    }
+
+    public final static Result SUCCESS = new Result(true, false);
+    public final static Result FAILURE = new Result(false, true);
 
 }

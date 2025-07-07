@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -43,9 +43,9 @@ public class RetryingTest {
 
     @Test
     public void testNumberOfAttempts() {
-        Assertions.assertEquals(Retrying.numberOfAttempts(3_000), 11);
-        Assertions.assertEquals(Retrying.numberOfAttempts(10_000), 15);
-        Assertions.assertEquals(Retrying.numberOfAttempts(60_000), 40); // compared to 30 when not using the faster checks
+        Assertions.assertEquals(11, Retrying.numberOfAttempts(3_000));
+        Assertions.assertEquals(15, Retrying.numberOfAttempts(10_000));
+        Assertions.assertEquals(40, Retrying.numberOfAttempts(60_000)); // compared to 30 when not using the faster checks
     }
 
     @Test
@@ -54,7 +54,7 @@ public class RetryingTest {
         AtomicInteger called = new AtomicInteger(0);
         Retrying.retry((i, m) -> {
             called.incrementAndGet();
-            return false;
+            return Retrying.FAILURE;
         }, 3_000);
         long time = Duration.between(start, Instant.now()).toMillis();
         Assertions.assertTrue(time >= 3_000);
@@ -68,7 +68,7 @@ public class RetryingTest {
         AtomicInteger called = new AtomicInteger(0);
         Retrying.retry((i, m) -> {
             called.incrementAndGet();
-            return false;
+            return Retrying.FAILURE;
         }, 10_000);
         long time = Duration.between(start, Instant.now()).toMillis();
         Assertions.assertTrue(time >= 10_000);

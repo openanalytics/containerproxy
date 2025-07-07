@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -39,11 +39,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.DEFAULT_NAME_ATTRIBUTE;
+import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.NAME_ATTRIBUTE_NAME_ID_VALUE;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_LOG_ATTRIBUTES;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_NAME_ATTRIBUTE;
 import static eu.openanalytics.containerproxy.auth.impl.saml.SAMLConfiguration.PROP_ROLES_ATTRIBUTE;
 
-@SuppressWarnings("deprecation")
 public class ResponseAuthenticationConverter implements Converter<OpenSaml4AuthenticationProvider.ResponseToken, AbstractAuthenticationToken> {
 
     private final Boolean logAttributes;
@@ -75,7 +75,13 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
             logAttributes(principal);
         }
 
-        Optional<String> nameValue = getSingleAttributeValue(principal, nameAttribute);
+        Optional<String> nameValue;
+        if (nameAttribute.equalsIgnoreCase(NAME_ATTRIBUTE_NAME_ID_VALUE)) {
+            nameValue = Optional.ofNullable(nameId);
+        } else {
+            nameValue = getSingleAttributeValue(principal, nameAttribute);
+        }
+
         if (nameValue.isEmpty()) {
             throw new UsernameNotFoundException(String.format("[SAML] User: \"%s\" => name attribute missing from SAML assertion", nameId));
         }
@@ -118,10 +124,10 @@ public class ResponseAuthenticationConverter implements Converter<OpenSaml4Authe
 
     private Optional<String> getSingleAttributeValue(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {
         Optional<List<Object>> res = getAttributeIgnoringCase(principal, attributeName);
-        if (res.isEmpty() || res.get().size() == 0) {
+        if (res.isEmpty() || res.get().isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(res.get().get(0).toString());
+        return Optional.of(res.get().getFirst().toString());
     }
 
     private Optional<List<String>> getMultipleAttributeValues(DefaultSaml2AuthenticatedPrincipal principal, String attributeName) {

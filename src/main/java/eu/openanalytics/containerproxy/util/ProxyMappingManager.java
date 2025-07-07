@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -76,7 +76,7 @@ import java.util.function.Consumer;
 public class ProxyMappingManager {
 
     private static final String PROXY_INTERNAL_ENDPOINT = "/proxy_endpoint";
-    private static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
+    public static final AttachmentKey<ProxyMappingManager> ATTACHMENT_KEY_DISPATCHER = AttachmentKey.create(ProxyMappingManager.class);
     private static final AttachmentKey<ProxyIdAttachment> ATTACHMENT_KEY_PROXY_ID = AttachmentKey.create(ProxyIdAttachment.class);
     private static final AttachmentKey<OriginalUrlAttachmentKey> ATTACHMENT_ORIGINAL_URL = AttachmentKey.create(OriginalUrlAttachmentKey.class);
 
@@ -84,7 +84,7 @@ public class ProxyMappingManager {
     private final StructuredLogger slogger = new StructuredLogger(logger);
     // the current set of prefixPaths registered in the pathHandler
     private final Map<String, List<String>> prefixPaths = new HashMap<>();
-    private PathHandler pathHandler;
+    private ProxyPathHandler pathHandler;
     private volatile boolean isShuttingDown = false;
 
     @Inject
@@ -115,9 +115,15 @@ public class ProxyMappingManager {
                             originalURL += "?" + responseExchange.getQueryString();
                         }
                         String proxiedTo = getProxiedToFromResponseExchange(proxy, responseExchange);
-                        slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
-                            responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
-                        asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
+                        if (!proxyService.isProxyHealthy(proxy)) {
+                            slogger.info(proxy, String.format("Proxy unreachable/crashed, stopping it now, failed request: %s %s was proxied to: %s, status: %s",
+                                responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
+                            asyncProxyService.stopProxy(proxy, true, ProxyStopReason.Crashed);
+                        } else {
+                            slogger.info(proxy, String.format("Failed request: %s %s was proxied to: %s, status: %s",
+                                responseExchange.getRequestMethod(), originalURL, proxiedTo, responseExchange.getStatusCode()));
+                            return false;
+                        }
                     }
                 } catch (Throwable t) {
                     // ignore in order to complete request
@@ -164,6 +170,11 @@ public class ProxyMappingManager {
         }
 
         prefixPaths.put(proxy.getId(), newPrefixPaths);
+    }
+
+    public PathHandler getHttpHandler() {
+        if (pathHandler == null) throw new IllegalStateException("Cannot change mappings: web server is not yet running.");
+        return pathHandler;
     }
 
     @SuppressWarnings("deprecation")

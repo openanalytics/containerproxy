@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -47,4 +47,8 @@ public interface IProxyDispatcher {
     Proxy addRuntimeValuesBeforeSpel(Authentication user, ProxySpec spec, Proxy proxy);
 
     Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy);
+
+    boolean isProxyHealthy(Proxy proxy);
+
+    boolean isProxyHealthySupported();
 }

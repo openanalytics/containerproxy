@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.containerproxy.backend.docker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
@@ -30,15 +32,16 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueK
 import eu.openanalytics.containerproxy.service.portallocator.IPortAllocator;
 import org.mandas.docker.client.DockerCertificates;
 import org.mandas.docker.client.DockerClient;
-import org.mandas.docker.client.LogStream;
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
-import org.mandas.docker.client.exceptions.DockerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.channels.ClosedChannelException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,23 +50,29 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 
 public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected static final String PROPERTY_PORT_RANGE_START = "port-range-start";
     protected static final String PROPERTY_PORT_RANGE_MAX = "port-range-max";
+    protected static final String PROPERTY_TARGET_URL = "target-url";
     protected static final String DEFAULT_TARGET_URL = DEFAULT_TARGET_PROTOCOL + "://localhost";
+    protected static final String PROPERTY_CONTAINER_NETWORK = "default-container-network";
     private static final String PROPERTY_PREFIX = "proxy.docker.";
     @Inject
     protected IPortAllocator portAllocator;
     protected DockerClient dockerClient;
 
+    protected String containerNetwork;
     protected Integer portRangeFrom;
     protected Integer portRangeTo;
+    protected String nonInternalNetworkTargetProtocol;
+    protected URL nonInternalNetworkTargetURL;
 
     private final ScheduledExecutorService releasePortExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
     public void initialize() throws ContainerProxyException {
@@ -88,14 +97,22 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
         }
 
         String confUrl = getProperty(PROPERTY_URL);
-        if (confUrl != null) builder.uri(confUrl);
+        if (confUrl != null) {
+            builder.uri(confUrl);
+        }
 
         dockerClient = builder.build();
+        containerNetwork = environment.getProperty(getPropertyPrefix() + PROPERTY_CONTAINER_NETWORK);
         portRangeFrom = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_START, Integer.class, 20000);
         portRangeTo = environment.getProperty(getPropertyPrefix() + PROPERTY_PORT_RANGE_MAX, Integer.class, -1);
+
+        try {
+            nonInternalNetworkTargetURL = new URI(getProperty(PROPERTY_TARGET_URL, DEFAULT_TARGET_URL)).toURL();
+            nonInternalNetworkTargetProtocol = getProperty(PROPERTY_CONTAINER_PROTOCOL, nonInternalNetworkTargetURL.getProtocol());
+        } catch (MalformedURLException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
-
-
 
     @Override
     protected String getPropertyPrefix() {
@@ -103,7 +120,7 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
     }
 
     protected Container getPrimaryContainer(Proxy proxy) {
-        return proxy.getContainers().isEmpty() ? null : proxy.getContainers().get(0);
+        return proxy.getContainers().isEmpty() ? null : proxy.getContainers().getFirst();
     }
 
     protected List<String> convertEnv(Map<String, String> env) {
@@ -142,6 +159,25 @@ public abstract class AbstractDockerBackend extends AbstractContainerBackend {
 
     protected void releasePort(String ownerId) {
         releasePortExecutor.schedule(() -> portAllocator.release(ownerId), 10, TimeUnit.SECONDS);
+    }
+
+    protected String toJson(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            logger.warn("Error while generating json", e);
+            return null;
+        }
+    }
+
+    protected long getCpuQuota(Long cpuPeriod, String cpu) {
+        double converted;
+        if (cpu.endsWith("m")) {
+            converted = Double.parseDouble(cpu.substring(0, cpu.length() - 1)) / 1_000;
+        } else {
+            converted = Double.parseDouble(cpu);
+        }
+        return Double.valueOf(cpuPeriod.doubleValue() * converted).longValue();
     }
 
 }

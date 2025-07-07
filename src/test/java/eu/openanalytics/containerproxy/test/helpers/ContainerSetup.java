@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,7 +25,8 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.Assertions;
 import org.mandas.docker.client.DefaultDockerClient;
@@ -40,7 +41,7 @@ public class ContainerSetup implements AutoCloseable {
 
     public final String namespace = "itest";
     public final String overriddenNamespace = "itest-overridden";
-    public final DefaultKubernetesClient client = new DefaultKubernetesClient();
+    public final KubernetesClient client = new KubernetesClientBuilder().build();
     public final NamespacedKubernetesClient namespacedClient;
     private final List<String> managedNamespaces = Arrays.asList(namespace, overriddenNamespace);
     private final String backend;
@@ -54,7 +55,7 @@ public class ContainerSetup implements AutoCloseable {
                 createNamespaces();
 
                 TestUtil.sleep(1000); // wait for namespaces and tokens to become ready
-                namespacedClient = client.inNamespace(namespace);
+                namespacedClient = client.adapt(NamespacedKubernetesClient.class).inNamespace(namespace);
             } else {
                 namespacedClient = null;
             }
@@ -81,7 +82,7 @@ public class ContainerSetup implements AutoCloseable {
                 client.namespaces().withName(namespace).delete();
             }
             for (String namespace : managedNamespaces) {
-                Retrying.retry((c, m) -> client.namespaces().withName(namespace).get() == null, 60_000, "namespace deletion: " + namespace, 1, true);
+                Retrying.retry((c, m) -> new Retrying.Result(client.namespaces().withName(namespace).get() == null), 60_000, "namespace deletion: " + namespace, 1);
             }
         } catch (Throwable t) {
             throw new TestHelperException("Error while cleaning kubernetes", t);
@@ -90,7 +91,7 @@ public class ContainerSetup implements AutoCloseable {
 
     private void createNamespaces() {
         for (String namespace : managedNamespaces) {
-            client.namespaces().create(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
+            client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build()).create();
         }
     }
 
@@ -101,7 +102,7 @@ public class ContainerSetup implements AutoCloseable {
     public Secret getSingleSecret(String namespace) {
         List<Secret> secrets = getSecrets(namespace);
         Assertions.assertEquals(1, secrets.size());
-        return secrets.get(0);
+        return secrets.getFirst();
     }
 
     public boolean checkDockerIsClean() {
@@ -111,23 +112,23 @@ public class ContainerSetup implements AutoCloseable {
                     case "docker" -> {
                         DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
                         long count = dockerClient.listContainers().stream().filter(it -> it.labels() != null && it.labels().containsKey("openanalytics.eu/sp-proxied-app")).count();
-                        return count <= 0;
+                        return new Retrying.Result(count <= 0);
                     }
                     case "docker-swarm" -> {
                         DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
-                        return dockerClient.listServices().isEmpty();
+                        return new Retrying.Result(dockerClient.listServices().isEmpty());
                     }
                     case "kubernetes" -> {
                         List<Pod> pods1 = client.pods().inNamespace(namespace).list().getItems();
                         List<Pod> pods2 = client.pods().inNamespace(overriddenNamespace).list().getItems();
-                        return pods1.isEmpty() && pods2.isEmpty();
+                        return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
                     }
                 }
-                return true;
+                return Retrying.SUCCESS;
             } catch (DockerException | InterruptedException | DockerCertificateException e) {
                 throw new TestHelperException("Error while checking if Docker is clean", e);
             }
-        }, 60_000, "docker/swarm/k8s is clean", 1, true);
+        }, 60_000, "docker/swarm/k8s is clean", 1);
     }
 
 

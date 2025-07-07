@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,6 +24,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.util.Retrying;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.json.JsonReader;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -33,10 +37,6 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-import javax.json.JsonReader;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -182,14 +182,14 @@ public class ShinyProxyClient {
 
                 try (Response response = client.newCall(request).execute()) {
                     if (response.code() == 200) {
-                        return true;
+                        return Retrying.SUCCESS;
                     }
                 }
-                return false;
+                return Retrying.FAILURE;
             } catch (Throwable t) {
                 throw new TestHelperException("Error during http request", t);
             }
-        }, 60_000, "proxy is reachable", 1, true);
+        }, 60_000, "proxy is reachable", 1);
         if (!res) {
             throw new TestHelperException("Proxy not reachable");
         }

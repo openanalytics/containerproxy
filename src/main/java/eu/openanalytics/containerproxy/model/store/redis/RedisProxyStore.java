@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,6 +23,7 @@ package eu.openanalytics.containerproxy.model.store.redis;
 import eu.openanalytics.containerproxy.event.ProxyStopEvent;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.util.ProxyHashMap;
 import eu.openanalytics.containerproxy.util.ProxyMappingManager;
@@ -43,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RedisProxyStore implements IProxyStore {
 
     private final Logger logger = LogManager.getLogger(RedisProxyStore.class);
+    private final AccessControlEvaluationService accessControlEvaluationService;
     @Inject
     private RedisTemplate<String, Proxy> redisTemplate;
     @Inject
@@ -57,6 +59,10 @@ public class RedisProxyStore implements IProxyStore {
 
     private final ConcurrentHashMap<String, Proxy> cache = ProxyHashMap.create();
     private String userProxyRedisKey;
+
+    public RedisProxyStore(AccessControlEvaluationService accessControlEvaluationService) {
+        this.accessControlEvaluationService = accessControlEvaluationService;
+    }
 
     @PostConstruct
     public void init() {
@@ -85,7 +91,8 @@ public class RedisProxyStore implements IProxyStore {
     public void removeProxy(Proxy proxy) {
         logger.debug("Remove proxy {}", proxy.getId());
         ops.delete(redisKey, proxy.getId());
-        updateMappings(proxy.getId(), proxy);
+        logger.debug("Redis: remove mappings (event) {}", proxy.getId());
+        mappingManager.removeMappings(proxy.getId());
         userProxyOps.remove(userProxyRedisKey + proxy.getUserId(), proxy.getId());
     }
 
@@ -113,7 +120,7 @@ public class RedisProxyStore implements IProxyStore {
         }
         List<Proxy> proxies = ops.multiGet(redisKey, ids);
         for (Proxy proxy : proxies) {
-            if (proxy != null && proxy.getUserId().equalsIgnoreCase(userId)) {
+            if (proxy != null && accessControlEvaluationService.usernameEquals(proxy.getUserId(), userId)) {
                 result.add(proxy);
             }
         }

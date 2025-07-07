@@ -8,17 +8,15 @@
 
 </pre>
 
-[![Build Status](https://travis-ci.org/openanalytics/containerproxy.svg?branch=master)](https://travis-ci.org/openanalytics/containerproxy)
-
 # ContainerProxy
 
 ContainerProxy is an application that launches and manages containers for users, to perform specific tasks.
 
 It is the engine that powers a.o. [ShinyProxy](https://shinyproxy.io) but can be used for any application that needs to manage HTTP proxy routes into Docker containers.
 
-Learn more at https://containerproxy.io (in progress)
+Learn more at <https://shinyproxy.io/> (in progress)
 
-#### (c) Copyright Open Analytics NV, 2017-2023 - Apache License 2.0
+**(c) Copyright Open Analytics NV, 2017-2025 - Apache License 2.0**
 
 ## Building from source
 
@@ -32,4 +30,4 @@ The build will result in a single `.jar` file that is made available in the `tar
 
 ## Further information
 
-https://containerproxy.io (in progress)
+<https://shinyproxy.io/>

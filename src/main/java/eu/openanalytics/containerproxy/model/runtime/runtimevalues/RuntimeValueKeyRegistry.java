@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -67,9 +67,16 @@ public class RuntimeValueKeyRegistry {
         return KEYS.values();
     }
 
-    public static RuntimeValueKey<?> getRuntimeValue(String key) {
+    public static RuntimeValueKey<?> getRuntimeValueKey(String key) {
         if (!KEYS.containsKey(key)) {
             throw new IllegalArgumentException("Could not find RuntimeValueKey using key " + key);
+        }
+        return KEYS.get(key);
+    }
+
+    public static RuntimeValueKey<?> getRuntimeValueKeyOrNull(String key) {
+        if (!KEYS.containsKey(key)) {
+            return null;
         }
         return KEYS.get(key);
     }

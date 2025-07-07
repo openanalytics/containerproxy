@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -63,7 +63,7 @@ public class Container extends RuntimeValueStore {
             .id(id);
 
         for (Map.Entry<String, String> runtimeValue : runtimeValues.entrySet()) {
-            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValue(runtimeValue.getKey());
+            RuntimeValueKey<?> key = RuntimeValueKeyRegistry.getRuntimeValueKey(runtimeValue.getKey());
             builder.addRuntimeValue(new RuntimeValue(key, key.deserializeFromString(runtimeValue.getValue())), false);
         }
 

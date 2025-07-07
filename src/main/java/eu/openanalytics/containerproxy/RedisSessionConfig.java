@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,15 +26,21 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.session.MapSession;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.data.redis.RedisIndexedSessionRepository;
+import org.springframework.session.data.redis.RedisSessionMapper;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 @Configuration
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
@@ -44,12 +50,13 @@ public class RedisSessionConfig {
     private final String redisNamespace;
     private final Environment environment;
 
-    public RedisSessionConfig(IdentifierService identifierService, Environment environment) {
+    public RedisSessionConfig(IdentifierService identifierService, Environment environment, BuildProperties buildProperties) {
         this.environment = environment;
+        String version = buildProperties.getVersion().replace(".", "_").replace("-", "_");
         if (identifierService.realmId != null) {
-            redisNamespace = String.format("shinyproxy__%s__%s", identifierService.realmId, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
+            redisNamespace = String.format("shinyproxy__%s__%s__%s", identifierService.realmId, version, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         } else {
-            redisNamespace = String.format("shinyproxy__%s", RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
+            redisNamespace = String.format("shinyproxy__%s__%s", version, RedisIndexedSessionRepository.DEFAULT_NAMESPACE);
         }
     }
 
@@ -59,7 +66,10 @@ public class RedisSessionConfig {
 
     @Bean
     public SessionRepositoryCustomizer<RedisIndexedSessionRepository> sessionRepositorySessionRepositoryCustomizer() {
-        return redisIndexedSessionRepository -> redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
+        return redisIndexedSessionRepository -> {
+            redisIndexedSessionRepository.setRedisKeyNamespace(redisNamespace);
+            redisIndexedSessionRepository.setRedisSessionMapper(new SafeRedisSessionMapper(redisIndexedSessionRepository.getSessionRedisOperations()));
+        };
     }
 
     @Bean
@@ -82,6 +92,29 @@ public class RedisSessionConfig {
                 }
             };
         }
+    }
+
+    class SafeRedisSessionMapper implements BiFunction<String, Map<String, Object>, MapSession> {
+
+        private final RedisSessionMapper delegate = new RedisSessionMapper();
+
+        private final RedisOperations<String, Object> redisOperations;
+
+        SafeRedisSessionMapper(RedisOperations<String, Object> redisOperations) {
+            this.redisOperations = redisOperations;
+        }
+
+        @Override
+        public MapSession apply(String sessionId, Map<String, Object> map) {
+            try {
+                return this.delegate.apply(sessionId, map);
+            } catch (IllegalStateException ex) {
+                // do not invoke RedisIndexedSessionRepository#deleteById to avoid an infinite loop because the method also invokes this mapper
+                redisOperations.delete(getRedisNamespace() + ":sessions:" + sessionId);
+                return null;
+            }
+        }
+
     }
 
 }

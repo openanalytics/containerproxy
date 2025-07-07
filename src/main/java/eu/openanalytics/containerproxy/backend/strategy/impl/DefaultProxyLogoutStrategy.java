@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -28,6 +28,7 @@ import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.spec.IProxySpecProvider;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -62,6 +63,20 @@ public class DefaultProxyLogoutStrategy implements IProxyLogoutStrategy {
         defaultStopProxyOnLogout = environment.getProperty(PROP_DEFAULT_STOP_PROXIES_ON_LOGOUT, Boolean.class, true);
     }
 
+    @Override
+    public void onLogout(Authentication authentication) {
+        for (Proxy proxy : proxyService.getUserProxies(authentication)) {
+            if (shouldBeStopped(proxy)) {
+                asyncProxyService.stopProxy(proxy, true);
+            }
+        }
+    }
+
+    /**
+     * Should only be used if authentication is none.
+     * In this case all proxies can be stopped, since they can't belong to a different domain (#33886).
+     * @param userId id of the user
+     */
     @Override
     public void onLogout(String userId) {
         for (Proxy proxy : proxyService.getUserProxies(userId)) {

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,13 +21,17 @@
 package eu.openanalytics.containerproxy.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.springframework.security.core.Authentication;
 
 import java.time.Duration;
 
@@ -39,32 +43,73 @@ public class ProxyStopEvent extends BridgeableEvent {
     String proxyId;
     String userId;
     String specId;
-    ProxyStopReason proxyStopReason;
+    String instance;
+    Long createdTimestamp;
+    BackendContainerName backendContainerName;
     Duration usageTime;
+    ProxyStopReason proxyStopReason;
+    @JsonIgnore
+    Authentication authentication;
 
     @JsonCreator
     public ProxyStopEvent(@JsonProperty("source") String source,
                           @JsonProperty("proxyId") String proxyId,
                           @JsonProperty("userId") String userId,
                           @JsonProperty("specId") String specId,
+                          @JsonProperty("instance") String instance,
+                          @JsonProperty("createdTimestamp") Long createdTimestamp,
+                          @JsonProperty("backendContainerName") BackendContainerName backendContainerName,
                           @JsonProperty("proxyStopReason") ProxyStopReason proxyStopReason,
                           @JsonProperty("usageTime") Duration usageTime) {
+        this(source, proxyId, userId, specId, instance, createdTimestamp, backendContainerName, proxyStopReason, usageTime, null);
+    }
+
+    public ProxyStopEvent(String source,
+                          String proxyId,
+                          String userId,
+                          String specId,
+                          String instance,
+                          Long createdTimestamp,
+                          BackendContainerName backendContainerName,
+                          ProxyStopReason proxyStopReason,
+                          Duration usageTime,
+                          Authentication authentication) {
         super(source);
         this.proxyId = proxyId;
         this.userId = userId;
         this.specId = specId;
+        this.instance = instance;
+        this.createdTimestamp = createdTimestamp;
+        this.backendContainerName = backendContainerName;
         this.proxyStopReason = proxyStopReason;
         this.usageTime = usageTime;
+        this.authentication = authentication;
     }
 
-    public ProxyStopEvent(Proxy proxy, ProxyStopReason proxyStopReason) {
-        this(SOURCE_NOT_AVAILABLE, proxy.getId(), proxy.getUserId(), proxy.getSpecId(), proxyStopReason,
-            proxy.getStartupTimestamp() == 0 ? null : Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp()));
+    public ProxyStopEvent(Proxy proxy, ProxyStopReason proxyStopReason, Authentication authentication) {
+        this(SOURCE_NOT_AVAILABLE,
+            proxy.getId(),
+            proxy.getUserId(),
+            proxy.getSpecId(),
+            proxy.getRuntimeValueOrDefault("SHINYPROXY_APP_INSTANCE", ""),
+            proxy.getCreatedTimestamp(),
+            proxy.getContainers().isEmpty() ? null : proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst),
+            proxyStopReason,
+            proxy.getStartupTimestamp() == 0 ? null : Duration.ofMillis(System.currentTimeMillis() - proxy.getStartupTimestamp()),
+            authentication);
     }
 
     @Override
     public ProxyStopEvent withSource(String source) {
-        return new ProxyStopEvent(source, proxyId, userId, specId, proxyStopReason, usageTime);
+        return new ProxyStopEvent(source,
+            proxyId,
+            userId,
+            specId,
+            instance,
+            createdTimestamp,
+            backendContainerName,
+            proxyStopReason,
+            usageTime);
     }
 
 }

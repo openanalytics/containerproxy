@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,17 +38,17 @@ public class NotInternalOnlyTestStrategy implements IProxyTestStrategy {
         return Retrying.retry((currentAttempt, maxAttempts) -> {
             if (proxy.getStatus().isUnavailable()) {
                 // proxy got stopped while loading -> no need to try to connect it since the container will already be deleted
-                return true;
+                return Retrying.SUCCESS;
             }
-            URL testURL = new URL(targetURI.toString() + "/");
+            URL testURL = new URI(targetURI.toString() + "/").toURL();
             HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
             connection.setInstanceFollowRedirects(false);
             int responseCode = connection.getResponseCode();
             if (Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
-                return true;
+                return Retrying.SUCCESS;
             }
-            return false;
-        }, 60_000, "Container unresponsive", 10, true);
+            return Retrying.FAILURE;
+        }, 60_000, "Container unresponsive", 10);
     }
 
 }

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,7 +33,8 @@ public class UserAgentFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        if (request.getHeader("User-Agent").contains("ms-office")) {
+        String header = request.getHeader("User-Agent");
+        if (header != null && header.contains("ms-office")) {
             // see #33103
             // send empty response if request made by MS Office
             // otherwise the user will not be able to sign-in (or get logged out)

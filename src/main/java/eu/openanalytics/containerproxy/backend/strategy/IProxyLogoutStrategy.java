@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,12 +20,26 @@
  */
 package eu.openanalytics.containerproxy.backend.strategy;
 
+import org.springframework.security.core.Authentication;
+
 /**
  * Defines a strategy for deciding what to do with a user's proxies when
  * the user logs out.
  */
 public interface IProxyLogoutStrategy {
 
+    /**
+     * Handles the proxies owned by this user and verifies whether the user can still access them.
+     * Only handles proxies for which the spec can be accessed by the current session.
+     * @param authentication authentication object of the user
+     */
+    void onLogout(Authentication authentication);
+
+    /**
+     * Handles the proxies owned by this user and verifies whether the user can still access them.
+     * Handles all proxies of the user, even if the current session cannot access the spec.
+     * @param userId id of the user
+     */
     void onLogout(String userId);
 
 }

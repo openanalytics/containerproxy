@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,13 +23,13 @@ package eu.openanalytics.containerproxy.test.e2e.app_recovery;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyClient;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
+import jakarta.json.JsonObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import javax.json.JsonObject;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.stream.Stream;

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.auth;
 
+import eu.openanalytics.containerproxy.auth.impl.CustomHeaderAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.LDAPAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
@@ -72,6 +73,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
             case LDAPAuthenticationBackend.NAME -> backend = new LDAPAuthenticationBackend();
             case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
             case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend(environment);
+            case CustomHeaderAuthenticationBackend.NAME -> backend = new CustomHeaderAuthenticationBackend(environment, applicationEventPublisher);
             case SAMLAuthenticationBackend.NAME -> {
                 return samlBackend;
             }

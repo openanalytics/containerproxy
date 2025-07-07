@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,9 +21,13 @@
 package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.service.UserService;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
+import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -39,27 +43,49 @@ public class BaseController {
     @Inject
     private IdentifierService identifierService;
 
+    @Inject
+    protected SpecExpressionResolver expressionResolver;
+
+    @Inject
+    private UserService userService;
+
     private String title;
+    private boolean titleContainsExpression;
 
     @PostConstruct
     public void baseInit() {
         title = environment.getProperty("proxy.title", "ShinyProxy");
+        titleContainsExpression = title.contains("#{");
     }
 
     protected void prepareMap(ModelMap map) {
-        map.put("title", title);
+        ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        HttpServletRequest httpServletRequest = servletRequestAttributes.getRequest();
+        HttpServletResponse httpServletResponse = servletRequestAttributes.getResponse();
+        map.put("title", getTitle(userService.getCurrentAuth(), httpServletRequest.getServerName()));
         // no versioning (using instanceId) needed since paths already contain a version
-        map.put("bootstrapCss", "/webjars/bootstrap/3.4.1/css/bootstrap.min.css");
-        map.put("bootstrapJs", "/webjars/bootstrap/3.4.1/js/bootstrap.min.js");
+        map.put("bootstrapCss", "/css/bootstrap.css");
+        map.put("bootstrapJs", "/js/bootstrap.js");
         map.put("jqueryJs", "/webjars/jquery/3.7.1/jquery.min.js");
         map.put("fontAwesomeCss", "/webjars/fontawesome/4.7.0/css/font-awesome.min.css");
         map.put("resourcePrefix", "/" + identifierService.instanceId);
 
-        ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        HttpServletRequest httpServletRequest = servletRequestAttributes.getRequest();
-        HttpServletResponse httpServletResponse = servletRequestAttributes.getResponse();
         map.put("request", httpServletRequest);
         map.put("response", httpServletResponse);
+    }
+
+    private String getTitle(Authentication user, String serverName) {
+        if (!titleContainsExpression) {
+            return title;
+        }
+        SpecExpressionContext context = SpecExpressionContext.create(
+                user,
+                user.getPrincipal(),
+                user.getCredentials()
+            )
+            .serverName(serverName)
+            .build();
+        return expressionResolver.evaluateToString(title, context);
     }
 
 }

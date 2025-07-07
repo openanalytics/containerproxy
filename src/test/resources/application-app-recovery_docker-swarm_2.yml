@@ -17,7 +17,6 @@ proxy:
       password: demo3
 
   docker:
-    url: http://localhost:2375
     port-range-start: 30000
 
   specs:

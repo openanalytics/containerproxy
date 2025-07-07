@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -32,7 +32,7 @@ public interface ILogStorage {
 
     LogStreams createOutputStreams(Proxy proxy) throws IOException;
 
-    LogPaths getLogs(Proxy proxy) throws IOException;
+    LogPaths getLogs(Proxy proxy);
 
     void stopService();
 

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
@@ -68,6 +69,9 @@ public class TestParameterServiceAccessControl {
     @Inject
     private ObjectMapper objectMapper;
 
+    @Inject
+    private Environment environment;
+
     private UserService userService;
 
     @PostConstruct
@@ -75,7 +79,7 @@ public class TestParameterServiceAccessControl {
         authBackend = mock(IAuthenticationBackend.class);
         userService = mock(UserService.class);
         SpecExpressionResolver specExpressionResolver = new SpecExpressionResolver(new GenericApplicationContext());
-        AccessControlEvaluationService accessControlEvaluationService = new AccessControlEvaluationService(authBackend, userService, specExpressionResolver);
+        AccessControlEvaluationService accessControlEvaluationService = new AccessControlEvaluationService(authBackend, userService, specExpressionResolver, environment);
 
         parametersService = new ParametersService(proxySpecProvider, accessControlEvaluationService, objectMapper);
     }

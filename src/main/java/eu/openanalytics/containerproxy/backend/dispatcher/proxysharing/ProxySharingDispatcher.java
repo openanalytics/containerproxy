@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -35,6 +35,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKeyRegistry;
@@ -45,9 +46,8 @@ import eu.openanalytics.containerproxy.service.StructuredLogger;
 import eu.openanalytics.containerproxy.util.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -88,8 +88,8 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     private IProxyStore proxyStore;
     @Inject
     private Environment environment;
-    @Autowired(required = false)
-    private ProxySharingMicrometer proxySharingMicrometer = null;
+    @Inject
+    private ObjectProvider<ProxySharingMicrometer> proxySharingMicrometer;
 
     public ProxySharingDispatcher(ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore, ISeatStore seatStore) {
         this.proxySpec = proxySpec;
@@ -162,9 +162,7 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         info(proxy, seat, "Seat claimed");
         applicationEventPublisher.publishEvent(new SeatClaimedEvent(spec.getId(), proxy.getId()));
         LocalDateTime endTime = LocalDateTime.now();
-        if (proxySharingMicrometer != null) {
-            proxySharingMicrometer.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime));
-        }
+        proxySharingMicrometer.ifAvailable(p -> p.registerSeatWaitTime(spec.getId(), Duration.between(startTime, endTime)));
 
         Proxy delegateProxy = delegateProxyStore.getDelegateProxy(seat.getDelegateProxyId()).getProxy();
 
@@ -175,7 +173,10 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
         resultProxy.addRuntimeValue(new RuntimeValue(TargetIdKey.inst, delegateProxy.getId()), true);
         resultProxy.addRuntimeValue(new RuntimeValue(SeatIdKey.inst, seat.getId()), true);
 
-        Container resultContainer = proxy.getContainer(0).toBuilder().id(UUID.randomUUID().toString()).build();
+        Container resultContainer = proxy.getContainer(0).toBuilder()
+            .id(UUID.randomUUID().toString())
+            .addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, delegateProxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst)), true)
+            .build();
         resultProxy.updateContainer(resultContainer);
 
         return resultProxy.build();
@@ -217,6 +218,17 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
     @Override
     public Proxy addRuntimeValuesAfterSpel(Authentication user, ProxySpec spec, Proxy proxy) {
         return proxy;
+    }
+
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        // do not check container status, it will fallback to HTTP check
+        return true;
+    }
+
+    @Override
+    public boolean isProxyHealthySupported() {
+        return false;
     }
 
     @EventListener

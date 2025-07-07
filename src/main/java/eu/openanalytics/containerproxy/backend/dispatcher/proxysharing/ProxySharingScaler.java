@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -62,7 +62,9 @@ import eu.openanalytics.containerproxy.util.MathUtil;
 import eu.openanalytics.containerproxy.util.Sha1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.integration.leader.event.OnGrantedEvent;
@@ -71,7 +73,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -104,6 +105,7 @@ public class ProxySharingScaler implements AutoCloseable {
     private Instant lastScaleUp = null;
 
     @Inject
+    @Lazy
     private IProxyTestStrategy testStrategy;
     @Inject
     private IContainerBackend containerBackend;
@@ -123,6 +125,8 @@ public class ProxySharingScaler implements AutoCloseable {
     private ApplicationEventPublisher applicationEventPublisher;
     @Inject
     private Environment environment;
+    @Autowired(required = false)
+    private ProxySharingMicrometer proxySharingMicrometer = null;
 
     public ProxySharingScaler(ISeatStore seatStore, ProxySpec proxySpec, IDelegateProxyStore delegateProxyStore) {
         this.specExtension = proxySpec.getSpecExtension(ProxySharingSpecExtension.class);
@@ -226,6 +230,10 @@ public class ProxySharingScaler implements AutoCloseable {
             logger.info("[{}] Received external request to remove all DelegateProxies", kv("specId", proxySpec.getId()));
             globalEventLoop.schedule(this::markAllDelegateProxiesForRemoval);
         }
+    }
+
+    public Collection<DelegateProxy> getAllDelegateProxies() {
+        return delegateProxyStore.getAllDelegateProxies();
     }
 
     /**
@@ -392,7 +400,7 @@ public class ProxySharingScaler implements AutoCloseable {
                 DelegateProxy delegateProxy = originalDelegateProxy.toBuilder().proxy(proxy).build();
                 delegateProxyStore.updateDelegateProxy(delegateProxy);
 
-                SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec);
+                SpecExpressionContext context = SpecExpressionContext.create(proxy, proxySpec).build();
                 ProxySpec resolvedSpec = proxySpec.firstResolve(expressionResolver, context);
                 context = context.copy(resolvedSpec, proxy);
                 resolvedSpec = resolvedSpec.finalResolve(expressionResolver, context);
@@ -456,7 +464,7 @@ public class ProxySharingScaler implements AutoCloseable {
 
                 for (int i = 0; i < specExtension.seatsPerContainer; i++) {
                     if (!pendingDelegatingProxies.isEmpty()) {
-                        String intendedProxyId = pendingDelegatingProxies.remove(0);
+                        String intendedProxyId = pendingDelegatingProxies.removeFirst();
                         applicationEventPublisher.publishEvent(new SeatAvailableEvent(proxySpec.getId(), intendedProxyId));
                     }
                 }
@@ -638,13 +646,19 @@ public class ProxySharingScaler implements AutoCloseable {
     }
 
     public void stopAll() {
+        executor.shutdown();
+        try {
+            executor.awaitTermination(3, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
             containerBackend.stopProxy(delegateProxy.getProxy());
         }
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (!stopAppsOnShutdown) {
             return;
         }

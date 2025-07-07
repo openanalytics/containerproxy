@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,12 +21,15 @@
 package eu.openanalytics.containerproxy.stat.impl;
 
 import org.apache.commons.io.IOUtils;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.security.core.Authentication;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
@@ -44,13 +47,13 @@ public class InfluxDBCollector extends AbstractDbCollector {
     }
 
     @Override
-    protected void writeToDb(long timestamp, String userId, String type, String data) throws IOException {
+    protected void writeToDb(ApplicationEvent event, long timestamp, String userId, String type, String data, Authentication authentication) throws Exception {
         String body = String.format("event,username=%s,type=%s data=\"%s\"",
             userId.replace(" ", "\\ "),
             type.replace(" ", "\\ "),
             Optional.ofNullable(data).orElse(""));
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(destination).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URI(destination).toURL().openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream())) {
@@ -66,4 +69,5 @@ public class InfluxDBCollector extends AbstractDbCollector {
             throw new IOException(bos.toString());
         }
     }
+
 }

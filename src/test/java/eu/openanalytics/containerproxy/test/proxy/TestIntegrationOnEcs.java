@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -104,7 +104,7 @@ public class TestIntegrationOnEcs {
                 Assertions.assertTrue(taskDefinition.volumes().isEmpty());
                 Assertions.assertEquals(1, taskDefinition.revision());
                 Assertions.assertEquals(1, taskDefinition.containerDefinitions().size());
-                ContainerDefinition containerDefinition = taskDefinition.containerDefinitions().get(0);
+                ContainerDefinition containerDefinition = taskDefinition.containerDefinitions().getFirst();
                 Assertions.assertEquals(List.of("R", "-e", "shinyproxy::run_01_hello()"), containerDefinition.command());
                 Assertions.assertEquals(List.of(), containerDefinition.dnsServers());
                 Map<String, String> dockerLabels = containerDefinition.dockerLabels();
@@ -151,11 +151,11 @@ public class TestIntegrationOnEcs {
                 Assertions.assertEquals(System.getenv("ITEST_ECS_EXECUTION_ROLE"), taskDefinition.executionRoleArn());
                 Assertions.assertEquals(System.getenv("ITEST_ECS_TASK_ROLE"), taskDefinition.taskRoleArn());
 
-                ContainerDefinition containerDefinition = taskDefinition.containerDefinitions().get(0);
+                ContainerDefinition containerDefinition = taskDefinition.containerDefinitions().getFirst();
                 LogConfiguration logConfiguration = containerDefinition.logConfiguration();
                 Assertions.assertNotNull(logConfiguration);
                 Assertions.assertEquals(LogDriver.AWSLOGS, logConfiguration.logDriver());
-                Assertions.assertEquals("/ecs/sp-" + proxy.getId(), logConfiguration.options().get("awslogs-group"));
+                Assertions.assertEquals("/ecs/sp-" + proxy.getSpecId(), logConfiguration.options().get("awslogs-group"));
                 Assertions.assertEquals(System.getenv("ITEST_ECS_REGION"), logConfiguration.options().get("awslogs-region"));
                 Assertions.assertEquals("true", logConfiguration.options().get("awslogs-create-group"));
                 Assertions.assertEquals("ecs", logConfiguration.options().get("awslogs-stream-prefix"));
@@ -259,10 +259,10 @@ public class TestIntegrationOnEcs {
     }
 
     private Task getTask(Proxy proxy) {
-        String taskArn = proxy.getContainers().get(0).getRuntimeValue(BackendContainerNameKey.inst);
+        String taskArn = proxy.getContainers().getFirst().getRuntimeValue(BackendContainerNameKey.inst);
         List<Task> tasks = getEcsClient().describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks();
         Assertions.assertEquals(1, tasks.size());
-        return tasks.get(0);
+        return tasks.getFirst();
     }
 
     private Map<String, String> getTags(Task task) {

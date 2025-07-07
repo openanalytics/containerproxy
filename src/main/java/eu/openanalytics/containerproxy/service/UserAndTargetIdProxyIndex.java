@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,8 +29,8 @@ import java.util.Objects;
 @Component
 public class UserAndTargetIdProxyIndex extends ProxyIdIndex<UserAndTargetIdProxyIndex.UserAndTargetIdKey> {
 
-    public UserAndTargetIdProxyIndex(IProxyStore proxyStore) {
-        super(proxyStore, (key, proxy) -> Objects.equals(proxy.getTargetId(), key.targetId) && Objects.equals(proxy.getUserId(), key.userId));
+    public UserAndTargetIdProxyIndex(IProxyStore proxyStore, AccessControlEvaluationService accessControlEvaluationService) {
+        super(proxyStore, accessControlEvaluationService, (key, proxy) -> Objects.equals(proxy.getTargetId(), key.targetId) && Objects.equals(proxy.getUserId(), key.userId));
         // use Objects.equals because some proxies might not yet be initialized
     }
 

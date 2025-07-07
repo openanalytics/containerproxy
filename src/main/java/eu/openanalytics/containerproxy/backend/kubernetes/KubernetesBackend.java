@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,15 +23,17 @@ package eu.openanalytics.containerproxy.backend.kubernetes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.fasterxml.jackson.datatype.jsonp.JSONPModule;
 import com.google.common.base.Splitter;
 import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
+import eu.openanalytics.containerproxy.event.NewProxyEvent;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ExistingContainerInfo;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerName;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
@@ -49,9 +51,12 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.Event;
+import io.fabric8.kubernetes.api.model.EventSource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
@@ -75,8 +80,8 @@ import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
@@ -85,18 +90,18 @@ import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import org.apache.commons.compress.utils.IOUtils;
+import jakarta.json.JsonPatch;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.json.JsonPatch;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
@@ -130,11 +135,16 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private static final String PROPERTY_IMG_PULL_SECRETS = "image-pull-secrets";
     private static final String PROPERTY_IMG_PULL_SECRET = "image-pull-secret";
     private static final String PROPERTY_NODE_SELECTOR = "node-selector";
+    private static final String PROPERTY_CLUSTER_DOMAIN = "cluster-domain";
 
     private static final String DEFAULT_NAMESPACE = "default";
     private static final String DEFAULT_API_VERSION = "v1";
+    private static final String DEFAULT_CLUSTER_DOMAIN = "cluster.local";
 
     private static final String SECRET_KEY_REF = "secretKeyRef";
+    private static final String HEADLESS_SERVICE_NAME = "sp-headless-service";
+    private static final String HEADLESS_SERVICE_LABEL = "openanalytics.eu/sp-headless-service";
+    private static final String HEADLESS_SERVICE_LABEL_VALUE = "true";
 
     private static final String ANNOTATION_MANIFEST_POLICY = "openanalytics.eu/sp-additional-manifest-policy";
     private final ObjectMapper writer = new ObjectMapper(new YAMLFactory());
@@ -153,6 +163,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private String kubeNamespace;
     private String apiVersion;
     private String imagePullPolicy;
+    private String clusterDomain;
 
     @PostConstruct
     public void initialize() {
@@ -173,7 +184,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             if (Files.exists(certFilePath)) configBuilder.withClientKeyFile(certFilePath.toString());
         }
 
-        initialize(new DefaultKubernetesClient(configBuilder.build()));
+        initialize(new KubernetesClientBuilder().withConfig(configBuilder.build()).build());
     }
 
     public void initialize(KubernetesClient client) {
@@ -192,6 +203,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         nodeSelectorString = getProperty(PROPERTY_NODE_SELECTOR);
         apiVersion = getProperty(PROPERTY_API_VERSION, DEFAULT_API_VERSION);
         imagePullPolicy = getProperty(PROPERTY_IMG_PULL_POLICY);
+        clusterDomain = getProperty(PROPERTY_CLUSTER_DOMAIN, DEFAULT_CLUSTER_DOMAIN);
 
         String imagePullSecret = getProperty(PROPERTY_IMG_PULL_SECRET);
         if (imagePullSecret != null) {
@@ -254,10 +266,26 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 .build();
 
             ResourceRequirementsBuilder resourceRequirementsBuilder = new ResourceRequirementsBuilder();
-            resourceRequirementsBuilder.addToRequests("cpu", spec.getCpuRequest().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToLimits("cpu", spec.getCpuLimit().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToRequests("memory", spec.getMemoryRequest().mapOrNull(Quantity::new));
-            resourceRequirementsBuilder.addToLimits("memory", spec.getMemoryLimit().mapOrNull(Quantity::new));
+            try {
+                resourceRequirementsBuilder.addToRequests("cpu", parseCpuQuantity(spec.getCpuRequest().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-cpu-request: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToLimits("cpu", parseCpuQuantity(spec.getCpuLimit().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-cpu-limit: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToRequests("memory", parseMemoryQuantity(spec.getMemoryRequest().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-memory-request: " + ex.getMessage());
+            }
+            try {
+                resourceRequirementsBuilder.addToLimits("memory", parseMemoryQuantity(spec.getMemoryLimit().getValueOrNull()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid container-memory-limit: " + ex.getMessage());
+            }
 
             List<ContainerPort> containerPorts = spec.getPortMapping().stream()
                 .map(p -> new ContainerPortBuilder().withContainerPort(p.getPort()).build())
@@ -271,13 +299,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 .withVolumeMounts(volumeMounts)
                 .withSecurityContext(security)
                 .withResources(resourceRequirementsBuilder.build())
-                .withEnv(envVars);
+                .withEnv(envVars)
+                .withTerminationMessagePolicy("FallbackToLogsOnError");
 
             if (imagePullPolicy != null) containerBuilder.withImagePullPolicy(imagePullPolicy);
 
             Map<String, String> serviceLabels = new HashMap<>();
             Map<String, String> podLabels = new HashMap<>();
             podLabels.put("app", containerId);
+            podLabels.put(HEADLESS_SERVICE_LABEL, HEADLESS_SERVICE_LABEL_VALUE);
 
             String podName = StringUtils.left(spec.getResourceName().getValueOrDefault("sp-pod-" + proxy.getId() + "-" + initialContainer.getIndex()), 63);
 
@@ -318,17 +348,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
             }
             podSpec.setVolumes(volumes);
             podSpec.setImagePullSecrets(imagePullSecrets);
+            podSpec.setRestartPolicy("Never");
+            podSpec.setHostname(podName);
+            podSpec.setSubdomain(HEADLESS_SERVICE_NAME);
 
             if (nodeSelectorString != null) {
                 podSpec.setNodeSelector(Splitter.on(",").withKeyValueSeparator("=").split(nodeSelectorString));
             }
 
-
             Pod startupPod = podBuilder.withSpec(podSpec).build();
             Pod patchedPod = applyPodPatches(user, proxySpec, specExtension, proxy, startupPod, initialContainer);
             final String effectiveKubeNamespace = patchedPod.getMetadata().getNamespace(); // use the namespace of the patched Pod, in case the patch changes the namespace.
             // set the BackendContainerName now, so that the pod can be deleted in case other steps of this function fails
-            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, effectiveKubeNamespace + "/" + patchedPod.getMetadata().getName()), false);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(effectiveKubeNamespace, patchedPod.getMetadata().getName())), false);
+
+            applicationEventPublisher.publishEvent(new NewProxyEvent(proxy.toBuilder().updateContainer(rContainerBuilder.build()).build(), user));
 
             // create additional manifests -> use the effective (i.e. patched) namespace if no namespace is provided
             createAdditionalManifests(user, proxySpec, proxy, specExtension, effectiveKubeNamespace, initialContainer);
@@ -337,59 +371,66 @@ public class KubernetesBackend extends AbstractContainerBackend {
             proxyStartupLogBuilder.startingContainer(initialContainer.getIndex());
 
             // create and start the pod
-            Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).create(patchedPod);
+            Pod startedPod = kubeClient.pods().inNamespace(effectiveKubeNamespace).resource(patchedPod).create();
 
             boolean podReady = Retrying.retry((currentAttempt, maxAttempts) -> {
-                if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-                    if (currentAttempt > 10 && log != null) {
-                        slog.info(proxy, String.format("Kubernetes Pod not ready yet, trying again (%d/%d)", currentAttempt, maxAttempts));
-                    }
-                    return false;
+                Pod pod = kubeClient.resource(startedPod).get();
+                Optional<String> error = getContainerFailure(pod);
+                if (error.isPresent()) {
+                    slog.warn(proxy, error.get());
+                    return new Retrying.Result(false, false);
                 }
-                return true;
-            }, totalWaitMs);
+                if (!Readiness.getInstance().isReady(pod)) {
+                    return Retrying.FAILURE;
+                }
+                return Retrying.SUCCESS;
+            }, totalWaitMs, "Kubernetes Pod", 10, proxy, slog);
 
             if (!podReady) {
                 // check a final time whether the pod is ready
-                if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).fromServer().get())) {
-                    logKubernetesWarnings(proxy, startedPod);
+                if (!Readiness.getInstance().isReady(kubeClient.resource(startedPod).get())) {
+                    logKubernetesWarnings(proxy, startedPod.getMetadata().getNamespace(), startupPod.getMetadata().getName());
                     throw new ContainerFailedToStartException("Kubernetes Pod did not start in time", null, rContainerBuilder.build());
                 }
             }
 
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
-            Pod pod = kubeClient.resource(startedPod).fromServer().get();
+            Pod pod = kubeClient.resource(startedPod).get();
 
             parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
 
             Service service;
             Map<Integer, Integer> portBindings = new HashMap<>();
             if (isUseInternalNetwork()) {
-                // If SP runs inside the cluster, it can access pods directly and doesn't need any port publishing service.
+                // If SP runs inside the cluster, it re-uses an existing headless service
+                createHeadlessService(effectiveKubeNamespace);
             } else {
                 List<ServicePort> servicePorts = spec.getPortMapping().stream()
                     .map(p -> new ServicePortBuilder().withPort(p.getPort()).build())
                     .toList();
 
+                // @formatter:off
                 Service startupService = kubeClient.services().inNamespace(effectiveKubeNamespace)
-                    .create(new ServiceBuilder()
+                    .resource(new ServiceBuilder()
                         .withApiVersion(apiVersion)
                         .withKind("Service")
                         .withNewMetadata()
-                        .withName(getServiceName(proxy, initialContainer))
-                        .withLabels(serviceLabels)
+                            .withName(getServiceName(proxy, initialContainer))
+                            .withLabels(serviceLabels)
                         .endMetadata()
                         .withNewSpec()
-                        .addToSelector("app", containerId)
-                        .withType("NodePort")
-                        .withPorts(servicePorts)
+                            .addToSelector("app", containerId)
+                            .withType("NodePort")
+                            .withPorts(servicePorts)
                         .endSpec()
-                        .build());
+                        .build())
+                    .create();
+                // @formatter:on
 
                 // Workaround: waitUntilReady appears to be buggy.
-                Retrying.retry((currentAttempt, maxAttempts) -> isServiceReady(kubeClient.resource(startupService).fromServer().get()), 60_000);
+                Retrying.retry((currentAttempt, maxAttempts) -> new Retrying.Result(isServiceReady(kubeClient.resource(startupService).get())), 60_000);
 
-                service = kubeClient.resource(startupService).fromServer().get();
+                service = kubeClient.resource(startupService).get();
                 portBindings = service.getSpec().getPorts().stream()
                     .collect(Collectors.toMap(ServicePort::getPort, ServicePort::getNodePort));
             }
@@ -416,14 +457,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return patchedPod;
     }
 
-    private void logKubernetesWarnings(Proxy proxy, Pod pod) {
+    private void logKubernetesWarnings(Proxy proxy, String podNamespace, String podName) {
         List<Event> events;
         try {
-            events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
-                .withKind("Pod")
-                .withName(pod.getMetadata().getName())
-                .withNamespace(pod.getMetadata().getNamespace())
-                .build()).list().getItems();
+            events = kubeClient.v1().events().inNamespace(podNamespace)
+                .withInvolvedObject(new ObjectReferenceBuilder()
+                    .withKind("Pod")
+                    .withName(podName)
+                    .withNamespace(podNamespace)
+                    .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
                 log.warn("Cannot parse events of pod because of insufficient permissions. Give the ShinyProxy ServiceAccount permission to get events of pods in order to show Kubernetes warnings in ShinyProxy logs.");
@@ -432,8 +474,15 @@ public class KubernetesBackend extends AbstractContainerBackend {
             throw ex;
         }
         for (Event event : events) {
-            if (event.getType().equals("Warning")) {
-                slog.warn(proxy, "Kubernetes warning: " + event.getMessage());
+            if (event.getType().equals("Warning") || event.getReason().equals("Killing") || event.getReason().equals("Evicted")) {
+                String source = Optional.ofNullable(event.getSource()).map(EventSource::getComponent).orElse(null);
+                String time = null;
+                if (event.getEventTime() != null && event.getEventTime().getTime() != null) {
+                    time = event.getEventTime().getTime();
+                } else if (event.getLastTimestamp() != null) {
+                    time = event.getLastTimestamp();
+                }
+                slog.warn(proxy, String.format("Kubernetes warning at %s, '%s', source: '%s'", time, event.getMessage(), source));
             }
         }
     }
@@ -457,11 +506,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
     private void parseKubernetesEvents(int containerIdx, Pod pod, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) {
         List<Event> events;
         try {
-            events = kubeClient.v1().events().withInvolvedObject(new ObjectReferenceBuilder()
-                .withKind("Pod")
-                .withName(pod.getMetadata().getName())
-                .withNamespace(pod.getMetadata().getNamespace())
-                .build()).list().getItems();
+            events = kubeClient.v1().events().inNamespace(pod.getMetadata().getNamespace())
+                .withInvolvedObject(new ObjectReferenceBuilder()
+                    .withKind("Pod")
+                    .withName(pod.getMetadata().getName())
+                    .withNamespace(pod.getMetadata().getNamespace())
+                    .build()).list().getItems();
         } catch (KubernetesClientException ex) {
             if (ex.getCode() == 403) {
                 log.warn("Cannot parse events of pod because of insufficient permissions. If fine-grained statistics are desired, give the ShinyProxy ServiceAccount permission to events of pods.");
@@ -504,7 +554,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
 
         ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-        yamlReader.registerModule(new JSR353Module());
+        yamlReader.registerModule(new JSONPModule());
         return yamlReader.readValue(patchAsString, JsonPatch.class);
     }
 
@@ -546,21 +596,21 @@ public class KubernetesBackend extends AbstractContainerBackend {
             policy = "CreateOnce";
         }
         if (policy.equalsIgnoreCase("CreateOnce")) {
-            if (kubeClient.resource(resource).fromServer().get() == null) {
+            if (kubeClient.resource(resource).get() == null) {
                 client.resource(resource).create();
             }
         } else if (policy.equalsIgnoreCase("Patch")) {
-            if (kubeClient.resource(resource).fromServer().get() == null) {
+            if (kubeClient.resource(resource).get() == null) {
                 client.resource(resource).create();
             } else {
                 client.withName(resource.getMetadata().getName()).patch(PatchContext.of(PatchType.JSON_MERGE), resource);
             }
         } else if (policy.equalsIgnoreCase("Delete")) {
-            if (kubeClient.resource(resource).fromServer().get() != null) {
+            if (kubeClient.resource(resource).get() != null) {
                 kubeClient.resource(resource).withGracePeriod(0).delete();
             }
         } else if (policy.equalsIgnoreCase("Replace")) {
-            if (kubeClient.resource(resource).fromServer().get() != null) {
+            if (kubeClient.resource(resource).get() != null) {
                 kubeClient.resource(resource).withGracePeriod(0).delete();
             }
             client.resource(resource).create();
@@ -614,6 +664,36 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return service.getStatus().getLoadBalancer() != null;
     }
 
+    private void createHeadlessService(String effectiveKubeNamespace) {
+        if (kubeClient.services().inNamespace(effectiveKubeNamespace).withName(HEADLESS_SERVICE_NAME).get() == null) {
+            // @formatter:off
+            kubeClient.services().inNamespace(effectiveKubeNamespace)
+                .resource(new ServiceBuilder()
+                    .withApiVersion(apiVersion)
+                    .withKind("Service")
+                    .withNewMetadata()
+                        .withName(HEADLESS_SERVICE_NAME)
+                    .endMetadata()
+                    .withNewSpec()
+                        .addToSelector(HEADLESS_SERVICE_LABEL, HEADLESS_SERVICE_LABEL_VALUE)
+                        .withClusterIP("None")
+                        .endSpec()
+                    .build())
+                .create();
+            // @formatter:on
+        }
+    }
+
+    private String getPodFqdn(Pod pod) {
+        return String.format(
+            "%s.%s.%s.svc.%s",
+            pod.getSpec().getHostname(),
+            pod.getSpec().getSubdomain(),
+            pod.getMetadata().getNamespace(),
+            clusterDomain);
+
+    }
+
     protected URI calculateTarget(Container container, PortMappings.PortMappingEntry portMapping, Integer servicePort) throws Exception {
         String targetHostName;
         int targetPort;
@@ -621,7 +701,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
         Pod pod = getPod(container).orElseThrow(() -> new ContainerFailedToStartException("Pod not found while calculating target", null, container));
 
         if (isUseInternalNetwork()) {
-            targetHostName = pod.getStatus().getPodIP();
+            targetHostName = getPodFqdn(pod);
             targetPort = portMapping.getPort();
         } else {
             targetHostName = pod.getStatus().getHostIP();
@@ -634,18 +714,24 @@ public class KubernetesBackend extends AbstractContainerBackend {
     @Override
     protected void doStopProxy(Proxy proxy) {
         for (Container container : proxy.getContainers()) {
-            Optional<Pair<String, String>> podInfo = getPodInfo(container);
+            Optional<BackendContainerName> podInfo = getPodInfo(container);
             if (podInfo.isEmpty()) {
                 // container was not yet fully created
                 continue;
             }
+            String podNamespace = podInfo.get().getNamespace();
+            String podName = podInfo.get().getName();
+
+            if (getContainerFailure(podNamespace, podName).isPresent()) {
+                logKubernetesWarnings(proxy, podNamespace, podName);
+            }
 
             // specify gracePeriod 0, this was the default in previous version of the fabric8 k8s client
-            kubeClient.pods().inNamespace(podInfo.get().getFirst()).withName(podInfo.get().getSecond()).withGracePeriod(0).delete();
+            kubeClient.pods().inNamespace(podNamespace).withName(podName).withGracePeriod(0).delete();
 
             if (!isUseInternalNetwork()) {
                 // delete service when not using internal network
-                Service service = kubeClient.services().inNamespace(podInfo.get().getFirst()).withName(getServiceName(proxy, container)).get();
+                Service service = kubeClient.services().inNamespace(podNamespace).withName(getServiceName(proxy, container)).get();
                 if (service != null) {
                     kubeClient.resource(service).withGracePeriod(0).delete();
                 }
@@ -656,11 +742,11 @@ public class KubernetesBackend extends AbstractContainerBackend {
         }
     }
 
-    private boolean canAccessLogs(Proxy proxy, Pair<String, String> pod) {
+    private boolean canAccessLogs(Proxy proxy, BackendContainerName pod) {
         try {
             // try to access logs and see if we get an exception
             // must be checked for each pod, since pods may be in different namespaces
-            kubeClient.pods().inNamespace(pod.getFirst()).withName(pod.getSecond()).getLog();
+            kubeClient.pods().inNamespace(pod.getNamespace()).withName(pod.getName()).getLog();
             return true;
         } catch (KubernetesClientException ex) {
             slog.warn(proxy, ex, "Cannot access pod logs, not collecting logs");
@@ -669,17 +755,23 @@ public class KubernetesBackend extends AbstractContainerBackend {
     }
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         if (proxy.getContainers().isEmpty()) return null;
         return (stdOut, stdErr) -> {
             LogWatch watcher = null;
+            InputStream inputStream = null;
             try {
-                Container container = proxy.getContainers().get(0);
-                Optional<Pair<String, String>> pod = getPodInfo(container);
+                Container container = proxy.getContainers().getFirst();
+                Optional<BackendContainerName> pod = getPodInfo(container);
                 if (pod.isPresent()) {
                     if (canAccessLogs(proxy, pod.get())) {
-                        watcher = kubeClient.pods().inNamespace(pod.get().getFirst()).withName(pod.get().getSecond()).watchLog();
-                        IOUtils.copy(watcher.getOutput(), stdOut);
+                        if (follow) {
+                            watcher = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).watchLog();
+                            IOUtils.copy(watcher.getOutput(), stdOut);
+                        } else {
+                            inputStream = kubeClient.pods().inNamespace(pod.get().getNamespace()).withName(pod.get().getName()).getLogInputStream();
+                            IOUtils.copy(inputStream, stdOut);
+                        }
                     }
                 } else {
                     slog.warn(proxy, "Error while attaching to container output: pod info not found");
@@ -690,6 +782,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
             } finally {
                 if (watcher != null) {
                     watcher.close();
+                }
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                    } catch (IOException ignored) {
+                    }
                 }
             }
         };
@@ -728,8 +826,8 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 if (runtimeValues == null) {
                     continue;
                 }
-                runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().get(0).getImage()));
-                runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, pod.getMetadata().getNamespace() + "/" + pod.getMetadata().getName()));
+                runtimeValues.put(ContainerImageKey.inst, new RuntimeValue(ContainerImageKey.inst, pod.getSpec().getContainers().getFirst().getImage()));
+                runtimeValues.put(BackendContainerNameKey.inst, new RuntimeValue(BackendContainerNameKey.inst, new BackendContainerName(pod.getMetadata().getNamespace(), pod.getMetadata().getName())));
 
                 String containerInstanceId = runtimeValues.get(InstanceIdKey.inst).getObject();
                 if (!appRecoveryService.canRecoverProxy(containerInstanceId)) {
@@ -752,11 +850,56 @@ public class KubernetesBackend extends AbstractContainerBackend {
                 }
 
                 containers.add(new ExistingContainerInfo(containerId, runtimeValues,
-                    pod.getSpec().getContainers().get(0).getImage(), portBindings));
+                    pod.getSpec().getContainers().getFirst().getImage(), portBindings));
             }
         }
 
         return containers;
+    }
+
+    private Optional<String> getContainerFailure(String podNamespace, String podName) {
+        Pod pod = kubeClient.pods().inNamespace(podNamespace).withName(podName).get();
+        return getContainerFailure(pod);
+    }
+
+    private Optional<String> getContainerFailure(Pod pod) {
+        if (pod == null) {
+            return Optional.of("Kubernetes container failed, pod does not exist");
+        }
+        Optional<ContainerStatus> containerStatus = pod.getStatus().getContainerStatuses().stream().findFirst();
+        ContainerState state = null;
+        if (containerStatus.isPresent() && containerStatus.get().getState() != null) {
+            state = containerStatus.get().getState();
+        } else if (containerStatus.isPresent() && containerStatus.get().getLastState() != null) {
+            state = containerStatus.get().getLastState();
+        }
+        if (state != null && state.getTerminated() != null) {
+            String message = pod.getStatus().getMessage();
+            String logs = state.getTerminated().getMessage();
+            String reason = state.getTerminated().getReason();
+            Integer exitCode = state.getTerminated().getExitCode();
+            return Optional.of(String.format("Kubernetes pod failed, reason: '%s', exitCode: '%s', node: '%s', message:\n%s\nlogs:\n%s\n", reason, exitCode, pod.getSpec().getNodeName(), message, logs));
+        }
+        if (pod.isMarkedForDeletion()) {
+            return Optional.of(String.format("Kubernetes pod is being terminated, node: '%s'", pod.getSpec().getNodeName()));
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean isProxyHealthy(Proxy proxy) {
+        for (Container container : proxy.getContainers()) {
+            Optional<BackendContainerName> podInfo = getPodInfo(container);
+            if (podInfo.isEmpty()) {
+                continue;
+            }
+            Optional<String> error = getContainerFailure(podInfo.get().getNamespace(), podInfo.get().getName());
+            if (error.isPresent()) {
+                slog.warn(proxy, error.get());
+                return false;
+            }
+        }
+        return true;
     }
 
     private Map<RuntimeValueKey<?>, RuntimeValue> parseLabelsAndAnnotationsAsRuntimeValues(String containerId,
@@ -785,13 +928,12 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return runtimeValues;
     }
 
-    private Optional<Pair<String, String>> getPodInfo(Container container) {
-        String podId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
+    private Optional<BackendContainerName> getPodInfo(Container container) {
+        BackendContainerName podId = container.getRuntimeObjectOrNull(BackendContainerNameKey.inst);
         if (podId == null) {
             return Optional.empty();
         }
-        String[] tmp = podId.split("/");
-        return Optional.of(Pair.of(tmp[0], tmp[1]));
+        return Optional.of(podId);
     }
 
     private String getServiceName(Proxy proxy, Container container) {
@@ -802,8 +944,46 @@ public class KubernetesBackend extends AbstractContainerBackend {
         return getPodInfo(container).flatMap(this::getPod);
     }
 
-    private Optional<Pod> getPod(Pair<String, String> podInfo) {
-        return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getFirst()).withName(podInfo.getSecond()).get());
+    private Optional<Pod> getPod(BackendContainerName podInfo) {
+        return Optional.ofNullable(kubeClient.pods().inNamespace(podInfo.getNamespace()).withName(podInfo.getName()).get());
+    }
+
+    private Quantity parseCpuQuantity(String value) {
+        if (value == null) {
+            return null;
+        }
+        // convert upper case suffix automatically to a value accepted by k8s
+        if (value.endsWith("M")) {
+            value = value.substring(0, value.length() - 1) + "m";
+        }
+        Quantity quantity = new Quantity(value);
+        quantity.getNumericalAmount(); // validates the quantity
+        if (!quantity.getFormat().equals("m") && !quantity.getFormat().isEmpty()) {
+            throw new IllegalArgumentException("Invalid format for CPU resources");
+        }
+        return quantity;
+    }
+
+    private Quantity parseMemoryQuantity(String value) {
+        if (value == null) {
+            return null;
+        }
+        // convert lower case suffixes automatically to a value accepted by k8s
+        for (String suffix : List.of("p", "t", "g", "m", "k")) {
+            if (value.endsWith(suffix)) {
+                value = value.substring(0, value.length() - 1) + suffix.toUpperCase();
+                break;
+            } else if (value.endsWith(suffix + "i")) {
+                value = value.substring(0, value.length() - 2) + suffix.toUpperCase() + "i";
+                break;
+            }
+        }
+        Quantity quantity = new Quantity(value);
+        quantity.getNumericalAmount(); // validates the quantity
+        if (quantity.getFormat().equals("m") || quantity.getFormat().equals("mi") || quantity.getFormat() == "") {
+            throw new IllegalArgumentException("Invalid format for memory resources");
+        }
+        return quantity;
     }
 
 }

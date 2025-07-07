@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -109,10 +109,10 @@ public class ShinyProxyInstance implements AutoCloseable {
             boolean available = Retrying.retry((c, m) -> {
                 if (exception.get() != null) {
                     logger.warn("Exception during startup");
-                    return true;
+                    return Retrying.SUCCESS;
                 }
-                return client.checkAlive();
-            }, 60_000, "ShinyProxyInstance available", 1, true);
+                return new Retrying.Result(client.checkAlive());
+            }, 60_000, "ShinyProxyInstance available", 1);
             Throwable ex = exception.get();
             if (ex != null) {
                 throw ex;

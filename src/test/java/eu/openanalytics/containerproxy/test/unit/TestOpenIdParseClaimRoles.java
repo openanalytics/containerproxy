@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -45,7 +45,7 @@ import java.util.List;
 @ContextConfiguration(initializers = PropertyOverrideContextInitializer.class)
 public class TestOpenIdParseClaimRoles {
 
-    private final Logger logger = LogManager.getLogger(OpenIDAuthenticationBackend.class);
+    private final Logger logger = LogManager.getLogger(getClass());
 
     @Test
     public void testParseProperJsonArray() {

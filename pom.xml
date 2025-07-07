@@ -5,24 +5,46 @@
 
     <groupId>eu.openanalytics</groupId>
     <artifactId>containerproxy</artifactId>
-    <version>1.1.1</version>
+    <version>1.2.0</version>
     <name>ContainerProxy</name>
     <packaging>jar</packaging>
+    <inceptionYear>2016</inceptionYear>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.6</version>
+        <version>3.4.5</version>
         <relativePath/>
     </parent>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>17</java.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <spring-boot.version>3.2.6</spring-boot.version>
-        <aws.java.sdk.version>2.23.12</aws.java.sdk.version>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <!-- Dependency versions -->
+        <spring-boot.version>3.4.5</spring-boot.version>
+        <aws-java-sdk.version>2.31.21</aws-java-sdk.version>
+        <commons-collections4.version>4.4</commons-collections4.version>
+        <commons-io.version>2.19.0</commons-io.version>
+        <springdoc.version>2.8.6</springdoc.version>
+        <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
+        <jaxb-api.version>2.3.1</jaxb-api.version>
+        <docker-client.version>7.0.8-OA-4</docker-client.version>
+        <javax-annotation-api.version>1.3.2</javax-annotation-api.version>
+        <monetdb-jdbc.version>12.0</monetdb-jdbc.version>
+        <postgresql.version>42.7.5</postgresql.version>
+        <fabric8-client.version>7.1.0</fabric8-client.version>
+        <jquery.version>3.7.1</jquery.version>
+        <fontawesome.version>4.7.0</fontawesome.version>
+        <jakarta-json-api.version>2.1.3</jakarta-json-api.version>
+        <glassfish-jakarta-json.version>2.0.1</glassfish-jakarta-json.version>
+        <guava-version>33.4.8-jre</guava-version>
+        <!-- Plugin versions -->
+        <maven.license-plugin.version>4.6</maven.license-plugin.version>
+        <maven.build-helper-maven.plugin.version>3.6.0</maven.build-helper-maven.plugin.version>
+        <maven.jar-plugin.version>3.4.2</maven.jar-plugin.version>
+        <maven.dependency-check-plugin.version>12.1.1</maven.dependency-check-plugin.version>
     </properties>
 
     <distributionManagement>
@@ -114,6 +136,10 @@
             <groupId>org.springframework.integration</groupId>
             <artifactId>spring-integration-redis</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -173,27 +199,32 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-collections4</artifactId>
-            <version>4.4</version>
+            <version>${commons-collections4.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.16.1</version>
+            <version>${commons-io.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava-version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.5.0</version>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-common</artifactId>
-            <version>2.5.0</version>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <version>${logstash-logback-encoder.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jaxb</groupId>
@@ -202,7 +233,7 @@
         <dependency>
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
-            <version>2.3.1</version>
+            <version>${jaxb-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -219,7 +250,7 @@
         <dependency>
             <groupId>org.mandas</groupId>
             <artifactId>docker-client</artifactId>
-            <version>7.0.8-OA-3</version>
+            <version>${docker-client.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>
@@ -251,14 +282,14 @@
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
-            <version>1.3.2</version>
+            <version>${javax-annotation-api.version}</version>
         </dependency>
 
         <!-- MonetDB, for gathering usage stats (optional) -->
         <dependency>
             <groupId>monetdb</groupId>
             <artifactId>monetdb-jdbc</artifactId>
-            <version>3.2</version>
+            <version>${monetdb-jdbc.version}</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
@@ -267,7 +298,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.3</version>
+            <version>${postgresql.version}</version>
         </dependency>
         <dependency>
             <groupId>com.mysql</groupId>
@@ -292,7 +323,26 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client</artifactId>
-            <version>6.10.0</version>
+            <version>${fabric8-client.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.squareup.okhttp3</groupId>
+                    <artifactId>okhttp</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.squareup.okhttp3</groupId>
+                    <artifactId>logging-interceptor</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-httpclient-okhttp</artifactId>
+            <version>${fabric8-client.version}</version>
         </dependency>
 
         <!-- UI frameworks -->
@@ -302,18 +352,13 @@
         </dependency>
         <dependency>
             <groupId>org.webjars</groupId>
-            <artifactId>bootstrap</artifactId>
-            <version>3.4.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
             <artifactId>jquery</artifactId>
-            <version>3.7.1</version>
+            <version>${jquery.version}</version>
         </dependency>
         <dependency>
             <groupId>org.webjars.bower</groupId>
             <artifactId>fontawesome</artifactId>
-            <version>4.7.0</version>
+            <version>${fontawesome.version}</version>
         </dependency>
 
         <!-- Amazon Base libraries-->
@@ -337,20 +382,23 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ecs</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>javax.json</groupId>
-            <artifactId>javax.json-api</artifactId>
-            <version>1.1.4</version>
-        </dependency>
         <dependency>
             <groupId>org.glassfish</groupId>
-            <artifactId>javax.json</artifactId>
-            <version>1.1.4</version>
+            <artifactId>jakarta.json</artifactId>
+            <version>${glassfish-jakarta-json.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.json</groupId>
+            <artifactId>jakarta.json-api</artifactId>
+            <version>${jakarta-json-api.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr353</artifactId>
+            <artifactId>jackson-datatype-jakarta-jsonp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-csv</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -369,7 +417,7 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>${aws.java.sdk.version}</version>
+                <version>${aws-java-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -425,7 +473,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>${maven.jar-plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -436,9 +484,9 @@
             </plugin>
 
             <plugin>
-                <groupId>com.mycila.maven-license-plugin</groupId>
-                <artifactId>maven-license-plugin</artifactId>
-                <version>1.9.0</version>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${maven.license-plugin.version}</version>
 
                 <executions>
                     <execution>
@@ -451,22 +499,61 @@
                 </executions>
 
                 <configuration>
-                    <header>LICENSE_HEADER</header>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>LICENSE_HEADER</header>
+                            <excludes>
+                                <exclude>**/*.bak</exclude>
+                                <exclude>**/*.conf</exclude>
+                                <exclude>**/*.json</exclude>
+                                <exclude>**/*.pem</exclude>
+                                <exclude>**/*.properties</exclude>
+                                <exclude>**/*.raml</exclude>
+                                <exclude>**/*.sh</exclude>
+                                <exclude>**/*.txt</exclude>
+                                <exclude>**/*.xml</exclude>
+                                <exclude>**/*.yaml</exclude>
+                                <exclude>**/*.yml</exclude>
+                                <exclude>**/Dockerfile</exclude>
+                                <exclude>.editorconfig</exclude>
+                                <exclude>.gitignore</exclude>
+                                <exclude>JenkinsfileSCM</exclude>
+                                <exclude>LICENSE</exclude>
+                                <exclude>LICENSE_HEADER</exclude>
+                                <exclude>README.md</exclude>
+                                <exclude>docs/**</exclude>
+                                <exclude>src/main/resources/configs/**</exclude>
+                                <exclude>src/test/resources/**</exclude>
+                                <exclude>**/bootstrap.css</exclude>
+                                <exclude>**/bootstrap.js</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
                     <aggregate>true</aggregate>
                     <strictCheck>true</strictCheck>
-                    <excludes>
-                        <exclude>**/*.properties</exclude>
-                        <exclude>**/*.yml</exclude>
-                        <exclude>**/*.json</exclude>
-                        <exclude>**/*.raml</exclude>
-                        <exclude>**/*.sh</exclude>
-                        <exclude>**/*.xml</exclude>
-                        <exclude>LICENSE</exclude>
-                        <exclude>LICENSE_HEADER</exclude>
-                        <exclude>README.md</exclude>
-                        <exclude>.gitignore</exclude>
-                    </excludes>
+                    <properties>
+                        <year>${current.year}</year>
+                    </properties>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${maven.build-helper-maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>timestamp-property</id>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
+                        <phase>validate</phase>
+                        <configuration>
+                            <name>current.year</name>
+                            <pattern>yyyy</pattern>
+                            <locale>en-GB</locale>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -479,7 +566,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>9.0.9</version>
+                        <version>${maven.dependency-check-plugin.version}</version>
                         <executions>
                             <execution>
                                 <goals>

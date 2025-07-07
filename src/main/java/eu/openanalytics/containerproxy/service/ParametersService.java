@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -125,7 +125,7 @@ public class ParametersService {
         }
 
         // Check that every default value exists
-        if (spec.getParameters().getDefinitions().get(0).getDefaultValue() != null) {
+        if (null != spec.getParameters().getDefinitions().getFirst().getDefaultValue()) {
             for (ParameterDefinition definition : spec.getParameters().getDefinitions()) {
                 boolean defaultValueExists = false;
                 for (Parameters.ValueSet valueSet : spec.getParameters().getValueSets()) {
@@ -195,7 +195,7 @@ public class ParametersService {
      * Returns the converted backend values if (and only if) the provided human-friendly values are allowed by this
      * valueSet.
      *
-     * @param parameters         the parameter defintiions
+     * @param parameters         the parameter definitions
      * @param valueSet           the valueSet to check
      * @param providedParameters the parameters as provided by the user (using human friendly names)
      * @return the converted values (i.e. using backend values) if allowed otherwise nothing
@@ -231,7 +231,7 @@ public class ParametersService {
     }
 
     /**
-     * Creates ParamaterNames representation for the chosen parameters.
+     * Creates ParameterNames representation for the chosen parameters.
      * This is the public value which can be seen by the user (e.g. in API responses).
      *
      * @param parameters         parameter definitions
@@ -331,7 +331,7 @@ public class ParametersService {
             return previouslyUsedParameters;
         }
 
-        if (definitions.get(0).getDefaultValue() == null) {
+        if (definitions.getFirst().getDefaultValue() == null) {
             return noDefault; // no default values defined
         }
         for (ParameterDefinition definition : definitions) {

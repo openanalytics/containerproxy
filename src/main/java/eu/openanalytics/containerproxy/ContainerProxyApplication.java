@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,7 +20,7 @@
  */
 package eu.openanalytics.containerproxy;
 
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
+import com.fasterxml.jackson.datatype.jsonp.JSONPModule;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.ProxySharingDispatcher;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.service.hearbeat.ActiveProxiesService;
@@ -33,6 +33,7 @@ import io.undertow.Handlers;
 import io.undertow.server.handlers.SameSiteCookieHandler;
 import io.undertow.servlet.api.ServletSessionConfig;
 import io.undertow.servlet.api.SessionManagerFactory;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -44,9 +45,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.ldap.LdapAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
-import org.springframework.boot.web.server.PortInUseException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -64,9 +65,12 @@ import org.springframework.web.filter.FormContentFilter;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
 import java.util.Arrays;
@@ -80,11 +84,12 @@ import static eu.openanalytics.containerproxy.api.ApiSecurityService.PROP_API_SE
 import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES;
 import static eu.openanalytics.containerproxy.service.AppRecoveryService.PROPERTY_RECOVER_RUNNING_PROXIES_FROM_DIFFERENT_CONFIG;
 import static eu.openanalytics.containerproxy.service.ProxyService.PROPERTY_STOP_PROXIES_ON_SHUTDOWN;
+import static eu.openanalytics.containerproxy.util.LoggingConfigurer.PROP_LOG_AS_JSON;
 import static io.undertow.server.handlers.resource.ResourceManager.EMPTY_RESOURCE_MANAGER;
 
 @EnableScheduling
 @EnableAsync
-@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class, DataSourceAutoConfiguration.class, RedisAutoConfiguration.class})
+@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class, DataSourceAutoConfiguration.class, RedisAutoConfiguration.class, LdapAutoConfiguration.class})
 @ComponentScan("eu.openanalytics")
 public class ContainerProxyApplication {
     public static final String CONFIG_FILENAME = "application.yml";
@@ -93,6 +98,8 @@ public class ContainerProxyApplication {
     private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
     private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
     private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
+    private static final Path TERMINATION_LOG_FILE = Path.of("/dev/termination-log");
+    private static Boolean logAsJson = false;
     public static Boolean secureCookiesEnabled;
     public static String sameSiteCookiePolicy;
 
@@ -133,11 +140,8 @@ public class ContainerProxyApplication {
         try {
             app.setLogStartupInfo(false);
             app.run(args);
-        } catch (Exception e) {
-            // Workaround for bug in UndertowEmbeddedServletContainer.start():
-            // If undertow.start() fails, started remains false which prevents undertow.stop() from ever being called.
-            // Undertow's (non-daemon) XNIO worker threads will then prevent the JVM from exiting.
-            if (e instanceof PortInUseException) System.exit(-1);
+        } catch (Throwable t) {
+            handleError(t);
         }
     }
 
@@ -161,6 +165,17 @@ public class ContainerProxyApplication {
         properties.put("spring.application.name", "ContainerProxy");
         // do not include application name in every log message
         properties.put("logging.include-application-name", "false");
+        // hide too verbose log message
+        properties.put("logging.level.org.mandas.docker.client.DefaultDockerClient", "WARN");
+        // hide confusing warnings
+        properties.put("logging.level.io.undertow.websockets.jsr", "ERROR");
+        properties.put("logging.level.org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean", "WARN");
+        properties.put("logging.level.org.springframework.integration.config.DefaultConfiguringBeanFactoryPostProcessor", "WARN");
+        properties.put("logging.level.org.springframework.boot.web.servlet.RegistrationBean", "WARN");
+        properties.put("logging.level.org.springframework.data.repository.config.RepositoryConfigurationDelegate", "WARN");
+        properties.put("logging.level.org.springframework.integration.endpoint.EventDrivenConsumer", "WARN");
+        properties.put("logging.level.org.springframework.integration.channel.PublishSubscribeChannel", "WARN");
+        properties.put("logging.level.org.springframework.boot.autoconfigure.web.servlet.WelcomePageHandlerMapping", "WARN");
 
         // Metrics configuration
         // ====================
@@ -169,9 +184,6 @@ public class ContainerProxyApplication {
         properties.put("management.defaults.metrics.export.enabled", "false");
         // set actuator to port 9090 (can be overwritten)
         properties.put("management.server.port", "9090");
-        // enable prometheus endpoint by default (but not the exporter)
-        properties.put("management.endpoint.prometheus.enabled", "true");
-        properties.put("management.endpoint.recyclable.enabled", "true");
         // include prometheus and health endpoint in exposure
         properties.put("management.endpoints.web.exposure.include", "health,prometheus,recyclable");
 
@@ -268,6 +280,34 @@ public class ContainerProxyApplication {
                 "Remove the proxy.api-security.hide-spec-details property to enable API security.");
         }
 
+        logAsJson = environment.getProperty(PROP_LOG_AS_JSON, Boolean.class, false);
+    }
+
+    private static void handleError(Throwable t) {
+        Throwable cause = ExceptionUtils.getRootCause(t);
+        if (cause == null) {
+            cause = t;
+        }
+        String message = "ShinyProxy crashed! Exception: '" + cause.getClass().getName() + "', message: '" + cause.getMessage() + "'";
+        if (Files.exists(TERMINATION_LOG_FILE) && Files.isRegularFile(TERMINATION_LOG_FILE)) {
+            try {
+                FileWriter fileWriter = new FileWriter(TERMINATION_LOG_FILE.toString());
+                PrintWriter printWriter = new PrintWriter(fileWriter);
+
+                printWriter.print(message);
+                printWriter.close();
+            } catch (Throwable ioException) {
+                System.out.println("Error while writing termination log");
+                ioException.printStackTrace();
+            }
+        }
+        if (!logAsJson) {
+            System.out.println();
+            System.out.println(message);
+            System.out.println();
+        }
+
+        System.exit(1);
     }
 
     @Bean
@@ -314,8 +354,8 @@ public class ContainerProxyApplication {
      * @return
      */
     @Bean
-    public JSR353Module jsr353Module() {
-        return new JSR353Module();
+    public JSONPModule jsonpModule() {
+        return new JSONPModule();
     }
 
     /**

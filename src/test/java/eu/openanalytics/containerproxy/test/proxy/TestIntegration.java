@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,14 +38,14 @@ public class TestIntegration {
                 Assertions.assertNotNull(id1);
                 Proxy proxy = inst.proxyService.getProxy(id1);
 
-                Assertions.assertEquals("sp-container-" + proxy.getId() + "-0", proxy.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("sp-container-" + proxy.getId() + "-0", proxy.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id1);
 
                 String id2 = inst.client.startProxy("custom_resource_name");
                 Assertions.assertNotNull(id2);
                 Proxy proxy2 = inst.proxyService.getProxy(id2);
 
-                Assertions.assertEquals("my-app-custom_resource_name-demo", proxy2.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("my-app-custom_resource_name-demo", proxy2.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id2);
             }
         }
@@ -59,14 +59,14 @@ public class TestIntegration {
                 Assertions.assertNotNull(id1);
                 Proxy proxy1 = inst.proxyService.getProxy(id1);
 
-                Assertions.assertEquals("sp-service-" + proxy1.getId() + "-0", proxy1.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("sp-service-" + proxy1.getId() + "-0", proxy1.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id1);
 
                 String id2 = inst.client.startProxy("custom_resource_name");
                 Assertions.assertNotNull(id2);
                 Proxy proxy2 = inst.proxyService.getProxy(id2);
 
-                Assertions.assertEquals("my-app-custom_resource_name-demo", proxy2.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("my-app-custom_resource_name-demo", proxy2.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id2);
             }
         }
@@ -80,14 +80,14 @@ public class TestIntegration {
                 Assertions.assertNotNull(id1);
                 Proxy proxy1 = inst.proxyService.getProxy(id1);
 
-                Assertions.assertEquals("itest/sp-pod-" + proxy1.getId() + "-0", proxy1.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("itest/sp-pod-" + proxy1.getId() + "-0", proxy1.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id1);
 
                 String id2 = inst.client.startProxy("custom-resource-name");
                 Assertions.assertNotNull(id2);
                 Proxy proxy2 = inst.proxyService.getProxy(id2);
 
-                Assertions.assertEquals("itest/my-app-custom-resource-name-demo", proxy2.getContainers().get(0).getRuntimeObjectOrNull(BackendContainerNameKey.inst));
+                Assertions.assertEquals("itest/my-app-custom-resource-name-demo", proxy2.getContainers().getFirst().getRuntimeObjectOrNull(BackendContainerNameKey.inst).toString());
                 inst.client.stopProxy(id2);
             }
         }

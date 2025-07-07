@@ -15,8 +15,6 @@ proxy:
     - name: demo3
       password: demo3
 
-  docker:
-    url: http://localhost:2375
 
   specs:
     - id: 01_hello

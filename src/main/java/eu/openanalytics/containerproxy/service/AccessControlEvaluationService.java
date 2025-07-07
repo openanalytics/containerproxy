@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,13 +20,15 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.spec.AccessControl;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
-import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -34,24 +36,50 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccessControlEvaluationService {
 
+    public static final String PROP_USERNAME_CASE_SENSITIVE = "proxy.username-case-sensitive";
+
     private final IAuthenticationBackend authBackend;
     private final UserService userService;
 
     private final SpecExpressionResolver specExpressionResolver;
+    private final Boolean usernameCaseSensitive;
 
-    public AccessControlEvaluationService(@Lazy IAuthenticationBackend authBackend, UserService userService, SpecExpressionResolver specExpressionResolver) {
+    public AccessControlEvaluationService(@Lazy IAuthenticationBackend authBackend, UserService userService, SpecExpressionResolver specExpressionResolver, Environment environment) {
         this.authBackend = authBackend;
         this.userService = userService;
         this.specExpressionResolver = specExpressionResolver;
+        usernameCaseSensitive = environment.getProperty(PROP_USERNAME_CASE_SENSITIVE, Boolean.class, true);
     }
 
     public boolean checkAccess(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
         if (auth instanceof AnonymousAuthenticationToken) {
             // if anonymous -> only allow access if the backend has no authorization enabled
-            return !authBackend.hasAuthorization();
+            if (authBackend.hasAuthorization()) {
+                return false;
+            }
         }
 
-        if (hasAccessControl(accessControl)) {
+        // create context only when necessary (lazy)
+        Supplier<SpecExpressionContext> context = Suppliers.memoize(() -> {
+            SpecExpressionContext.SpecExpressionContextBuilder contextBuilder = SpecExpressionContext
+                .create(objects)
+                .addServerName()
+                .extend(spec);
+            if (auth != null) {
+                contextBuilder.extend(auth, auth.getPrincipal(), auth.getCredentials());
+            }
+            return contextBuilder.build();
+        });
+
+        if (accessControl != null && accessControl.hasStrictExpressionAccess()) {
+            // strict expression is always checked
+            if (!specExpressionResolver.evaluateToBoolean(accessControl.getStrictExpression(), context.get())) {
+                // not allowed by strict expression
+                return false;
+            }
+        }
+
+        if (hasNoAccessControl(accessControl)) {
             return true;
         }
 
@@ -63,10 +91,10 @@ public class AccessControlEvaluationService {
             return true;
         }
 
-        return allowedByExpression(auth, spec, accessControl, objects);
+        return allowedByExpression(context.get(), accessControl);
     }
 
-    public boolean hasAccessControl(AccessControl accessControl) {
+    public boolean hasNoAccessControl(AccessControl accessControl) {
         if (accessControl == null) {
             return true;
         }
@@ -95,26 +123,27 @@ public class AccessControlEvaluationService {
             return false;
         }
         for (String user : accessControl.getUsers()) {
-            if (auth.getName().equals(user)) {
+            if (usernameEquals(auth.getName(), user)) {
                 return true;
             }
         }
         return false;
     }
 
-    public boolean allowedByExpression(Authentication auth, ProxySpec spec, AccessControl accessControl, Object... objects) {
+    public boolean allowedByExpression(SpecExpressionContext context, AccessControl accessControl) {
         if (!accessControl.hasExpressionAccess()) {
             // no expression defined -> this user has no access based on the expression
             return false;
         }
-        Object[] args;
-        if (auth == null) {
-             args = ArrayUtils.addAll(new Object[]{spec}, objects);
-        } else {
-            args = ArrayUtils.addAll(new Object[]{auth, auth.getPrincipal(), auth.getCredentials(), spec}, objects);
-        }
-        SpecExpressionContext context = SpecExpressionContext.create(args);
+
         return specExpressionResolver.evaluateToBoolean(accessControl.getExpression(), context);
+    }
+
+    public boolean usernameEquals(String authenticatedUser, String other) {
+        if (usernameCaseSensitive) {
+            return authenticatedUser.equals(other);
+        }
+        return authenticatedUser.equalsIgnoreCase(other);
     }
 
 }

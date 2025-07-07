@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.model.store.IHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.IProxyStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryHeartbeatStore;
 import eu.openanalytics.containerproxy.model.store.memory.MemoryProxyStore;
+import eu.openanalytics.containerproxy.service.AccessControlEvaluationService;
 import eu.openanalytics.containerproxy.service.leader.memory.MemoryLeaderService;
 import eu.openanalytics.containerproxy.service.portallocator.memory.MemoryPortAllocator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -37,8 +38,8 @@ import org.springframework.integration.support.locks.LockRegistry;
 public class MemoryStoreConfiguration {
 
     @Bean
-    public IProxyStore proxyStore() {
-        return new MemoryProxyStore();
+    public IProxyStore proxyStore(AccessControlEvaluationService accessControlEvaluationService) {
+        return new MemoryProxyStore(accessControlEvaluationService);
     }
 
     @Bean

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.TestPlan;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 
 import java.util.Arrays;
@@ -31,8 +32,18 @@ import java.util.Objects;
 
 public class TestExecutionListener extends SummaryGeneratingListener {
 
+    private Long numTests = 0L;
+    private Long currentTest = 0L;
+
     public TestExecutionListener() {
 
+    }
+
+    @Override
+    public void testPlanExecutionStarted(TestPlan testPlan) {
+        super.testPlanExecutionStarted(testPlan);
+
+        numTests = testPlan.countTestIdentifiers(it -> it.isTest() || (it.isContainer() && it.getUniqueIdObject().getLastSegment().getType().equals("test-template")));
     }
 
     @Override
@@ -40,8 +51,10 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         super.executionSkipped(testIdentifier, reason);
         if (testIdentifier == null || reason == null || !testIdentifier.isTest()) return;
 
+        updateCount(testIdentifier);
+
         System.out.println();
-        System.out.printf("\t\t--> Skipping test \"%s\"%n", identifier(testIdentifier));
+        System.out.printf("\t\t--> Skipping test [%s/%s,] \"%s\"%n", currentTest, numTests, identifier(testIdentifier));
         System.out.println();
     }
 
@@ -50,8 +63,10 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         super.executionStarted(testIdentifier);
         if (testIdentifier == null || !testIdentifier.isTest()) return;
 
+        updateCount(testIdentifier);
+
         System.out.println();
-        System.out.printf("\t\t--> Started test \"%s\"%n", identifier(testIdentifier));
+        System.out.printf("\t\t--> Started test [%s/%s] \"%s\"%n", currentTest, numTests, identifier(testIdentifier));
         System.out.println();
     }
 
@@ -61,7 +76,7 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         if (testIdentifier == null || testExecutionResult == null || !testIdentifier.isTest()) return;
 
         System.out.println();
-        System.out.printf("\t\t--> Finished test \"%s\": %s%n", identifier(testIdentifier), testExecutionResult);
+        System.out.printf("\t\t--> Finished test [%s/%s] \"%s\": %s%n", currentTest, numTests, identifier(testIdentifier), testExecutionResult);
         System.out.println();
     }
 
@@ -77,4 +92,17 @@ public class TestExecutionListener extends SummaryGeneratingListener {
         }
         return String.format("%s %s", className, methodSource.getMethodName());
     }
+
+    private void updateCount(TestIdentifier testIdentifier) {
+        if (testIdentifier.getUniqueIdObject().getLastSegment().getType().equals("test-template-invocation")) {
+            int c = Integer.parseInt(testIdentifier.getUniqueIdObject().getLastSegment().getValue().replace("#", ""));
+            if (c > 1) {
+                // update total count if it's a template (instances of templates are not included in the initial total)
+                numTests++;
+            }
+        }
+
+        currentTest++;
+    }
+
 }

@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -81,6 +81,9 @@ public class UserService {
     @Inject
     @Lazy
     private ProxyAccessControlService accessControlService;
+    @Inject
+    @Lazy
+    private AccessControlEvaluationService accessControlEvaluationService;
 
     public UserService() {
         // cache isAdmin status results for (at least) 60 minutes, since this never changes during the lifetime of a session
@@ -174,7 +177,7 @@ public class UserService {
             }
 
             for (String adminUser : getAdminUsers()) {
-                if (userName.equalsIgnoreCase(adminUser)) {
+                if (accessControlEvaluationService.usernameEquals(userName, adminUser)) {
                     return true;
                 }
             }
@@ -195,8 +198,10 @@ public class UserService {
     }
 
     public boolean isOwner(Authentication auth, Proxy proxy) {
-        if (auth == null || proxy == null) return false;
-        return proxy.getUserId().equalsIgnoreCase(auth.getName());
+        if (auth == null || proxy == null) {
+            return false;
+        }
+        return accessControlEvaluationService.usernameEquals(proxy.getUserId(), auth.getName());
     }
 
     public boolean isMember(Authentication auth, String groupName) {
@@ -224,7 +229,9 @@ public class UserService {
         if (authNull(auth)) return;
         String userId = auth.getName();
 
-        if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+        if (logoutStrategy != null) {
+            logoutStrategy.onLogout(auth);
+        }
         log.info(String.format("User logged out [user: %s]", userId));
 
         HttpSession session = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getSession();
@@ -233,7 +240,8 @@ public class UserService {
         applicationEventPublisher.publishEvent(new UserLogoutEvent(
             this,
             userId,
-            false));
+            false,
+            auth));
     }
 
     @EventListener
@@ -246,7 +254,8 @@ public class UserService {
 
         applicationEventPublisher.publishEvent(new UserLoginEvent(
             this,
-            userId));
+            userId,
+            auth));
     }
 
     @EventListener
@@ -260,28 +269,37 @@ public class UserService {
             // user did not initiated the logout -> session expired
             // not already handled by any other handler
             if (!event.getSecurityContexts().isEmpty()) {
-                SecurityContext securityContext = event.getSecurityContexts().get(0);
+                SecurityContext securityContext = event.getSecurityContexts().getFirst();
                 if (securityContext == null || authNull(securityContext.getAuthentication())) return;
 
+                Authentication auth = securityContext.getAuthentication();
                 String userId = securityContext.getAuthentication().getName();
-                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+                if (logoutStrategy != null) {
+                    logoutStrategy.onLogout(auth);
+                }
 
                 log.info(String.format("User logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
                     this,
                     userId,
-                    true
+                    true,
+                    auth
                 ));
             } else if (authBackend.getName().equals("none")) {
                 String userId = NoAuthenticationBackend.extractUserId(event.getSession());
-                if (userId == null) return;
-                if (logoutStrategy != null) logoutStrategy.onLogout(userId);
+                if (userId == null) {
+                    return;
+                }
+                if (logoutStrategy != null) {
+                    logoutStrategy.onLogout(userId);
+                }
 
                 log.info(String.format("Anonymous user logged out [user: %s]", userId));
                 applicationEventPublisher.publishEvent(new UserLogoutEvent(
                     this,
                     userId,
-                    true
+                    true,
+                    null
                 ));
             }
         }

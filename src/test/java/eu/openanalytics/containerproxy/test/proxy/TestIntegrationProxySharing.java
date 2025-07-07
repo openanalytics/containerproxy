@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -39,6 +39,7 @@ import eu.openanalytics.containerproxy.test.helpers.TestHelperException;
 import eu.openanalytics.containerproxy.test.helpers.TestProxySharingScaler;
 import eu.openanalytics.containerproxy.test.helpers.TestUtil;
 import eu.openanalytics.containerproxy.util.Retrying;
+import jakarta.json.JsonObject;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.Assertions;
@@ -51,7 +52,6 @@ import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
 import org.mandas.docker.client.exceptions.DockerCertificateException;
 import org.mandas.docker.client.exceptions.DockerException;
 
-import javax.json.JsonObject;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -190,7 +190,7 @@ public class TestIntegrationProxySharing {
                 List<String> delegateProxyIds = new ArrayList<>(delegateProxyStore.getAllDelegateProxies().stream().map(it -> it.getProxy().getId()).toList());
                 Assertions.assertEquals(2, delegateProxyIds.size());
                 Assertions.assertTrue(delegateProxyIds.remove(proxy.getTargetId()));
-                String existingDelegateProxyId = delegateProxyIds.get(0);
+                String existingDelegateProxyId = delegateProxyIds.getFirst();
 
                 inst.client.stopProxy(id);
 
@@ -302,16 +302,16 @@ public class TestIntegrationProxySharing {
                     waitUntilDelegateProxyIsToRemove(proxySharingScaler, proxy.getTargetId());
                     DelegateProxy delegateProxy = delegateProxyStore.getDelegateProxy(proxy.getTargetId());
                     Assertions.assertEquals(DelegateProxyStatus.ToRemove, delegateProxy.getDelegateProxyStatus());
-                    Assertions.assertEquals("fce37588fb3e3c7a750f85170881409163e7f367", delegateProxy.getProxySpecHash());
+                    Assertions.assertEquals("ad6af20f8aedf92add768e80144f6d9a5b8d8f6c", delegateProxy.getProxySpecHash());
 
                     // a DelegateProxy with new config should exist in DelegateProxyStore
                     waitUntilNumberOfDelegateProxies(inst, 3, 1, 0, 2);
                     Optional<DelegateProxy> newDelegateProxy = delegateProxyStore.getAllDelegateProxies().stream()
-                        .filter(it -> !it.getProxySpecHash().equals("fce37588fb3e3c7a750f85170881409163e7f367"))
+                        .filter(it -> !it.getProxySpecHash().equals("ad6af20f8aedf92add768e80144f6d9a5b8d8f6c"))
                         .findFirst();
                     Assertions.assertTrue(newDelegateProxy.isPresent());
                     Assertions.assertEquals(DelegateProxyStatus.Available, newDelegateProxy.get().getDelegateProxyStatus());
-                    Assertions.assertEquals("7287798e3cfaaa1228a19bf6c7dff453041a78c1", newDelegateProxy.get().getProxySpecHash());
+                    Assertions.assertEquals("07a0e545cb66bb58afabe9e57d501fdffc81a5fb", newDelegateProxy.get().getProxySpecHash());
 
                     // stop running app
                     inst.client.stopProxy(oldAppId);
@@ -322,7 +322,7 @@ public class TestIntegrationProxySharing {
                     waitUntilNumberOfDelegateProxies(inst, 1, 1);
                     DelegateProxy newDelegateProxy3 = delegateProxyStore.getAllDelegateProxies().stream().findFirst().get();
                     Assertions.assertEquals(newDelegateProxy.get().getProxy().getId(), newDelegateProxy3.getProxy().getId());
-                    Assertions.assertEquals("7287798e3cfaaa1228a19bf6c7dff453041a78c1", newDelegateProxy3.getProxySpecHash());
+                    Assertions.assertEquals("07a0e545cb66bb58afabe9e57d501fdffc81a5fb", newDelegateProxy3.getProxySpecHash());
                 }
             }
         }
@@ -605,16 +605,16 @@ public class TestIntegrationProxySharing {
     private void waitUntilNoPendingSeats(ShinyProxyInstance inst) {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getNumPendingSeats() == 0;
-        }, 60_000, "assert no pending seats", 1, true);
+            return new Retrying.Result(proxySharingScaler.getNumPendingSeats() == 0);
+        }, 60_000, "assert no pending seats", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 
     private void waitUntilUnNumberOfUnClaimedSeats(ShinyProxyInstance inst, int numSeats) {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getNumUnclaimedSeats() == numSeats;
-        }, 180_000, "assert number of unclaimed seats", 1, true);
+            return new Retrying.Result(proxySharingScaler.getNumUnclaimedSeats() == numSeats);
+        }, 180_000, "assert number of unclaimed seats", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 
@@ -630,11 +630,11 @@ public class TestIntegrationProxySharing {
         TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
         IDelegateProxyStore delegateProxyStore = proxySharingScaler.getDelegateProxyStore();
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return delegateProxyStore.getAllDelegateProxies().size() == numDelegateProxies
+            return new Retrying.Result(delegateProxyStore.getAllDelegateProxies().size() == numDelegateProxies
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Available).count() == numAvailable
                 && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.Pending).count() == numPending
-                && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.ToRemove).count() == numRemove;
-        }, 120_000, "assert number delegated proxies", 1, true);
+                && delegateProxyStore.getAllDelegateProxies(DelegateProxyStatus.ToRemove).count() == numRemove);
+        }, 120_000, "assert number delegated proxies", 1);
         Assertions.assertTrue(noPendingSeats,
             String.format("Total: %s, Available: %s, Pending: %s, ToRemove: %s",
                 delegateProxyStore.getAllDelegateProxies().size(),
@@ -647,8 +647,8 @@ public class TestIntegrationProxySharing {
 
     private void waitUntilDelegateProxyIsToRemove(TestProxySharingScaler proxySharingScaler, String delegateProxyId) {
         boolean noPendingSeats = Retrying.retry((c, m) -> {
-            return proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.ToRemove;
-        }, 60_000, "assert number delegated proxies", 1, true);
+            return new Retrying.Result(proxySharingScaler.getDelegateProxyStore().getDelegateProxy(delegateProxyId).getDelegateProxyStatus() == DelegateProxyStatus.ToRemove);
+        }, 60_000, "assert number delegated proxies", 1);
         Assertions.assertTrue(noPendingSeats);
     }
 

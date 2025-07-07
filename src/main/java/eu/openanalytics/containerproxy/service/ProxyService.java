@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.ProxyStartValidationException;
@@ -46,6 +47,7 @@ import eu.openanalytics.containerproxy.util.ProxyMappingManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.security.access.AccessDeniedException;
@@ -55,9 +57,13 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,13 +111,20 @@ public class ProxyService {
     private RuntimeValueService runtimeValueService;
     @Inject
     private SpecExpressionResolver expressionResolver;
+    @Inject
+    private LogService logService;
+    @Inject
+    @Lazy
+    private ProxyAccessControlService proxyAccessControlService;
     private boolean stopAppsOnShutdown;
     private Pair<String, Instant> lastStop = null;
+    private int requestTimeout;
 
     @PostConstruct
     public void init() {
         stopAppsOnShutdown = Boolean.parseBoolean(environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, "true"));
         maxTotalInstances = environment.getProperty("proxy.max-total-instances", Integer.class, -1);
+        requestTimeout = Integer.parseInt(environment.getProperty("proxy.container-wait-timeout", "5000"));
     }
 
     @PreDestroy
@@ -191,15 +204,29 @@ public class ProxyService {
 
     /**
      * Get all proxies that are owned by the current user.
+     * Checks whether the user can still access the spec.
      *
      * @return A List of matching proxies, may be empty.
      */
     public List<Proxy> getUserProxies() {
-        return proxyStore.getUserProxies(userService.getCurrentUserId());
+        return getUserProxies(userService.getCurrentAuth());
     }
 
     /**
      * Get all proxies that are owned by the given user.
+     * Checks whether the user can still access the spec.
+     *
+     * @return A List of matching proxies, may be empty.
+     */
+    public List<Proxy> getUserProxies(Authentication authentication) {
+        return proxyStore.getUserProxies(authentication.getName())
+            .stream()
+            .filter(p -> proxyAccessControlService.canAccess(authentication, p.getSpecId())).toList();
+    }
+
+    /**
+     * Get all proxies that are owned by the given user.
+     * Does **not** check whether the user can still access the spec.
      *
      * @return A List of matching proxies, may be empty.
      */
@@ -294,7 +321,7 @@ public class ProxyService {
 
             if (result != null) {
                 slog.info(result, "Proxy activated");
-                applicationEventPublisher.publishEvent(new ProxyStartEvent(result, proxyStartupLog.succeeded()));
+                applicationEventPublisher.publishEvent(new ProxyStartEvent(result, proxyStartupLog.succeeded(), user));
 
                 // final check to see if the app was stopped
                 cleanupIfPendingAppWasStopped(result);
@@ -350,7 +377,7 @@ public class ProxyService {
             }
             slog.info(stoppedProxy, "Proxy released");
 
-            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy, proxyStopReason));
+            applicationEventPublisher.publishEvent(new ProxyStopEvent(stoppedProxy, proxyStopReason, user));
         });
     }
 
@@ -417,6 +444,43 @@ public class ProxyService {
         });
     }
 
+    public boolean isProxyHealthy(Proxy proxy) {
+        if (proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthySupported()) {
+            for (int i = 0; i < 5; i++) {
+                if (!proxyDispatcherService.getDispatcher(proxy.getSpecId()).isProxyHealthy(proxy)) {
+                    return false;
+                }
+                try {
+                    // wait for events to propagate
+                    Thread.sleep(1_000);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+        if (proxy.getTargets().isEmpty()) {
+            slog.info(proxy, "Proxy failed: no targets available");
+            return false;
+        }
+        try {
+            URI targetURI = proxy.getTargets().get("");
+
+            URL testURL = new URI(targetURI.toString() + "/").toURL();
+            HttpURLConnection connection = ((HttpURLConnection) testURL.openConnection());
+            connection.setConnectTimeout(requestTimeout);
+            connection.setReadTimeout(requestTimeout);
+            connection.setInstanceFollowRedirects(false);
+            int responseCode = connection.getResponseCode();
+            if (!Arrays.asList(200, 301, 302, 303, 307, 308).contains(responseCode)) {
+                slog.info(proxy, String.format("Proxy failed: HTTP connection attempt returned invalid status: %s", responseCode));
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            slog.info(proxy, String.format("Proxy failed: HTTP connection attempt returned exception: %s", e.getMessage()));
+            return false;
+        }
+    }
+
     private Pair<ProxySpec, Proxy> prepareProxyForStart(Authentication user, Proxy proxy, ProxySpec spec) {
         try {
             proxy = runtimeValueService.addRuntimeValuesBeforeSpel(user, spec, proxy);
@@ -427,7 +491,7 @@ public class ProxyService {
                 spec,
                 user,
                 user.getPrincipal(),
-                user.getCredentials());
+                user.getCredentials()).build();
 
             // resolve SpEL expression in spec
             spec = spec.firstResolve(expressionResolver, context);
@@ -436,14 +500,16 @@ public class ProxyService {
             proxy = runtimeValueService.addRuntimeValuesAfterSpel(spec, proxy);
             proxy = proxyDispatcherService.getDispatcher(spec.getId()).addRuntimeValuesAfterSpel(user, spec, proxy);
 
-            // create container objects
-            for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
-                Container.ContainerBuilder containerBuilder = Container.builder();
-                containerBuilder.index(containerSpec.getIndex());
-                Container container = containerBuilder.build();
+            if (proxy.getContainers().isEmpty()) {
+                // create container objects if new proxy
+                for (ContainerSpec containerSpec : spec.getContainerSpecs()) {
+                    Container.ContainerBuilder containerBuilder = Container.builder();
+                    containerBuilder.index(containerSpec.getIndex());
+                    Container container = containerBuilder.build();
 
-                container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
-                proxy = proxy.toBuilder().addContainer(container).build();
+                    container = runtimeValueService.addRuntimeValuesAfterSpel(containerSpec, container);
+                    proxy = proxy.toBuilder().addContainer(container).build();
+                }
             }
 
             context = context.copy(spec, proxy);
@@ -476,7 +542,18 @@ public class ProxyService {
                 throw new ContainerProxyException("Cannot start or resume proxy because status is invalid");
             }
         } catch (ProxyFailedToStartException t) {
-            slog.warn(t.getProxy(), t, "Proxy failed to start");
+            if (t.getCause() instanceof ContainerFailedToStartException) {
+                slog.warn(t.getProxy(), t.getCause(), "Proxy failed to start");
+            } else {
+                slog.warn(t.getProxy(), t, "Proxy failed to start");
+            }
+            try {
+                logService.onProxyStartFailed(t.getProxy());
+            } catch (Throwable t2) {
+                // log error, but ignore it otherwise
+                // most important is that we remove the proxy from memory
+                slog.warn(t.getProxy(), t, "Error while collecting logs of failed proxy");
+            }
             try {
                 proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(t.getProxy());
             } catch (Throwable t2) {
@@ -499,6 +576,13 @@ public class ProxyService {
         }
 
         if (!testStrategy.testProxy(proxy)) {
+            try {
+                logService.onProxyStartFailed(proxy);
+            } catch (Throwable t2) {
+                // log error, but ignore it otherwise
+                // most important is that we remove the proxy from memory
+                slog.warn(proxy, t2, "Error while collecting logs of failed proxy");
+            }
             try {
                 proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(proxy);
             } catch (Throwable t) {

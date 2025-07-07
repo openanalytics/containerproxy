@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.service.IdentifierService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
@@ -45,7 +46,6 @@ import org.springframework.security.core.Authentication;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,6 +81,8 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected AppRecoveryService appRecoveryService;
     @Inject
     protected IdentifierService identifierService;
+    @Inject
+    protected ApplicationEventPublisher applicationEventPublisher;
     private boolean useInternalNetwork;
     private boolean privileged;
     private String defaultTargetProtocol;
@@ -149,7 +151,7 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected abstract void doStopProxy(Proxy proxy) throws Exception;
 
     @Override
-    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy) {
+    public BiConsumer<OutputStream, OutputStream> getOutputAttacher(Proxy proxy, boolean follow) {
         // Default: do not support output attaching.
         return null;
     }
@@ -169,19 +171,25 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
     protected abstract String getPropertyPrefix();
 
     protected Long memoryToBytes(String memory) {
-        if (memory == null || memory.isEmpty()) return null;
-        Matcher matcher = Pattern.compile("(\\d+)([bkmg]?)").matcher(memory.toLowerCase());
-        if (!matcher.matches()) throw new IllegalArgumentException("Invalid memory argument: " + memory);
-        long mem = Long.parseLong(matcher.group(1));
+        if (memory == null || memory.isEmpty()) {
+            return null;
+        }
+        if (memory.contains(",")) {
+            throw new IllegalArgumentException("Invalid memory argument: " + memory + ", no ',' allowed in number");
+        }
+        Matcher matcher = Pattern.compile("(\\d+\\.?\\d*)([bkmg]?)i?").matcher(memory.toLowerCase());
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Invalid memory argument: " + memory);
+        }
+        Double mem = Double.parseDouble(matcher.group(1));
         String unit = matcher.group(2);
         switch (unit) {
             case "k" -> mem *= 1024;
             case "m" -> mem *= 1024 * 1024;
             case "g" -> mem *= 1024 * 1024 * 1024;
-            default -> {
-            }
+            default -> throw new IllegalArgumentException("Invalid memory argument: " + memory);
         }
-        return mem;
+        return mem.longValue();
     }
 
     protected Map<String, String> buildEnv(Authentication user, ContainerSpec containerSpec, Proxy proxy) throws IOException {

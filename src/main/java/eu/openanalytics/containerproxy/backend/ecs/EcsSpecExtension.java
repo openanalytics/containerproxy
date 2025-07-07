@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -66,7 +66,13 @@ public class EcsSpecExtension extends AbstractSpecExtension {
     List<EcsEfsVolume> ecsEfsVolumes = new ArrayList<>();
 
     @Builder.Default
+    List<EcsManagedSecret> ecsManagedSecrets = new ArrayList<>();
+
+    @Builder.Default
     SpelField.Boolean ecsEnableExecuteCommand = new SpelField.Boolean();
+
+    @Builder.Default
+    SpelField.String ecsRepositoryCredentialsParameter = new SpelField.String();
 
     @Override
     public ISpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
@@ -77,7 +83,9 @@ public class EcsSpecExtension extends AbstractSpecExtension {
             .ecsOperationSystemFamily(ecsOperationSystemFamily.resolve(resolver, context))
             .ecsEphemeralStorageSize(ecsEphemeralStorageSize.resolve(resolver, context))
             .ecsEfsVolumes(ecsEfsVolumes.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
+            .ecsManagedSecrets(ecsManagedSecrets.stream().map(p -> p.resolve(resolver, context)).collect(Collectors.toList()))
             .ecsEnableExecuteCommand(ecsEnableExecuteCommand.resolve(resolver, context))
+            .ecsRepositoryCredentialsParameter(ecsRepositoryCredentialsParameter.resolve(resolver, context))
             .build();
     }
 

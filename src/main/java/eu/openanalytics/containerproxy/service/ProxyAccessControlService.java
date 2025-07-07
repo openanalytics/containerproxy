@@ -1,7 +1,7 @@
-/**
+/*
  * ContainerProxy
  *
- * Copyright (C) 2016-2024 Open Analytics
+ * Copyright (C) 2016-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -71,7 +71,7 @@ public class ProxyAccessControlService {
 
     /**
      * @param auth   the current user
-     * @param specId the specId the user is trying to access
+     * @param context the request context, should include the specId the user is trying to access
      * @return whether the user can access the given specId or when this spec does not exist whether the user already
      * has a proxy with this spec id
      */

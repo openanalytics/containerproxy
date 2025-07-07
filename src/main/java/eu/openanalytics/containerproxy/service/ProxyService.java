@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.ProxyStartValidationException;
@@ -541,7 +542,11 @@ public class ProxyService {
                 throw new ContainerProxyException("Cannot start or resume proxy because status is invalid");
             }
         } catch (ProxyFailedToStartException t) {
-            slog.warn(t.getProxy(), t, "Proxy failed to start");
+            if (t.getCause() instanceof ContainerFailedToStartException) {
+                slog.warn(t.getProxy(), t.getCause(), "Proxy failed to start");
+            } else {
+                slog.warn(t.getProxy(), t, "Proxy failed to start");
+            }
             try {
                 logService.onProxyStartFailed(t.getProxy());
             } catch (Throwable t2) {

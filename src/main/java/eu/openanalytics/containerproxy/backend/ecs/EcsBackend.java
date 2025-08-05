@@ -557,6 +557,48 @@ public class EcsBackend extends AbstractContainerBackend {
         return new URI(String.format("%s://%s:%s%s", getDefaultTargetProtocol(), targetHostName, targetPort, portMapping.getTargetPath()));
     }
 
+    /**
+     * Removes task definitions that are marked for deletion.
+     * On shutdown of ShinyProxy there is not enough time to delete the task definitions (because of the rate limit).
+     */
+    @Scheduled(initialDelay = 5, timeUnit = TimeUnit.MINUTES)
+    public void cleanupTaskDefinitions() {
+        if (environment.getProperty("proxy.store-mode", "None").equals("Redis")) {
+            // no task-definitions to clean up if using Redis
+            return;
+        }
+
+        List<String> toDelete = new ArrayList<>();
+        for (String arn : ecsClient.listTaskDefinitionsPaginator().taskDefinitionArns()) {
+            List<Tag> tags = ecsClient.listTagsForResource(builder -> builder.resourceArn(arn)).tags();
+            if (tags.contains(TO_DELETE_TAG)) {
+                toDelete.add(arn);
+                try {
+                    // sleep to respect rate limit
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
+        if (!toDelete.isEmpty()) {
+            log.info("Deleting {} task definitions from previous run", toDelete.size());
+            for (String arn : toDelete) {
+                ecsClient.deregisterTaskDefinition(builder -> builder.taskDefinition(arn).build());
+                ecsClient.deleteTaskDefinitions(builder -> builder.taskDefinitions(arn).build());
+                try {
+                    // sleep to respect rate limit
+                    Thread.sleep(1250);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            log.info("Deleted {} task definitions", toDelete.size());
+        }
+    }
+
     private Optional<Task> getTask(Container container) {
         return getTaskInfo(container).flatMap(this::getTask);
     }

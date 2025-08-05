@@ -318,6 +318,10 @@ public class ProxySharingScaler implements AutoCloseable {
     }
 
     private void reconcile() {
+        if (executor.isShutdown() || executor.isTerminated()) {
+            // see #35403
+            return;
+        }
         long numPendingSeats = getNumPendingSeats();
         long num = seatStore.getNumUnclaimedSeats() + numPendingSeats - pendingDelegatingProxies.size();
         debug(String.format("Status: %s, Unclaimed: %s + PendingDelegate: %s - PendingDelegating: %s = %s -> minimum: %s",
@@ -480,7 +484,7 @@ public class ProxySharingScaler implements AutoCloseable {
                 } catch (Throwable t2) {
                     // log error, but ignore it otherwise
                     // most important is that we remove the proxy from memory
-                    logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
+                    logError(originalDelegateProxy, t2, "Error while stopping failed DelegateProxy");
                 }
                 // remove seats and other data + trigger reconcile
                 globalEventLoop.schedule(() -> markDelegateProxyForRemoval(id));
@@ -494,7 +498,7 @@ public class ProxySharingScaler implements AutoCloseable {
                     } catch (Throwable t2) {
                         // log error, but ignore it otherwise
                         // most important is that we remove the proxy from memory
-                        logError(originalDelegateProxy, t, "Error while stopping failed DelegateProxy");
+                        logError(originalDelegateProxy, t2, "Error while stopping failed DelegateProxy");
                     }
                 }
                 // remove seats and other data + trigger reconcile
@@ -646,14 +650,19 @@ public class ProxySharingScaler implements AutoCloseable {
     }
 
     public void stopAll() {
-        executor.shutdown();
         try {
-            executor.awaitTermination(3, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        for (DelegateProxy delegateProxy : delegateProxyStore.getAllDelegateProxies()) {
-            containerBackend.stopProxy(delegateProxy.getProxy());
+            executor.shutdown();
+            try {
+                executor.awaitTermination(10, TimeUnit.SECONDS);
+                executor.shutdownNow();
+                executor.awaitTermination(120, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            logger.info("Stopping {} delegateProxies", delegateProxyStore.getAllDelegateProxies().size());
+            containerBackend.stopProxies(delegateProxyStore.getAllDelegateProxies().stream().map(DelegateProxy::getProxy).toList());
+        } catch (Exception e) {
+            logger.error("Error while stopping all delegateProxies", e);
         }
     }
 

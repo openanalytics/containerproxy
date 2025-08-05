@@ -24,6 +24,7 @@ import eu.openanalytics.containerproxy.ContainerFailedToStartException;
 import eu.openanalytics.containerproxy.ContainerProxyException;
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
 import eu.openanalytics.containerproxy.ProxyStartValidationException;
+import eu.openanalytics.containerproxy.backend.dispatcher.IProxyDispatcher;
 import eu.openanalytics.containerproxy.backend.dispatcher.ProxyDispatcherService;
 import eu.openanalytics.containerproxy.backend.strategy.IProxyTestStrategy;
 import eu.openanalytics.containerproxy.event.ProxyPauseEvent;
@@ -64,11 +65,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -132,9 +135,13 @@ public class ProxyService {
         if (!stopAppsOnShutdown) {
             return;
         }
-        for (Proxy proxy : proxyStore.getAllProxies()) {
+        // group proxies by dispatcher
+        Collection<Proxy> proxies = proxyStore.getAllProxies();
+        Map<IProxyDispatcher, List<Proxy>> groups = proxies.stream().collect(Collectors.groupingBy(p -> proxyDispatcherService.getDispatcher(p.getSpecId())));
+        for (var group : groups.entrySet()) {
             try {
-                proxyDispatcherService.getDispatcher(proxy.getSpecId()).stopProxy(proxy);
+                // stop proxies in group
+                group.getKey().stopProxies(group.getValue());
             } catch (Exception exception) {
                 log.error("Error during shutdown", exception);
             }
@@ -552,14 +559,14 @@ public class ProxyService {
             } catch (Throwable t2) {
                 // log error, but ignore it otherwise
                 // most important is that we remove the proxy from memory
-                slog.warn(t.getProxy(), t, "Error while collecting logs of failed proxy");
+                slog.warn(t.getProxy(), t2, "Error while collecting logs of failed proxy");
             }
             try {
                 proxyDispatcherService.getDispatcher(spec.getId()).stopProxy(t.getProxy());
             } catch (Throwable t2) {
                 // log error, but ignore it otherwise
                 // most important is that we remove the proxy from memory
-                slog.warn(t.getProxy(), t, "Error while stopping failed proxy");
+                slog.warn(t.getProxy(), t2, "Error while stopping failed proxy");
             }
             proxyStore.removeProxy(t.getProxy());
             applicationEventPublisher.publishEvent(new ProxyStartFailedEvent(t.getProxy()));

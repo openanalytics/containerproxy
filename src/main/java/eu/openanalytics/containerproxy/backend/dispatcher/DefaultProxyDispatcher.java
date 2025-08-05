@@ -32,6 +32,8 @@ import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+
 @Component
 public class DefaultProxyDispatcher implements IProxyDispatcher {
 
@@ -52,6 +54,11 @@ public class DefaultProxyDispatcher implements IProxyDispatcher {
     @Override
     public void stopProxy(Proxy proxy, ProxyStopReason proxyStopReason) throws ContainerProxyException {
         containerBackend.stopProxy(proxy);
+    }
+
+    @Override
+    public void stopProxies(Collection<Proxy> proxies) {
+        containerBackend.stopProxies(proxies);
     }
 
     @Override

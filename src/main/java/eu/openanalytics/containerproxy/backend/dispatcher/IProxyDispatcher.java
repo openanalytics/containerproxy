@@ -28,6 +28,8 @@ import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
 import org.springframework.security.core.Authentication;
 
+import java.util.Collection;
+
 public interface IProxyDispatcher {
 
     Proxy startProxy(Authentication user, Proxy proxy, ProxySpec spec, ProxyStartupLog.ProxyStartupLogBuilder proxyStartupLogBuilder) throws ProxyFailedToStartException;
@@ -37,6 +39,8 @@ public interface IProxyDispatcher {
     default void stopProxy(Proxy proxy) throws ContainerProxyException {
         stopProxy(proxy, ProxyStopReason.Unknown);
     }
+
+    void stopProxies(Collection<Proxy> proxies);
 
     void pauseProxy(Proxy proxy);
 
@@ -51,4 +55,5 @@ public interface IProxyDispatcher {
     boolean isProxyHealthy(Proxy proxy);
 
     boolean isProxyHealthySupported();
+
 }

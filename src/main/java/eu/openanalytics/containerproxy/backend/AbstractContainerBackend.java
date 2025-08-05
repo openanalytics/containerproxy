@@ -50,6 +50,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -145,6 +146,17 @@ public abstract class AbstractContainerBackend implements IContainerBackend {
             doStopProxy(proxy);
         } catch (Exception e) {
             throw new ContainerProxyException("Failed to stop container", e);
+        }
+    }
+
+    @Override
+    public void stopProxies(Collection<Proxy> proxies) {
+        for (Proxy proxy : proxies) {
+            try {
+                stopProxy(proxy);
+            } catch (Exception exception) {
+                log.error("Error while stopping proxy", exception);
+            }
         }
     }
 

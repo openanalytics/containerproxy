@@ -43,6 +43,7 @@ import eu.openanalytics.containerproxy.util.Retrying;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.Pair;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
@@ -71,6 +72,7 @@ import software.amazon.awssdk.services.ecs.model.Secret;
 import software.amazon.awssdk.services.ecs.model.Tag;
 import software.amazon.awssdk.services.ecs.model.Task;
 import software.amazon.awssdk.services.ecs.model.Volume;
+import software.amazon.awssdk.services.sts.StsClient;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -78,12 +80,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -100,6 +104,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
     private static final List<String> STARTING_STATES = List.of("PROVISIONING", "PENDING", "ACTIVATING");
     private static final List<String> STOPPING_STATES = List.of("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
+    private static final Tag TO_DELETE_TAG = Tag.builder().key("openanalytics.eu/sp-to-delete").value("true").build();
 
     private EcsClient ecsClient;
     private Boolean enableCloudWatch;
@@ -111,6 +116,8 @@ public class EcsBackend extends AbstractContainerBackend {
     private int totalWaitMs;
     private String cluster;
     private String defaultRepositoryCredentialsParameter;
+    private String region;
+    private String accountId;
 
     @Inject
     private IProxySpecProvider proxySpecProvider;
@@ -120,9 +127,12 @@ public class EcsBackend extends AbstractContainerBackend {
     public void initialize() {
         super.initialize();
 
-        String region = getProperty(PROPERTY_REGION);
+        region = getProperty(PROPERTY_REGION);
         if (region == null) {
             throw new IllegalStateException("Error in configuration of ECS backend: proxy.ecs.region not set");
+        }
+        try (StsClient stsClient = StsClient.create()) {
+            accountId = stsClient.getCallerIdentity().account();
         }
 
         ecsClient = EcsClient.builder()
@@ -256,14 +266,14 @@ public class EcsBackend extends AbstractContainerBackend {
             }, totalWaitMs, "ECS Task", 10, proxy, slog)) serviceReady = true;
             else serviceReady = false;
 
+            if (!serviceReady) {
+                throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
+            }
+
             proxyStartupLogBuilder.containerStarted(initialContainer.getIndex());
 
             String image = ecsClient.describeTasks(builder -> builder.cluster(cluster).tasks(taskArn)).tasks().getFirst().containers().getFirst().image();
             rContainerBuilder.addRuntimeValue(new RuntimeValue(ContainerImageKey.inst, image), false);
-
-            if (!serviceReady) {
-                throw new ContainerFailedToStartException("Service failed to start", null, rContainerBuilder.build());
-            }
 
             Map<Integer, Integer> portBindings = new HashMap<>();
             Container rContainer = rContainerBuilder.build();
@@ -271,6 +281,9 @@ public class EcsBackend extends AbstractContainerBackend {
             return proxy.toBuilder().addTargets(targets).updateContainer(rContainer).build();
         } catch (ContainerFailedToStartException t) {
             throw t;
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new ContainerFailedToStartException("ECS container failed to start", interruptedException, rContainerBuilder.build());
         } catch (Throwable throwable) {
             throw new ContainerFailedToStartException("ECS container failed to start", throwable, rContainerBuilder.build());
         }
@@ -433,6 +446,10 @@ public class EcsBackend extends AbstractContainerBackend {
 
     @Override
     protected void doStopProxy(Proxy proxy) {
+        if (Thread.currentThread().isInterrupted()) {
+            // use stopProxies on shutdown of ShinyProxy
+            return;
+        }
         for (Container container : proxy.getContainers()) {
             String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
             ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
@@ -449,15 +466,42 @@ public class EcsBackend extends AbstractContainerBackend {
                     .cluster(cluster)
                     .tasks(taskArn));
 
-                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().getFirst().lastStatus())) {
+                if (response.hasTasks() && !STOPPING_STATES.contains(response.tasks().getFirst().desiredStatus())) {
                     return Retrying.FAILURE;
                 }
             }
             return Retrying.SUCCESS;
-        }, totalWaitMs, "Stopping ECS Task", 10, proxy, slog);
+        }, totalWaitMs, "Stopping ECS Task", 0, proxy, slog);
 
         if (!isInactive) {
             slog.warn(proxy, "Container did not get into stopping state");
+        }
+    }
+
+    @Override
+    public void stopProxies(Collection<Proxy> proxies) {
+        // ECS has strict rate limits, on shutdown we don't have enough time to stop all task and proxies
+        // see https://docs.aws.amazon.com/AmazonECS/latest/APIReference/request-throttling.html
+        // therefore we stop all tasks (rate limit = 40/s * 120s = 4800 tasks) and tag the TaskDefinitions with a tag (rate limit = 10/s)
+        String taskDefinitionArnPrefix = String.format("arn:aws:ecs:%s:%s:task-definition/sp-task-definition-", region, accountId);
+        String taskDefinitionArnSuffix = ":1";
+        for (Proxy proxy : proxies) {
+            for (Container container : proxy.getContainers()) {
+                String taskArn = container.getRuntimeValue(BackendContainerNameKey.inst);
+                try {
+                    ecsClient.stopTask(builder -> builder.cluster(cluster).task(taskArn));
+                } catch (Exception e) {
+                    log.warn("Error stopping task: ", e);
+                }
+                try {
+                    ecsClient.tagResource(builder -> builder
+                        .resourceArn(taskDefinitionArnPrefix + proxy.getId() + taskDefinitionArnSuffix)
+                        .tags(TO_DELETE_TAG)
+                    );
+                } catch (Exception e) {
+                    log.warn("Error tagging task definition: ", e);
+                }
+            }
         }
     }
 

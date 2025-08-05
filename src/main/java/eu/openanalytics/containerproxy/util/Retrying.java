@@ -41,8 +41,8 @@ public class Retrying {
         Exception exception = null;
         int maxAttempts = numberOfAttempts(maxDelay);
         for (int currentAttempt = 0; currentAttempt < maxAttempts; currentAttempt++) {
-            delay(currentAttempt); // delay here so that we don't delay for the last iteration
             try {
+                delay(currentAttempt); // delay here so that we don't delay for the last iteration
                 Result result = job.attempt(currentAttempt, maxAttempts);
                 if (!result.keepGoing) {
                     if (result.success && currentAttempt > logAfterAttempts && logMessage != null) {
@@ -54,8 +54,14 @@ public class Retrying {
                     }
                     return result.success;
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
             } catch (Exception e) {
                 exception = e;
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
             }
             if (currentAttempt > logAfterAttempts && logMessage != null) {
                 if (slog != null && proxy != null) {
@@ -75,18 +81,14 @@ public class Retrying {
         return false;
     }
 
-    public static void delay(Integer attempt) {
-        try {
-            if (attempt == 0) {
-            } else if (attempt <= 5) {
-                Thread.sleep(200);
-            } else if (attempt <= 10) {
-                Thread.sleep(400);
-            } else {
-                Thread.sleep(2_000);
-            }
-        } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
+    public static void delay(Integer attempt) throws InterruptedException {
+        if (attempt == 0) {
+        } else if (attempt <= 5) {
+            Thread.sleep(200);
+        } else if (attempt <= 10) {
+            Thread.sleep(400);
+        } else {
+            Thread.sleep(2_000);
         }
     }
 

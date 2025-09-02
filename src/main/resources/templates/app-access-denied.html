@@ -38,9 +38,9 @@
 
 <body>
 	<div class="container">
-		<h2>You do not have access to this application.</h2>
-		<p>Your account does not have the required roles or groups required for accessing this application.</p>
-		<p>Please contact your administrator if you believe this is a mistake.</p>
+		<h2 th:text="#{app-access-denied.header}"></h2>
+		<p th:text="#{app-access-denied.p1}"></p>
+		<p th:text="#{app-access-denied.p2}"></p>
 	</div>
 
 <style>

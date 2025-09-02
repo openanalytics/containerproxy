@@ -27,6 +27,8 @@ import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import eu.openanalytics.containerproxy.event.AuthFailedEvent;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -37,6 +39,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.view.RedirectView;
 
 import javax.inject.Inject;
+import java.util.Locale;
 import java.util.Optional;
 
 @Controller
@@ -54,14 +57,18 @@ public class AuthController extends BaseController {
     @Inject
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Inject
+    protected MessageSource messageSource;
+
     @RequestMapping(value = "/login", method = RequestMethod.GET)
     public Object getLoginPage(@RequestParam Optional<String> error, ModelMap map) {
         prepareMap(map);
         if (error.isPresent()) {
+            Locale locale = LocaleContextHolder.getLocale();
             if (error.get().equals("expired")) {
-                map.put("error", "You took too long to login, please try again");
+                map.put("error", messageSource.getMessage("auth.simple.expired_error", null, locale));
             } else {
-                map.put("error", "Invalid user name or password");
+                map.put("error",  messageSource.getMessage("auth.simple.credentials_error", null, locale));
             }
         }
 

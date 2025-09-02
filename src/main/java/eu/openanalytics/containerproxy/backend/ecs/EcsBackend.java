@@ -100,7 +100,7 @@ public class EcsBackend extends AbstractContainerBackend {
     private static final String PROPERTY_REGION = "region";
     private static final String PROPERTY_SERVICE_WAIT_TIME = "service-wait-time";
     private static final Pattern TAG_VALUE_PATTERN = Pattern.compile("^[a-zA-Z0-9 +-=._:/@]*$");
-    private static final Pattern LOG_GORUP_REPLACE_PATTERN = Pattern.compile("[^a-zA-Z0-9_\\-.#]");
+    private static final Pattern LOG_GROUP_REPLACE_PATTERN = Pattern.compile("[^a-zA-Z0-9_\\-.#]");
     private static final List<RuntimeValueKey<?>> IGNORED_RUNTIME_VALUES = Arrays.asList(PortMappingsKey.inst, UserGroupsKey.inst);
     private static final List<String> STARTING_STATES = List.of("PROVISIONING", "PENDING", "ACTIVATING");
     private static final List<String> STOPPING_STATES = List.of("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED", "DELETED");
@@ -362,7 +362,7 @@ public class EcsBackend extends AbstractContainerBackend {
             LogConfiguration.Builder logConfiguration = LogConfiguration.builder();
             logConfiguration.logDriver(LogDriver.AWSLOGS);
             HashMap<String, String> options = new HashMap<>();
-            String sanitizedSpecId = LOG_GORUP_REPLACE_PATTERN.matcher(specId).replaceAll("");
+            String sanitizedSpecId = LOG_GROUP_REPLACE_PATTERN.matcher(specId).replaceAll("");
             options.put("awslogs-group", cloudWatchGroupPrefix + "sp-" + sanitizedSpecId);
             options.put("awslogs-region", cloudWatchRegion);
             options.put("awslogs-stream-prefix", cloudWatchStreamPrefix);

@@ -21,7 +21,7 @@
 package eu.openanalytics.containerproxy.util;
 
 import eu.openanalytics.containerproxy.service.ProxyService;
-import eu.openanalytics.containerproxy.service.hearbeat.WebSocketCounterService;
+import eu.openanalytics.containerproxy.service.heartbeat.WebSocketCounterService;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
 import org.springframework.stereotype.Component;

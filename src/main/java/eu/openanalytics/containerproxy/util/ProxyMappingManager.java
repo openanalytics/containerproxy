@@ -29,7 +29,7 @@ import eu.openanalytics.containerproxy.service.AsyncProxyService;
 import eu.openanalytics.containerproxy.service.ProxyCacheHeadersService;
 import eu.openanalytics.containerproxy.service.ProxyService;
 import eu.openanalytics.containerproxy.service.StructuredLogger;
-import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
+import eu.openanalytics.containerproxy.service.heartbeat.HeartbeatService;
 import io.undertow.io.Sender;
 import io.undertow.server.DefaultResponseListener;
 import io.undertow.server.HttpHandler;

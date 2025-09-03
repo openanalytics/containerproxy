@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.service.IdentifierService;
+import eu.openanalytics.containerproxy.service.LanguageService;
 import eu.openanalytics.containerproxy.service.UserService;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
@@ -49,6 +50,9 @@ public class BaseController {
     @Inject
     private UserService userService;
 
+    @Inject
+    private LanguageService languageService;
+
     private String title;
     private boolean titleContainsExpression;
 
@@ -72,6 +76,7 @@ public class BaseController {
 
         map.put("request", httpServletRequest);
         map.put("response", httpServletResponse);
+        map.put("language", languageService.getAndUpdateLanguageOfUser(httpServletRequest, httpServletResponse));
     }
 
     private String getTitle(Authentication user, String serverName) {

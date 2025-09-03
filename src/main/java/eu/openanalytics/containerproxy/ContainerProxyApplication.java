@@ -63,6 +63,8 @@ import org.springframework.session.Session;
 import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.filter.FormContentFilter;
+import org.springframework.web.servlet.LocaleResolver;
+import org.springframework.web.servlet.i18n.CookieLocaleResolver;
 import org.springframework.web.servlet.i18n.SessionLocaleResolver;
 
 import javax.annotation.PostConstruct;
@@ -209,6 +211,10 @@ public class ContainerProxyApplication {
         // disable openapi docs and swagger ui
         properties.put("springdoc.api-docs.enabled", false);
         properties.put("springdoc.swagger-ui.enabled", false);
+
+        // Internationalization
+        // ====================
+        properties.put("spring.messages.basename", "messages,cp_messages");
 
         return properties;
     }
@@ -419,6 +425,16 @@ public class ContainerProxyApplication {
                     });
             })
             .build();
+    }
+
+    @Bean
+    public LocaleResolver localeResolver() {
+        // not default language is configured, therefore the Accept header will determine the language if there is no cookie
+        CookieLocaleResolver cookieLocaleResolver = new CookieLocaleResolver("shinyproxy_language");
+        cookieLocaleResolver.setCookieSecure(secureCookiesEnabled);
+        cookieLocaleResolver.setCookieSameSite(sameSiteCookiePolicy);
+        cookieLocaleResolver.setCookieHttpOnly(true);
+        return cookieLocaleResolver;
     }
 
 }

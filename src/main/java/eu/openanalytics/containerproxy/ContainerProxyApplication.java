@@ -429,7 +429,7 @@ public class ContainerProxyApplication {
 
     @Bean
     public LocaleResolver localeResolver() {
-        // not default language is configured, therefore the Accept header will determine the language if there is no cookie
+        // no default language is configured, therefore the Accept header will determine the language if there is no cookie
         CookieLocaleResolver cookieLocaleResolver = new CookieLocaleResolver("shinyproxy_language");
         cookieLocaleResolver.setCookieSecure(secureCookiesEnabled);
         cookieLocaleResolver.setCookieSameSite(sameSiteCookiePolicy);

@@ -316,7 +316,8 @@ public class EcsBackend extends AbstractContainerBackend {
             .dockerLabels(dockerLabels)
             .logConfiguration(getLogConfiguration(proxy.getSpecId()))
             .mountPoints(volumes.getSecond())
-            .secrets(getSecrets(specExtension));
+            .secrets(getSecrets(specExtension))
+            .readonlyRootFilesystem(true);
 
         String credentials = specExtension.getEcsRepositoryCredentialsParameter().getValueOrDefault(defaultRepositoryCredentialsParameter);
         if (credentials != null && !credentials.isBlank()) {

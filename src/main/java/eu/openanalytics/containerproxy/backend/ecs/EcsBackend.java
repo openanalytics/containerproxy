@@ -329,7 +329,8 @@ public class EcsBackend extends AbstractContainerBackend {
             .dockerLabels(dockerLabels)
             .logConfiguration(getLogConfiguration(proxy.getSpecId()))
             .mountPoints(volumes.getSecond())
-            .secrets(getSecrets(specExtension));
+            .secrets(getSecrets(specExtension))
+            .readonlyRootFilesystem(specExtension.getEcsReadonlyRootFilesystem().getValueOrDefault(false));
 
         String credentials = specExtension.getEcsRepositoryCredentialsParameter().getValueOrDefault(defaultRepositoryCredentialsParameter);
         if (credentials != null && !credentials.isBlank()) {
@@ -375,7 +376,7 @@ public class EcsBackend extends AbstractContainerBackend {
 
     private Pair<List<Volume>, List<MountPoint>> getVolumes(ContainerSpec spec, EcsSpecExtension specExtension) {
         List<String> volumeNames = new ArrayList<>();
-        List<Volume> efsVolumeConfigurations = new ArrayList<>();
+        List<Volume> volumeConfigurations = new ArrayList<>();
         for (EcsEfsVolume volume : specExtension.getEcsEfsVolumes()) {
             EFSVolumeConfiguration.Builder efsVolumeConfiguration = EFSVolumeConfiguration.builder();
             efsVolumeConfiguration.fileSystemId(volume.getFileSystemId().getValue());
@@ -397,8 +398,16 @@ public class EcsBackend extends AbstractContainerBackend {
                 .name(volume.getName().getValue())
                 .build();
 
-            efsVolumeConfigurations.add(finalVolume);
+            volumeConfigurations.add(finalVolume);
             volumeNames.add(volume.getName().getValue());
+        }
+
+        for (String volume : specExtension.getEcsBindVolumes()) {
+            volumeConfigurations.add(Volume.builder()
+                .name(volume)
+                .build()
+            );
+            volumeNames.add(volume);
         }
 
         List<MountPoint> mountPoints = new ArrayList<>();
@@ -411,7 +420,7 @@ public class EcsBackend extends AbstractContainerBackend {
                 String name = components[0];
                 String containerPath = components[1];
                 if (!volumeNames.contains(name)) {
-                    throw new IllegalArgumentException(String.format("Invalid volume configuration: %s, no corresponding EFS volume definition found", volume));
+                    throw new IllegalArgumentException(String.format("Invalid volume configuration: %s, no corresponding (EFS or bind) volume definition found", volume));
                 }
 
                 MountPoint.Builder mountPoint = MountPoint.builder();
@@ -430,7 +439,21 @@ public class EcsBackend extends AbstractContainerBackend {
             }
         }
 
-        return Pair.of(efsVolumeConfigurations, mountPoints);
+        if (specExtension.ecsReadonlyRootFilesystem.getValueOrDefault(false)) {
+            // if filesystem is read-only, mount read-write volume on /tmp
+            volumeConfigurations.add(Volume.builder()
+                .name("tmp")
+                .build()
+            );
+
+            mountPoints.add(MountPoint.builder()
+                .sourceVolume("tmp")
+                .containerPath("/tmp")
+                .build()
+            );
+        }
+
+        return Pair.of(volumeConfigurations, mountPoints);
     }
 
     private List<Secret> getSecrets(EcsSpecExtension specExtension) {

@@ -66,7 +66,6 @@ public class TestIntegrationOnEcs {
         return ecsClient;
     }
 
-
     @Test
     public void launchProxy() {
         Assumptions.assumeTrue(checkAwsCredentials(), "Skipping ECS tests");
@@ -159,6 +158,37 @@ public class TestIntegrationOnEcs {
                 Assertions.assertEquals(System.getenv("ITEST_ECS_REGION"), logConfiguration.options().get("awslogs-region"));
                 Assertions.assertEquals("true", logConfiguration.options().get("awslogs-create-group"));
                 Assertions.assertEquals("ecs", logConfiguration.options().get("awslogs-stream-prefix"));
+
+                inst.client.stopProxy(id);
+
+                taskDefinition = getTaskDefinition(task);
+                Assertions.assertNotNull(taskDefinition.deregisteredAt());
+            }
+        }
+    }
+
+    @Test
+    public void launchProxyWithReadonlyFilesystem() {
+        Assumptions.assumeTrue(checkAwsCredentials(), "Skipping ECS tests");
+        try (ContainerSetup containerSetup = new ContainerSetup("ecs")) {
+            try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-ecs.yml", Map.of(), true)) {
+                inst.enableCleanup();
+                // launch a proxy on ECS
+                String id = inst.client.startProxy("01_hello_ro");
+                Proxy proxy = inst.proxyService.getProxy(id);
+                inst.client.testProxyReachable(id);
+
+                Task task = getTask(proxy);
+
+                Assertions.assertEquals(21, task.ephemeralStorage().sizeInGiB());
+
+                TaskDefinition taskDefinition = getTaskDefinition(task);
+                ContainerDefinition containerDefinition = taskDefinition.containerDefinitions().getFirst();
+
+                // read only filesystem
+                Assertions.assertTrue(containerDefinition.readonlyRootFilesystem());
+                Assertions.assertEquals(5, containerDefinition.mountPoints().size());
+                Assertions.assertEquals(5, taskDefinition.volumes().size());
 
                 inst.client.stopProxy(id);
 

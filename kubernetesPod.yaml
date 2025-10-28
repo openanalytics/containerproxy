@@ -4,6 +4,7 @@ metadata:
   labels:
     ci: containerproxy-build
 spec:
+  hostUsers: false
   volumes:
     - name: docker-socket
       emptyDir: { }

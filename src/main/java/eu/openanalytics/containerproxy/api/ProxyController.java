@@ -21,7 +21,8 @@
 package eu.openanalytics.containerproxy.api;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import eu.openanalytics.containerproxy.api.dto.ApiResponse;
+ import eu.openanalytics.containerproxy.api.ApiSecurityService;
+ import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.SwaggerDto;
 import eu.openanalytics.containerproxy.model.Views;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
@@ -174,7 +175,7 @@ public class ProxyController extends BaseController {
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
-            description = "The requesed proxy is returned.",
+            description = "The requested proxy is returned.",
             content = {
                 @Content(
                     mediaType = "application/json",

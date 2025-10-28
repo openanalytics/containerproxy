@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersM
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.spec.expression.SpelField;
+import eu.openanalytics.containerproxy.util.CleanHtml;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -159,4 +160,18 @@ public class ProxySpec {
             )
             .build();
     }
+
+    public void setDescription(String description) {
+        this.description = CleanHtml.clean(description);
+    }
+
+    public static class ProxySpecBuilder {
+
+        public ProxySpecBuilder description(String description) {
+            this.description = CleanHtml.clean(description);
+            return this;
+        }
+
+    }
+
 }

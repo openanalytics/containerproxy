@@ -32,6 +32,7 @@ import org.springframework.security.core.Authentication;
 
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -58,6 +59,13 @@ public interface IContainerBackend {
      * @throws ContainerProxyException If an error occurs while stopping the proxy.
      */
     void stopProxy(Proxy proxy) throws ContainerProxyException;
+
+    /**
+     * Stops the given proxies. Might use different mechanism to stop the proxies.
+     *
+     * @param proxies proxies to stop
+     */
+    void stopProxies(Collection<Proxy> proxies);
 
     default void pauseProxy(Proxy proxy) {
         throw new IllegalStateException("PauseProxy not supported by backend");

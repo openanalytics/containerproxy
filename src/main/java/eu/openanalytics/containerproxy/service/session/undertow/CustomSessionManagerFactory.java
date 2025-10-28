@@ -36,18 +36,31 @@ public class CustomSessionManagerFactory implements SessionManagerFactory {
     @Override
     public SessionManager createSessionManager(Deployment deployment) {
         if (inMemorySessionManager == null) {
-            inMemorySessionManager = new InMemorySessionManager(
-                deployment.getDeploymentInfo().getSessionIdGenerator(),
-                deployment.getDeploymentInfo().getDeploymentName(),
-                -1,
-                false,
-                deployment.getDeploymentInfo().getMetricsCollector() != null);
+            inMemorySessionManager = new CustomInMemorySessionManager(deployment);
         }
         return inMemorySessionManager;
     }
 
     public InMemorySessionManager getInstance() {
         return inMemorySessionManager;
+    }
+
+    private static class CustomInMemorySessionManager extends InMemorySessionManager {
+
+        public CustomInMemorySessionManager(Deployment deployment) {
+            super(deployment.getDeploymentInfo().getSessionIdGenerator(),
+                deployment.getDeploymentInfo().getDeploymentName(),
+                -1,
+                false,
+                deployment.getDeploymentInfo().getMetricsCollector() != null);
+        }
+
+        @Override
+        public void stop() {
+            // do not destroy sessions on shutdown (they are stored only in memory)
+            // see #35406
+        }
+
     }
 
 }

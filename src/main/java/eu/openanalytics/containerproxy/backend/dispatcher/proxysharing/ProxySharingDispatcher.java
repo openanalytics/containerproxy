@@ -56,6 +56,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
@@ -193,6 +194,17 @@ public class ProxySharingDispatcher implements IProxyDispatcher {
 
         // if proxy is still starting, cancel the future
         cancelPendingDelegateProxy(proxy.getId());
+    }
+
+    @Override
+    public void stopProxies(Collection<Proxy> proxies) {
+        for (Proxy proxy : proxies) {
+            try {
+                stopProxy(proxy);
+            } catch (Exception e) {
+                logger.error("Error while stopping proxy", e);
+            }
+        }
     }
 
     @Override

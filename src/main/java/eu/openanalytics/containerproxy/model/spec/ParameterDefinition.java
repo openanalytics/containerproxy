@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.containerproxy.model.spec;
 
+import eu.openanalytics.containerproxy.util.CleanHtml;
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -39,7 +40,7 @@ public class ParameterDefinition {
     public ParameterDefinition(String id, String displayName, String description, List<ValueName> valueNames, String defaultValue) {
         this.id = id;
         this.displayName = displayName;
-        this.description = description;
+        this.description = CleanHtml.clean(description);
         this.defaultValue = defaultValue;
         this.valueNames = new DualHashBidiMap<>();
         if (valueNames != null) {

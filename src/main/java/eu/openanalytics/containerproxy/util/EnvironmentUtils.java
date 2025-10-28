@@ -34,7 +34,7 @@ public class EnvironmentUtils {
      * Single value:
      *      myProperty: abc
      *
-     * Multiple comma seperated values:
+     * Multiple comma separated values:
      *      myProperty: abc, xyz
      *
      * Single-line YAML array:
@@ -49,9 +49,9 @@ public class EnvironmentUtils {
      * @return list of values or null if the property does not exist or is empty
      */
     public static List<String> readList(Environment environment, String propertyName) {
-        String[] singleValueOrCommaSeperated = environment.getProperty(propertyName, String[].class);
-        if (singleValueOrCommaSeperated != null) {
-            return List.of(singleValueOrCommaSeperated);
+        String[] singleValueOrCommaSeparated = environment.getProperty(propertyName, String[].class);
+        if (singleValueOrCommaSeparated != null) {
+            return List.of(singleValueOrCommaSeparated);
         }
 
         List<String> result = new ArrayList<>();

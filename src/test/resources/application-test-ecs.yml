@@ -50,3 +50,23 @@ proxy:
           port-mapping:
             - name: default
               port: 3838
+    - id: 01_hello_ro
+      ecs-readonly-root-filesystem: true
+      ecsBindVolumes:
+        - tmp2
+        - tmp3
+        - tmp4
+        - tmp5
+      container-specs:
+        - image: "openanalytics/shinyproxy-integration-test-app"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          cpu-request: 1024
+          memory-request: 2048
+          volumes:
+            - "tmp2:/var/lib/nginx/tmp"
+            - "tmp3:/var/lib/nginx/logs"
+            - "tmp4:/var/log/nginx/logs"
+            - "tmp5:/run/nginx/"
+          port-mapping:
+            - name: default
+              port: 3838

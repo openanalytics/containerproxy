@@ -1,0 +1,40 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+    - id: check-added-large-files
+      args: ['--maxkb=1024']
+    - id: check-merge-conflict
+    - id: check-vcs-permalinks
+    - id: forbid-new-submodules
+    - id: end-of-file-fixer
+    - id: trailing-whitespace
+      args: [--markdown-linebreak-ext=md]
+      exclude: CHANGELOG.md
+    - id: check-yaml
+      args: [--allow-multiple-documents]
+    - id: check-executables-have-shebangs
+    - id: check-symlinks
+    - id: destroyed-symlinks
+
+    # Cross platform
+    - id: check-case-conflict
+    - id: mixed-line-ending
+      args: [--fix=lf]
+
+    # Security
+    - id: detect-aws-credentials
+      args: ['--allow-missing-credentials']
+    - id: detect-private-key
+- repo: local
+  hooks:
+    - id: license-check
+      name: format license headers using maven
+      always_run: true
+      language: script
+      entry: /bin/sh -c "mvn validate license:format"
+      pass_filenames: false
+- repo: https://github.com/crate-ci/typos
+  rev: v1.35.8
+  hooks:
+    - id: typos

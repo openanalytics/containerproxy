@@ -170,7 +170,7 @@ proxy:
           type: Opaque
           data:
             password: cGFzc3dvcmQ=
-    - id: 01_hello_manifests_espression
+    - id: 01_hello_manifests_expression
       container-specs:
         - image: "openanalytics/shinyproxy-integration-test-app"
           cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
@@ -180,12 +180,12 @@ proxy:
       kubernetes-pod-patches: |
         - op: add
           path: /spec/containers/0/env/-
-          value: 
+          value:
              name: CUSTOM_USERNAME
              value: "#{proxy.userId}"
         - op: add
           path: /spec/containers/0/env/-
-          value: 
+          value:
              name: PROXY_ID
              value: "#{proxy.id}"
         - op: add

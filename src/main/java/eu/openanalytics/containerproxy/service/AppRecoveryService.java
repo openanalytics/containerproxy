@@ -32,7 +32,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxySpecIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
-import eu.openanalytics.containerproxy.service.hearbeat.HeartbeatService;
+import eu.openanalytics.containerproxy.service.heartbeat.HeartbeatService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

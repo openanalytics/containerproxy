@@ -518,7 +518,7 @@ public class TestIntegrationOnKube {
     @Test
     public void launchProxyWithExpressionInPatchAndManifests() {
         try (ContainerSetup k8s = new ContainerSetup("kubernetes")) {
-            String id = inst.client.startProxy("01_hello_manifests_espression");
+            String id = inst.client.startProxy("01_hello_manifests_expression");
             Proxy proxy = inst.proxyService.getProxy(id);
 
             PodList podList = k8s.client.pods().inNamespace(k8s.namespace).list();

@@ -18,18 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.containerproxy.service.heartbeat;
+package eu.openanalytics.containerproxy.util;
 
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+public class CleanHtml {
 
-/**
- * An interface for a class which can process heartbeats.
- */
-public interface IHeartbeatProcessor {
-
-    void heartbeatReceived(@Nonnull HeartbeatService.HeartbeatSource heartbeatSource, @Nonnull Proxy proxy, @Nullable String sessionId);
+    public static String clean(String html) {
+        if (html == null) {
+            return null;
+        }
+        return Jsoup.clean(html, Safelist.basic());
+    }
 
 }

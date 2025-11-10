@@ -45,7 +45,8 @@ public class LanguageService {
     private static final Map<String, Language> DEFAULT_AVAILABLE_LANGUAGES = Map.of(
         "en", new Language("en", "English"),
         "nl", new Language("nl", "Dutch"),
-        "fr", new Language("fr", "French")
+        "fr", new Language("fr", "French"),
+        "es", new Language("es", "Spanish")
     );
     private static final String PROP_PROXY_FALLBACK_LANGUAGE = "proxy.fallback-language";
     private static final String DEFAULT_FALLBACK_LANGUAGE = "en";

@@ -215,6 +215,8 @@ public class ContainerProxyApplication {
         // Internationalization
         // ====================
         properties.put("spring.messages.basename", "messages,cp_messages");
+        // use MessageFormat for all messages: single quotes must be escaped in every message
+        properties.put("spring.messages.always-use-message-format", "true");
 
         return properties;
     }

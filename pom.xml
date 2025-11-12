@@ -92,6 +92,12 @@
         </repository>
         <repository>
             <!-- Used for our own docker client version. -->
+            <id>oa-nexus-snapshots</id>
+            <name>OpenAnalytics Snapshots Repository</name>
+            <url>https://nexus.openanalytics.eu/repository/snapshots</url>
+        </repository>
+        <repository>
+            <!-- Used for our own docker client version. -->
             <id>oa-nexus-releases</id>
             <name>OpenAnalytics Release Repository</name>
             <url>https://nexus.openanalytics.eu/repository/releases</url>

@@ -52,6 +52,9 @@ public class ProxySharingSpecExtension extends AbstractSpecExtension {
     @Builder.Default
     int seatsPerContainer = 1;
 
+    @Builder.Default
+    boolean allowDynamicScaling = false;
+
     @Override
     public ProxySharingSpecExtension firstResolve(SpecExpressionResolver resolver, SpecExpressionContext context) {
         return this;

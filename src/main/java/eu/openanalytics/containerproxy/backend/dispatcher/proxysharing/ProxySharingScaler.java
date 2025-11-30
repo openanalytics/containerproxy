@@ -103,6 +103,7 @@ public class ProxySharingScaler implements AutoCloseable {
     private boolean stopAppsOnShutdown;
     protected ReconcileStatus lastReconcileStatus = ReconcileStatus.Stable;
     private Instant lastScaleUp = null;
+    private Integer dynamicMinimumSeatsAvailable = null;
 
     @Inject
     @Lazy
@@ -144,6 +145,15 @@ public class ProxySharingScaler implements AutoCloseable {
     @PostConstruct
     public void init() {
         stopAppsOnShutdown = environment.getProperty(PROPERTY_STOP_PROXIES_ON_SHUTDOWN, Boolean.class, true);
+    }
+
+    public void setMinimumSeatsAvailable(Integer seats) {
+        this.dynamicMinimumSeatsAvailable = seats;
+        globalEventLoop.schedule(this::reconcile);
+    }
+
+    public int getMinimumSeatsAvailable() {
+        return dynamicMinimumSeatsAvailable != null ? dynamicMinimumSeatsAvailable : specExtension.minimumSeatsAvailable;
     }
 
     public static void setPublicPathPrefix(String publicPathPrefix) {
@@ -324,25 +334,28 @@ public class ProxySharingScaler implements AutoCloseable {
         }
         long numPendingSeats = getNumPendingSeats();
         long num = seatStore.getNumUnclaimedSeats() + numPendingSeats - pendingDelegatingProxies.size();
+
+        int minSeats = dynamicMinimumSeatsAvailable != null ? dynamicMinimumSeatsAvailable : specExtension.minimumSeatsAvailable;
+
         debug(String.format("Status: %s, Unclaimed: %s + PendingDelegate: %s - PendingDelegating: %s = %s -> minimum: %s",
             lastReconcileStatus, seatStore.getNumUnclaimedSeats(), numPendingSeats,
-            pendingDelegatingProxies.size(), num, specExtension.minimumSeatsAvailable));
+            pendingDelegatingProxies.size(), num, minSeats));
 
-        if (num < specExtension.minimumSeatsAvailable) {
+        if (num < minSeats) {
             if (proxySpec.getMaxTotalInstances() > -1 && seatStore.getNumSeats() >= proxySpec.getMaxTotalInstances()) {
                 logWarn(String.format("Not scaling up: currently %s seats, scale up would create more than maximum number of instances: %s", seatStore.getNumSeats(), proxySpec.getMaxTotalInstances()));
                 return;
             }
             lastReconcileStatus = ReconcileStatus.ScaleUp;
-            long numToScaleUp = specExtension.minimumSeatsAvailable - num;
+            long numToScaleUp = minSeats - num;
             scaleUp(MathUtil.divideAndCeil(numToScaleUp, specExtension.seatsPerContainer));
             lastScaleUp = Instant.now();
         } else if (numPendingSeats > 0) {
             // still scaling up
             lastReconcileStatus = ReconcileStatus.ScaleUp;
             lastScaleUp = Instant.now();
-        } else if ((num - specExtension.minimumSeatsAvailable) >= specExtension.seatsPerContainer) {
-            long numToScaleDown = (num - specExtension.minimumSeatsAvailable) / specExtension.seatsPerContainer;
+        } else if ((num - minSeats) >= specExtension.seatsPerContainer) {
+            long numToScaleDown = (num - minSeats) / specExtension.seatsPerContainer;
             if (numToScaleDown <= 0) {
                 return;
             }

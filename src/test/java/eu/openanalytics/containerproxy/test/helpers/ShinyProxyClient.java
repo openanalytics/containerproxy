@@ -240,6 +240,48 @@ public class ShinyProxyClient {
         return baseUrl;
     }
 
+    public void scaleApp(String specId, int seats) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            RequestBody body = RequestBody.create(
+                objectMapper.writeValueAsString(Map.of("seats", seats)), JSON);
+            Request request = new Request.Builder()
+                .post(body)
+                .url(baseUrl + "/admin/app/" + specId + "/scale")
+                .build();
+
+            call(request, 200);
+        } catch (JsonProcessingException e) {
+            throw new TestHelperException("JSON error", e);
+        }
+    }
+
+    public JsonObject scaleAppError(String specId, int seats) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            RequestBody body = RequestBody.create(
+                objectMapper.writeValueAsString(Map.of("seats", seats)), JSON);
+            Request request = new Request.Builder()
+                .post(body)
+                .url(baseUrl + "/admin/app/" + specId + "/scale")
+                .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (response.body() == null) {
+                    return null;
+                }
+                JsonReader jsonReader = Json.createReader(response.body().byteStream());
+                JsonObject object = jsonReader.readObject();
+                jsonReader.close();
+                return object;
+            }
+        } catch (JsonProcessingException e) {
+            throw new TestHelperException("JSON error", e);
+        } catch (Throwable t) {
+            throw new TestHelperException("Error during http request", t);
+        }
+    }
+
     public Call newCall(Request request) {
         return client.newCall(request);
     }

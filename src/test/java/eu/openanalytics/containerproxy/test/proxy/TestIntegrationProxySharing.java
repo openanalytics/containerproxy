@@ -40,8 +40,6 @@ import eu.openanalytics.containerproxy.test.helpers.TestProxySharingScaler;
 import eu.openanalytics.containerproxy.test.helpers.TestUtil;
 import eu.openanalytics.containerproxy.util.Retrying;
 import jakarta.json.JsonObject;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -652,4 +650,51 @@ public class TestIntegrationProxySharing {
         Assertions.assertTrue(noPendingSeats);
     }
 
+    @ParameterizedTest
+    @MethodSource("backends")
+    public void testDynamicScaling(String backend, Map<String, String> properties) {
+        try (ContainerSetup containerSetup = new ContainerSetup(backend)) {
+            try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-dynamic-scaling.yml", properties, true)) {
+                TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
+                inst.enableCleanup();
+
+                // 1. Verify initial state: 1 unclaimed seat
+                waitUntilNumberOfDelegateProxies(inst, 1, 1);
+                Assertions.assertEquals(0, proxySharingScaler.getNumClaimedSeats());
+                Assertions.assertEquals(1, proxySharingScaler.getNumUnclaimedSeats());
+
+                // 2. Dynamically change minimum seats to 2
+                inst.client.scaleApp("myApp", 2);
+
+                // 3. Verify scale-up: now 2 unclaimed seats
+                waitUntilNumberOfDelegateProxies(inst, 2, 2);
+                Assertions.assertEquals(0, proxySharingScaler.getNumClaimedSeats());
+                Assertions.assertEquals(2, proxySharingScaler.getNumUnclaimedSeats());
+
+                // 4. Change back to 0 minimum seats
+                inst.client.scaleApp("myApp", 0);
+
+                // 5. Verify scale-down: back to 1 seat
+                waitUntilNumberOfDelegateProxies(inst, 1, 1);
+                Assertions.assertEquals(0, proxySharingScaler.getNumClaimedSeats());
+                Assertions.assertEquals(1, proxySharingScaler.getNumUnclaimedSeats());
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("backends")
+    public void testDynamicScalingApiNotAllowed(String backend, Map<String, String> properties) {
+        try (ContainerSetup containerSetup = new ContainerSetup(backend)) {
+            try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-pre-initialization-2.yml", properties, true)) {
+                inst.enableCleanup();
+
+                // Config has allowDynamicScaling = false (default)
+                // Try to call the scale API - should fail
+                JsonObject error = inst.client.scaleAppError("myApp", 2);
+                Assertions.assertEquals("fail", error.getString("status"));
+                Assertions.assertEquals("Dynamic scaling not allowed for this app", error.getString("data"));
+            }
+        }
+    }
 }

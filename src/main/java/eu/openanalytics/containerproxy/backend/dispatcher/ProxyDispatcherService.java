@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.Map;
 public class ProxyDispatcherService {
 
     private final Map<String, IProxyDispatcher> dispatchers = new HashMap<>();
+    private final Map<String, ProxySharingScaler> scalers = new HashMap<>();
     private final IProxySpecProvider proxySpecProvider;
     private final IProxySharingStoreFactory storeFactory;
     private final ConfigurableListableBeanFactory beanFactory;
@@ -68,6 +70,8 @@ public class ProxyDispatcherService {
                 createBean(proxySharingScaler, "proxySharingScaler_" + proxySpec.getId());
                 closeables.add(proxySharingScaler);
 
+                scalers.put(proxySpec.getId(), proxySharingScaler);
+
                 ProxySharingDispatcher proxySharingDispatcher = new ProxySharingDispatcher(proxySpec, delegateProxyStore, seatStore);
                 createBean(proxySharingDispatcher, "proxySharingDispatcher_" + proxySpec.getId());
 
@@ -84,6 +88,14 @@ public class ProxyDispatcherService {
 
     public IProxyDispatcher getDispatcher(String specId) {
         return dispatchers.get(specId);
+    }
+
+    public ProxySharingScaler getProxySharingScaler(String specId) {
+        return scalers.get(specId);
+    }
+
+    public Collection<ProxySharingScaler> getAllProxySharingScalers() {
+        return scalers.values();
     }
 
     private <T> void createBean(T bean, String beanName) {

@@ -21,6 +21,8 @@
 package eu.openanalytics.containerproxy.service;
 
 import eu.openanalytics.containerproxy.util.EnvironmentUtils;
+import io.undertow.util.HeaderMap;
+import io.undertow.util.HttpString;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
@@ -42,6 +44,7 @@ import java.util.Map;
 public class LanguageService {
 
     private static final String PROP_PROXY_AVAILABLE_LANGUAGES = "proxy.available-languages";
+    private static final HttpString HEADER_LANGUAGE_NAME = new HttpString("X-SP-Language");
     private static final Map<String, Language> DEFAULT_AVAILABLE_LANGUAGES = Map.of(
         "en", new Language("en", "English"),
         "nl", new Language("nl", "Dutch"),
@@ -110,6 +113,13 @@ public class LanguageService {
 
     public record Language(String key, String displayName) {
 
+    }
+
+    public static HeaderMap addHeaders() {
+        HeaderMap result = new HeaderMap();
+        String language = LocaleContextHolder.getLocale().getLanguage();
+        result.add(HEADER_LANGUAGE_NAME, language);
+        return result;
     }
 
 }

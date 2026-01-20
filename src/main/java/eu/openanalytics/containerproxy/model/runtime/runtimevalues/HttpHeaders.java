@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.service.LanguageService;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.HttpString;
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public class HttpHeaders {
 
     public HeaderMap getUndertowHeaderMap(Proxy proxy) {
         undertowHeaderMap.putAll(OpenIDAuthenticationBackend.addHeaders(proxy));
+        undertowHeaderMap.putAll(LanguageService.addHeaders());
         return undertowHeaderMap;
     }
 

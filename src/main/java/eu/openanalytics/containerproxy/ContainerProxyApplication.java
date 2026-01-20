@@ -212,12 +212,6 @@ public class ContainerProxyApplication {
         properties.put("springdoc.api-docs.enabled", false);
         properties.put("springdoc.swagger-ui.enabled", false);
 
-        // Internationalization
-        // ====================
-        properties.put("spring.messages.basename", "messages,cp_messages");
-        // use MessageFormat for all messages: single quotes must be escaped in every message
-        properties.put("spring.messages.always-use-message-format", "true");
-
         return properties;
     }
 

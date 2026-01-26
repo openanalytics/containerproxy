@@ -22,7 +22,6 @@ package eu.openanalytics.containerproxy.api;
 
 import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.api.dto.LanguageDto;
-import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.service.LanguageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,7 +42,7 @@ public class UserController extends BaseController {
     }
 
     @RequestMapping(value = "/api/user/language", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<Proxy>> getProxy(@RequestBody LanguageDto body, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<Void>> updateUserLanguage(@RequestBody LanguageDto body, HttpServletRequest request, HttpServletResponse response) {
         try {
             languageService.updateLanguageOfUser(request, response, body.language());
         } catch (IllegalArgumentException e) {

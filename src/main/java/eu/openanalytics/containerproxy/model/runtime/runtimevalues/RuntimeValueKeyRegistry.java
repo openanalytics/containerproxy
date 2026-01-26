@@ -54,6 +54,7 @@ public class RuntimeValueKeyRegistry {
         addRuntimeValueKey(TargetIdKey.inst);
         addRuntimeValueKey(CacheHeadersModeKey.inst);
         addRuntimeValueKey(LanguageKey.inst);
+        addRuntimeValueKey(NodeNameKey.inst);
     }
 
     public static void addRuntimeValueKey(RuntimeValueKey<?> key) {

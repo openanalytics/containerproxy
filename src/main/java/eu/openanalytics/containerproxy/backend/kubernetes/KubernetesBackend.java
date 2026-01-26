@@ -38,6 +38,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContai
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerIndexKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.NodeNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxiedAppKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
@@ -398,6 +399,7 @@ public class KubernetesBackend extends AbstractContainerBackend {
             Pod pod = kubeClient.resource(startedPod).get();
 
             parseKubernetesEvents(spec.getIndex(), pod, proxyStartupLogBuilder);
+            rContainerBuilder.addRuntimeValue(new RuntimeValue(NodeNameKey.inst, pod.getSpec().getNodeName()), false);
 
             Service service;
             Map<Integer, Integer> portBindings = new HashMap<>();

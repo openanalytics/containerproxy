@@ -31,6 +31,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Nonnull;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Locale;
@@ -49,6 +50,7 @@ public class CustomMessageSource extends AbstractMessageSource {
         ResourceBundleMessageSource parentMessageSource = new CapitalizedMessageSource();
         parentMessageSource.setBasenames("messages", "cp_messages");
         parentMessageSource.setAlwaysUseMessageFormat(true);
+        parentMessageSource.setDefaultEncoding(StandardCharsets.UTF_8.name());
         setParentMessageSource(parentMessageSource);
 
         // read overridden translations from config file

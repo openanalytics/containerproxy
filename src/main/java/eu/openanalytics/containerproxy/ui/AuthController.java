@@ -84,14 +84,15 @@ public class AuthController extends BaseController {
     @RequestMapping(value = AUTH_SUCCESS_URL, method = RequestMethod.GET)
     public String authSuccess(ModelMap map, HttpServletRequest request) {
         prepareMap(map);
-        map.put("url", ServletUriComponentsBuilder.fromCurrentContextPath().path("/").build().toUriString()); // default url
+        // protocol is added to the url on the client-side
+        map.put("url", ServletUriComponentsBuilder.fromCurrentContextPath().path("/").build().toUriString().replace("https://", "//").replace("http://", "//")); // default url
 
         Object redirectUrl = request.getSession().getAttribute(AUTH_SUCCESS_URL_SESSION_ATTR);
         if (redirectUrl instanceof String sRedirectUrl) {
             request.getSession().removeAttribute(AUTH_SUCCESS_URL_SESSION_ATTR);
             // sanity check: does the redirect url start with the url of this current request
             if (sRedirectUrl.startsWith(ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString())) {
-                map.put("url", redirectUrl);
+                map.put("url", sRedirectUrl.replace("https://", "//").replace("http://", "//"));
             }
         }
         return "auth-success";

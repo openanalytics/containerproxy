@@ -123,6 +123,10 @@ public class ContainerSetup implements AutoCloseable {
                         List<Pod> pods2 = client.pods().inNamespace(overriddenNamespace).list().getItems();
                         return new Retrying.Result(pods1.isEmpty() && pods2.isEmpty());
                     }
+                    case "ecs", "spcs" -> {
+                        // Cloud services don't need local cleanup check
+                        return Retrying.SUCCESS;
+                    }
                 }
                 return Retrying.SUCCESS;
             } catch (DockerException | InterruptedException | DockerCertificateException e) {

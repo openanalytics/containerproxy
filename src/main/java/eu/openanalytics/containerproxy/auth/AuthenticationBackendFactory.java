@@ -26,6 +26,7 @@ import eu.openanalytics.containerproxy.auth.impl.NoAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SimpleAuthenticationBackend;
+import eu.openanalytics.containerproxy.auth.impl.SpcsAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.WebServiceAuthenticationBackend;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
@@ -74,6 +75,7 @@ public class AuthenticationBackendFactory extends AbstractFactoryBean<IAuthentic
             case OpenIDAuthenticationBackend.NAME -> backend = new OpenIDAuthenticationBackend();
             case WebServiceAuthenticationBackend.NAME -> backend = new WebServiceAuthenticationBackend(environment);
             case CustomHeaderAuthenticationBackend.NAME -> backend = new CustomHeaderAuthenticationBackend(environment, applicationEventPublisher);
+            case SpcsAuthenticationBackend.NAME -> backend = new SpcsAuthenticationBackend(environment, applicationEventPublisher);
             case SAMLAuthenticationBackend.NAME -> {
                 return samlBackend;
             }

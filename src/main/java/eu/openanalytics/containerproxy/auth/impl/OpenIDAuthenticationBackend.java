@@ -24,9 +24,12 @@ import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.msgraph.MicrosoftGraphGroupFetcher;
 import eu.openanalytics.containerproxy.auth.impl.oidc.AccessTokenDecoder;
 import eu.openanalytics.containerproxy.auth.impl.oidc.OpenIdReAuthorizeFilter;
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionContext;
 import eu.openanalytics.containerproxy.spec.expression.SpecExpressionResolver;
 import eu.openanalytics.containerproxy.util.ContextPathHelper;
+import io.undertow.util.HeaderMap;
+import io.undertow.util.HttpString;
 import net.minidev.json.JSONArray;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
@@ -41,6 +44,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
@@ -50,9 +54,11 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.StandardClaimAccessor;
@@ -83,11 +89,22 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     public static final String NAME = "openid";
 
     private static final String ENV_TOKEN_NAME = "SHINYPROXY_OIDC_ACCESS_TOKEN";
+    private static final String PROP_SEND_ACCESS_TOKEN_HEADER = "proxy.openid.add-access-token-header";
+    private static final String PROP_SEND_REFRESH_TOKEN_HEADER = "proxy.openid.add-refresh-token-header";
+    private static final String PROP_SEND_ID_TOKEN_HEADER = "proxy.openid.add-id-token-header";
+    private static final HttpString HEADER_ACCESS_TOKEN_NAME = new HttpString("X-SP-OpenId-Access-Token");
+    private static final HttpString HEADER_REFRESH_TOKEN_NAME = new HttpString("X-SP-OpenId-Refresh-Token");
+    private static final HttpString HEADER_ID_TOKEN_NAME = new HttpString("X-SP-OpenId-Id-Token");
+
     private static OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
     private static AccessTokenDecoder accessTokenDecoder;
     private static final Logger log = LogManager.getLogger(OpenIDAuthenticationBackend.class);
-    @Inject
-    private Environment environment;
+
+    private static Boolean sendAccessTokenHeader = false;
+    private static Boolean sendRefreshTokenHeader = false;
+    private static Boolean sendIdTokenHeader = false;
+    private static Environment environment;
+
     @Inject
     private ClientRegistrationRepository clientRegistrationRepo;
     @Inject
@@ -180,7 +197,7 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
         return mappedAuthorities;
     }
 
-    private static OAuth2AuthorizedClient refreshClient(String principalName) {
+    public static OAuth2AuthorizedClient refreshClient(String principalName) {
         return oAuth2AuthorizedClientService.loadAuthorizedClient(REG_ID, principalName);
     }
 
@@ -192,6 +209,14 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
     @Autowired
     public void setOAuth2AuthorizedClientService(OAuth2AuthorizedClientService oAuth2AuthorizedClientService) {
         OpenIDAuthenticationBackend.oAuth2AuthorizedClientService = oAuth2AuthorizedClientService;
+    }
+
+    @Autowired
+    public void setEnvironment(Environment environment) {
+        OpenIDAuthenticationBackend.environment = environment;
+        OpenIDAuthenticationBackend.sendAccessTokenHeader = environment.getProperty(PROP_SEND_ACCESS_TOKEN_HEADER, Boolean.class, false);
+        OpenIDAuthenticationBackend.sendRefreshTokenHeader = environment.getProperty(PROP_SEND_REFRESH_TOKEN_HEADER, Boolean.class, false);
+        OpenIDAuthenticationBackend.sendIdTokenHeader = environment.getProperty(PROP_SEND_ID_TOKEN_HEADER, Boolean.class, false);
     }
 
     @Override
@@ -348,6 +373,38 @@ public class OpenIDAuthenticationBackend implements IAuthenticationBackend {
                 );
             }
         };
+    }
+
+    public static HeaderMap addHeaders(Proxy proxy) {
+        HeaderMap result = new HeaderMap();
+        if (sendAccessTokenHeader || sendRefreshTokenHeader) {
+            OAuth2AuthorizedClient client = refreshClient(proxy.getUserId());
+            if (client != null) {
+                if (sendAccessTokenHeader) {
+                    OAuth2AccessToken accessToken = client.getAccessToken();
+                    if (accessToken != null) {
+                        result.put(HEADER_ACCESS_TOKEN_NAME, accessToken.getTokenValue());
+                    }
+                }
+                if (sendRefreshTokenHeader) {
+                    OAuth2RefreshToken refreshToken = client.getRefreshToken();
+                    if (refreshToken != null) {
+                        result.put(HEADER_REFRESH_TOKEN_NAME, refreshToken.getTokenValue());
+                    }
+                }
+            }
+        }
+        if (sendIdTokenHeader) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth.getPrincipal() instanceof CustomNameOidcUser) {
+                OidcIdToken idToken = ((CustomNameOidcUser) auth.getPrincipal()).getIdToken();
+                if (idToken != null) {
+                    result.put(HEADER_ID_TOKEN_NAME, idToken.getTokenValue());
+                }
+            }
+        }
+
+        return result;
     }
 
     public static class CustomNameOidcUser extends DefaultOidcUser {

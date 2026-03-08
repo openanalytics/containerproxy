@@ -1,0 +1,24 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: spcs
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
+  container-backend: spcs
+  spcs:
+    account-identifier: TEST_ACCOUNT
+    username: TEST_USER
+    programmatic-access-token: TEST_TOKEN
+    database: TEST_DB
+    schema: TEST_SCHEMA
+    compute-pool: TEST_POOL
+  specs:
+    - id: test_spec
+      container-specs:
+        - image: "test/image:latest"
+

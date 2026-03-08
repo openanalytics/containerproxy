@@ -1,0 +1,1193 @@
+openapi: 3.0.0
+servers:
+- description: Snowflake Services API
+  url: https://org-account.snowflakecomputing.com
+info:
+  version: 0.0.1
+  title: Snowflake Services API
+  description: The Snowflake Services API is a REST API that you can use to access,
+    update, and perform certain actions on Services resource in a Snowflake database.
+  contact:
+    name: Snowflake, Inc.
+    url: https://snowflake.com
+    email: support@snowflake.com
+paths:
+  /api/v2/databases/{database}/schemas/{schema}/services:
+    get:
+      summary: List services
+      tags:
+      - service
+      description: Lists the services under the database and schema.
+      operationId: listServices
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/like
+      - $ref: common.yaml#/components/parameters/startsWith
+      - $ref: common.yaml#/components/parameters/showLimit
+      - $ref: common.yaml#/components/parameters/fromName
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+    post:
+      summary: Create a service
+      tags:
+      - service
+      description: Create a service, with standard create modifiers as query parameters.
+        See the Service component definition for what is required to be provided in
+        the request body.
+      operationId: createService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - name: createMode
+        description: 'Query parameter allowing support for different modes of resource
+          creation. Possible values include: - `errorIfExists`: Throws an error if
+          you try to create a resource that already exists. - `ifNotExists`: Creates
+          a new resource when an alter is requested for a non-existent resource.'
+        in: query
+        schema:
+          type: string
+          enum:
+          - errorIfExists
+          - ifNotExists
+          example: errorIfExists
+          default: errorIfExists
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
+      responses:
+        '200':
+          $ref: common.yaml#/components/responses/200SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '408':
+          $ref: common.yaml#/components/responses/408RequestTimeout
+        '409':
+          $ref: common.yaml#/components/responses/409Conflict
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services:execute-job:
+    post:
+      summary: Execute a job service
+      tags:
+      - service
+      description: Create and execute a job service. See the JobService component
+        definition for what is required to be provided in the request body.
+      operationId: executeJobService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobService'
+      responses:
+        '200':
+          $ref: common.yaml#/components/responses/200SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '409':
+          $ref: common.yaml#/components/responses/409Conflict
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}:
+    get:
+      description: Fetch a service.
+      tags:
+      - service
+      operationId: fetchService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+    put:
+      summary: Create a (or alter an existing) service.
+      tags:
+      - service
+      description: Create a (or alter an existing) service. Even if the operation
+        is just an alter, the full property set must be provided.
+      operationId: createOrAlterService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
+      responses:
+        '200':
+          description: Successful request
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                $ref: common.yaml#/components/schemas/SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+    delete:
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      - $ref: common.yaml#/components/parameters/ifExists
+      summary: Delete a service
+      tags:
+      - service
+      description: Delete a service with the given name. If ifExists is used, the
+        operation will succeed even if the object does not exist. Otherwise, there
+        will be a failure if the drop is unsuccessful.
+      operationId: deleteService
+      responses:
+        '200':
+          $ref: common.yaml#/components/responses/200SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/logs:
+    get:
+      description: Fetch the logs for a given service.
+      tags:
+      - service
+      operationId: fetchServiceLogs
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      - in: query
+        name: instanceId
+        description: ID of the service instance, starting with 0.
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: containerName
+        description: Container name as specified in the service specification file.
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: numLines
+        schema:
+          type: integer
+        description: Number of trailing log lines to retrieve.
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  system$get_service_logs:
+                    type: string
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/status:
+    get:
+      deprecated: true
+      description: Fetch the status for a given service. Deprecated - use listServiceContainers
+        instead.
+      tags:
+      - service
+      operationId: fetchServiceStatus
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      - in: query
+        name: timeout
+        schema:
+          type: integer
+        description: Number of seconds to wait for the service to reach a steady state
+          (for example, READY) before returning the status. If the service does not
+          reach a steady state within the specified time, Snowflake returns the current
+          state.
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  system$get_service_status:
+                    type: string
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/containers:
+    get:
+      description: List all the containers of the service
+      tags:
+      - service
+      operationId: listServiceContainers
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceContainer'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/instances:
+    get:
+      description: List all the instances of the service
+      tags:
+      - service
+      operationId: listServiceInstances
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceInstance'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/roles:
+    get:
+      description: List all the service roles of the service
+      tags:
+      - service
+      operationId: listServiceRoles
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceRole'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{service}/roles/{name}/grants-of:
+    get:
+      description: List all the grants of the service role
+      tags:
+      - service
+      operationId: listServiceRoleGrantsOf
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: '#/components/parameters/service'
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GrantOf'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{service}/roles/{name}/grants:
+    get:
+      description: List all the grants given to the service role
+      tags:
+      - service
+      operationId: listServiceRoleGrantsTo
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: '#/components/parameters/service'
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceRoleGrantTo'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}:resume:
+    post:
+      description: Resume a service.
+      tags:
+      - service
+      operationId: resumeService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      - $ref: common.yaml#/components/parameters/ifExists
+      responses:
+        '200':
+          $ref: common.yaml#/components/responses/200SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}:suspend:
+    post:
+      description: Suspend a service.
+      tags:
+      - service
+      operationId: suspendService
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      - $ref: common.yaml#/components/parameters/ifExists
+      responses:
+        '200':
+          $ref: common.yaml#/components/responses/200SuccessResponse
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+  /api/v2/databases/{database}/schemas/{schema}/services/{name}/endpoints:
+    get:
+      summary: List the endpoints in a service.
+      description: Lists the endpoints in a Snowpark Container Services service (or
+        a job service).
+      tags:
+      - service
+      operationId: showServiceEndpoints
+      parameters:
+      - $ref: common.yaml#/components/parameters/database
+      - $ref: common.yaml#/components/parameters/schema
+      - $ref: common.yaml#/components/parameters/name
+      responses:
+        '200':
+          description: successful
+          headers:
+            X-Snowflake-Request-ID:
+              $ref: common.yaml#/components/headers/X-Snowflake-Request-ID
+            Link:
+              $ref: common.yaml#/components/headers/Link
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceEndpoint'
+        '202':
+          $ref: common.yaml#/components/responses/202SuccessAcceptedResponse
+        '400':
+          $ref: common.yaml#/components/responses/400BadRequest
+        '401':
+          $ref: common.yaml#/components/responses/401Unauthorized
+        '403':
+          $ref: common.yaml#/components/responses/403Forbidden
+        '404':
+          $ref: common.yaml#/components/responses/404NotFound
+        '405':
+          $ref: common.yaml#/components/responses/405MethodNotAllowed
+        '429':
+          $ref: common.yaml#/components/responses/429LimitExceeded
+        '500':
+          $ref: common.yaml#/components/responses/500InternalServerError
+        '503':
+          $ref: common.yaml#/components/responses/503ServiceUnavailable
+        '504':
+          $ref: common.yaml#/components/responses/504GatewayTimeout
+components:
+  parameters:
+    service:
+      name: service
+      description: Name of the service that contains the service role.
+      required: true
+      in: path
+      schema:
+        $ref: ./common.yaml#/components/schemas/Identifier
+  schemas:
+    ServiceSpecInlineText:
+      description: Specifies service specification with inline text.
+      allOf:
+      - $ref: '#/components/schemas/ServiceSpec'
+      properties:
+        spec_text:
+          type: string
+          description: Specifies service specification. You can use a pair of dollar
+            signs ($$) to delimit the beginning and ending of the specification string.
+      required:
+      - spec_text
+    ServiceSpecStageFile:
+      description: Specifies service specification with a stage file.
+      allOf:
+      - $ref: '#/components/schemas/ServiceSpec'
+      properties:
+        stage:
+          type: string
+          description: Specifies the Snowflake internal stage where the specification
+            file is stored; for example, @tutorial_stage.
+        spec_file:
+          type: string
+          description: Specifies the path to the service specification file on the
+            stage; for example, 'some-dir/echo_spec.yaml'.
+      required:
+      - stage
+      - spec_file
+    ServiceSpec:
+      type: object
+      description: Specifies service specification.
+      properties:
+        spec_type:
+          type: string
+          description: Type of the service specification, can be `from_file` or `from_inline`.
+      discriminator:
+        propertyName: spec_type
+        mapping:
+          from_file: ServiceSpecStageFile
+          from_inline: ServiceSpecInlineText
+      writeOnly: true
+    Service:
+      allOf:
+      - $ref: '#/components/schemas/JobService'
+      - type: object
+        description: A Snowflake service object.
+        properties:
+          auto_resume:
+            type: boolean
+            description: Specifies whether to automatically resume a service when
+              a service function or ingress is called.
+          current_instances:
+            type: integer
+            description: The current number of instances for the service.
+            readOnly: true
+          target_instances:
+            type: integer
+            description: The target number of service instances that should be running
+              as determined by Snowflake.
+            readOnly: true
+          min_ready_instances:
+            type: integer
+            description: The minimum number of ready service instances to declare
+              the service as READY.
+          min_instances:
+            type: integer
+            description: Specifies the minimum number of service instances to run.
+          max_instances:
+            type: integer
+            description: Specifies the maximum number of service instances to run.
+          database_name:
+            $ref: ./common.yaml#/components/schemas/Identifier
+            description: The name of the parent database for the service.
+            readOnly: true
+          schema_name:
+            $ref: ./common.yaml#/components/schemas/Identifier
+            description: The name of the parent schema for the service.
+            readOnly: true
+          owner:
+            type: string
+            description: Role that owns the service.
+            readOnly: true
+          dns_name:
+            type: string
+            description: Snowflake-assiged DNS name of the service. The DNS name enables
+              service-to-service communications.
+            readOnly: true
+          created_on:
+            type: string
+            description: Timestamp when the service was created.
+            format: date-time
+            readOnly: true
+          updated_on:
+            type: string
+            description: Timestamp when the service was last updated.
+            format: date-time
+            readOnly: true
+          resumed_on:
+            type: string
+            description: Timestamp when the service was last resumed.
+            format: date-time
+            readOnly: true
+          suspended_on:
+            type: string
+            description: Timestamp when the service was last suspended.
+            format: date-time
+            readOnly: true
+          auto_suspend_secs:
+            type: integer
+            description: Number of seconds of inactivity after which the service will
+              be automatically suspended. The default value is 0 which represents
+              the service will not be automatically suspended.
+            format: int64
+          owner_role_type:
+            type: string
+            description: The role type of the service owner.
+            readOnly: true
+          is_job:
+            type: boolean
+            description: True if the service is a job service; false otherwise.
+            readOnly: true
+          spec_digest:
+            type: string
+            description: The unique and immutable identifier representing the service
+              spec content.
+            readOnly: true
+          is_upgrading:
+            type: boolean
+            description: TRUE, if Snowflake is in the process of upgrading the service.
+            readOnly: true
+          managing_object_domain:
+            type: string
+            description: The domain of the managing object (for example, the domain
+              of the notebook that manages the service). NULL if the service is not
+              managed by a Snowflake entity.
+            readOnly: true
+          managing_object_name:
+            type: string
+            description: The name of the managing object (for example, the name of
+              the notebook that manages the service). NULL if the service is not managed
+              by a Snowflake entity.
+            readOnly: true
+        example:
+          min_ready_instances: 1
+          min_instances: 2
+          max_instances: 5
+          database_name: testdb
+          schema_name: testschema
+          owner: SYSADMIN
+          is_job: false
+    JobService:
+      type: object
+      description: A Snowflake job service object.
+      writeOnly: true
+      properties:
+        name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: String that specifies the identifier (that is, the name) for
+            the service.
+        status:
+          type: string
+          description: The current status of the service.
+        compute_pool:
+          type: string
+          description: Specifies the name of the compute pool in your account on which
+            to run the service.
+        spec:
+          $ref: '#/components/schemas/ServiceSpec'
+          description: Specifies service specification.
+        external_access_integrations:
+          type: array
+          description: Specifies the names of the external access integrations that
+            allow your service to access external sites.
+          items:
+            type: string
+        query_warehouse:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: Warehouse to use if a service container connects to Snowflake
+            to execute a query but does not explicitly specify a warehouse to use.
+        comment:
+          type: string
+          description: Specifies a comment for the service.
+        is_async_job:
+          type: boolean
+          description: True if the service is an async job service; false otherwise.
+      required:
+      - name
+      - compute_pool
+      - spec
+      example:
+        name: service_name
+        compute_pool: compute_pool_name
+        spec:
+          spec_type: from_file
+          stage: '@stage_name'
+          spec_file: spec_file.yaml
+    ServiceEndpoint:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User-friendly endpoint name that represents the corresponding
+            port.
+        port:
+          type: integer
+          description: The network port the service is listening on. NULL, when portRange
+            is specified.
+        portRange:
+          type: string
+          description: The network port range the service is listening on. NULL, when
+            port is specified.
+        protocol:
+          type: string
+          description: Supported network protocol (TCP, HTTP, or HTTPS).
+          default: HTTP
+        is_public:
+          type: boolean
+          description: True, if the endpoint is public, accessible from internet.
+          default: false
+        ingress_url:
+          type: string
+          description: Endpoint URL accessible from the internet.
+          readOnly: true
+      example:
+        name: endpoint
+        port: 8080
+        protocol: HTTPS
+        is_public: true
+        ingress_url: abcd-org-acc.snowflakecomputing.app
+    ServiceContainer:
+      type: object
+      properties:
+        database_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: Database in which the service is created.
+          readOnly: true
+        schema_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: Schema in which the service is created.
+          readOnly: true
+        service_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: The name of the service.
+          readOnly: true
+        service_status:
+          type: string
+          description: The current status of the service.
+          readOnly: true
+        instance_id:
+          type: string
+          description: ID of the service instance (this is the index of the service
+            instance starting from 0).
+          readOnly: true
+        instance_status:
+          type: string
+          description: The current status of the service instance.
+          readOnly: true
+        container_name:
+          type: string
+          description: Name of the container.
+          readOnly: true
+        status:
+          type: string
+          description: Service container status.
+          readOnly: true
+        message:
+          type: string
+          description: Additional clarification about status.
+          readOnly: true
+        image_name:
+          type: string
+          description: Image name used to create the service container.
+          readOnly: true
+        image_digest:
+          type: string
+          description: The unique and immutable identifier representing the image
+            content.
+          readOnly: true
+        restart_count:
+          type: integer
+          description: Number of times Snowflake restarted the service.
+          readOnly: true
+        start_time:
+          type: string
+          description: Date and time when the container started.
+          readOnly: true
+      example:
+        database_name: testdb
+        schema_name: testschema
+        service_name: myservice
+        instance_id: '0'
+        container_name: main
+        status: PENDING
+        message: Pending scheduling.
+        image_name: /db/schema/repo/image:1.0
+        image_digest: abcdefd
+        restart_count: 0
+        start_time: 2023-01-01 00:00:00+00:00
+    ServiceInstance:
+      type: object
+      properties:
+        database_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: Database in which the service is created.
+          readOnly: true
+        schema_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: Schema in which the service is created.
+          readOnly: true
+        service_name:
+          $ref: ./common.yaml#/components/schemas/Identifier
+          description: The name of the service.
+          readOnly: true
+        service_status:
+          type: string
+          description: The current status of the service.
+          readOnly: true
+        instance_id:
+          type: string
+          description: ID of the service instance (this is the index of the service
+            instance starting from 0).
+          readOnly: true
+        status:
+          type: string
+          description: The current status of the service instance.
+          readOnly: true
+        spec_digest:
+          type: string
+          description: The unique and immutable identifier that represents the service
+            specification content.
+          readOnly: true
+        creation_time:
+          type: string
+          description: The time when Snowflake started creating the service instance.
+          readOnly: true
+        start_time:
+          type: string
+          description: The time when Snowflake acknowledged the service instance is
+            running on a node.
+          readOnly: true
+      example:
+        database_name: testdb
+        schema_name: testschema
+        service_name: myservice
+        instance_id: '0'
+        status: PENDING
+        spec_digest: abcdefg
+        creation_time: 2023-01-01 00:00:00+00:00
+        start_time: 2023-01-01 00:00:00+00:00
+    ServiceRole:
+      type: object
+      properties:
+        created_on:
+          type: string
+          format: date-time
+          description: Date and time when the service role was created
+          readOnly: true
+        name:
+          type: string
+          description: Service role name
+          readOnly: true
+        comment:
+          type: string
+          description: Comment, if any, for the service role
+          readOnly: true
+      example:
+        created_on: 2023-01-01 00:00:00+00:00
+        name: testrole
+        comment: This is a service role.
+    GrantOf:
+      type: object
+      properties:
+        created_on:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date and time when the grant was created
+        role:
+          type: string
+          readOnly: true
+          description: The name of the service role
+        granted_to:
+          type: string
+          readOnly: true
+          description: The type of the grantee, can be USER or ROLE
+        grantee_name:
+          type: string
+          readOnly: true
+          description: The name of the grantee
+        granted_by:
+          type: string
+          readOnly: true
+          description: The name of role that granted the service role to the grantee
+      example:
+        created_on: 2023-01-01 00:00:00+00:00
+        role: db.schema.service.svc_role
+        granted_to: role
+        grantee_name: test_role
+        granted_by: sysadmin
+    ServiceRoleGrantTo:
+      type: object
+      properties:
+        created_on:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date and time when the grant was created
+        privilege:
+          type: string
+          readOnly: true
+          description: The name of the privilege
+        granted_on:
+          type: string
+          readOnly: true
+          description: The type of of the securable
+        name:
+          type: string
+          readOnly: true
+          description: The name of the securable
+        granted_to:
+          type: string
+          readOnly: true
+          description: The type of the grantee
+        grantee_name:
+          type: string
+          readOnly: true
+          description: The name of the grantee
+      example:
+        created_on: 2023-01-01 00:00:00+00:00
+        privilege: usage
+        granted_on: service_endpoint
+        name: db.schema.service!svc_role
+        granted_to: service role
+        grantee_name: all_endpoints_usage
+  securitySchemes:
+    KeyPair:
+      $ref: common.yaml#/components/securitySchemes/KeyPair
+    ExternalOAuth:
+      $ref: common.yaml#/components/securitySchemes/ExternalOAuth
+    SnowflakeOAuth:
+      $ref: common.yaml#/components/securitySchemes/SnowflakeOAuth
+security:
+- KeyPair: []
+- ExternalOAuth: []
+- SnowflakeOAuth: []

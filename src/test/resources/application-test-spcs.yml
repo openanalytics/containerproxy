@@ -1,0 +1,38 @@
+spring:
+  session:
+    store-type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
+proxy:
+  authentication: simple
+  heartbeat-timeout: -1
+  default-stop-proxy-on-logout: false
+  container-backend: spcs
+  spcs:
+    account-identifier: ${ITEST_SPCS_ACCOUNT_NAME}
+    username: ${ITEST_SPCS_USERNAME}
+    programmatic-access-token: ${ITEST_SPCS_PROGRAMMATIC_ACCESS_TOKEN}
+    database: ${ITEST_SPCS_DATABASE}
+    schema: ${ITEST_SPCS_SCHEMA}
+    compute-pool: ${ITEST_SPCS_COMPUTE_POOL}
+  users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
+  specs:
+    - id: 01_hello
+      container-specs:
+        - image: "/MYDB/images/shinyproxyimages/shinyproxy-integration-test-app:latest"
+          cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+          cpu-request: 1024
+          memory-request: 2048
+          port-mapping:
+            - name: default
+              port: 3838
+          labels:
+            valid-label: myvalue
+            invalid-label: "$@$#$@"
+            invalid-label2: "value-is-too-looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"

@@ -1,0 +1,9 @@
+{
+  "invokerPackage": "eu.openanalytics.containerproxy.backend.spcs.client",
+  "apiPackage": "eu.openanalytics.containerproxy.backend.spcs.client.api",
+  "modelPackage": "eu.openanalytics.containerproxy.backend.spcs.client.model",
+  "groupId": "eu.openanalytics",
+  "artifactId": "containerproxy-spcs-client",
+  "artifactVersion": "0.1.0",
+  "library": "webclient"
+}

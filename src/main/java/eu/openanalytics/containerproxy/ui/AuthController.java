@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.ui;
 
 import eu.openanalytics.containerproxy.api.BaseController;
+import eu.openanalytics.containerproxy.api.dto.ApiResponse;
 import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.OpenIDAuthenticationBackend;
 import eu.openanalytics.containerproxy.auth.impl.SAMLAuthenticationBackend;
@@ -30,16 +31,24 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.view.RedirectView;
 
 import javax.inject.Inject;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Controller
@@ -68,7 +77,7 @@ public class AuthController extends BaseController {
             if (error.get().equals("expired")) {
                 map.put("error", messageSource.getMessage("auth.simple.expired_error", null, locale));
             } else {
-                map.put("error",  messageSource.getMessage("auth.simple.credentials_error", null, locale));
+                map.put("error", messageSource.getMessage("auth.simple.credentials_error", null, locale));
             }
         }
 
@@ -117,6 +126,25 @@ public class AuthController extends BaseController {
     public String getLogoutSuccessPage(ModelMap map) {
         prepareMap(map);
         return "logout-success";
+    }
+
+
+    @ResponseBody
+    @GetMapping(value = "/user/me", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserMetadata() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isLoggedIn = authentication != null && !(authentication instanceof AnonymousAuthenticationToken) && authentication.isAuthenticated();
+        if (!isLoggedIn) {
+            return ApiResponse.success(
+                Map.of("authenticated", false)
+            );
+        }
+        return ApiResponse.success(
+            Map.of(
+                "authenticated", true,
+                "username", authentication.getName()
+            )
+        );
     }
 
 }

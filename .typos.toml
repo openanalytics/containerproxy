@@ -1,0 +1,2 @@
+[default]
+extend-ignore-re = ["<!-- spellchecker:ignore-next-line -->\\n.*"]

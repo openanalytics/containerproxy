@@ -213,6 +213,7 @@ public class WebSecurityConfig {
             .permitAll()
             .requestMatchers(
                 new MvcRequestMatcher(handlerMappingIntrospector, "/login"),
+                new MvcRequestMatcher(handlerMappingIntrospector, "/user/me"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/signin/**"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/auth-error"),
                 new MvcRequestMatcher(handlerMappingIntrospector, "/error"),

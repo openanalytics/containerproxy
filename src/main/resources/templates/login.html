@@ -39,17 +39,17 @@
     <body>
         <div class="container">
             <form class="form-signin" method="POST" th:action="@{/login}">
-                <h2 class="form-signin-heading">Please sign in:</h2>
+                <h2 class="form-signin-heading" th:text="#{auth.simple.header} + ':'"></h2>
                 <div class="alert alert-danger" th:if="${error}">
-                    <strong>Could not sign in!</strong><br/><span th:text="${error}"></span>.
+                    <strong th:text="#{auth.simple.sign-in-error}"></strong><br/><span th:text="${error}"></span>
                 </div>
-                <label class="sr-only" for="username">Email address</label>
-                <input autofocus="autofocus" class="form-control" id="username" name="username" placeholder="User name"
+                <label class="sr-only" for="username">Username</label>
+                <input autofocus="autofocus" class="form-control" id="username" name="username" th:placeholder="#{auth.simple.username}"
                        required="required">
                 <label class="sr-only" for="password">Password</label>
-                <input class="form-control" id="password" name="password" placeholder="Password" required="required"
+                <input class="form-control" id="password" name="password" th:placeholder="#{auth.simple.password}" required="required"
                        type="password">
-                <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+                <button class="btn btn-lg btn-primary btn-block" type="submit" th:text="#{auth.simple.button}"></button>
             </form>
         </div>
     </body>

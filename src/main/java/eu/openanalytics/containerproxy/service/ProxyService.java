@@ -37,6 +37,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.LanguageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
@@ -49,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.security.access.AccessDeniedException;
@@ -318,6 +320,7 @@ public class ProxyService {
             if (runtimeValues != null) {
                 proxyBuilder.addRuntimeValues(runtimeValues);
             }
+            proxyBuilder.addRuntimeValue(new RuntimeValue(LanguageKey.inst, LocaleContextHolder.getLocale().getLanguage()), true);
 
             Proxy currentProxy = runtimeValueService.processParameters(user, spec, parameters, proxyBuilder.build());
             proxyStore.addProxy(currentProxy);

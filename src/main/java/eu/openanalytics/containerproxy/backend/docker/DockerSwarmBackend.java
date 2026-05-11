@@ -32,6 +32,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContai
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.BackendContainerNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.NodeNameKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValue;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.RuntimeValueKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
@@ -220,6 +221,7 @@ public class DockerSwarmBackend extends AbstractDockerBackend {
                     .stream().findAny().orElseThrow(() -> new IllegalStateException("Swarm service has no tasks"));
                 if (serviceTask.status().containerStatus() != null && serviceTask.status().state().equals("running")) {
                     rContainerBuilder.id(serviceTask.status().containerStatus().containerId());
+                    rContainerBuilder.addRuntimeValue(new RuntimeValue(NodeNameKey.inst, serviceTask.nodeId()), false);
                     return Retrying.SUCCESS;
                 } else if (!STARTING_STATES.contains(serviceTask.status().state())) {
                     slog.warn(proxy, "Docker Swarm container failed: container not running, state reported by docker: " + toJson(serviceTask.status()));

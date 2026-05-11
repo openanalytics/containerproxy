@@ -38,3 +38,4 @@ repos:
   rev: v1.35.8
   hooks:
     - id: typos
+      exclude: 'src/main/resources/cp_messages_.*'

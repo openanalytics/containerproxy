@@ -63,6 +63,8 @@ import org.springframework.session.Session;
 import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.filter.FormContentFilter;
+import org.springframework.web.servlet.LocaleResolver;
+import org.springframework.web.servlet.i18n.CookieLocaleResolver;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -99,6 +101,8 @@ public class ContainerProxyApplication {
     private static final String SAME_SITE_COOKIE_DEFAULT_VALUE = "Lax";
     private static final String PROP_SERVER_SECURE_COOKIES = "server.secure-cookies";
     private static final Boolean SECURE_COOKIES_DEFAULT_VALUE = false;
+    private static final String PROP_FORCE_HTTPS_IN_REDIRECTS = "proxy.force-https-in-redirects";
+    private static final Boolean FORCE_HTTPS_IN_REDIRECTS_DEFAULT_VALUE = false;
     private static final Path TERMINATION_LOG_FILE = Path.of("/dev/termination-log");
     private static Boolean logAsJson = false;
     public static Boolean secureCookiesEnabled;
@@ -333,6 +337,15 @@ public class ContainerProxyApplication {
                 info.setSessionManagerFactory(sessionManagerFactory);
             }
             info.setResourceManager(EMPTY_RESOURCE_MANAGER);
+            if (environment.getProperty(PROP_FORCE_HTTPS_IN_REDIRECTS, Boolean.class, FORCE_HTTPS_IN_REDIRECTS_DEFAULT_VALUE)) {
+                log.debug("Enforcing redirects to always use https.");
+                info.addInitialHandlerChainWrapper(handler ->
+                    exchange -> {
+                        exchange.setRequestScheme("https");
+                        handler.handleRequest(exchange);
+                    }
+                );
+            }
         });
         try {
             factory.setAddress(InetAddress.getByName(environment.getProperty("proxy.bind-address", "0.0.0.0")));
@@ -418,6 +431,16 @@ public class ContainerProxyApplication {
                     });
             })
             .build();
+    }
+
+    @Bean
+    public LocaleResolver localeResolver() {
+        // no default language is configured, therefore the Accept header will determine the language if there is no cookie
+        CookieLocaleResolver cookieLocaleResolver = new CookieLocaleResolver("shinyproxy_language");
+        cookieLocaleResolver.setCookieSecure(secureCookiesEnabled);
+        cookieLocaleResolver.setCookieSameSite(sameSiteCookiePolicy);
+        cookieLocaleResolver.setCookieHttpOnly(true);
+        return cookieLocaleResolver;
     }
 
 }

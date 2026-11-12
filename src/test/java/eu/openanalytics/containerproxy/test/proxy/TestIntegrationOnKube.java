@@ -193,6 +193,7 @@ public class TestIntegrationOnKube {
             Assertions.assertTrue(env.containsKey("VAR3"));
             Assertions.assertEquals("VALUE3", env.get("VAR3").getValue());
             Assertions.assertEquals("/api/route/" + proxy.getId() + "/", env.get("SHINYPROXY_PUBLIC_PATH").getValue());
+            Assertions.assertEquals("simple", env.get("SHINYPROXY_AUTH_BACKEND").getValue());
 
             inst.proxyService.stopProxy(null, proxy, true).run();
 

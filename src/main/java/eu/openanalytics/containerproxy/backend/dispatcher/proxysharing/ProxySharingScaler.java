@@ -21,6 +21,7 @@
 package eu.openanalytics.containerproxy.backend.dispatcher.proxysharing;
 
 import eu.openanalytics.containerproxy.ProxyFailedToStartException;
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.IContainerBackend;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxy;
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.DelegateProxyStatus;
@@ -39,6 +40,7 @@ import eu.openanalytics.containerproxy.model.runtime.Proxy;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStartupLog;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStatus;
 import eu.openanalytics.containerproxy.model.runtime.ProxyStopReason;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.AuthBackendKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CreatedTimestampKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.InstanceIdKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ProxyIdKey;
@@ -125,6 +127,9 @@ public class ProxySharingScaler implements AutoCloseable {
     private ApplicationEventPublisher applicationEventPublisher;
     @Inject
     private Environment environment;
+    @Inject
+    @Lazy
+    private IAuthenticationBackend authBackend;
     @Autowired(required = false)
     private ProxySharingMicrometer proxySharingMicrometer = null;
 
@@ -398,6 +403,7 @@ public class ProxySharingScaler implements AutoCloseable {
                 if (identifierService.realmId != null) {
                     proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
                 }
+                proxyBuilder.addRuntimeValue(new RuntimeValue(AuthBackendKey.inst, authBackend.getName()), false);
                 proxyBuilder.addRuntimeValue(new RuntimeValue(ProxySpecIdKey.inst, proxySpec.getId()), false);
 
                 proxy = proxyBuilder.build();

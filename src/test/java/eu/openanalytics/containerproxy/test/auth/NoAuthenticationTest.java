@@ -20,14 +20,25 @@
  */
 package eu.openanalytics.containerproxy.test.auth;
 
+import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.AuthBackendKey;
+import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
 import eu.openanalytics.containerproxy.test.helpers.ShinyProxyInstance;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mandas.docker.client.DefaultDockerClient;
+import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class NoAuthenticationTest {
 
@@ -48,6 +59,26 @@ public class NoAuthenticationTest {
             try (Response response = client.newCall(request).execute()) {
                 Assertions.assertEquals(200, response.code());
                 Assertions.assertFalse(response.isRedirect());
+            }
+        }
+    }
+
+    @Test
+    public void authBackendIsExposedToApp() throws Exception {
+        try (ContainerSetup containerSetup = new ContainerSetup("docker")) {
+            try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-no-auth.yml");
+                 DefaultDockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build()) {
+                String userId = UUID.randomUUID().toString();
+                Authentication auth = new AnonymousAuthenticationToken("key", userId, List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+                String proxyId = UUID.randomUUID().toString();
+                inst.proxyService.startProxy(auth, inst.specProvider.getSpec("01_hello"), null, proxyId, Map.of()).run();
+                Proxy proxy = inst.proxyService.getProxy(proxyId);
+
+                Assertions.assertEquals("none", proxy.getRuntimeValue(AuthBackendKey.inst));
+                List<String> env = dockerClient.inspectContainer(proxy.getContainers().getFirst().getId()).config().env();
+                Assertions.assertTrue(env.contains("SHINYPROXY_AUTH_BACKEND=none"));
+
+                inst.proxyService.stopProxy(null, proxy, true).run();
             }
         }
     }

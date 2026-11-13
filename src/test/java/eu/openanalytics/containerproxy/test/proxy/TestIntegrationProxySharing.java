@@ -30,6 +30,7 @@ import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.Del
 import eu.openanalytics.containerproxy.backend.dispatcher.proxysharing.store.ISeatStore;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.AuthBackendKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.PublicPathKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.TargetIdKey;
 import eu.openanalytics.containerproxy.test.helpers.ContainerSetup;
@@ -260,6 +261,27 @@ public class TestIntegrationProxySharing {
                 Assertions.assertNotEquals(newDelegateProxy.getProxy().getId(), delegateProxy.getProxy().getId());
                 Assertions.assertNotEquals(newDelegateProxy.getProxy().getTargetId(), delegateProxy.getProxy().getTargetId());
                 Assertions.assertEquals(1, newDelegateProxy.getSeatIds().size());
+            }
+        }
+    }
+
+    @Test
+    public void testAuthBackendOnDelegateProxy() throws DockerCertificateException, DockerException, InterruptedException {
+        DockerClient dockerClient = new JerseyDockerClientBuilder().fromEnv().build();
+        try (ContainerSetup containerSetup = new ContainerSetup("docker")) {
+            try (ShinyProxyInstance inst = new ShinyProxyInstance("application-test-pre-initialization-1.yml", Map.of("proxy.container-backend", "docker"), true)) {
+                inst.enableCleanup();
+                String id = inst.client.startProxy("myApp");
+                Proxy proxy = inst.proxyService.getProxy(id);
+
+                // the DelegateProxy is created before any user claims it, so the value must be set by the scaler
+                TestProxySharingScaler proxySharingScaler = inst.getBean("proxySharingScaler_myApp", TestProxySharingScaler.class);
+                DelegateProxy delegateProxy = proxySharingScaler.getDelegateProxyStore().getDelegateProxy(proxy.getTargetId());
+                Assertions.assertEquals("simple", delegateProxy.getProxy().getRuntimeValue(AuthBackendKey.inst));
+
+                Container container = delegateProxy.getProxy().getContainer(0);
+                List<String> env = dockerClient.inspectContainer(container.getId()).config().env();
+                Assertions.assertTrue(env.contains("SHINYPROXY_AUTH_BACKEND=simple"));
             }
         }
     }

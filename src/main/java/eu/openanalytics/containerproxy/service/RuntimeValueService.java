@@ -20,12 +20,14 @@
  */
 package eu.openanalytics.containerproxy.service;
 
+import eu.openanalytics.containerproxy.auth.IAuthenticationBackend;
 import eu.openanalytics.containerproxy.backend.AbstractContainerBackend;
 import eu.openanalytics.containerproxy.model.runtime.Container;
 import eu.openanalytics.containerproxy.model.runtime.ParameterNames;
 import eu.openanalytics.containerproxy.model.runtime.ParameterValues;
 import eu.openanalytics.containerproxy.model.runtime.PortMappings;
 import eu.openanalytics.containerproxy.model.runtime.Proxy;
+import eu.openanalytics.containerproxy.model.runtime.runtimevalues.AuthBackendKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersMode;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.CacheHeadersModeKey;
 import eu.openanalytics.containerproxy.model.runtime.runtimevalues.ContainerImageKey;
@@ -50,6 +52,7 @@ import eu.openanalytics.containerproxy.model.runtime.runtimevalues.UserIdKey;
 import eu.openanalytics.containerproxy.model.spec.ContainerSpec;
 import eu.openanalytics.containerproxy.model.spec.PortMapping;
 import eu.openanalytics.containerproxy.model.spec.ProxySpec;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.security.core.Authentication;
@@ -84,6 +87,10 @@ public class RuntimeValueService {
     private ParametersService parametersService;
     @Inject
     private Environment environment;
+    @Inject
+    @Lazy
+    // Note: lazy needed to work around early initialization conflict
+    private IAuthenticationBackend authBackend;
 
     @PostConstruct
     public void init() {
@@ -108,6 +115,7 @@ public class RuntimeValueService {
             proxyBuilder.addRuntimeValue(new RuntimeValue(RealmIdKey.inst, identifierService.realmId), false);
         }
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserIdKey.inst, proxy.getUserId()), false);
+        proxyBuilder.addRuntimeValue(new RuntimeValue(AuthBackendKey.inst, authBackend.getName()), false);
         List<String> groups = UserService.getGroups(user);
         proxyBuilder.addRuntimeValue(new RuntimeValue(UserGroupsKey.inst, String.join(",", groups)), true);
         proxyBuilder.addRuntimeValue(new RuntimeValue(CreatedTimestampKey.inst, Long.toString(proxy.getCreatedTimestamp())), false);
